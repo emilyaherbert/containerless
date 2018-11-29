@@ -1,0 +1,7 @@
+[package]
+name = "decontainerization"
+version = "0.1.0"
+authors = ["Arjun Guha <arjun@cs.umass.edu>"]
+
+[dependencies]
+im = "12.2.0"
