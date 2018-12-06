@@ -1,0 +1,17 @@
+[package]
+name = "simple-http-endpoint"
+version = "0.1.0"
+autobins = false
+
+[dependencies]
+lambda_runtime = "^0.1"
+serde = "^1"
+serde_json = "^1"
+serde_derive = "^1"
+log = "^0.4"
+simple_logger = "^1"
+chrono = "^0.4"
+
+[[bin]]
+name = "bootstrap"
+path = "src/main.rs"
