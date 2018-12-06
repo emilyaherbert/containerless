@@ -21,7 +21,18 @@ Each directory is a different AWS lambda function.
        `ln -s /usr/local/bin/x86_64-linux-musl-gcc /usr/local/bin/musl-gcc`
   4. Everything should be all set, just run the bash script by doing:\
      `./build.sh`
-  5. You can deploy it by following the Deploying the Function on AWS Lambda section in  [Rust Runtime for AWS Lambda](https://aws.amazon.com/blogs/opensource/rust-runtime-for-aws-lambda/)
+  5. A zip file should be created for deployment.
+     * You can deploy it by following the Deploying the Function on AWS Lambda section in  [Rust Runtime for AWS Lambda](https://aws.amazon.com/blogs/opensource/rust-runtime-for-aws-lambda/)
+     * To deploy it with AWS CLI, follow [AWS Lambda Doc](https://docs.aws.amazon.com/lambda/latest/dg/setup.html) to setup AWS CLI. Then create a role with sufficient priviledges. Finally, run:\
+     ```
+     aws lambda create-function --function-name rustTest \
+     --handler doesnt.matter \
+     --zip-file file://./lambda.zip \
+     --runtime provided \
+     --role arn:aws:iam::XXXXXXXXXXXXX:role/your_lambda_execution_role \
+     --environment Variables={RUST_BACKTRACE=1} \
+     --tracing-config Mode=Active
+     ```
 
 ## Functions list
 Original node functions
