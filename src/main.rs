@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 type Env = Rc<HashMap<String, Rc<Val>>>;
 
-#[derive(Clone)] 
+#[derive(Clone, Debug, PartialEq)] 
 enum Expr {
     Bool(bool),
     Id(String),
@@ -14,7 +14,7 @@ enum Expr {
     If(Box<Expr>, Box<Expr>, Box<Expr>)
 }
 
-#[derive(Clone)] 
+#[derive(Clone, Debug, PartialEq)] 
 enum Val {
     Bool(bool),
     Clos(Env, String, Box<Expr>)
@@ -47,6 +47,36 @@ fn eval(env : Env, expr: &Expr) -> Rc<Val> {
                 _ => panic!("no bool")
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use im::HashMap;
+    use std::rc::Rc;
+
+    #[test]
+    fn eval_bool() {
+        let env: Env = Rc::new(HashMap::new());
+        let exp: Expr = Expr::Bool(true);
+        let val: Rc<Val> = eval(env.clone(), &exp);
+        println!("{:?} evaluates to {:?}", exp, val);
+        assert_eq!(val, Rc::new(Val::Bool(true)));
+    }
+
+    #[test]
+    fn eval_if() {
+        let mut env_0: HashMap<String, Rc<Val>> = HashMap::new();
+        env_0.insert(String::from("x"),
+                     Rc::new(Val::Bool(false)));
+        let env: Env = Rc::new(env_0);
+        let exp: Expr = Expr::If(Box::new(Expr::Id(String::from("x"))),
+                                 Box::new(Expr::Bool(false)),
+                                 Box::new(Expr::Bool(true)));
+        let val: Rc<Val> = eval(env.clone(), &exp);
+        println!("{:?} evaluates to {:?}", exp, val);
+        assert_eq!(val, Rc::new(Val::Bool(true)));
     }
 }
 
