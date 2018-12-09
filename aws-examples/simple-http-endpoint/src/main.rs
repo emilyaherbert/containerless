@@ -1,5 +1,4 @@
 extern crate lambda_runtime as lambda;
-extern crate log;
 extern crate serde_derive;
 extern crate chrono;
 
