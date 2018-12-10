@@ -1,0 +1,12 @@
+[package]
+name = "dynamic-html"
+version = "0.1.0"
+
+[dependencies]
+aws_lambda = { git = "https://github.com/srijs/rust-aws-lambda" }
+url = "^1.7"
+
+
+[[bin]]
+name = "bootstrap"
+path = "src/main.rs"
