@@ -2,7 +2,6 @@ extern crate im;
 
 use im::HashMap;
 use std::rc::Rc;
-use std::ops::Deref;
 
 type Env = Rc<HashMap<String, Rc<Val>>>;
 
@@ -27,7 +26,7 @@ fn eval(env : Env, expr: &Expr) -> Rc<Val> {
         Expr::Id(x) => env.get(x).unwrap().clone(),
         Expr::App(e1, e2) => {
             let env_copy = env.clone();
-            match eval(env, &*e1).deref() {
+            match &*eval(env, &*e1) {
                 Val::Clos(env2, x, body) => {
                     let v2 = eval(env_copy, &*e2);
                     let env2_copy = env2.clone();
