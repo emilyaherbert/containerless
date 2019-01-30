@@ -1,0 +1,9 @@
+{
+    "include": [ "ts" ],
+    "exclude": [ "dist" ],
+    "compilerOptions": {
+        "outDir": "dist",
+        "strict": true,
+        "lib": [ "es2017" ]
+    }
+}
