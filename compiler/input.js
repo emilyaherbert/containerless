@@ -1,12 +1,9 @@
+const $T = require('./dist/runtime');
+
+let $x = $T.bind($T.add($T.num(1), $T.num(3)));
 let x = 1 + 3;
 
-function F() {
-    if (x > 2) {
-        let y = 20 * x;
-    }
-    else {
-        let z = 5 * x;
-    }
-}
+let $y = $T.bind($T.lt($x, $T.str('two')));
+let y = x < 'two';
 
-F();
+$T.log();

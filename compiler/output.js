@@ -52,7 +52,8 @@ function F() {
         let z = 5 * x;
 
     }
+    // Reset current
 }
 
-F()
+F(900)
 console.log(ast);
