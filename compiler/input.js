@@ -1,9 +1,19 @@
 const $T = require('./dist/runtime');
 
-let $x = $T.bind($T.add($T.num(1), $T.num(3)));
-let x = 1 + 3;
 
-let $y = $T.bind($T.lt($x, $T.str('two')));
-let y = x < 'two';
+function F(x) {
+    let $x = $T.input();
+    $T.if_($T.lt($x, $T.num(20)));
+    if (x < 20) {
+        $T.enterIf(true);
+        let $y = $T.bind($T.lt($x, $T.num(2)));
+        let y = x < 2;
+    } else {
+        $T.enterIf(false);
+    }
+    $T.exitIf();
+}
+
+F(100);
 
 $T.log();
