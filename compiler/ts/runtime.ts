@@ -81,25 +81,35 @@ function getTyp(e: Exp): Typ {
     }
 }
 
-export function lt(e1: Exp, e2: Exp): Exp {
-    if (getTyp(e1).kind === 'number' &&
-        getTyp(e2).kind === 'number') {
-        return { kind: 'binop', op: '<', e1, e2 };
-    }
-    else {
-        throw 'Not implemented';
+function genericBinOp(opStr: string, type: string): (e1: Exp, e2: Exp) => Exp {
+    return function(e1: Exp, e2: Exp): Exp {
+        if (getTyp(e1).kind === type &&
+            getTyp(e2).kind === type) {
+            return { kind: 'binop', op: opStr, e1, e2 };
+        } else {
+            throw 'Not implemented';
+        }
     }
 }
 
-export function add(e1: Exp, e2: Exp): Exp {
-    if (getTyp(e1).kind === 'number' &&
-        getTyp(e2).kind === 'number') {
-        return { kind: 'binop', op: '+num', e1, e2 };
-    }
-    else {
-        throw 'Not implemented';
-    }
-}
+export const lt = genericBinOp('<', 'number');
+export const gt = genericBinOp('>', 'number');
+export const leq = genericBinOp('<=', 'number');
+export const geq = genericBinOp('>=', 'number');
+export const add = genericBinOp('+num', 'number');
+export const sub = genericBinOp('-', 'number');
+export const div = genericBinOp('/', 'number');
+export const mul = genericBinOp('*', 'number');
+export const remainder = genericBinOp('%', 'number');
+export const pow = genericBinOp('**', 'number');
+export const lshift = genericBinOp('<<', 'number');
+export const rshift = genericBinOp('>>', 'number');
+export const unsignedrshift = genericBinOp('>>>', 'number');
+export const bitand = genericBinOp('&', 'number');
+export const bitor = genericBinOp('|', 'number');
+export const bitxor = genericBinOp('^', 'number');
+export const and = genericBinOp('&&', 'boolean');
+export const or = genericBinOp('||', 'boolean');
 
 export function num(n: number): Exp {
     return { kind: 'number', value: n };
