@@ -1,27 +1,4 @@
-
-type Name = number;
-
-export type Id = { kind: 'identifier', name: Name, type: Typ };
-
-export type Typ =
-    { kind: 'number' } |
-    { kind: 'string' } |
-    { kind: 'boolean' } |
-    { kind: 'undefined' };
-
-export type Exp =
-    { kind: 'number', value: number } |
-    { kind: 'string', value: string } |
-    { kind: 'boolean', value: boolean } |
-    Id |
-    { kind: 'input' } |
-    { kind: 'binop', op: string, e1: Exp, e2: Exp };
-
-export type Stmt =
-    { kind: 'let', name: Name, e: Exp } |
-    { kind: 'if', test: Exp, then: Stmt, else: Stmt } |
-    { kind: 'unknown' } |
-    { kind: 'block', body: Stmt[] };
+import { Name, Id, Typ, Exp, Stmt } from "../ts/types";
 
 let program : Stmt[] = [];
 let stack: Stmt[][] = [];
@@ -37,6 +14,12 @@ export function bind(e: Exp): Id {
 
 export function input(): Exp {
     return { kind: 'input' };
+}
+
+export function return_(value: Exp) {
+  current.push({
+    kind: 'return',
+    value: value });
 }
 
 export function if_(test: Exp) {
@@ -126,7 +109,22 @@ export function str(s: string): Exp {
     return { kind: 'string', value: s };
 }
 
+export function bool(b: boolean): Exp {
+  return { kind: 'boolean', value: b };
+}
+
 export function log() {
     console.log(JSON.stringify(program, null, 2));
+}
 
+// TODO: Used for testing, replace with something more elegant.
+// i.e. https://github.com/plasma-umass/ElementaryJS/blob/master/ts/runtime.ts#L316
+export function clear() {
+  program = [];
+  stack = [];
+  current = program;
+}
+
+export function program_() {
+  return program;
 }

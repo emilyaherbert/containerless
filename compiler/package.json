@@ -16,7 +16,8 @@
   },
   "scripts": {
     "build": "./node_modules/.bin/tsc",
-    "run": "node ./dist/index.js"
+    "run": "node ./dist/index.js",
+    "test": "jest"
   },
   "jest": {
     "transform": {
