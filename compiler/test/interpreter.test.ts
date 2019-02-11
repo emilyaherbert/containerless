@@ -5,171 +5,118 @@ test('boolean', () => {
   $T.clear();
 
   let code = `
-  function F() {
-    $T.return_($T.bool(true));
-    return true;
-  }
-  F
+  $T.return_($T.bool(true));
   `
 
-  let f = eval(code);
-  let output = true;
-  expect(f()).toEqual(output);
-
-  let output_ = $T.bool(output);
-  let input_ = $T.num(-1);
-  expect($I.evaluate($T.program_(), input_)).toEqual(output_);
-
-  /*
-
-  expect(received).toBe(expected) // Object.is equality
-
-  Expected: {"kind": "boolean", "value": true}
-  Received: {"kind": "boolean", "value": true}
-
-  Difference:
-
-  Compared values have no visual difference. Note that you are testing for equality with the stricter `toBe` matcher using `Object.is`. For deep equality only, use `toEqual` instead.
-
-  */
+  eval(code);
+  let input = $T.num(-1);
+  let output = $T.bool(true);
+  let result = $I.evaluate($T.program_(), input);
+  
+  expect(result).toEqual(output);
 })
 
 test('boolean 2', () => {
   $T.clear();
 
   let code = `
-  function F() {
-    $T.return_($T.bool(false));
-    return false;
-  }
-  F
+  $T.return_($T.bool(false));
   `
 
-  let f = eval(code)
-  let output = false;
-  expect(f()).toEqual(output);
-
-  let output_ = $T.bool(output);
-  let input_ = $T.num(-1);
-  expect($I.evaluate($T.program_(), input_)).toEqual(output_);
+  eval(code);
+  let input = $T.num(-1);
+  let output = $T.bool(false);
+  let result = $I.evaluate($T.program_(), input);
+  
+  expect(result).toEqual(output);
 })
 
 test('number', () => {
   $T.clear();
 
   let code = `
-  function F() {
-    $T.return_($T.num(36));
-    return 36;
-  }
-  F
+  $T.return_($T.num(36));
   `
 
-  let f = eval(code)
-  let output = 36;
-  expect(f()).toEqual(output);
-
-  let output_ = $T.num(output);
-  let input_ = $T.num(-1);
-  expect($I.evaluate($T.program_(), input_)).toEqual(output_);
+  eval(code);
+  let input = $T.num(-1);
+  let output = $T.num(36);
+  let result = $I.evaluate($T.program_(), input);
+  
+  expect(result).toEqual(output);
 })
 
 test('number 2', () => {
   $T.clear();
 
   let code = `
-  function F() {
-    $T.return_($T.num(-36));
-    return -36;
-  }
-  F
+  $T.return_($T.num(-36));
   `
 
-  let f = eval(code)
-  let output = -36;
-  expect(f()).toEqual(output);
-
-  let output_ = $T.num(output);
-  let input_ = $T.num(-1);
-  expect($I.evaluate($T.program_(), input_)).toEqual(output_);
+  eval(code);
+  let input = $T.num(-1);
+  let output = $T.num(-36);
+  let result = $I.evaluate($T.program_(), input);
+  
+  expect(result).toEqual(output);
 })
 
 test('string', () => {
   $T.clear();
 
   let code = `
-  function F() {
-    $T.return_($T.str('foo'));
-    return 'foo';
-  }
-  F
+  $T.return_($T.str('foo'));
   `
 
-  let f = eval(code)
-  let output = 'foo';
-  expect(f()).toEqual(output);
-
-  let output_ = $T.str(output);
-  let input_ = $T.num(-1);
-  expect($I.evaluate($T.program_(), input_)).toEqual(output_);
+  eval(code);
+  let input = $T.num(-1);
+  let output = $T.str('foo');
+  let result = $I.evaluate($T.program_(), input);
+  
+  expect(result).toEqual(output);
 })
 
 test('string 2', () => {
   $T.clear();
 
   let code = `
-  function F() {
-    $T.return_($T.str('bar'));
-    return 'bar';
-  }
-  F
+  $T.return_($T.str('bar'));
   `
 
-  let f = eval(code)
-  let output = 'bar';
-  expect(f()).toEqual(output);
-
-  let output_ = $T.str(output);
-  let input_ = $T.num(-1);
-  expect($I.evaluate($T.program_(), input_)).toEqual(output_);
+  eval(code);
+  let input = $T.num(-1);
+  let output = $T.str('bar');
+  let result = $I.evaluate($T.program_(), input);
+  
+  expect(result).toEqual(output);
 })
 
 test('binop', () => {
   $T.clear();
 
   let code = `
-  function F() {
-    $T.return_($T.lt($T.num(19), $T.num(20)));
-    return 19 < 20;
-  }
-  F
+  $T.return_($T.lt($T.num(19), $T.num(20)));
   `
 
-  let f = eval(code)
-  let output = true;
-  expect(f()).toEqual(output);
-
-  let output_ = $T.bool(output);
-  let input_ = $T.num(-1);
-  expect($I.evaluate($T.program_(), input_)).toEqual(output_);
+  eval(code);
+  let input = $T.num(-1);
+  let output = $T.bool(true);
+  let result = $I.evaluate($T.program_(), input);
+  
+  expect(result).toEqual(output);
 })
 
 test('binop 2', () => {
   $T.clear();
 
   let code = `
-  function F() {
-    $T.return_($T.lt($T.num(21), $T.num(20)));
-    return 21 < 20;
-  }
-  F
+  $T.return_($T.lt($T.num(21), $T.num(20)));
   `
 
-  let f = eval(code)
-  let output = false;
-  expect(f()).toEqual(output);
-
-  let output_ = $T.bool(output);
-  let input_ = $T.num(-1);
-  expect($I.evaluate($T.program_(), input_)).toEqual(output_);
+  eval(code);
+  let input = $T.num(-1);
+  let output = $T.bool(false);
+  let result = $I.evaluate($T.program_(), input);
+  
+  expect(result).toEqual(output);
 })
