@@ -12,7 +12,7 @@ test('boolean', () => {
   F
   `
 
-  let f = eval(code)
+  let f = eval(code);
   let output = true;
   expect(f()).toEqual(output);
 
