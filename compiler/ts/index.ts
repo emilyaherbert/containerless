@@ -2,7 +2,7 @@ import * as babel from '@babel/core';
 import * as fs from 'fs';
 import * as t from '@babel/types';
 import * as traverse from '@babel/traverse';
-import template from '@babel/template';
+import * as template from '@babel/template';
 
 const code = fs.readFileSync('input.js', { encoding: 'utf-8' });
 const ast = babel.parseSync(code);
@@ -14,43 +14,57 @@ if (!t.isFile(ast)) {
     throw 'something wrong';
 }
 
-const buildBinding = template(`
+const buildBinding = template.statement(`
     let VARIABLE_NAME = $T.bind(EXPRESSION);
 `);
 
-const visitor: traverse.Visitor = {
+
+type S = {
+    names: Map<string, string>
+};
+
+const visitor: traverse.Visitor<S> = {
     Program: {
-        exit(path: traverse.NodePath<t.Program>) {
-            if (path.node.body.length !== 0) {
-                // possibly safer? needs to be tracked of / stored somewhere?
-                // const newId = path.scope.generateUidIdentifier('$T');
-                const id = t.identifier('$T');
+        enter(path, st: S) {
+            st.names = new Map();
+        },
+        exit(path: traverse.NodePath<t.Program>, st) {
+            const id = t.identifier('$T'); // TODO(arjun): capture
 
-                let buildRequireStmt = template(`let VARIABLE = require('./dist/runtime');`);
-                let requireStmt = buildRequireStmt({
-                    VARIABLE: id
-                });
-
-                // typescript giving a lot of errors here...
-                // path.get('body').unshiftContainer('body', requireStmt);
-                // path.node.body.unshiftContainer('body', requireStmt);
-                (<traverse.NodePath>path.get('body.0')).insertBefore(requireStmt);
-            }
+            let buildRequireStmt = template.statement(`let VARIABLE = require('./dist/runtime');`);
+            let requireStmt = buildRequireStmt({
+                VARIABLE: id
+            });
+            path.node.body.unshift(requireStmt);
         }
     },
     FunctionDeclaration: {
-        exit(path: traverse.NodePath<t.FunctionDeclaration>) {
-            if (path.node.body.body.length !== 0) {
-                const firstStmt = (<traverse.NodePath>path.get('body.body.0'));
-                for (let i = 0; i < path.node.params.length; ++i) {
-                    const param = path.node.params[i];
-                    const newParam = path.scope.generateUidIdentifierBasedOnNode(param);
-                    let buildInputDeclaration = template(`let VARIABLE = $T.input();`);
-                    let inputDeclaration = buildInputDeclaration({
-                        VARIABLE: newParam
-                    });
-                    firstStmt.insertBefore(inputDeclaration);
+        enter(path: traverse.NodePath<t.FunctionDeclaration>, st) {
+            const body = path.node.body.body;
+            for (let i = 0; i < path.node.params.length; ++i) {
+                const param = path.node.params[i];
+                if (param.type !== 'Identifier') {
+                    throw new Error('only identifier params supported');
                 }
+                const newParam = path.scope.generateUidIdentifierBasedOnNode(param);
+                st.names.set(param.name, newParam.name);
+            }
+        },
+        exit(path: traverse.NodePath<t.FunctionDeclaration>, st) {
+            const body = path.node.body.body;
+            for (let i = 0; i < path.node.params.length; ++i) {
+                const param = path.node.params[i];
+                if (param.type !== 'Identifier') {
+                    throw new Error('only identifier params supported');
+                }
+                const newParam = st.names.get(param.name);
+                let buildInputDeclaration = template.statement(
+                    `let VARIABLE = $T.input();`,
+                    { placeholderPattern: /VARIABLE/ }); // avoid $T being captured by
+                let inputDeclaration = buildInputDeclaration({
+                    VARIABLE: newParam
+                });
+                body.unshift(inputDeclaration);
             }
         }
     }
