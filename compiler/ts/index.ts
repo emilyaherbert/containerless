@@ -58,17 +58,90 @@ const visitor: traverse.Visitor<S> = {
                     throw new Error('only identifier params supported');
                 }
                 const newParam = st.names.get(param.name);
-                let buildInputDeclaration = template.statement(
+                const buildInputDeclaration = template.statement(
                     `let VARIABLE = $T.input();`,
-                    { placeholderPattern: /VARIABLE/ }); // avoid $T being captured by
-                let inputDeclaration = buildInputDeclaration({
+                    { placeholderPattern: /VARIABLE/ }); // avoid $T being captured
+                const inputDeclaration = buildInputDeclaration({
                     VARIABLE: newParam
                 });
                 body.unshift(inputDeclaration);
             }
         }
+    },
+    // TODO(Chriscbr): Recursing causes traversal to go on forever...
+    // VariableDeclaration: {
+    //     exit(path: traverse.NodePath<t.VariableDeclaration>, st) {
+    //         console.log(path.node);
+    //         const declarations = path.node.declarations;
+    //         for (let i = 0; i < declarations.length; ++i) {
+    //             const id = declarations[i].id;
+    //             const expr = declarations[i].init;
+    //             const buildVarDeclaration = template.statement(
+    //                 `let VARIABLE = $T.bind(EXPRESSION);`,
+    //                 { placeholderPattern: /(VARIABLE)|(EXPRESSION)/ });
+    //             const varDeclaration = buildVarDeclaration({
+    //                 VARIABLE: id,
+    //                 EXPRESSION: expr
+    //             });
+    //             path.insertBefore(varDeclaration);
+    //             // path.skip(); // doesn't help
+    //         }
+    //     }
+    // },
+    ReturnStatement: {
+        exit(path: traverse.NodePath<t.ReturnStatement>, st) {
+            let innerExpr = path.node.argument;
+            const buildReturnStatement = template.statement(
+                `$T.return_(EXPRESSION);`,
+                { placeholderPattern: /EXPRESSION/ });
+            const returnStatement = buildReturnStatement(
+                {EXPRESSION: innerExpr});
+            path.insertBefore(returnStatement);
+            path.getSibling(path.key as number - 1).traverse(exprVisitor, st);
+        }
     }
 };
+
+const exprVisitor: traverse.Visitor<S> = {
+    // TODO(Chriscbr): This recurses indefinitely...
+    // NumericLiteral: {
+    //     exit(path: traverse.NodePath<t.NumericLiteral>, st) {
+    //         const buildLiteral = template.expression(
+    //             `$T.num(VALUE)`,
+    //             { placeholderPattern: /VALUE/ });
+    //         const literal = buildLiteral({ VALUE: t.numericLiteral(path.node.value) });
+    //         path.replaceWith(literal);
+    //     }
+    // },
+    Identifier: {
+        exit(path: traverse.NodePath<t.Identifier>, st) {
+            const currName = path.node.name;
+            if (st.names.has(currName)) {
+                path.node.name = st.names.get(currName)!;
+            } else {
+                // TODO(Chriscbr): throw an error if an identifier is used in an expression
+                // that hasn't already been declared (or imported) somewhere?
+            }
+        }
+    },
+    BinaryExpression: {
+        exit(path: traverse.NodePath<t.BinaryExpression>, st) {
+            const leftExpr = path.node.left;
+            const rightExpr = path.node.right;
+            const op = path.node.operator;
+            if (op === '+') {
+                const buildBinOp = template.expression(
+                    `$T.add(LEFT, RIGHT)`,
+                    { placeholderPattern: /(LEFT)|(RIGHT)/ }
+                );
+                path.replaceWith(
+                    buildBinOp({LEFT: leftExpr, RIGHT: rightExpr}) as t.BinaryExpression);
+            } else {
+                return;
+            }
+        }
+    }
+}
 
 function plugin() {
     return { visitor: visitor };
