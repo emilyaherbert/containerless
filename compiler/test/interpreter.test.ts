@@ -1,5 +1,7 @@
 import * as $T from '../ts/runtime';
-import * as $I from '../ts/interpreter';
+import { Interpreter } from '../ts/interpreter';
+
+let interp = new Interpreter();
 
 test('boolean', () => {
   $T.clear();
@@ -11,7 +13,7 @@ test('boolean', () => {
   eval(code);
   let input = $T.num(-1);
   let output = $T.bool(true);
-  let result = $I.evaluate($T.program_(), input);
+  let result = interp.eval($T.program_(), input);
   
   expect(result).toEqual(output);
 })
@@ -26,7 +28,7 @@ test('boolean 2', () => {
   eval(code);
   let input = $T.num(-1);
   let output = $T.bool(false);
-  let result = $I.evaluate($T.program_(), input);
+  let result = interp.eval($T.program_(), input);
   
   expect(result).toEqual(output);
 })
@@ -41,7 +43,7 @@ test('number', () => {
   eval(code);
   let input = $T.num(-1);
   let output = $T.num(36);
-  let result = $I.evaluate($T.program_(), input);
+  let result = interp.eval($T.program_(), input);
   
   expect(result).toEqual(output);
 })
@@ -56,7 +58,7 @@ test('number 2', () => {
   eval(code);
   let input = $T.num(-1);
   let output = $T.num(-36);
-  let result = $I.evaluate($T.program_(), input);
+  let result = interp.eval($T.program_(), input);
   
   expect(result).toEqual(output);
 })
@@ -71,7 +73,7 @@ test('string', () => {
   eval(code);
   let input = $T.num(-1);
   let output = $T.str('foo');
-  let result = $I.evaluate($T.program_(), input);
+  let result = interp.eval($T.program_(), input);
   
   expect(result).toEqual(output);
 })
@@ -86,7 +88,7 @@ test('string 2', () => {
   eval(code);
   let input = $T.num(-1);
   let output = $T.str('bar');
-  let result = $I.evaluate($T.program_(), input);
+  let result = interp.eval($T.program_(), input);
   
   expect(result).toEqual(output);
 })
@@ -101,7 +103,7 @@ test('binop', () => {
   eval(code);
   let input = $T.num(-1);
   let output = $T.bool(true);
-  let result = $I.evaluate($T.program_(), input);
+  let result = interp.eval($T.program_(), input);
   
   expect(result).toEqual(output);
 })
@@ -116,7 +118,7 @@ test('binop 2', () => {
   eval(code);
   let input = $T.num(-1);
   let output = $T.bool(false);
-  let result = $I.evaluate($T.program_(), input);
+  let result = interp.eval($T.program_(), input);
   
   expect(result).toEqual(output);
 })
