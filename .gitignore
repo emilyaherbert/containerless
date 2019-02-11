@@ -2,3 +2,5 @@
 **/*.rs.bk
 aws-examples/**/target/
 aws-examples/**/lambda.zip
+
+papers/
