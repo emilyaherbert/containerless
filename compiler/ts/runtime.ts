@@ -63,11 +63,9 @@ function getTyp(e: Exp): Typ {
         return e.type;
     }
     else if (e.kind === 'binop') {
-        if (e.op === '<') {
-            return { kind: 'boolean' };
-        }
-        else if (e.op === '+num') {
-            return { kind: 'number' };
+        if (opReturnType.has(e.op)) {
+            // TODO(Chriscbr): why do I need the ! operator when I am guarding the expression?
+            return opReturnType.get(e.op)!;
         }
         else {
             throw 'Not implemented';
@@ -81,10 +79,13 @@ function getTyp(e: Exp): Typ {
     }
 }
 
-function genericBinOp(opStr: string, type: string): (e1: Exp, e2: Exp) => Exp {
+const opReturnType = new Map<string, Typ>();
+
+function genericBinOp(opStr: string, inputType: Typ, returnType: Typ): (e1: Exp, e2: Exp) => Exp {
+    opReturnType.set(opStr, returnType);
     return function(e1: Exp, e2: Exp): Exp {
-        if (getTyp(e1).kind === type &&
-            getTyp(e2).kind === type) {
+        if (getTyp(e1).kind === inputType.kind &&
+            getTyp(e2).kind === inputType.kind) {
             return { kind: 'binop', op: opStr, e1, e2 };
         } else {
             throw 'Not implemented';
@@ -92,24 +93,24 @@ function genericBinOp(opStr: string, type: string): (e1: Exp, e2: Exp) => Exp {
     }
 }
 
-export const lt = genericBinOp('<', 'number');
-export const gt = genericBinOp('>', 'number');
-export const leq = genericBinOp('<=', 'number');
-export const geq = genericBinOp('>=', 'number');
-export const add = genericBinOp('+num', 'number');
-export const sub = genericBinOp('-', 'number');
-export const div = genericBinOp('/', 'number');
-export const mul = genericBinOp('*', 'number');
-export const remainder = genericBinOp('%', 'number');
-export const pow = genericBinOp('**', 'number');
-export const lshift = genericBinOp('<<', 'number');
-export const rshift = genericBinOp('>>', 'number');
-export const unsignedrshift = genericBinOp('>>>', 'number');
-export const bitand = genericBinOp('&', 'number');
-export const bitor = genericBinOp('|', 'number');
-export const bitxor = genericBinOp('^', 'number');
-export const and = genericBinOp('&&', 'boolean');
-export const or = genericBinOp('||', 'boolean');
+export const lt             = genericBinOp('<',    { kind: 'number' } , { kind: 'boolean' });
+export const gt             = genericBinOp('>',    { kind: 'number' } , { kind: 'boolean' });
+export const leq            = genericBinOp('<=',   { kind: 'number' } , { kind: 'boolean' });
+export const geq            = genericBinOp('>=',   { kind: 'number' } , { kind: 'boolean' });
+export const add            = genericBinOp('+num', { kind: 'number' } , { kind: 'number' });
+export const sub            = genericBinOp('-',    { kind: 'number' } , { kind: 'number' });
+export const div            = genericBinOp('/',    { kind: 'number' } , { kind: 'number' });
+export const mul            = genericBinOp('*',    { kind: 'number' } , { kind: 'number' });
+export const remainder      = genericBinOp('%',    { kind: 'number' } , { kind: 'number' });
+export const pow            = genericBinOp('**',   { kind: 'number' } , { kind: 'number' });
+export const lshift         = genericBinOp('<<',   { kind: 'number' } , { kind: 'number' });
+export const rshift         = genericBinOp('>>',   { kind: 'number' } , { kind: 'number' });
+export const unsignedrshift = genericBinOp('>>>',  { kind: 'number' } , { kind: 'number' });
+export const bitand         = genericBinOp('&',    { kind: 'number' } , { kind: 'number' });
+export const bitor          = genericBinOp('|',    { kind: 'number' } , { kind: 'number' });
+export const bitxor         = genericBinOp('^',    { kind: 'number' } , { kind: 'number' });
+export const and            = genericBinOp('&&',   { kind: 'boolean' }, { kind: 'boolean' });
+export const or             = genericBinOp('||',   { kind: 'boolean' }, { kind: 'boolean' });
 
 export function num(n: number): Exp {
     return { kind: 'number', value: n };

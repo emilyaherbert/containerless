@@ -45,7 +45,9 @@ const visitor: traverse.Visitor = {
                 for (let i = 0; i < path.node.params.length; ++i) {
                     const param = path.node.params[i];
                     const newParam = path.scope.generateUidIdentifierBasedOnNode(param);
-                    let buildInputDeclaration = template(`let VARIABLE = $T.input();`);
+                    let buildInputDeclaration = template(
+                        `let VARIABLE = $T.input();`,
+                        { placeholderPattern: /VARIABLE/ }); // avoid $T being captured by
                     let inputDeclaration = buildInputDeclaration({
                         VARIABLE: newParam
                     });
