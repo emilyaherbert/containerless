@@ -19,9 +19,16 @@ const buildBinding = template.statement(`
 `);
 
 
-const visitor: traverse.Visitor = {
+type S = {
+    names: Map<string, string>
+};
+
+const visitor: traverse.Visitor<S> = {
     Program: {
-        exit(path: traverse.NodePath<t.Program>) {
+        enter(path, st: S) {
+            st.names = new Map();
+        },
+        exit(path: traverse.NodePath<t.Program>, st) {
             const id = t.identifier('$T'); // TODO(arjun): capture
 
             let buildRequireStmt = template.statement(`let VARIABLE = require('./dist/runtime');`);
@@ -32,11 +39,25 @@ const visitor: traverse.Visitor = {
         }
     },
     FunctionDeclaration: {
-        exit(path: traverse.NodePath<t.FunctionDeclaration>) {
+        enter(path: traverse.NodePath<t.FunctionDeclaration>, st) {
             const body = path.node.body.body;
             for (let i = 0; i < path.node.params.length; ++i) {
                 const param = path.node.params[i];
+                if (param.type !== 'Identifier') {
+                    throw new Error('only identifier params supported');
+                }
                 const newParam = path.scope.generateUidIdentifierBasedOnNode(param);
+                st.names.set(param.name, newParam.name);
+            }
+        },
+        exit(path: traverse.NodePath<t.FunctionDeclaration>, st) {
+            const body = path.node.body.body;
+            for (let i = 0; i < path.node.params.length; ++i) {
+                const param = path.node.params[i];
+                if (param.type !== 'Identifier') {
+                    throw new Error('only identifier params supported');
+                }
+                const newParam = st.names.get(param.name);
                 let buildInputDeclaration = template.statement(
                     `let VARIABLE = $T.input();`,
                     { placeholderPattern: /VARIABLE/ }); // avoid $T being captured by
