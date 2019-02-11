@@ -4,7 +4,7 @@ let $x = $T.bind($T.add($T.num(1), $T.num(3)));
 let x = 1 + 3;
 
 function F() {
-    $T.if_($T.lt($x, $T.num(2)));
+    $T.if_($T.lt($x, $T.str('two')));
     if (x > 2) {
         $T.enterIf(true);;
         let $y = $T.bind($T.mul($T.num(2), $x));
