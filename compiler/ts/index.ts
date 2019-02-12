@@ -70,26 +70,26 @@ const visitor: traverse.Visitor<S> = {
     },
     // TODO(Chriscbr): Recursing causes traversal to go on forever...
     // VariableDeclaration: {
-    //     exit(path: traverse.NodePath<t.VariableDeclaration>, st) {
-    //         console.log(path.node);
+    //     enter(path: traverse.NodePath<t.VariableDeclaration>, st) {
     //         const declarations = path.node.declarations;
     //         for (let i = 0; i < declarations.length; ++i) {
     //             const id = declarations[i].id;
+    //             const newId = path.scope.generateUidIdentifierBasedOnNode(id);
+    //             st.names.set(lvaltoName(id), newId.name);
     //             const expr = declarations[i].init;
     //             const buildVarDeclaration = template.statement(
     //                 `let VARIABLE = $T.bind(EXPRESSION);`,
     //                 { placeholderPattern: /(VARIABLE)|(EXPRESSION)/ });
     //             const varDeclaration = buildVarDeclaration({
-    //                 VARIABLE: id,
+    //                 VARIABLE: newId,
     //                 EXPRESSION: expr
     //             });
     //             path.insertBefore(varDeclaration);
-    //             // path.skip(); // doesn't help
     //         }
     //     }
     // },
     ReturnStatement: {
-        exit(path: traverse.NodePath<t.ReturnStatement>, st) {
+        enter(path: traverse.NodePath<t.ReturnStatement>, st) {
             let innerExpr = path.node.argument;
             const buildReturnStatement = template.statement(
                 `$T.return_(EXPRESSION);`,
@@ -103,18 +103,18 @@ const visitor: traverse.Visitor<S> = {
 };
 
 const exprVisitor: traverse.Visitor<S> = {
-    // TODO(Chriscbr): This recurses indefinitely...
-    // NumericLiteral: {
-    //     exit(path: traverse.NodePath<t.NumericLiteral>, st) {
-    //         const buildLiteral = template.expression(
-    //             `$T.num(VALUE)`,
-    //             { placeholderPattern: /VALUE/ });
-    //         const literal = buildLiteral({ VALUE: t.numericLiteral(path.node.value) });
-    //         path.replaceWith(literal);
-    //     }
-    // },
+    NumericLiteral: {
+        enter(path: traverse.NodePath<t.NumericLiteral>, st) {
+            const buildLiteral = template.expression(
+                `$T.num(VALUE)`,
+                { placeholderPattern: /VALUE/ });
+            const literal = buildLiteral({ VALUE: t.numericLiteral(path.node.value) });
+            path.replaceWith(literal);
+            path.skip();
+        }
+    },
     Identifier: {
-        exit(path: traverse.NodePath<t.Identifier>, st) {
+        enter(path: traverse.NodePath<t.Identifier>, st) {
             const currName = path.node.name;
             if (st.names.has(currName)) {
                 path.node.name = st.names.get(currName)!;
@@ -125,7 +125,7 @@ const exprVisitor: traverse.Visitor<S> = {
         }
     },
     BinaryExpression: {
-        exit(path: traverse.NodePath<t.BinaryExpression>, st) {
+        enter(path: traverse.NodePath<t.BinaryExpression>, st) {
             const leftExpr = path.node.left;
             const rightExpr = path.node.right;
             const op = path.node.operator;
@@ -140,6 +140,23 @@ const exprVisitor: traverse.Visitor<S> = {
                 return;
             }
         }
+    }
+}
+
+/**
+ * Given an 'LVal' that is an identifier, produces the identifier's name.
+ * Throws an exception if the 'LVal' is not an identifier.
+ *
+ * @param lval an l-value
+ * @returns the name of the identifier, if 'lval' is an identifier
+ */
+function lvaltoName(lval: t.LVal): string {
+    if (lval.type === 'Identifier') {
+        return lval.name;
+    } else if (lval.type === 'RestElement' && lval.argument.type === 'Identifier') {
+        return lval.argument.name;
+    } else {
+        throw new Error(`Expected Identifier, received ${lval.type}`);
     }
 }
 
