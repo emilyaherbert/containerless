@@ -122,3 +122,140 @@ test('binop 2', () => {
   
   expect(result).toEqual(output);
 })
+
+test('let', () => {
+  $T.clear();
+
+  let code = `
+  let $y = $T.bind($T.num(2));
+  $T.return_($y)
+  `
+
+  eval(code);
+  let input = $T.num(-1);
+  let output = $T.num(2);
+  let result = interp.eval($T.program_(), input);
+  
+  expect(result).toEqual(output);
+})
+
+test('let 2', () => {
+  $T.clear();
+
+  let code = `
+  let $x = $T.bind($T.num(2));
+  let $y = $T.bind($T.lt($x,$T.num(5)));
+  $T.return_($y)
+  `
+
+  eval(code);
+  let input = $T.num(-1);
+  let output = $T.bool(true);
+  let result = interp.eval($T.program_(), input);
+  
+  expect(result).toEqual(output);
+})
+
+test('if', () => {
+  $T.clear();
+
+  let code = `
+  $T.if_($T.bool(true));
+  $T.enterIf(true);
+  $T.return_($T.str('foo'));
+  $T.exitIf();
+  `
+
+  eval(code);
+  let input = $T.num(-1);
+  let output = $T.str('foo');
+  let result = interp.eval($T.program_(), input);
+  
+  expect(result).toEqual(output);
+})
+
+test('if 2', () => {
+  $T.clear();
+
+  let code = `
+  $T.if_($T.bool(false));
+  $T.enterIf(false);
+  $T.return_($T.str('bar'));
+  $T.exitIf();
+  `
+
+  eval(code);
+  let input = $T.num(-1);
+  let output = $T.str('bar');
+  let result = interp.eval($T.program_(), input);
+  
+  expect(result).toEqual(output);
+})
+
+test('function', () => {
+  $T.clear();
+
+  let code = `
+  function F(x) {
+      let $x = $T.input();
+      $T.if_($T.lt($x, $T.num(20)));
+      $T.enterIf(true);
+      $T.return_($T.str('foo'));
+      $T.exitIf();
+  }
+  F`;
+
+  eval(code)(10);
+
+  $T.log();
+
+  let input = $T.num(10);
+  let output = $T.str('foo');
+  let result = interp.eval($T.program_(), input);
+  
+  expect(result).toEqual(output);
+})
+
+test('function 2', () => {
+  $T.clear();
+
+  let code = `
+  function F(x) {
+      let $x = $T.input();
+      $T.if_($T.lt($x, $T.num(20)));
+      $T.enterIf(false);
+      $T.return_($T.str('bar'));
+      $T.exitIf();
+  }
+  F`;
+
+  eval(code)(100);
+  let input = $T.num(100);
+  let output = $T.str('bar');
+  let result = interp.eval($T.program_(), input);
+  
+  expect(result).toEqual(output);
+})
+
+test('function 3', () => {
+  $T.clear();
+
+  let code = `
+  function F(x) {
+    let $x = $T.input();
+    let $y = $T.bind($T.add($T.num(1),$T.num(1)));
+    $T.return_($T.add($x,$y));
+  }
+  F
+  `
+
+  eval(code)(100);
+
+  $T.log();
+
+  let input = $T.num(100);
+  let output = $T.num(102);
+  let result = interp.eval($T.program_(), input);
+  
+  expect(result).toEqual(output);
+})

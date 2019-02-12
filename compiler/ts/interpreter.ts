@@ -1,27 +1,57 @@
 import { Name, Id, Typ, Exp, Stmt } from "../ts/types";
 
+class State {
+  constructor() {}
+
+  names = new Map();
+  values : Exp[] = [];
+}
+
 export class Interpreter {
   constructor() {}
 
-  // entry-point
+  private st = new State();
+  private history : State[] = [];
+
+  // Entry-point.
   public eval(e: Stmt[], input: Exp): Exp {
-    if(e.length === 0) {
-      throw "No more Stmt's!"
-    } else {
-      return this.eval_stmt(e[0], input);
+    this.st = new State();
+
+    for(let i=0; i<e.length; i++) {
+      this.eval_stmt(e[i], input);
     }
+
+    if(this.st.values.length > 0) return this.st.values[this.st.values.length-1];
+    else throw "No values!";
   }
 
-  private eval_stmt(e: Stmt, input: Exp): Exp {
+  private eval_stmt(e: Stmt, input: Exp) {
     switch(e.kind) {
-      case 'let': throw "Found unimplemented let case in eval_stmt."
+      case 'let': {
+        let v = this.eval_exp(e.e, input);
+        this.st.names.set(e.name, v);
+        break;
+      }
       case 'if': {
         let c = this.eval_exp(e.test, input);
-        if(this.unwrap_boolean(c)) return this.eval_stmt(e.then, input);
-        else return this.eval_stmt(e.else, input);
+        if(this.unwrap_boolean(c)) this.eval_stmt(e.then, input);
+        else this.eval_stmt(e.else, input);
+        break;
       }
-      case 'block': throw "Found unimplemented block case in eval_stmt."
-      case 'return': return this.eval_exp(e.value, input);
+      case 'block': {
+        // potential errors here...
+        for(let i=0; i<e.body.length; i++) {
+          this.history.push(this.st);
+          this.eval_stmt(e.body[i], input);
+          this.st = this.history[this.history.length-1];
+          this.history.pop();
+        }
+        break;
+      }
+      case 'return': {
+        this.st.values.push(this.eval_exp(e.value, input));
+        break;
+      }
       case 'unknown': throw "Found unimplemented unknown case in eval_stmt."
       default: throw "Found unimplemented e.kind in eval_stmt.";
     }
@@ -38,14 +68,22 @@ export class Interpreter {
         let v2 = this.eval_exp(e.e2, input);
         return this.eval_binop(e.op, v1, v2);
       }
+      case 'identifier': {
+        if(this.st.names.has(e.name)) {
+          return this.st.names.get(e.name);
+        } else {
+          throw "Found free identifier."
+        }
+      }
       default: throw "Found unimplemented e.kind in eval_exp.";
     }
   }
 
+  // TODO(emily): Sync this with op's in runtime.ts.
   private eval_binop(op: String, v1: Exp, v2: Exp): Exp {
     if(v1.kind === 'number' && v2.kind === 'number') {
       switch(op) {
-        case '+': return { kind: 'number', value: (v1.value + v2.value) };
+        case '+num': return { kind: 'number', value: (v1.value + v2.value) };
         case '-': return { kind: 'number', value: (v1.value - v2.value) };
         case '*': return { kind: 'number', value: (v1.value * v2.value) };
         case '/': return { kind: 'number', value: (v1.value / v2.value) };
@@ -83,7 +121,7 @@ export class Interpreter {
     }
   }
 
-  // TODO: Try/ catch ?
+  // TODO(emily): Try/ catch ?
   private unwrap_boolean(e: Exp): Boolean {
     switch(e.kind) {
       case 'boolean': return e.value;
