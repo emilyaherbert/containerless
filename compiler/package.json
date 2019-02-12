@@ -2,7 +2,7 @@
   "name": "compiler",
   "version": "1.0.0",
   "main": "index.js",
-  "license": "MIT",
+  "license": "BSD-3-Clause",
   "devDependencies": {
     "@types/babel__core": "^7.0.4",
     "@types/babel__generator": "^7.0.1",

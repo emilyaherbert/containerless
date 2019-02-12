@@ -8,6 +8,7 @@ let nextName : Name = 0;
 export function bind(e: Exp): Id {
     let name = nextName++;
     let t = getTyp(e);
+    console.log('Bind!!!');
     current.push({ kind: 'let', name: name, e: e });
     return { kind: 'identifier', name: name, type: t };
 }
@@ -17,9 +18,11 @@ export function input(): Exp {
 }
 
 export function return_(value: Exp) {
+    console.log('Return!!!');
   current.push({
     kind: 'return',
     value: value });
+    console.log(program);
 }
 
 export function if_(test: Exp) {
