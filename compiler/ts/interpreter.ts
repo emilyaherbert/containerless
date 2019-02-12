@@ -122,7 +122,7 @@ export class Interpreter {
   }
 
   // TODO(emily): Try/ catch ?
-  private unwrap_boolean(e: Exp): Boolean {
+  private unwrap_boolean(e: Exp): boolean {
     switch(e.kind) {
       case 'boolean': return e.value;
       default: throw "Expected boolean in unwrap_boolean."

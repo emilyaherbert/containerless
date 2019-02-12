@@ -206,9 +206,6 @@ test('function', () => {
   F`;
 
   eval(code)(10);
-
-  $T.log();
-
   let input = $T.num(10);
   let output = $T.str('foo');
   let result = interp.eval($T.program_(), input);
@@ -250,9 +247,6 @@ test('function 3', () => {
   `
 
   eval(code)(100);
-
-  $T.log();
-
   let input = $T.num(100);
   let output = $T.num(102);
   let result = interp.eval($T.program_(), input);
