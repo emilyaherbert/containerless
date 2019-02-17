@@ -15,8 +15,6 @@ if (!t.isFile(ast)) {
     throw 'something wrong';
 }
 
-
-
 const result = babel.transformSync(code, {
     plugins: [ insertTracing.plugin ],
     ast: true

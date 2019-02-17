@@ -93,25 +93,30 @@ function genericBinOp(opStr: string, inputType: Typ, returnType: Typ): (e1: Exp,
     }
 }
 
-export const lt             = genericBinOp('<',    { kind: 'number' } , { kind: 'boolean' });
-export const gt             = genericBinOp('>',    { kind: 'number' } , { kind: 'boolean' });
-export const leq            = genericBinOp('<=',   { kind: 'number' } , { kind: 'boolean' });
-export const geq            = genericBinOp('>=',   { kind: 'number' } , { kind: 'boolean' });
-export const add            = genericBinOp('+num', { kind: 'number' } , { kind: 'number' });
-export const sub            = genericBinOp('-',    { kind: 'number' } , { kind: 'number' });
-export const div            = genericBinOp('/',    { kind: 'number' } , { kind: 'number' });
-export const mul            = genericBinOp('*',    { kind: 'number' } , { kind: 'number' });
-export const remainder      = genericBinOp('%',    { kind: 'number' } , { kind: 'number' });
-export const pow            = genericBinOp('**',   { kind: 'number' } , { kind: 'number' });
-export const lshift         = genericBinOp('<<',   { kind: 'number' } , { kind: 'number' });
-export const rshift         = genericBinOp('>>',   { kind: 'number' } , { kind: 'number' });
-export const unsignedrshift = genericBinOp('>>>',  { kind: 'number' } , { kind: 'number' });
-export const bitand         = genericBinOp('&',    { kind: 'number' } , { kind: 'number' });
-export const bitor          = genericBinOp('|',    { kind: 'number' } , { kind: 'number' });
-export const bitxor         = genericBinOp('^',    { kind: 'number' } , { kind: 'number' });
-export const and            = genericBinOp('&&',   { kind: 'boolean' }, { kind: 'boolean' });
-export const or             = genericBinOp('||',   { kind: 'boolean' }, { kind: 'boolean' });
-
+// TODO(Chris): Many of these operations were very haphazardly named, and the export names
+// may need to change if we have separate exported functions like +num and +str, etc.
+export const eq             = genericBinOp('==num',  { kind: 'number' } , { kind: 'boolean' });
+export const ineq           = genericBinOp('!=num',  { kind: 'number' } , { kind: 'boolean' });
+export const exacteq        = genericBinOp('===num', { kind: 'number' } , { kind: 'boolean' });
+export const exactineq      = genericBinOp('!==num', { kind: 'number' } , { kind: 'boolean' });
+export const lt             = genericBinOp('<',      { kind: 'number' } , { kind: 'boolean' });
+export const gt             = genericBinOp('>',      { kind: 'number' } , { kind: 'boolean' });
+export const leq            = genericBinOp('<=',     { kind: 'number' } , { kind: 'boolean' });
+export const geq            = genericBinOp('>=',     { kind: 'number' } , { kind: 'boolean' });
+export const add            = genericBinOp('+num',   { kind: 'number' } , { kind: 'number' });
+export const sub            = genericBinOp('-',      { kind: 'number' } , { kind: 'number' });
+export const div            = genericBinOp('/',      { kind: 'number' } , { kind: 'number' });
+export const mul            = genericBinOp('*',      { kind: 'number' } , { kind: 'number' });
+export const remainder      = genericBinOp('%',      { kind: 'number' } , { kind: 'number' });
+export const pow            = genericBinOp('**',     { kind: 'number' } , { kind: 'number' });
+export const lshift         = genericBinOp('<<',     { kind: 'number' } , { kind: 'number' });
+export const rshift         = genericBinOp('>>',     { kind: 'number' } , { kind: 'number' });
+export const unsignedrshift = genericBinOp('>>>',    { kind: 'number' } , { kind: 'number' });
+export const bitand         = genericBinOp('&',      { kind: 'number' } , { kind: 'number' });
+export const bitor          = genericBinOp('|',      { kind: 'number' } , { kind: 'number' });
+export const bitxor         = genericBinOp('^',      { kind: 'number' } , { kind: 'number' });
+export const and            = genericBinOp('&&',     { kind: 'boolean' }, { kind: 'boolean' });
+export const or             = genericBinOp('||',     { kind: 'boolean' }, { kind: 'boolean' });
 export function num(n: number): Exp {
     return { kind: 'number', value: n };
 }

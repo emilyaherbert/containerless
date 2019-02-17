@@ -4,6 +4,8 @@ import * as t from '@babel/types';
 import * as traverse from '@babel/traverse';
 import * as template from '@babel/template';
 
+// Converts string into a statement that can be avoided by visitors
+// by checking the __doNotVisit__ property.
 function mkStmt(code: string) {
     const tmpl = template.statement(code,
         { placeholderPattern: /(VARIABLE)|(EXPRESSION)/ });
@@ -122,9 +124,39 @@ function reifyExpr(st: S, expr: t.Expression): t.Expression {
       return t.identifier(x);
   }
   else if (expr.type === 'BinaryExpression') {
+      // TODO(Chris): Do we try to perform type checking here to see what the
+      // left and right expressions are (to handle commonly used overloaded
+      // ops like '+')? Our current implementation of $T suggests it will
+      // have separate adding functions, +num and +str.
       let e1 = reifyExpr(st, expr.left);
       let e2 = reifyExpr(st, expr.right);
-      return call(mem(t.identifier('$T'), 'add'), e1, e2);
+      let traceOpName: string;
+      switch (expr.operator) {
+        case '+':   traceOpName = 'add'; break;
+        case '>':   traceOpName = 'gt'; break;
+        case '<':   traceOpName = 'lt'; break;
+        case '>=':  traceOpName = 'geq'; break;
+        case '<=':  traceOpName = 'leq'; break;
+        case '-':   traceOpName = 'sub'; break;
+        case '/':   traceOpName = 'div'; break;
+        case '*':   traceOpName = 'mul'; break;
+        case '%':   traceOpName = 'remainder'; break;
+        case '**':  traceOpName = 'pow'; break;
+        case '&':   traceOpName = 'bitand'; break;
+        case '|':   traceOpName = 'bitor'; break;
+        case '^':   traceOpName = 'bitxor'; break;
+        case '>>':  traceOpName = 'rshift'; break;
+        case '>>>': traceOpName = 'unsignedrshift'; break;
+        case '<<':  traceOpName = 'lshift'; break;
+        case '<<':  traceOpName = 'lshift'; break;
+        case '==': traceOpName = 'eq'; break;
+        case '!=': traceOpName = 'ineq'; break;
+        case '===': traceOpName = 'exacteq'; break;
+        case '!==': traceOpName = 'exactineq'; break;
+        default: // cases 'in', and 'instanceof' not handled
+            throw new Error(`unsupported binary operator: ${expr.operator}`);
+      }
+      return call(mem(t.identifier('$T'), traceOpName), e1, e2);
   }
   else {
       throw new Error(`unsupported expression type: ${expr.type}`);

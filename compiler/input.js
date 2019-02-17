@@ -1,6 +1,11 @@
 function F(x) {
-    let y = 1 + 1;
-    return 2 + 3  + x + y;
+    if (x < 20) {
+        let y = x < 2;
+        return y;
+    } else {
+        let z = x * 5;
+        return z + 1;
+    }
 }
 
 F(100);
