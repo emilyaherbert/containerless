@@ -132,25 +132,38 @@ function mem(object: t.Expression, field: string) {
 }
 
 function reifyExpr(st: S, expr: t.Expression): t.Expression {
-  if (expr.type === 'NumericLiteral') {
-      return call(mem(t.identifier('$T'), 'num'), expr);
-  }
-  else if (expr.type === 'Identifier') {
-      let x = st.names.get(expr.name);
-      if (x === undefined) {
-          throw new Error(`no binding for ${x}`);
-      }
-      return t.identifier(x);
-  }
-  else if (expr.type === 'BinaryExpression') {
-      // TODO(Chris): Do we try to perform type checking here to see what the
-      // left and right expressions are (to handle commonly used overloaded
-      // ops like '+')? Our current implementation of $T suggests it will
-      // have separate adding functions, +num and +str.
-      let e1 = reifyExpr(st, expr.left);
-      let e2 = reifyExpr(st, expr.right);
-      let traceOpName: string;
-      switch (expr.operator) {
+    if (expr.type === 'NumericLiteral') {
+        return call(mem(t.identifier('$T'), 'num'), expr);
+    }
+    else if (expr.type === 'Identifier') {
+        let x = st.names.get(expr.name);
+        if (x === undefined) {
+            throw new Error(`no binding for ${x}`);
+        }
+        return t.identifier(x);
+    }
+    else if (expr.type === 'UnaryExpression') {
+        let e = reifyExpr(st, expr.argument);
+        let traceOpName: string;
+        switch (expr.operator) {
+            case '-': traceOpName = 'neg'; break;
+            case '+': traceOpName = 'plus'; break;
+            case '!': traceOpName = 'not'; break;
+            case '~': traceOpName = 'bitnot'; break;
+            default: // cases 'typeof', 'void', 'delete', 'throw' not handled
+                throw new Error(`unsupported binary operator: ${expr.operator}`);
+        }
+        return call(mem(t.identifier('$T'), traceOpName), e);
+    }
+    else if (expr.type === 'BinaryExpression') {
+        // TODO(Chris): Do we try to perform type checking here to see what the
+        // left and right expressions are (to handle commonly used overloaded
+        // ops like '+')? Our current implementation of $T suggests it will
+        // have separate adding functions, +num and +str.
+        let e1 = reifyExpr(st, expr.left);
+        let e2 = reifyExpr(st, expr.right);
+        let traceOpName: string;
+        switch (expr.operator) {
         case '+':   traceOpName = 'add'; break;
         case '>':   traceOpName = 'gt'; break;
         case '<':   traceOpName = 'lt'; break;
@@ -168,18 +181,18 @@ function reifyExpr(st: S, expr: t.Expression): t.Expression {
         case '>>>': traceOpName = 'unsignedrshift'; break;
         case '<<':  traceOpName = 'lshift'; break;
         case '<<':  traceOpName = 'lshift'; break;
-        case '==': traceOpName = 'eq'; break;
-        case '!=': traceOpName = 'ineq'; break;
+        case '==':  traceOpName = 'eq'; break;
+        case '!=':  traceOpName = 'ineq'; break;
         case '===': traceOpName = 'exacteq'; break;
         case '!==': traceOpName = 'exactineq'; break;
         default: // cases 'in', and 'instanceof' not handled
             throw new Error(`unsupported binary operator: ${expr.operator}`);
-      }
-      return call(mem(t.identifier('$T'), traceOpName), e1, e2);
-  }
-  else {
-      throw new Error(`unsupported expression type: ${expr.type}`);
-  }
+        }
+        return call(mem(t.identifier('$T'), traceOpName), e1, e2);
+    }
+    else {
+        throw new Error(`unsupported expression type: ${expr.type}`);
+    }
 }
 
 /**

@@ -62,10 +62,18 @@ function getTyp(e: Exp): Typ {
     else if (e.kind === 'identifier') {
         return e.type;
     }
+    else if (e.kind === 'unaryop') {
+        if (unaryOpReturnType.has(e.op)) {
+            return unaryOpReturnType.get(e.op)!;
+        }
+        else {
+            throw 'Not implemented';
+        }
+    }
     else if (e.kind === 'binop') {
-        if (opReturnType.has(e.op)) {
+        if (binOpReturnType.has(e.op)) {
             // TODO(Chriscbr): why do I need the ! operator when I am guarding the expression?
-            return opReturnType.get(e.op)!;
+            return binOpReturnType.get(e.op)!;
         }
         else {
             throw 'Not implemented';
@@ -79,10 +87,22 @@ function getTyp(e: Exp): Typ {
     }
 }
 
-const opReturnType = new Map<string, Typ>();
+const unaryOpReturnType = new Map<string, Typ>();
+const binOpReturnType = new Map<string, Typ>();
+
+function genericUnaryOp(opStr: string, inputType: Typ, returnType: Typ): (e: Exp) => Exp {
+    unaryOpReturnType.set(opStr, returnType);
+    return function(e: Exp): Exp {
+        if (getTyp(e).kind === inputType.kind) {
+            return { kind: 'unaryop', op: opStr, e };
+        } else {
+            throw 'Not implemented';
+        }
+    }
+}
 
 function genericBinOp(opStr: string, inputType: Typ, returnType: Typ): (e1: Exp, e2: Exp) => Exp {
-    opReturnType.set(opStr, returnType);
+    binOpReturnType.set(opStr, returnType);
     return function(e1: Exp, e2: Exp): Exp {
         if (getTyp(e1).kind === inputType.kind &&
             getTyp(e2).kind === inputType.kind) {
@@ -95,6 +115,11 @@ function genericBinOp(opStr: string, inputType: Typ, returnType: Typ): (e1: Exp,
 
 // TODO(Chris): Many of these operations were very haphazardly named, and the export names
 // may need to change if we have separate exported functions like +num and +str, etc.
+export const neg            = genericUnaryOp('unary-', { kind: 'number' } , { kind: 'number' });
+export const plus           = genericUnaryOp('unary+', { kind: 'number' } , { kind: 'number' });
+export const not            = genericUnaryOp('!',      { kind: 'boolean' }, { kind: 'boolean' });
+export const bitnot         = genericUnaryOp('~',      { kind: 'number' } , { kind: 'number' });
+
 export const eq             = genericBinOp('==num',  { kind: 'number' } , { kind: 'boolean' });
 export const ineq           = genericBinOp('!=num',  { kind: 'number' } , { kind: 'boolean' });
 export const exacteq        = genericBinOp('===num', { kind: 'number' } , { kind: 'boolean' });

@@ -43,14 +43,14 @@ test('end-to-end 2', () => {
     if (x <= 1) {
       return 1;
     } else if (x > 30) {
-      return 3;
+      return -3;
     } else {
       return x * (x - 1);
     }
   }
   F`;
 
-  let f_input = 10;
+  let f_input = 33;
   let i_input = $T.num(f_input);
 
   let t = insertTracing.transform(code);

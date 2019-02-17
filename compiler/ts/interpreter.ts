@@ -63,6 +63,10 @@ export class Interpreter {
       case 'string': return e;
       case 'boolean': return e;
       case 'input': return input;
+      case 'unaryop': {
+        let v = this.eval_exp(e.e, input);
+        return this.eval_unaryop(e.op, v);
+      }
       case 'binop': {
         let v1 = this.eval_exp(e.e1, input);
         let v2 = this.eval_exp(e.e2, input);
@@ -76,6 +80,21 @@ export class Interpreter {
         }
       }
       default: throw "Found unimplemented e.kind in eval_exp.";
+    }
+  }
+
+  private eval_unaryop(op: String, v: Exp): Exp {
+    if (v.kind === 'number') {
+      switch (op) {
+        case 'unary-': return { kind: 'number', value: -v.value };
+        case 'unary+': return { kind: 'number', value: v.value };
+        case '~': return { kind: 'number', value: ~v.value };
+        default: throw "Found unimplemented op in eval_unaryop."
+      }
+    } else if (v.kind === 'boolean' && op === '!') {
+      return { kind: 'boolean', value: !v.value };
+    } else {
+      throw "Found unimplemented op in eval_unaryop."
     }
   }
 
