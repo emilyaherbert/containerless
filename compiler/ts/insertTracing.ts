@@ -1,5 +1,4 @@
 import * as babel from '@babel/core';
-import * as fs from 'fs';
 import * as t from '@babel/types';
 import * as traverse from '@babel/traverse';
 import * as template from '@babel/template';
@@ -15,10 +14,6 @@ function mkStmt(code: string) {
         return stmt;
     };
 }
-
-const buildBinding = template.statement(`
-    let VARIABLE_NAME = $T.bind(EXPRESSION);
-`);
 
 const buildVarDeclaration = mkStmt(`let VARIABLE = $T.bind(EXPRESSION);`);
 
@@ -71,13 +66,37 @@ const visitor: traverse.Visitor<S> = {
             }
         }
     },
+    IfStatement: {
+        enter(path: traverse.NodePath<t.IfStatement>, st) {
+            let innerExpr = path.node.test;
+            path.insertBefore(call(mem(t.identifier('$T'), 'if_'), reifyExpr(st, innerExpr)));
+            let consequent = path.node.consequent;
+            // if the consequent isn't a block statement, then just shove it into one
+            if (!t.isBlockStatement(consequent)) {
+                let newBlockStmt = t.blockStatement([consequent]);
+                path.node.consequent = newBlockStmt;
+            }
+            (path.node.consequent as t.BlockStatement).body.unshift(t.expressionStatement(
+                call(mem(t.identifier('$T'), 'enterIf'), t.booleanLiteral(true))));
+            let alternate = path.node.alternate;
+            if (alternate !== null) {
+                // if the alternate isn't a block statement, then just stuff it inside one
+                if (!t.isBlockStatement(alternate)) {
+                    let newBlockStmt = t.blockStatement([alternate]);
+                    path.node.alternate = newBlockStmt;
+                }
+                (path.node.alternate as t.BlockStatement).body.unshift(t.expressionStatement(
+                    call(mem(t.identifier('$T'), 'enterIf'), t.booleanLiteral(false))));
+            }
+        }
+    },
     VariableDeclaration: {
         enter(path: traverse.NodePath<t.VariableDeclaration>, st) {
             if ((path.node as any).__doNotVisit__) {
                 path.skip();
                 return;
             }
-                const declarations = path.node.declarations;
+            const declarations = path.node.declarations;
             for (let i = 0; i < declarations.length; ++i) {
                 const id = declarations[i].id;
                 const newId = path.scope.generateUidIdentifierBasedOnNode(id);
