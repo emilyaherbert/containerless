@@ -17,6 +17,7 @@ function mkStmt(code: string) {
 
 const buildVarDeclaration = mkStmt(`let VARIABLE = $T.bind(EXPRESSION);`);
 const buildVarUpdate = mkStmt(`$T.update(VARIABLE, EXPRESSION);`);
+const buildLogicalExpression = template.statement(`LEXPR OP REXPR;`);
 
 type S = {
     names: Map<string, string>
@@ -151,9 +152,13 @@ function mem(object: t.Expression, field: string) {
     return t.memberExpression(object, t.identifier(field));
 }
 
+// TODO(emily): Just want to clarify - why have we done this with a seperate function and not with babel? 
 function reifyExpr(st: S, expr: t.Expression): t.Expression {
     if (expr.type === 'NumericLiteral') {
         return call(mem(t.identifier('$T'), 'num'), expr);
+    }
+    else if (expr.type === 'BooleanLiteral') {
+        return call(mem(t.identifier('$T'), 'bool'), expr);
     }
     else if (expr.type === 'Identifier') {
         let x = st.names.get(expr.name);
@@ -175,6 +180,22 @@ function reifyExpr(st: S, expr: t.Expression): t.Expression {
         }
         return call(mem(t.identifier('$T'), traceOpName), e);
     }
+    else if (expr.type == 'LogicalExpression') {
+      let e1 = reifyExpr(st, expr.left);
+      let e2 = reifyExpr(st, expr.right);
+      let traceOpName: string;
+      switch (expr.operator) {
+        case '&&':
+          traceOpName = 'and';
+          break;
+        case '||':
+          traceOpName = 'or';
+          break;
+        default:
+          throw new Error(`unsupported logical operator: ${expr.operator}`);
+      }
+      return call(mem(t.identifier('$T'), traceOpName), e1, e2);
+    }
     else if (expr.type === 'BinaryExpression') {
         // TODO(Chris): Do we try to perform type checking here to see what the
         // left and right expressions are (to handle commonly used overloaded
@@ -184,29 +205,29 @@ function reifyExpr(st: S, expr: t.Expression): t.Expression {
         let e2 = reifyExpr(st, expr.right);
         let traceOpName: string;
         switch (expr.operator) {
-        case '+':   traceOpName = 'add'; break;
-        case '>':   traceOpName = 'gt'; break;
-        case '<':   traceOpName = 'lt'; break;
-        case '>=':  traceOpName = 'geq'; break;
-        case '<=':  traceOpName = 'leq'; break;
-        case '-':   traceOpName = 'sub'; break;
-        case '/':   traceOpName = 'div'; break;
-        case '*':   traceOpName = 'mul'; break;
-        case '%':   traceOpName = 'remainder'; break;
-        case '**':  traceOpName = 'pow'; break;
-        case '&':   traceOpName = 'bitand'; break;
-        case '|':   traceOpName = 'bitor'; break;
-        case '^':   traceOpName = 'bitxor'; break;
-        case '>>':  traceOpName = 'rshift'; break;
-        case '>>>': traceOpName = 'unsignedrshift'; break;
-        case '<<':  traceOpName = 'lshift'; break;
-        case '<<':  traceOpName = 'lshift'; break;
-        case '==':  traceOpName = 'eq'; break;
-        case '!=':  traceOpName = 'ineq'; break;
-        case '===': traceOpName = 'exacteq'; break;
-        case '!==': traceOpName = 'exactineq'; break;
-        default: // cases 'in', and 'instanceof' not handled
-            throw new Error(`unsupported binary operator: ${expr.operator}`);
+          case '+':   traceOpName = 'add'; break;
+          case '>':   traceOpName = 'gt'; break;
+          case '<':   traceOpName = 'lt'; break;
+          case '>=':  traceOpName = 'geq'; break;
+          case '<=':  traceOpName = 'leq'; break;
+          case '-':   traceOpName = 'sub'; break;
+          case '/':   traceOpName = 'div'; break;
+          case '*':   traceOpName = 'mul'; break;
+          case '%':   traceOpName = 'remainder'; break;
+          case '**':  traceOpName = 'pow'; break;
+          case '&':   traceOpName = 'bitand'; break;
+          case '|':   traceOpName = 'bitor'; break;
+          case '^':   traceOpName = 'bitxor'; break;
+          case '>>':  traceOpName = 'rshift'; break;
+          case '>>>': traceOpName = 'unsignedrshift'; break;
+          case '<<':  traceOpName = 'lshift'; break;
+          case '<<':  traceOpName = 'lshift'; break;
+          case '==':  traceOpName = 'eq'; break;
+          case '!=':  traceOpName = 'ineq'; break;
+          case '===': traceOpName = 'exacteq'; break;
+          case '!==': traceOpName = 'exactineq'; break;
+          default: // cases 'in', and 'instanceof' not handled
+              throw new Error(`unsupported binary operator: ${expr.operator}`);
         }
         return call(mem(t.identifier('$T'), traceOpName), e1, e2);
     }
