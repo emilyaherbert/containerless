@@ -102,6 +102,11 @@ export class Interpreter {
       case 'if': {
         let c = this.eval_exp(e.test, input);
         if(this.unwrap_boolean(c)) this.eval_stmt(e.then, input);
+        break;
+      }
+      case 'ifElse': {
+        let c = this.eval_exp(e.test, input);
+        if(this.unwrap_boolean(c)) this.eval_stmt(e.then, input);
         else this.eval_stmt(e.else, input);
         break;
       }

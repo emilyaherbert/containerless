@@ -32,9 +32,16 @@ export function return_(value: Exp) {
     value: value });
 }
 
+export function if_(test: Exp) {
+  current.push({
+      kind: 'if',
+      test: test,
+      then: { kind: 'unknown' }});
+}
+
 export function ifElse(test: Exp) {
     current.push({
-        kind: 'if',
+        kind: 'ifElse',
         test: test,
         then: { kind: 'unknown' },
         else: { kind: 'unknown' } });
@@ -42,16 +49,21 @@ export function ifElse(test: Exp) {
 
 export function enterIf(condition: boolean) {
     let theIf = current[current.length - 1];
-    if (theIf.kind !== 'if') {
+    if (theIf.kind !== 'if' && theIf.kind !== 'ifElse') {
         throw 'Total disaster';
     }
     stack.push(current);
     current = [];
-    if (condition) {
+
+    switch(theIf.kind) {
+      case 'if':
         theIf.then = { kind: 'block', body: current };
-    }
-    else {
+        break;
+      case 'ifElse':
+        theIf.then = { kind: 'block', body: current };
         theIf.else = { kind: 'block', body: current };
+        break;
+      default: throw "Found unexpected theIf.kind in enterIf."
     }
 }
 
