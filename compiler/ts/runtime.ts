@@ -26,6 +26,26 @@ export function input(): Exp {
     return { kind: 'input' };
 }
 
+export function argument(e: Exp) {
+  current.push({
+    kind: 'argument',
+    e: e
+  })
+}
+
+// TODO(emily): We don't have to implement a parameter Stmt,
+// as parameters immediantly grab the most recent item in the runtime stack.
+// But, this implementation fails on partially applied functions.
+export function parameter(name: string): Id {
+  let theArg = current[current.length - 1];
+  if(theArg.kind !== 'argument') {
+    throw "Total Disaster!"
+  }
+  current.pop();
+
+  return bind(theArg.e);
+}
+
 export function return_(value: Exp) {
   current.push({
     kind: 'return',

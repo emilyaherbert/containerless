@@ -124,7 +124,8 @@ export class Interpreter {
         this.st.values.push(v);
         break;
       }
-      case 'unknown': throw "Found unimplemented unknown case in eval_stmt."
+      case 'argument': throw "Found unexpected argument case in eval_stmt."
+      case 'unknown': throw "Found unexpected unknown case in eval_stmt."
       default: throw "Found unimplemented e.kind in eval_stmt.";
     }
   }

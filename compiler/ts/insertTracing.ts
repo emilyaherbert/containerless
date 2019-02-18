@@ -57,6 +57,14 @@ const visitor: traverse.Visitor<S> = {
                     throw new Error('only identifier params supported');
                 }
                 const newParam = st.names.get(param.name);
+                const buildParamDeclaration = template.statement(
+                  `let VARIABLE = $T.parameter();`,
+                  { placeholderPattern: /VARIABLE/ });
+                const paramDeclaration = buildParamDeclaration({
+                  VARIABLE: newParam
+                })
+                body.unshift(paramDeclaration);
+                /*
                 const buildInputDeclaration = template.statement(
                     `let VARIABLE = $T.input();`,
                     { placeholderPattern: /VARIABLE/ }); // avoid $T being captured
@@ -64,6 +72,7 @@ const visitor: traverse.Visitor<S> = {
                     VARIABLE: newParam
                 });
                 body.unshift(inputDeclaration);
+                */
             }
         }
     },
@@ -143,6 +152,29 @@ const visitor: traverse.Visitor<S> = {
                     });
                     path.insertBefore(varUpdate);
                 }
+            }
+            else if (t.isCallExpression(path.node.expression)) {
+              const call = path.node.expression;
+              // TODO(emily): Weird behavior here. To review.
+              console.log(call);
+              const callArgs = call.arguments;
+              const buildArgumentPass = template.statement(
+                `$T.argument(VARIABLE);`,
+                { placeholderPattern: /VARIABLE/ });
+              for(let i=0; i<callArgs.length; i++) {
+                const callArg = callArgs[i];
+                console.log(callArg);
+                switch(callArg.type) {
+                  case 'Identifier': {
+                    const argumentPass = buildArgumentPass({
+                      VARIABLE: reifyExpr(st, callArg)
+                    })
+                    path.insertBefore(argumentPass);
+                    break;
+                  }
+                  default: throw "Expected Identifier kind - all arguments should be named."
+                }
+              }
             }
         }
     },

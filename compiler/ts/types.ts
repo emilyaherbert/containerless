@@ -22,6 +22,7 @@ export type Stmt =
     { kind: 'assignment', id: Id, e: Exp } |
     { kind: 'if', test: Exp, then: Stmt } |
     { kind: 'ifElse', test: Exp, then: Stmt, else: Stmt } |
-    { kind: 'unknown' } |
     { kind: 'block', body: Stmt[] } |
-    { kind: 'return', value: Exp }
+    { kind: 'argument', e: Exp } |
+    { kind: 'return', value: Exp } |
+    { kind: 'unknown' }
