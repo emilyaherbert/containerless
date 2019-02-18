@@ -32,7 +32,7 @@ export function return_(value: Exp) {
     value: value });
 }
 
-export function if_(test: Exp) {
+export function ifElse(test: Exp) {
     current.push({
         kind: 'if',
         test: test,

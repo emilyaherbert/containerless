@@ -70,7 +70,7 @@ const visitor: traverse.Visitor<S> = {
     IfStatement: {
         enter(path: traverse.NodePath<t.IfStatement>, st) {
             const innerExpr = path.node.test;
-            path.insertBefore(call(mem(t.identifier('$T'), 'if_'), reifyExpr(st, innerExpr)));
+            path.insertBefore(call(mem(t.identifier('$T'), 'ifElse'), reifyExpr(st, innerExpr)));
             const consequent = path.node.consequent;
             // if the consequent isn't a block statement, then just shove it into one
             if (!t.isBlockStatement(consequent)) {
@@ -80,6 +80,7 @@ const visitor: traverse.Visitor<S> = {
             (path.node.consequent as t.BlockStatement).body.unshift(t.expressionStatement(
                 call(mem(t.identifier('$T'), 'enterIf'), t.booleanLiteral(true))));
             const alternate = path.node.alternate;
+            // TODO(emily): Change code here
             if (alternate !== null) {
                 // if the alternate isn't a block statement, then just stuff it inside one
                 if (!t.isBlockStatement(alternate)) {

@@ -196,6 +196,50 @@ test('assignment 3', () => {
   expect(f).toEqual(unwrap_num(i));
 });
 
+test('if no else 1', () => {
+  $T.clear();
+
+  let code = `
+  function F(x) {
+    if(true) {
+      return 42;
+    }
+    return 24;
+  }
+  F`;
+
+  let f_input = 0;
+  let i_input = $T.num(f_input);
+
+  let t = insertTracing.transform(code);
+  let f = eval(t)(f_input);
+  let i = interp.eval($T.program_(), i_input);
+  
+  expect(f).toEqual(unwrap_num(i));
+});
+
+test('if no else 2', () => {
+  $T.clear();
+
+  let code = `
+  function F(x) {
+    if(false) {
+      return 42;
+    }
+    return 24;
+  }
+  F`;
+
+  let f_input = 0;
+  let i_input = $T.num(f_input);
+
+  let t = insertTracing.transform(code);
+  let f = eval(t)(f_input);
+  let i = interp.eval($T.program_(), i_input);
+  
+  expect(f).toEqual(unwrap_num(i));
+});
+
 // TODO(emily): Should this be in runtime.ts? Really only useful for testing...
 function unwrap_num(e: Exp): number {
   switch(e.kind) {

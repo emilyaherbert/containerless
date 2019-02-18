@@ -89,7 +89,6 @@ export class Interpreter {
   }
 
   private eval_stmt(e: Stmt, input: Exp) {
-    console.log(e);
     switch(e.kind) {
       case 'let': {
         let v = this.eval_exp(e.e, input);
