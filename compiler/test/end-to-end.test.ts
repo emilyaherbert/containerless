@@ -14,7 +14,7 @@ import { Exp } from "../ts/types";
 
 let interp = new Interpreter();
 
-test('end-to-end 1', () => {
+test('test', () => {
   $T.clear();
 
   let code = `
@@ -35,7 +35,7 @@ test('end-to-end 1', () => {
   expect(f).toEqual(unwrap_num(i));
 });
 
-test('end-to-end 2', () => {
+test('multiple if statements', () => {
   $T.clear();
 
   let code = `
@@ -51,31 +51,6 @@ test('end-to-end 2', () => {
   F`;
 
   let f_input = 33;
-  let i_input = $T.num(f_input);
-
-  let t = insertTracing.transform(code);
-  let f = eval(t)(f_input);
-  let i = interp.eval($T.program_(), i_input);
-  
-  expect(f).toEqual(unwrap_num(i));
-});
-
-// TODO(Chris): Assignment does not work if trying to assign over the 'input' variable
-// TODO(emily): This passed for me - should this still be a TODO?
-test('end-to-end 3', () => {
-  $T.clear();
-
-  let code = `
-  function F(x) {
-    let y = x;
-    if (y < 0) {
-        y = y * -1;
-    }
-    return y;
-  }
-  F`;
-
-  let f_input = -3;
   let i_input = $T.num(f_input);
 
   let t = insertTracing.transform(code);
@@ -147,6 +122,71 @@ test('logical expression 3', () => {
   F`;
 
   let f_input = -3;
+  let i_input = $T.num(f_input);
+
+  let t = insertTracing.transform(code);
+  let f = eval(t)(f_input);
+  let i = interp.eval($T.program_(), i_input);
+  
+  expect(f).toEqual(unwrap_num(i));
+});
+
+// TODO(Chris): Assignment does not work if trying to assign over the 'input' variable
+test('assignment 1', () => {
+  $T.clear();
+
+  let code = `
+  function F(x) {
+    let y = 1;
+    if (x < 0) {
+        y = 2;
+    }
+    return y;
+  }
+  F`;
+
+  let f_input = -3;
+  let i_input = $T.num(f_input);
+
+  let t = insertTracing.transform(code);
+  let f = eval(t)(f_input);
+  let i = interp.eval($T.program_(), i_input);
+  
+  expect(f).toEqual(unwrap_num(i));
+});
+
+test('assignment 2', () => {
+  $T.clear();
+
+  let code = `
+  function F(x) {
+    let y = 1
+    y = 2;
+    return y;
+  }
+  F`;
+
+  let f_input = 3;
+  let i_input = $T.num(f_input);
+
+  let t = insertTracing.transform(code);
+  let f = eval(t)(f_input);
+  let i = interp.eval($T.program_(), i_input);
+  
+  expect(f).toEqual(unwrap_num(i));
+});
+
+test('assignment 3', () => {
+  $T.clear();
+
+  let code = `
+  function F(x) {
+    x = 2;
+    return x;
+  }
+  F`;
+
+  let f_input = 3;
   let i_input = $T.num(f_input);
 
   let t = insertTracing.transform(code);

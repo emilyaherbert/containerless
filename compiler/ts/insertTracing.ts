@@ -17,7 +17,6 @@ function mkStmt(code: string) {
 
 const buildVarDeclaration = mkStmt(`let VARIABLE = $T.bind(EXPRESSION);`);
 const buildVarUpdate = mkStmt(`$T.update(VARIABLE, EXPRESSION);`);
-const buildLogicalExpression = template.statement(`LEXPR OP REXPR;`);
 
 type S = {
     names: Map<string, string>
@@ -119,6 +118,7 @@ const visitor: traverse.Visitor<S> = {
                     const origExpr = path.node.expression;
                     const rightExpr = origExpr.right;
                     const varName = st.names.get(lvaltoName(origExpr.left));
+                    console.log(varName);
                     if (varName === undefined) {
                         throw new Error('assigning to an undeclared variable');
                     }

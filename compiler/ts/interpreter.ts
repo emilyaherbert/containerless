@@ -1,17 +1,80 @@
 import { Name, Id, Typ, Exp, Stmt } from "../ts/types";
+import { tsNamespaceExportDeclaration, numberLiteralTypeAnnotation } from "@babel/types";
 
 class State {
   constructor() {}
 
-  names = new Map();
+  private names = new Map<number, Exp>([]);
+  private stack : Map<number, Exp>[] = [];
   values : Exp[] = [];
+
+  // Save the names that were declared in the current scope.
+  // Start new scope.
+  public push() {
+    this.stack.push(new Map(this.names));
+    this.names = new Map<number, Exp>([]);
+  }
+
+  // Set current scope to previous scope.
+  // Throw out top scope.
+  public pop() {
+    if(this.stack.length > 0) {
+      this.names = this.stack[this.stack.length - 1];
+    }
+    this.stack.pop();
+  }
+
+  // Check if declared in current scope.
+  // Traverse through previous scopes from closest to furthest.
+  public has(id: number): boolean {
+    if(this.names.has(id)) {
+      return true;
+    }
+    for(let i=this.stack.length-1; i>(-1); i--) {
+      if(this.stack[i].has(id)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Add to current scope.
+  public set(id: number, e: Exp) {
+    this.names.set(id, e);
+  }
+
+  // Check if declared in current scope.
+  // Traverse through previous scopes from closest to furthest.
+  public get(id: number): Exp | undefined {
+    if(this.names.has(id)) {
+      return this.names.get(id);
+    }
+    for(let i=this.stack.length-1; i>(-1); i--) {
+      if(this.stack[i].has(id)) {
+        return this.stack[i].get(id);
+      }
+    }
+  }
+
+  // Update most recent let from closest scope.
+  public update(id: number, e: Exp) {
+    if(this.names.has(id)) {
+      this.names.set(id, e);
+      return;
+    }
+    for(let i=this.stack.length-1; i>(-1); i--) {
+      if(this.stack[i].has(id)) {
+        this.stack[i].set(id, e);
+        return;
+      }
+    }
+  }
 }
 
 export class Interpreter {
   constructor() {}
 
   private st = new State();
-  private history : State[] = [];
 
   // Entry-point.
   public eval(e: Stmt[], input: Exp): Exp {
@@ -26,15 +89,15 @@ export class Interpreter {
   }
 
   private eval_stmt(e: Stmt, input: Exp) {
+    console.log(e);
     switch(e.kind) {
       case 'let': {
         let v = this.eval_exp(e.e, input);
-        this.st.names.set(e.name, v);
+        this.st.set(e.name, v);
         break;
       }
       case 'assignment': {
-        let v = this.eval_exp(e.e, input);
-        this.st.names.set(e.id.name, v);
+        this.st.update(e.id.name, this.eval_exp(e.e, input));
         break;
       }
       case 'if': {
@@ -46,15 +109,15 @@ export class Interpreter {
       case 'block': {
         // potential errors here...
         for(let i=0; i<e.body.length; i++) {
-          this.history.push(this.st);
+          this.st.push();
           this.eval_stmt(e.body[i], input);
-          this.st = this.history[this.history.length-1];
-          this.history.pop();
+          this.st.pop();
         }
         break;
       }
       case 'return': {
-        this.st.values.push(this.eval_exp(e.value, input));
+        let v = this.eval_exp(e.value, input);
+        this.st.values.push(v);
         break;
       }
       case 'unknown': throw "Found unimplemented unknown case in eval_stmt."
@@ -78,8 +141,13 @@ export class Interpreter {
         return this.eval_binop(e.op, v1, v2);
       }
       case 'identifier': {
-        if(this.st.names.has(e.name)) {
-          return this.st.names.get(e.name);
+        if(this.st.has(e.name)) {
+          let v = this.st.get(e.name);
+          if(typeof(v) !== 'undefined') {
+            return v;
+          } else {
+            throw "Found free identifier"
+          }
         } else {
           throw "Found free identifier."
         }
