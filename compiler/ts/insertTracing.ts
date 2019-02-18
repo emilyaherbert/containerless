@@ -16,6 +16,7 @@ function mkStmt(code: string) {
 }
 
 const buildVarDeclaration = mkStmt(`let VARIABLE = $T.bind(EXPRESSION);`);
+const buildVarUpdate = mkStmt(`$T.update(VARIABLE, EXPRESSION);`);
 
 type S = {
     names: Map<string, string>
@@ -68,21 +69,21 @@ const visitor: traverse.Visitor<S> = {
     },
     IfStatement: {
         enter(path: traverse.NodePath<t.IfStatement>, st) {
-            let innerExpr = path.node.test;
+            const innerExpr = path.node.test;
             path.insertBefore(call(mem(t.identifier('$T'), 'if_'), reifyExpr(st, innerExpr)));
-            let consequent = path.node.consequent;
+            const consequent = path.node.consequent;
             // if the consequent isn't a block statement, then just shove it into one
             if (!t.isBlockStatement(consequent)) {
-                let newBlockStmt = t.blockStatement([consequent]);
+                const newBlockStmt = t.blockStatement([consequent]);
                 path.node.consequent = newBlockStmt;
             }
             (path.node.consequent as t.BlockStatement).body.unshift(t.expressionStatement(
                 call(mem(t.identifier('$T'), 'enterIf'), t.booleanLiteral(true))));
-            let alternate = path.node.alternate;
+            const alternate = path.node.alternate;
             if (alternate !== null) {
                 // if the alternate isn't a block statement, then just stuff it inside one
                 if (!t.isBlockStatement(alternate)) {
-                    let newBlockStmt = t.blockStatement([alternate]);
+                    const newBlockStmt = t.blockStatement([alternate]);
                     path.node.alternate = newBlockStmt;
                 }
                 (path.node.alternate as t.BlockStatement).body.unshift(t.expressionStatement(
@@ -107,6 +108,25 @@ const visitor: traverse.Visitor<S> = {
                     EXPRESSION: reifyExpr(st, expr)
                 });
                 path.insertBefore(varDeclaration);
+            }
+        }
+    },
+    ExpressionStatement: {
+        enter(path: traverse.NodePath<t.ExpressionStatement>, st) {
+            if (t.isAssignmentExpression(path.node.expression)) {
+                if (path.node.expression.operator === '=') {
+                    const origExpr = path.node.expression;
+                    const rightExpr = origExpr.right;
+                    const varName = st.names.get(lvaltoName(origExpr.left));
+                    if (varName === undefined) {
+                        throw new Error('assigning to an undeclared variable');
+                    }
+                    const varUpdate = buildVarUpdate({
+                        VARIABLE: varName,
+                        EXPRESSION: reifyExpr(st, rightExpr)
+                    });
+                    path.insertBefore(varUpdate);
+                }
             }
         }
     },

@@ -60,6 +60,30 @@ test('end-to-end 2', () => {
   expect(f).toEqual(unwrap_num(i));
 });
 
+// TODO(Chris): Assignment does not work if trying to assign over the 'input' variable
+test('end-to-end 3', () => {
+  $T.clear();
+
+  let code = `
+  function F(x) {
+    let y = x;
+    if (y < 0) {
+        y = y * -1;
+    }
+    return y;
+  }
+  F`;
+
+  let f_input = -3;
+  let i_input = $T.num(f_input);
+
+  let t = insertTracing.transform(code);
+  let f = eval(t)(f_input);
+  let i = interp.eval($T.program_(), i_input);
+  
+  expect(f).toEqual(unwrap_num(i));
+});
+
 // TODO(emily): Should this be in runtime.ts? Really only useful for testing...
 function unwrap_num(e: Exp): number {
   switch(e.kind) {

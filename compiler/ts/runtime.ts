@@ -12,6 +12,11 @@ export function bind(e: Exp): Id {
     return { kind: 'identifier', name: name, type: t };
 }
 
+export function update(id: Id, e: Exp): void {
+    let t = getTyp(e);
+    current.push({ kind: 'assignment', id: id, e: e});
+}
+
 export function input(): Exp {
     return { kind: 'input' };
 }

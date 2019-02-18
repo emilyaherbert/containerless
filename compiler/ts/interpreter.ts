@@ -32,6 +32,11 @@ export class Interpreter {
         this.st.names.set(e.name, v);
         break;
       }
+      case 'assignment': {
+        let v = this.eval_exp(e.e, input);
+        this.st.names.set(e.id.name, v);
+        break;
+      }
       case 'if': {
         let c = this.eval_exp(e.test, input);
         if(this.unwrap_boolean(c)) this.eval_stmt(e.then, input);
