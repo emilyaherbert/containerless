@@ -17,7 +17,6 @@ function mkStmt(code: string) {
 
 const buildVarDeclaration = mkStmt(`let VARIABLE = $T.bind(EXPRESSION);`);
 const buildVarUpdate = mkStmt(`$T.update(VARIABLE, EXPRESSION);`);
-const buildLogicalExpression = template.statement(`LEXPR OP REXPR;`);
 
 type S = {
     names: Map<string, string>
@@ -71,24 +70,40 @@ const visitor: traverse.Visitor<S> = {
     IfStatement: {
         enter(path: traverse.NodePath<t.IfStatement>, st) {
             const innerExpr = path.node.test;
-            path.insertBefore(call(mem(t.identifier('$T'), 'if_'), reifyExpr(st, innerExpr)));
             const consequent = path.node.consequent;
-            // if the consequent isn't a block statement, then just shove it into one
-            if (!t.isBlockStatement(consequent)) {
+            const alternate = path.node.alternate;
+
+            if(alternate === null) {
+              // If statement.
+
+              path.insertBefore(call(mem(t.identifier('$T'), 'if_'), reifyExpr(st, innerExpr)));
+              // Force block statement consequent.
+              if (!t.isBlockStatement(consequent)) {
                 const newBlockStmt = t.blockStatement([consequent]);
                 path.node.consequent = newBlockStmt;
-            }
-            (path.node.consequent as t.BlockStatement).body.unshift(t.expressionStatement(
+              }
+              (path.node.consequent as t.BlockStatement).body.unshift(t.expressionStatement(
                 call(mem(t.identifier('$T'), 'enterIf'), t.booleanLiteral(true))));
-            const alternate = path.node.alternate;
-            if (alternate !== null) {
-                // if the alternate isn't a block statement, then just stuff it inside one
-                if (!t.isBlockStatement(alternate)) {
-                    const newBlockStmt = t.blockStatement([alternate]);
-                    path.node.alternate = newBlockStmt;
-                }
-                (path.node.alternate as t.BlockStatement).body.unshift(t.expressionStatement(
-                    call(mem(t.identifier('$T'), 'enterIf'), t.booleanLiteral(false))));
+
+            } else {
+              // IfElse statement.
+
+              path.insertBefore(call(mem(t.identifier('$T'), 'ifElse'), reifyExpr(st, innerExpr)));
+              // Force block statement consequent.
+              if (!t.isBlockStatement(consequent)) {
+                const newBlockStmt = t.blockStatement([consequent]);
+                path.node.consequent = newBlockStmt;
+              }
+              (path.node.consequent as t.BlockStatement).body.unshift(t.expressionStatement(
+                call(mem(t.identifier('$T'), 'enterIf'), t.booleanLiteral(true))));
+              // Force block statement alternate. 
+              if (!t.isBlockStatement(alternate)) {
+                  const newBlockStmt = t.blockStatement([alternate]);
+                  path.node.alternate = newBlockStmt;
+              }
+              (path.node.alternate as t.BlockStatement).body.unshift(t.expressionStatement(
+                call(mem(t.identifier('$T'), 'enterIf'), t.booleanLiteral(false))));
+
             }
         }
     },

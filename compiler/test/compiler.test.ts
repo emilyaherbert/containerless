@@ -7,7 +7,7 @@ test('please work', () => {
   let code = `
   function F(x) {
       let $x = $T.input();
-      $T.if_($T.lt($x, $T.num(20)));
+      $T.ifElse($T.lt($x, $T.num(20)));
       if (x < 20) {
           $T.enterIf(true);
           let $y = $T.bind($T.lt($x, $T.num(2)));
@@ -30,7 +30,7 @@ test('please work 2', () => {
   let code = `
   function F(x) {
       let $x = $T.input();
-      $T.if_($T.lt($x, $T.num(20)));
+      $T.ifElse($T.lt($x, $T.num(20)));
       if (x < 20) {
           $T.enterIf(true);
           let $y = $T.bind($T.lt($x, $T.num(2)));

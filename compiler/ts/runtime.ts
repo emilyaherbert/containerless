@@ -1,4 +1,5 @@
 import { Name, Id, Typ, Exp, Stmt } from "../ts/types";
+import { DH_UNABLE_TO_CHECK_GENERATOR } from "constants";
 
 let program : Stmt[] = [];
 let stack: Stmt[][] = [];
@@ -14,7 +15,11 @@ export function bind(e: Exp): Id {
 
 export function update(id: Id, e: Exp): void {
     let t = getTyp(e);
-    current.push({ kind: 'assignment', id: id, e: e});
+    current.push({
+      kind: 'assignment',
+      id: id,
+      e: e
+    });
 }
 
 export function input(): Exp {
@@ -28,8 +33,15 @@ export function return_(value: Exp) {
 }
 
 export function if_(test: Exp) {
+  current.push({
+      kind: 'if',
+      test: test,
+      then: { kind: 'unknown' }});
+}
+
+export function ifElse(test: Exp) {
     current.push({
-        kind: 'if',
+        kind: 'ifElse',
         test: test,
         then: { kind: 'unknown' },
         else: { kind: 'unknown' } });
@@ -37,16 +49,21 @@ export function if_(test: Exp) {
 
 export function enterIf(condition: boolean) {
     let theIf = current[current.length - 1];
-    if (theIf.kind !== 'if') {
+    if (theIf.kind !== 'if' && theIf.kind !== 'ifElse') {
         throw 'Total disaster';
     }
     stack.push(current);
     current = [];
-    if (condition) {
+
+    switch(theIf.kind) {
+      case 'if':
         theIf.then = { kind: 'block', body: current };
-    }
-    else {
+        break;
+      case 'ifElse':
+        theIf.then = { kind: 'block', body: current };
         theIf.else = { kind: 'block', body: current };
+        break;
+      default: throw "Found unexpected theIf.kind in enterIf."
     }
 }
 
@@ -147,6 +164,7 @@ export const bitor          = genericBinOp('|',      { kind: 'number' } , { kind
 export const bitxor         = genericBinOp('^',      { kind: 'number' } , { kind: 'number' });
 export const and            = genericBinOp('&&',     { kind: 'boolean' }, { kind: 'boolean' });
 export const or             = genericBinOp('||',     { kind: 'boolean' }, { kind: 'boolean' });
+
 export function num(n: number): Exp {
     return { kind: 'number', value: n };
 }
@@ -163,7 +181,7 @@ export function log() {
     console.log(JSON.stringify(program, null, 2));
 }
 
-// TODO: Used for testing, replace with something more elegant.
+// TODO(emily): Used for testing, replace with something more elegant.
 // i.e. https://github.com/plasma-umass/ElementaryJS/blob/master/ts/runtime.ts#L316
 export function clear() {
   program = [];

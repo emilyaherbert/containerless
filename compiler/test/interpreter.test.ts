@@ -160,7 +160,7 @@ test('if', () => {
   $T.clear();
 
   let code = `
-  $T.if_($T.bool(true));
+  $T.ifElse($T.bool(true));
   $T.enterIf(true);
   $T.return_($T.str('foo'));
   $T.exitIf();
@@ -178,7 +178,7 @@ test('if 2', () => {
   $T.clear();
 
   let code = `
-  $T.if_($T.bool(false));
+  $T.ifElse($T.bool(false));
   $T.enterIf(false);
   $T.return_($T.str('bar'));
   $T.exitIf();
@@ -198,7 +198,7 @@ test('function', () => {
   let code = `
   function F(x) {
       let $x = $T.input();
-      $T.if_($T.lt($x, $T.num(20)));
+      $T.ifElse($T.lt($x, $T.num(20)));
       $T.enterIf(true);
       $T.return_($T.str('foo'));
       $T.exitIf();
@@ -219,7 +219,7 @@ test('function 2', () => {
   let code = `
   function F(x) {
       let $x = $T.input();
-      $T.if_($T.lt($x, $T.num(20)));
+      $T.ifElse($T.lt($x, $T.num(20)));
       $T.enterIf(false);
       $T.return_($T.str('bar'));
       $T.exitIf();
