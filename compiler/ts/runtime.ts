@@ -57,11 +57,16 @@ export function enterIf(condition: boolean) {
 
     switch(theIf.kind) {
       case 'if':
+      // TODO(arjun): Test condition
         theIf.then = { kind: 'block', body: current };
         break;
       case 'ifElse':
-        theIf.then = { kind: 'block', body: current };
-        theIf.else = { kind: 'block', body: current };
+        if (condition) {
+            theIf.then = { kind: 'block', body: current };
+        }
+        else {
+            theIf.else = { kind: 'block', body: current };
+        }
         break;
       default: throw "Found unexpected theIf.kind in enterIf."
     }
