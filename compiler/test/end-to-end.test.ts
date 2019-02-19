@@ -236,7 +236,7 @@ test('if no else 2', () => {
   let t = insertTracing.transform(code);
   let f = eval(t)(f_input);
   let i = interp.eval($T.program_(), i_input);
-  
+
   expect(f).toEqual(unwrap_num(i));
 });
 

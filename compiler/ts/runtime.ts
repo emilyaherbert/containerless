@@ -32,16 +32,18 @@ export function return_(value: Exp) {
     value: value });
 }
 
+// If there is no else, initialize as empty block Exp.
 export function if_(test: Exp) {
   current.push({
       kind: 'if',
       test: test,
-      then: { kind: 'unknown' }});
+      then: { kind: 'unknown' },
+      else: { kind: 'block', body: []} });
 }
 
 export function ifElse(test: Exp) {
     current.push({
-        kind: 'ifElse',
+        kind: 'if',
         test: test,
         then: { kind: 'unknown' },
         else: { kind: 'unknown' } });
@@ -49,26 +51,18 @@ export function ifElse(test: Exp) {
 
 export function enterIf(condition: boolean) {
     let theIf = current[current.length - 1];
-    if (theIf.kind !== 'if' && theIf.kind !== 'ifElse') {
+    if (theIf.kind !== 'if') {
         throw 'Total disaster';
     }
     stack.push(current);
     current = [];
 
-    switch(theIf.kind) {
-      case 'if':
-      // TODO(arjun): Test condition
+    // TODO(arjun): Test condition
+    if (condition) {
         theIf.then = { kind: 'block', body: current };
-        break;
-      case 'ifElse':
-        if (condition) {
-            theIf.then = { kind: 'block', body: current };
-        }
-        else {
-            theIf.else = { kind: 'block', body: current };
-        }
-        break;
-      default: throw "Found unexpected theIf.kind in enterIf."
+    }
+    else {
+        theIf.else = { kind: 'block', body: current };
     }
 }
 
