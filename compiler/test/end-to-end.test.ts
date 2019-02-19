@@ -12,11 +12,7 @@ import { Exp } from "../ts/types";
 
 */
 
-let interp = new Interpreter();
-
 test('test', () => {
-  $T.clear();
-
   let code = `
   function F(x) {
     let y = 1 + 1;
@@ -25,19 +21,11 @@ test('test', () => {
   F
   `;
 
-  let f_input = 10;
-  let i_input = $T.num(f_input);
-
-  let t = insertTracing.transform(code);
-  let f = eval(t)(f_input);
-  let i = interp.eval($T.program_(), i_input);
-  
-  expect(f).toEqual(unwrap_num(i));
+  let input = 10;
+  run_test(code, input);
 });
 
 test('multiple if statements', () => {
-  $T.clear();
-
   let code = `
   function F(x) {
     if (x <= 1) {
@@ -50,19 +38,11 @@ test('multiple if statements', () => {
   }
   F`;
 
-  let f_input = 33;
-  let i_input = $T.num(f_input);
-
-  let t = insertTracing.transform(code);
-  let f = eval(t)(f_input);
-  let i = interp.eval($T.program_(), i_input);
-  
-  expect(f).toEqual(unwrap_num(i));
+  let input = 33;
+  run_test(code, input);
 });
 
 test('logical expression', () => {
-  $T.clear();
-
   let code = `
   function F(x) {
     if (true && true) {
@@ -73,19 +53,11 @@ test('logical expression', () => {
   }
   F`;
 
-  let f_input = -3;
-  let i_input = $T.num(f_input);
-
-  let t = insertTracing.transform(code);
-  let f = eval(t)(f_input);
-  let i = interp.eval($T.program_(), i_input);
-  
-  expect(f).toEqual(unwrap_num(i));
+  let input = -3;
+  run_test(code, input);
 });
 
 test('logical expression 2', () => {
-  $T.clear();
-
   let code = `
   function F(x) {
     let y = x + 1;
@@ -97,19 +69,11 @@ test('logical expression 2', () => {
   }
   F`;
 
-  let f_input = -3;
-  let i_input = $T.num(f_input);
-
-  let t = insertTracing.transform(code);
-  let f = eval(t)(f_input);
-  let i = interp.eval($T.program_(), i_input);
-  
-  expect(f).toEqual(unwrap_num(i));
+  let input = -3;
+  run_test(code, input);
 });
 
 test('logical expression 3', () => {
-  $T.clear();
-
   let code = `
   function F(x) {
     let y = x + 1;
@@ -121,20 +85,12 @@ test('logical expression 3', () => {
   }
   F`;
 
-  let f_input = -3;
-  let i_input = $T.num(f_input);
-
-  let t = insertTracing.transform(code);
-  let f = eval(t)(f_input);
-  let i = interp.eval($T.program_(), i_input);
-  
-  expect(f).toEqual(unwrap_num(i));
+  let input = -3;
+  run_test(code, input);
 });
 
 // TODO(Chris): Assignment does not work if trying to assign over the 'input' variable
 test('assignment 1', () => {
-  $T.clear();
-
   let code = `
   function F(x) {
     let y = 1;
@@ -145,19 +101,11 @@ test('assignment 1', () => {
   }
   F`;
 
-  let f_input = -3;
-  let i_input = $T.num(f_input);
-
-  let t = insertTracing.transform(code);
-  let f = eval(t)(f_input);
-  let i = interp.eval($T.program_(), i_input);
-  
-  expect(f).toEqual(unwrap_num(i));
+  let input = -3;
+  run_test(code, input);
 });
 
 test('assignment 2', () => {
-  $T.clear();
-
   let code = `
   function F(x) {
     let y = 1
@@ -166,19 +114,11 @@ test('assignment 2', () => {
   }
   F`;
 
-  let f_input = 3;
-  let i_input = $T.num(f_input);
-
-  let t = insertTracing.transform(code);
-  let f = eval(t)(f_input);
-  let i = interp.eval($T.program_(), i_input);
-  
-  expect(f).toEqual(unwrap_num(i));
+  let input = 3;
+  run_test(code, input);
 });
 
 test('assignment 3', () => {
-  $T.clear();
-
   let code = `
   function F(x) {
     x = 2;
@@ -186,19 +126,11 @@ test('assignment 3', () => {
   }
   F`;
 
-  let f_input = 3;
-  let i_input = $T.num(f_input);
-
-  let t = insertTracing.transform(code);
-  let f = eval(t)(f_input);
-  let i = interp.eval($T.program_(), i_input);
-  
-  expect(f).toEqual(unwrap_num(i));
+  let input = 3;
+  run_test(code, input);
 });
 
 test('if no else 1', () => {
-  $T.clear();
-
   let code = `
   function F(x) {
     if(true) {
@@ -208,19 +140,11 @@ test('if no else 1', () => {
   }
   F`;
 
-  let f_input = 0;
-  let i_input = $T.num(f_input);
-
-  let t = insertTracing.transform(code);
-  let f = eval(t)(f_input);
-  let i = interp.eval($T.program_(), i_input);
-  
-  expect(f).toEqual(unwrap_num(i));
+  let input = 0;
+  run_test(code, input);
 });
 
 test('if no else 2', () => {
-  $T.clear();
-
   let code = `
   function F(x) {
     if(false) {
@@ -230,20 +154,207 @@ test('if no else 2', () => {
   }
   F`;
 
-  let f_input = 0;
-  let i_input = $T.num(f_input);
-
-  let t = insertTracing.transform(code);
-  let f = eval(t)(f_input);
-  let i = interp.eval($T.program_(), i_input);
-  
-  expect(f).toEqual(unwrap_num(i));
+  let input = 0;
+  run_test(code, input);
 });
 
-// TODO(emily): Should this be in runtime.ts? Really only useful for testing...
-function unwrap_num(e: Exp): number {
+test('tricky scope 1', () => {
+  let code = `
+  function F(x) {
+    let y = 0;
+    if(true) {
+      if(true) {
+        y = 10;
+      } else {
+        y = 20;
+      }
+      y = y + 1;
+    } else {
+      if(true) {
+        y = 30;
+      } else {
+        y = 40;
+      }
+      y = y + 1;
+    }
+    y = y + 1;
+    return y;
+  }
+  F
+  `;
+
+  let input = 0;
+  run_test(code, input);
+});
+
+test('tricky scope 2', () => {
+  let code = `
+  function F(x) {
+    let y = 0;
+    if(true) {
+      if(false) {
+        y = 10;
+      } else {
+        y = 20;
+      }
+      y = y + 1;
+    } else {
+      if(true) {
+        y = 30;
+      } else {
+        y = 40;
+      }
+      y = y + 1;
+    }
+    y = y + 1;
+    return y;
+  }
+  F
+  `;
+
+  let input = 0;
+  run_test(code, input);
+});
+
+test('tricky scope 3', () => {
+  let code = `
+  function F(x) {
+    let y = 0;
+    if(false) {
+      if(true) {
+        y = 10;
+      } else {
+        y = 20;
+      }
+      y = y + 1;
+    } else {
+      if(true) {
+        y = 30;
+      } else {
+        y = 40;
+      }
+      y = y + 1;
+    }
+    y = y + 1;
+    return y;
+  }
+  F
+  `;
+
+  let input = 0;
+  run_test(code, input);
+});
+
+test('tricky scope 4', () => {
+  let code = `
+  function F(x) {
+    let y = 0;
+    if(false) {
+      if(true) {
+        y = 10;
+      } else {
+        y = 20;
+      }
+      y = y + 1;
+    } else {
+      if(false) {
+        y = 30;
+      } else {
+        y = 40;
+      }
+      y = y + 1;
+    }
+    y = y + 1;
+    return y;
+  }
+  F
+  `;
+
+  let input = 0;
+  run_test(code, input);
+});
+
+test('tricky scope 5', () => {
+  let code = `
+  function F(x) {
+    let y = 0;
+    let z = 100;
+    if(y < z) {
+      let y = 200;
+    }
+    return y;
+  }
+  F
+  `;
+
+  let input = 0;
+  run_test(code, input);
+});
+
+test('tricky scope 6', () => {
+  let code = `
+  function F(x) {
+    let y = 0;
+    let z = 100;
+    if(y < z) {
+      y = 200;
+    }
+    return y;
+  }
+  F
+  `;
+
+  let input = 0;
+  run_test(code, input);
+});
+
+
+
+
+
+
+
+
+
+
+
+let interp = new Interpreter();
+function run_test(code: string, input: string | boolean | number) {
+  $T.clear();
+
+  let trace = insertTracing.transform(code);
+  let func_output = eval(trace)(input);
+  let ast_output = interp.eval($T.program_(), wrap_exp(input));
+
+  expect(unwrap_exp(ast_output)).toBe(func_output);
+}
+
+function wrap_exp(v : number | string | boolean): Exp {
+  switch (typeof v) {
+    case 'string':
+      return $T.str(v);
+      break;
+    case 'number':
+      return $T.num(v);
+      break;
+    case 'boolean':
+      return $T.bool(v);
+      break;
+    default: throw "Found unexpected type in wrap_exp."
+  }
+}
+
+function unwrap_exp(e: Exp): string | boolean | number {
   switch(e.kind) {
-    case 'number': return e.value;
-    default: throw "Expected number in unwrap_num."
+    case 'string':
+      return e.value;
+      break;
+    case 'number':
+      return e.value;
+      break;
+    case 'boolean':
+      return e.value;
+      break;
+    default: throw "Found unexpected e.king in unwrap_exp."
   }
 }

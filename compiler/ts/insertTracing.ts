@@ -19,13 +19,52 @@ const buildVarDeclaration = mkStmt(`let VARIABLE = $T.bind(EXPRESSION);`);
 const buildVarUpdate = mkStmt(`$T.update(VARIABLE, EXPRESSION);`);
 
 type S = {
-    names: Map<string, string>
+    names: Map<string, string>;
+    stack: Map<string, string>[];
 };
+
+function st_clear(st: S): S {
+  st.names = new Map([]);
+  st.stack = [];
+  return st;
+}
+
+function st_set(st: S, k: string, v: string): S {
+  st.names.set(k, v);
+  return st;
+}
+
+function st_get(st: S, k: string): string | undefined {
+  if(st.names.has(k)) {
+    return st.names.get(k);
+  }
+  for(let i=st.stack.length-1; i>(-1); i--) {
+    if(st.stack[i].has(k)) {
+      return st.stack[i].get(k);
+    }
+  }
+}
+
+function st_push(st: S): S {
+  st.stack.push(new Map(st.names));
+  st.names = new Map([]);
+  return st;
+}
+
+function st_pop(st: S): S {
+  if(st.stack.length > 0) {
+    st.names = st.stack[st.stack.length - 1];
+    st.stack.pop();
+    return st;
+  } else {
+    throw "Found unexpected empty st.stack in st_pop."
+  }
+}
 
 const visitor: traverse.Visitor<S> = {
     Program: {
         enter(path, st: S) {
-            st.names = new Map();
+            st_clear(st);
         },
         exit(path: traverse.NodePath<t.Program>, st) {
             const id = t.identifier('$T'); // TODO(arjun): capture
@@ -46,7 +85,7 @@ const visitor: traverse.Visitor<S> = {
                     throw new Error('only identifier params supported');
                 }
                 const newParam = path.scope.generateUidIdentifierBasedOnNode(param);
-                st.names.set(param.name, newParam.name);
+                st_set(st, param.name, newParam.name);
             }
         },
         exit(path: traverse.NodePath<t.FunctionDeclaration>, st) {
@@ -56,7 +95,7 @@ const visitor: traverse.Visitor<S> = {
                 if (param.type !== 'Identifier') {
                     throw new Error('only identifier params supported');
                 }
-                const newParam = st.names.get(param.name);
+                const newParam = st_get(st, param.name);
                 const buildInputDeclaration = template.statement(
                     `let VARIABLE = $T.input();`,
                     { placeholderPattern: /VARIABLE/ }); // avoid $T being captured
@@ -79,8 +118,7 @@ const visitor: traverse.Visitor<S> = {
               path.insertBefore(call(mem(t.identifier('$T'), 'if_'), reifyExpr(st, innerExpr)));
               // Force block statement consequent.
               if (!t.isBlockStatement(consequent)) {
-                const newBlockStmt = t.blockStatement([consequent]);
-                path.node.consequent = newBlockStmt;
+                path.node.consequent = t.blockStatement([consequent]);
               }
               (path.node.consequent as t.BlockStatement).body.unshift(t.expressionStatement(
                 call(mem(t.identifier('$T'), 'enterIf'), t.booleanLiteral(true))));
@@ -91,15 +129,13 @@ const visitor: traverse.Visitor<S> = {
               path.insertBefore(call(mem(t.identifier('$T'), 'ifElse'), reifyExpr(st, innerExpr)));
               // Force block statement consequent.
               if (!t.isBlockStatement(consequent)) {
-                const newBlockStmt = t.blockStatement([consequent]);
-                path.node.consequent = newBlockStmt;
+                path.node.consequent = t.blockStatement([consequent]);
               }
               (path.node.consequent as t.BlockStatement).body.unshift(t.expressionStatement(
                 call(mem(t.identifier('$T'), 'enterIf'), t.booleanLiteral(true))));
               // Force block statement alternate. 
               if (!t.isBlockStatement(alternate)) {
-                  const newBlockStmt = t.blockStatement([alternate]);
-                  path.node.alternate = newBlockStmt;
+                  path.node.alternate = t.blockStatement([alternate]);
               }
               (path.node.alternate as t.BlockStatement).body.unshift(t.expressionStatement(
                 call(mem(t.identifier('$T'), 'enterIf'), t.booleanLiteral(false))));
@@ -117,7 +153,7 @@ const visitor: traverse.Visitor<S> = {
             for (let i = 0; i < declarations.length; ++i) {
                 const id = declarations[i].id;
                 const newId = path.scope.generateUidIdentifierBasedOnNode(id);
-                st.names.set(lvaltoName(id), newId.name);
+                st_set(st, lvaltoName(id), newId.name);
                 const expr = declarations[i].init || eUndefined;
                 const varDeclaration = buildVarDeclaration({
                     VARIABLE: newId,
@@ -133,7 +169,7 @@ const visitor: traverse.Visitor<S> = {
                 if (path.node.expression.operator === '=') {
                     const origExpr = path.node.expression;
                     const rightExpr = origExpr.right;
-                    const varName = st.names.get(lvaltoName(origExpr.left));
+                    const varName = st_get(st, lvaltoName(origExpr.left));
                     if (varName === undefined) {
                         throw new Error('assigning to an undeclared variable');
                     }
@@ -145,6 +181,14 @@ const visitor: traverse.Visitor<S> = {
                 }
             }
         }
+    },
+    BlockStatement: {
+      enter(path: traverse.NodePath<t.BlockStatement>, st) {
+        st_push(st);
+      },
+      exit(path: traverse.NodePath<t.BlockStatement>, st) {
+        st_pop(st);
+      }
     },
     ReturnStatement: {
         enter(path: traverse.NodePath<t.ReturnStatement>, st) {
@@ -176,7 +220,7 @@ function reifyExpr(st: S, expr: t.Expression): t.Expression {
         return call(mem(t.identifier('$T'), 'bool'), expr);
     }
     else if (expr.type === 'Identifier') {
-        let x = st.names.get(expr.name);
+        let x = st_get(st, expr.name);
         if (x === undefined) {
             throw new Error(`no binding for ${x}`);
         }

@@ -20,8 +20,7 @@ export type Exp =
 export type Stmt =
     { kind: 'let', name: Name, e: Exp } |
     { kind: 'assignment', id: Id, e: Exp } |
-    { kind: 'if', test: Exp, then: Stmt } |
-    { kind: 'ifElse', test: Exp, then: Stmt, else: Stmt } |
+    { kind: 'if', test: Exp, then: Stmt, else: Stmt } |
     { kind: 'unknown' } |
     { kind: 'block', body: Stmt[] } |
     { kind: 'return', value: Exp }
