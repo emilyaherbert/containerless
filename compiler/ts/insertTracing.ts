@@ -3,6 +3,26 @@ import * as t from '@babel/types';
 import * as traverse from '@babel/traverse';
 import * as template from '@babel/template';
 
+function mkExpr(code: string) {
+  const tmpl = template.expression(code,
+      { placeholderPattern: /(EXPRESSION)/ });
+  return function (binds: { [index: string]: any })  {
+      let expr = tmpl(binds);
+      (expr as any).__runtime__ = true;
+      return expr;
+  };
+}
+
+function mkExpr2(code: string) {
+  const tmpl = template.expression(code,
+      { placeholderPattern: /(EXPRESSION1)|(EXPRESSION2)/ });
+  return function (binds: { [index: string]: any })  {
+      let expr = tmpl(binds);
+      (expr as any).__runtime__ = true;
+      return expr;
+  };
+}
+
 // Converts string into a statement that can be avoided by visitors
 // by checking the __doNotVisit__ property.
 function mkStmt(code: string) {
@@ -10,13 +30,42 @@ function mkStmt(code: string) {
         { placeholderPattern: /(VARIABLE)|(EXPRESSION)/ });
     return function (binds: { [index: string]: any })  {
         let stmt = tmpl(binds);
-        (stmt as any).__doNotVisit__ = true;
+        (stmt as any).__runtime__ = true;
         return stmt;
     };
 }
 
+const buildNumericExpr = mkExpr(`$T.num(EXPRESSION)`);
+const buildBooleanExpr = mkExpr(`$T.bool(EXPRESSION)`);
+const buildStringExpr = mkExpr(`$T.str(EXPRESSION)`);
+type EXPRMAP =  { [key: string]: (binds: { [index: string]: any; }) => t.Expression };
+const buildUnaryExpr : EXPRMAP = ['neg','plus','not','bitnot']
+    .reduce((ret : EXPRMAP, elem) => {
+        ret[elem] = mkExpr(`$T.` + elem + `(EXPRESSION)`);
+        return ret;
+    }, {});
+const buildLogicalExpr : EXPRMAP = ['and','or']
+    .reduce((ret : EXPRMAP, elem) => {
+        ret[elem] = mkExpr2(`$T.` + elem + `(EXPRESSION1, EXPRESSION2)`);
+        return ret;
+    }, {});
+const buildBinaryExpr : EXPRMAP = ['add', 'gt', 'lt', 'geq', 'leq', 'sub', 'div', 'mul', 'remainder', 'pow', 'bitand', 'bitor', 'bitxor', 'rshift', 'unsignedrs', 'lshift', 'lshift', 'eq','ineq', 'exacteq','exactineq']
+    .reduce((ret : EXPRMAP, elem) => {
+        ret[elem] = mkExpr2(`$T.` + elem + `(EXPRESSION1, EXPRESSION2)`);
+        return ret;
+    }, {});
+
 const buildVarDeclaration = mkStmt(`let VARIABLE = $T.bind(EXPRESSION);`);
 const buildVarUpdate = mkStmt(`$T.update(VARIABLE, EXPRESSION);`);
+const buildInputDeclaration = mkStmt(`let VARIABLE = $T.input();`);
+const buildParameterDeclaration = mkStmt(`let VARIABLE = $T.parameter();`);
+
+const buildRequireStmt = mkStmt(`let VARIABLE = require('../dist/runtime');`);
+const buildIfStmt = mkStmt(`$T.if_(EXPRESSION);`);
+const buildIfElseStmt = mkStmt(`$T.ifElse(EXPRESSION);`);
+const buildEnterIf = mkStmt(`$T.enterIf(EXPRESSION);`);
+const buildReturnStmt = mkStmt(`$T.return_(EXPRESSION);`);
+const buildArgumentStmt = mkStmt(`$T.argument(EXPRESSION);`);
 
 type S = {
     names: Map<string, string>;
@@ -69,7 +118,6 @@ const visitor: traverse.Visitor<S> = {
         exit(path: traverse.NodePath<t.Program>, st) {
             const id = t.identifier('$T'); // TODO(arjun): capture
 
-            let buildRequireStmt = template.statement(`let VARIABLE = require('../dist/runtime');`);
             let requireStmt = buildRequireStmt({
                 VARIABLE: id
             });
@@ -78,9 +126,13 @@ const visitor: traverse.Visitor<S> = {
     },
     FunctionDeclaration: {
         enter(path: traverse.NodePath<t.FunctionDeclaration>, st) {
-            const body = path.node.body.body;
-            for (let i = 0; i < path.node.params.length; ++i) {
-                const param = path.node.params[i];
+            if ((path.node as any).__runtime__) {
+              path.skip();
+              return;
+            }
+            const params = path.node.params;
+            for (let i = 0; i < params.length; ++i) {
+                const param = params[i];
                 if (param.type !== 'Identifier') {
                     throw new Error('only identifier params supported');
                 }
@@ -89,25 +141,46 @@ const visitor: traverse.Visitor<S> = {
             }
         },
         exit(path: traverse.NodePath<t.FunctionDeclaration>, st) {
+            const name = path.node.id;
             const body = path.node.body.body;
-            for (let i = 0; i < path.node.params.length; ++i) {
-                const param = path.node.params[i];
-                if (param.type !== 'Identifier') {
-                    throw new Error('only identifier params supported');
+            const params = path.node.params;
+            // TODO(emily): Change hard-coded main.
+            if(name === null) {
+              throw "Function name cannot be null.";
+              return;
+            }
+            if(name.name === 'main') {
+                for (let i = 0; i < params.length; ++i) {
+                    const param = params[i];
+                    if (param.type !== 'Identifier') {
+                        throw new Error('only identifier params supported');
+                    }
+                    const inputDeclaration = buildInputDeclaration({
+                        VARIABLE: st_get(st, param.name)
+                    });
+                    body.unshift(inputDeclaration);
                 }
-                const newParam = st_get(st, param.name);
-                const buildInputDeclaration = template.statement(
-                    `let VARIABLE = $T.input();`,
-                    { placeholderPattern: /VARIABLE/ }); // avoid $T being captured
-                const inputDeclaration = buildInputDeclaration({
-                    VARIABLE: newParam
-                });
-                body.unshift(inputDeclaration);
+            } else {
+                for (let i = 0; i < params.length; ++i) {
+                    const param = params[i];
+                    if (param.type !== 'Identifier') {
+                        throw new Error('only identifier params supported');
+                    }
+                    const parameterDeclaration = buildParameterDeclaration({
+                      VARIABLE: st_get(st, param.name)
+                    })
+                    body.unshift(parameterDeclaration);
+                }
             }
         }
     },
     IfStatement: {
         enter(path: traverse.NodePath<t.IfStatement>, st) {
+            if ((path.node as any).__runtime__) {
+              path.skip();
+              return;
+            }
+
             const innerExpr = path.node.test;
             const consequent = path.node.consequent;
             const alternate = path.node.alternate;
@@ -115,37 +188,48 @@ const visitor: traverse.Visitor<S> = {
             if(alternate === null) {
               // If statement.
 
-              path.insertBefore(call(mem(t.identifier('$T'), 'if_'), reifyExpr(st, innerExpr)));
-              // Force block statement consequent.
+              const ifStmt = buildIfStmt({
+                EXPRESSION: reifyExpr(st, innerExpr)
+              })
+              path.insertBefore(ifStmt);
+
               if (!t.isBlockStatement(consequent)) {
                 path.node.consequent = t.blockStatement([consequent]);
               }
-              (path.node.consequent as t.BlockStatement).body.unshift(t.expressionStatement(
-                call(mem(t.identifier('$T'), 'enterIf'), t.booleanLiteral(true))));
+              const enterIfTrue = buildEnterIf({
+                EXPRESSION: t.booleanLiteral(true)
+              });
+              (path.node.consequent as t.BlockStatement).body.unshift(enterIfTrue);
 
             } else {
               // IfElse statement.
 
-              path.insertBefore(call(mem(t.identifier('$T'), 'ifElse'), reifyExpr(st, innerExpr)));
-              // Force block statement consequent.
+              const ifElseStmt = buildIfElseStmt({
+                EXPRESSION: reifyExpr(st, innerExpr)
+              })
+              path.insertBefore(ifElseStmt);
+
               if (!t.isBlockStatement(consequent)) {
                 path.node.consequent = t.blockStatement([consequent]);
               }
-              (path.node.consequent as t.BlockStatement).body.unshift(t.expressionStatement(
-                call(mem(t.identifier('$T'), 'enterIf'), t.booleanLiteral(true))));
-              // Force block statement alternate. 
+              const enterIfTrue = buildEnterIf({
+                EXPRESSION: t.booleanLiteral(true)
+              });
+              (path.node.consequent as t.BlockStatement).body.unshift(enterIfTrue);
+              
               if (!t.isBlockStatement(alternate)) {
                   path.node.alternate = t.blockStatement([alternate]);
               }
-              (path.node.alternate as t.BlockStatement).body.unshift(t.expressionStatement(
-                call(mem(t.identifier('$T'), 'enterIf'), t.booleanLiteral(false))));
-
+              const enterIfFalse = buildEnterIf({
+                EXPRESSION: t.booleanLiteral(false)
+              });
+              (path.node.alternate as t.BlockStatement).body.unshift(enterIfFalse);
             }
         }
     },
     VariableDeclaration: {
         enter(path: traverse.NodePath<t.VariableDeclaration>, st) {
-            if ((path.node as any).__doNotVisit__) {
+            if ((path.node as any).__runtime__) {
                 path.skip();
                 return;
             }
@@ -163,8 +247,31 @@ const visitor: traverse.Visitor<S> = {
             }
         }
     },
+    CallExpression: {
+        enter(path: traverse.NodePath<t.CallExpression>, st) {
+            if ((path.node as any).__runtime__) {
+              path.skip();
+              return;
+            }
+            const args = path.node.arguments;
+            for(let i=0; i<args.length; i++) {
+                const arg = args[i];
+                if (arg.type !== 'Identifier') {
+                    throw new Error('Only Identifier args supported.');
+                }
+                const argumentStmt = buildArgumentStmt({
+                  EXPRESSION: reifyExpr(st, arg)
+                })
+                path.insertBefore(argumentStmt);
+            }
+        }
+    },
     ExpressionStatement: {
         enter(path: traverse.NodePath<t.ExpressionStatement>, st) {
+            if ((path.node as any).__runtime__) {
+              path.skip();
+              return;
+            }
             if (t.isAssignmentExpression(path.node.expression)) {
                 if (path.node.expression.operator === '=') {
                     const origExpr = path.node.expression;
@@ -183,20 +290,31 @@ const visitor: traverse.Visitor<S> = {
         }
     },
     BlockStatement: {
-      enter(path: traverse.NodePath<t.BlockStatement>, st) {
-        st_push(st);
-      },
-      exit(path: traverse.NodePath<t.BlockStatement>, st) {
-        st_pop(st);
-      }
+        enter(path: traverse.NodePath<t.BlockStatement>, st) {
+            if ((path.node as any).__runtime__) {
+              path.skip();
+              return;
+            }
+            st_push(st);
+        },
+        exit(path: traverse.NodePath<t.BlockStatement>, st) {
+            st_pop(st);
+        }
     },
     ReturnStatement: {
         enter(path: traverse.NodePath<t.ReturnStatement>, st) {
+            if ((path.node as any).__runtime__) {
+              path.skip();
+              return;
+            }
             let innerExpr = path.node.argument;
             if (innerExpr === null) {
                 innerExpr = eUndefined;
             }
-            path.insertBefore(call(mem(t.identifier('$T'), 'return_'), reifyExpr(st, innerExpr)));
+            const returnStmt = buildReturnStmt({
+              EXPRESSION: reifyExpr(st, innerExpr)
+            })
+            path.insertBefore(returnStmt);
         }
     }
 };
@@ -214,14 +332,21 @@ function mem(object: t.Expression, field: string) {
 // TODO(emily): Just want to clarify - why have we done this with a seperate function and not with babel? 
 function reifyExpr(st: S, expr: t.Expression): t.Expression {
     if (expr.type === 'NumericLiteral') {
-        return call(mem(t.identifier('$T'), 'num'), expr);
+        const numericExpr = buildNumericExpr({
+          EXPRESSION: expr
+        });
+        return numericExpr;
     }
     else if (expr.type === 'BooleanLiteral') {
-        return call(mem(t.identifier('$T'), 'bool'), expr);
+        const booleanExpr = buildBooleanExpr({
+          EXPRESSION: expr
+        })
+        return booleanExpr;
     }
     else if (expr.type === 'Identifier') {
         let x = st_get(st, expr.name);
         if (x === undefined) {
+            console.log(expr);
             throw new Error(`no binding for ${x}`);
         }
         return t.identifier(x);
@@ -237,7 +362,10 @@ function reifyExpr(st: S, expr: t.Expression): t.Expression {
             default: // cases 'typeof', 'void', 'delete', 'throw' not handled
                 throw new Error(`unsupported binary operator: ${expr.operator}`);
         }
-        return call(mem(t.identifier('$T'), traceOpName), e);
+        const unaryExpr = buildUnaryExpr[traceOpName]({
+          EXPRESSION: e
+        })
+        return unaryExpr;
     }
     else if (expr.type == 'LogicalExpression') {
       let e1 = reifyExpr(st, expr.left);
@@ -253,7 +381,11 @@ function reifyExpr(st: S, expr: t.Expression): t.Expression {
         default:
           throw new Error(`unsupported logical operator: ${expr.operator}`);
       }
-      return call(mem(t.identifier('$T'), traceOpName), e1, e2);
+      const logicalExpr = buildLogicalExpr[traceOpName]({
+        EXPRESSION1: e1,
+        EXPRESSION2: e2
+      })
+      return logicalExpr;
     }
     else if (expr.type === 'BinaryExpression') {
         // TODO(Chris): Do we try to perform type checking here to see what the
@@ -288,7 +420,11 @@ function reifyExpr(st: S, expr: t.Expression): t.Expression {
           default: // cases 'in', and 'instanceof' not handled
               throw new Error(`unsupported binary operator: ${expr.operator}`);
         }
-        return call(mem(t.identifier('$T'), traceOpName), e1, e2);
+        const binaryExpr = buildBinaryExpr[traceOpName]({
+          EXPRESSION1: e1,
+          EXPRESSION2: e2
+        })
+        return binaryExpr;
     }
     else {
         throw new Error(`unsupported expression type: ${expr.type}`);
