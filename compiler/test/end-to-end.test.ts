@@ -14,11 +14,11 @@ import { Exp } from "../ts/types";
 
 test('test', () => {
   let code = `
-  function F(x) {
+  function main(x) {
     let y = 1 + 1;
     return 2 + 3  + x + y;
   }
-  F
+  main
   `;
 
   let input = 10;
@@ -27,7 +27,7 @@ test('test', () => {
 
 test('multiple if statements', () => {
   let code = `
-  function F(x) {
+  function main(x) {
     if (x <= 1) {
       return 1;
     } else if (x > 30) {
@@ -36,7 +36,8 @@ test('multiple if statements', () => {
       return x * (x - 1);
     }
   }
-  F`;
+  main
+  `;
 
   let input = 33;
   run_test(code, input);
@@ -44,14 +45,15 @@ test('multiple if statements', () => {
 
 test('logical expression', () => {
   let code = `
-  function F(x) {
+  function main(x) {
     if (true && true) {
       return 1;
     } else {
       return 0;
     }
   }
-  F`;
+  main
+  `;
 
   let input = -3;
   run_test(code, input);
@@ -59,7 +61,7 @@ test('logical expression', () => {
 
 test('logical expression 2', () => {
   let code = `
-  function F(x) {
+  function main(x) {
     let y = x + 1;
     if (x < y && y < x) {
       return 1;
@@ -67,7 +69,8 @@ test('logical expression 2', () => {
       return 0;
     }
   }
-  F`;
+  main
+  `;
 
   let input = -3;
   run_test(code, input);
@@ -75,7 +78,7 @@ test('logical expression 2', () => {
 
 test('logical expression 3', () => {
   let code = `
-  function F(x) {
+  function main(x) {
     let y = x + 1;
     if (x < y || y < x) {
       return 1;
@@ -83,7 +86,8 @@ test('logical expression 3', () => {
       return 0;
     }
   }
-  F`;
+  main
+  `;
 
   let input = -3;
   run_test(code, input);
@@ -92,14 +96,15 @@ test('logical expression 3', () => {
 // TODO(Chris): Assignment does not work if trying to assign over the 'input' variable
 test('assignment 1', () => {
   let code = `
-  function F(x) {
+  function main(x) {
     let y = 1;
     if (x < 0) {
         y = 2;
     }
     return y;
   }
-  F`;
+  main
+  `;
 
   let input = -3;
   run_test(code, input);
@@ -107,24 +112,13 @@ test('assignment 1', () => {
 
 test('assignment 2', () => {
   let code = `
-  function F(x) {
+  function main(x) {
     let y = 1
     y = 2;
     return y;
   }
-  F`;
-
-  let input = 3;
-  run_test(code, input);
-});
-
-test('assignment 3', () => {
-  let code = `
-  function F(x) {
-    x = 2;
-    return x;
-  }
-  F`;
+  main
+  `;
 
   let input = 3;
   run_test(code, input);
@@ -132,13 +126,14 @@ test('assignment 3', () => {
 
 test('if no else 1', () => {
   let code = `
-  function F(x) {
+  function main(x) {
     if(true) {
       return 42;
     }
     return 24;
   }
-  F`;
+  main
+  `;
 
   let input = 0;
   run_test(code, input);
@@ -146,13 +141,14 @@ test('if no else 1', () => {
 
 test('if no else 2', () => {
   let code = `
-  function F(x) {
+  function main(x) {
     if(false) {
       return 42;
     }
     return 24;
   }
-  F`;
+  main
+  `;
 
   let input = 0;
   run_test(code, input);
@@ -160,7 +156,7 @@ test('if no else 2', () => {
 
 test('tricky scope 1', () => {
   let code = `
-  function F(x) {
+  function main(x) {
     let y = 0;
     if(true) {
       if(true) {
@@ -180,7 +176,7 @@ test('tricky scope 1', () => {
     y = y + 1;
     return y;
   }
-  F
+  main
   `;
 
   let input = 0;
@@ -189,7 +185,7 @@ test('tricky scope 1', () => {
 
 test('tricky scope 2', () => {
   let code = `
-  function F(x) {
+  function main(x) {
     let y = 0;
     if(true) {
       if(false) {
@@ -209,7 +205,7 @@ test('tricky scope 2', () => {
     y = y + 1;
     return y;
   }
-  F
+  main
   `;
 
   let input = 0;
@@ -218,7 +214,7 @@ test('tricky scope 2', () => {
 
 test('tricky scope 3', () => {
   let code = `
-  function F(x) {
+  function main(x) {
     let y = 0;
     if(false) {
       if(true) {
@@ -238,7 +234,7 @@ test('tricky scope 3', () => {
     y = y + 1;
     return y;
   }
-  F
+  main
   `;
 
   let input = 0;
@@ -247,7 +243,7 @@ test('tricky scope 3', () => {
 
 test('tricky scope 4', () => {
   let code = `
-  function F(x) {
+  function main(x) {
     let y = 0;
     if(false) {
       if(true) {
@@ -267,7 +263,7 @@ test('tricky scope 4', () => {
     y = y + 1;
     return y;
   }
-  F
+  main
   `;
 
   let input = 0;
@@ -276,7 +272,7 @@ test('tricky scope 4', () => {
 
 test('tricky scope 5', () => {
   let code = `
-  function F(x) {
+  function main(x) {
     let y = 0;
     let z = 100;
     if(y < z) {
@@ -284,7 +280,7 @@ test('tricky scope 5', () => {
     }
     return y;
   }
-  F
+  main
   `;
 
   let input = 0;
@@ -293,7 +289,7 @@ test('tricky scope 5', () => {
 
 test('tricky scope 6', () => {
   let code = `
-  function F(x) {
+  function main(x) {
     let y = 0;
     let z = 100;
     if(y < z) {
@@ -301,12 +297,79 @@ test('tricky scope 6', () => {
     }
     return y;
   }
-  F
+  main
   `;
 
   let input = 0;
   run_test(code, input);
 });
+
+test('call expression 1', () => {
+  let code = `
+  function F(x) {
+    return x;
+  }
+  let y = 100;
+  F(y);
+  `;
+
+  run_test_no_input(code);
+});
+
+test('call expression 2', () => {
+  let code = `
+  function F(x) {
+    x = 100;
+    return x;
+  }
+  let a = 0;
+  F(a);
+  `;
+
+  run_test_no_input(code);
+});
+
+test('call expression 3', () => {
+  let code = `
+  function F(x) {
+    return x*2;
+  }
+
+  function main(x) {
+    let y = 100;
+    let z = F(y);
+    return z;
+  }
+
+  main
+  `;
+
+  let input = 0;
+  run_test(code, input);
+});
+
+test('call expression multiple arguments', () => {
+  let code = `
+  function F(x, y) {
+    return x;
+  }
+  let a = 0;
+  let b = 100;
+  F(a, b);
+  `;
+
+  run_test_no_input(code);
+});
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -319,12 +382,23 @@ test('tricky scope 6', () => {
 
 
 let interp = new Interpreter();
+
 function run_test(code: string, input: string | boolean | number) {
   $T.clear();
 
   let trace = insertTracing.transform(code);
   let func_output = eval(trace)(input);
   let ast_output = interp.eval($T.program_(), wrap_exp(input));
+
+  expect(unwrap_exp(ast_output)).toBe(func_output);
+}
+
+function run_test_no_input(code: string) {
+  $T.clear();
+
+  let trace = insertTracing.transform(code);
+  let func_output = eval(trace);
+  let ast_output = interp.eval($T.program_(), wrap_exp(-1)); // dummy input
 
   expect(unwrap_exp(ast_output)).toBe(func_output);
 }
