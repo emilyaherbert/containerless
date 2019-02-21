@@ -3,15 +3,58 @@ import { Interpreter } from '../ts/interpreter';
 import * as insertTracing from '../ts/insertTracing';
 import { Exp } from "../ts/types";
 
-/*
+let interp = new Interpreter();
 
-  1. Insert $T statements with Babel.
-  2. Eval code to generate AST.
-  3. Eval AST.
-  4. Compare result from eval'd code to eval'd AST.
+function run_test(code: string, input: string | boolean | number) {
+  $T.clear();
+  // NOTE(arjun): We could also run 'eval(code)(input)', but we are not. We
+  // are assuming that the tracing does not change the semantics of 'code'.
+  let trace = insertTracing.transform(code);
+  let func_output = eval(trace)(input);
+  let ast_output = interp.eval($T.program_(), wrap_exp(input));
+  expect(unwrap_exp(ast_output)).toBe(func_output);
+}
 
-*/
+function run_test_no_input(code: string) {
+  $T.clear();
 
+  let trace = insertTracing.transform(code);
+  let func_output = eval(trace);
+  let ast_output = interp.eval($T.program_(), wrap_exp(-1)); // dummy input
+
+  expect(unwrap_exp(ast_output)).toBe(func_output);
+}
+
+function wrap_exp(v : number | string | boolean): Exp {
+  switch (typeof v) {
+    case 'string':
+      return $T.str(v);
+      break;
+    case 'number':
+      return $T.num(v);
+      break;
+    case 'boolean':
+      return $T.bool(v);
+      break;
+    default: throw "Found unexpected type in wrap_exp."
+  }
+}
+
+// TODO(arjun): Just use wrap_exp and .toEqual
+function unwrap_exp(e: Exp): string | boolean | number {
+  switch(e.kind) {
+    case 'string':
+      return e.value;
+      break;
+    case 'number':
+      return e.value;
+      break;
+    case 'boolean':
+      return e.value;
+      break;
+    default: throw "Found unexpected e.king in unwrap_exp."
+  }
+}
 test('test', () => {
   let code = `
   function main(x) {
@@ -360,75 +403,3 @@ test('call expression multiple arguments', () => {
 
   run_test_no_input(code);
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-let interp = new Interpreter();
-
-function run_test(code: string, input: string | boolean | number) {
-  $T.clear();
-
-  let trace = insertTracing.transform(code);
-  let func_output = eval(trace)(input);
-  let ast_output = interp.eval($T.program_(), wrap_exp(input));
-
-  expect(unwrap_exp(ast_output)).toBe(func_output);
-}
-
-function run_test_no_input(code: string) {
-  $T.clear();
-
-  let trace = insertTracing.transform(code);
-  let func_output = eval(trace);
-  let ast_output = interp.eval($T.program_(), wrap_exp(-1)); // dummy input
-
-  expect(unwrap_exp(ast_output)).toBe(func_output);
-}
-
-function wrap_exp(v : number | string | boolean): Exp {
-  switch (typeof v) {
-    case 'string':
-      return $T.str(v);
-      break;
-    case 'number':
-      return $T.num(v);
-      break;
-    case 'boolean':
-      return $T.bool(v);
-      break;
-    default: throw "Found unexpected type in wrap_exp."
-  }
-}
-
-function unwrap_exp(e: Exp): string | boolean | number {
-  switch(e.kind) {
-    case 'string':
-      return e.value;
-      break;
-    case 'number':
-      return e.value;
-      break;
-    case 'boolean':
-      return e.value;
-      break;
-    default: throw "Found unexpected e.king in unwrap_exp."
-  }
-}

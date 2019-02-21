@@ -1,59 +1,26 @@
-let ast = [];
-let current = ast;
-current.push({
-    kind: 'let',
-    name: 'x',
-    expr: {
-        kind: 'add',
-        left: { kind: 'number', value: 1 },
-        right: { kind: 'number', value: 3 }
-    }
-});
-let x = 1 + 3;
+let $T = require('./dist/runtime');
 
-function F() {
-    current.push({
-        kind: 'if',
-        test: {
-            kind: '>',
-            left: { kind: 'identifier', name: 'x' },
-            right: { kind: 'number', value: 2 }
-        },
-        thenPart: 'unknown',
-        elsePart: 'unknown'
-    });
-    if (x > 2) {
-        let prev = current[current.length - 1];
-        if (prev.thenPart === 'unknown') {
-            prev.thenPart = [];
-        }
-        current = prev.thenPart;
-        current.push({
-            kind: 'let',
-            name: 'y',
-            expr: {
-                kind: 'mul',
-                left: { kind: 'number', value: 20 },
-                right: { kind: 'identifier', name: 'x' }
-            }
-        });
-        let y = 20 * x;
-    }
-    else {
-        current.push({
-            kind: 'let',
-            name: 'z',
-            expr: {
-                kind: 'mul',
-                left: { kind: 'number', value: 5 },
-                right: { kind: 'identifier', name: 'x' }
-            }
-        });  
-        let z = 5 * x;
+function F(x) {
+  let _x = $T.input();
 
-    }
-    // Reset current
+  let _y = $T.bind(_x);
+
+  let y = x;
+  $T.ifElse($T.lt(_y, $T.num(0)))
+
+  if (y < 0) {
+    $T.enterIf(true);
+    $T.update(_y, $T.mul(_y, $T.neg($T.num(1))));
+    y = y * -1;
+  } else {
+    $T.enterIf(false);
+    $T.return_($T.add(_x, $T.num(200)))
+    return x + 200;
+  }
+
+  $T.return_(_y)
+  return y;
 }
 
-F(900)
-console.log(ast);
+console.log(F(100));
+$T.log();

@@ -120,7 +120,7 @@ export class Interpreter {
         break;
       }
       case 'unknown': throw "Found unimplemented unknown case in eval_stmt."
-      default: throw "Found unimplemented e.kind in eval_stmt.";
+      default: throw `Found unimplemented kind ${e.kind} in eval_stmt.`;
     }
   }
 

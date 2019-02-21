@@ -1,7 +1,10 @@
 function F(x) {
-    let y = x;
-    if (y < 0) {
-        y = y * -1;
-    }
-    return y;
+return x*2;
 }
+
+function main(x) {
+  let y = 100;
+  let z = F(y);
+return z;
+}
+

@@ -66,6 +66,7 @@ const buildIfElseStmt = mkStmt(`$T.ifElse(EXPRESSION);`);
 const buildEnterIf = mkStmt(`$T.enterIf(EXPRESSION);`);
 const buildReturnStmt = mkStmt(`$T.return_(EXPRESSION);`);
 const buildArgumentStmt = mkStmt(`$T.argument(EXPRESSION);`);
+const buildArgumentExpr = mkExpr(`$T.argument(EXPRESSION)`);
 
 type S = {
     names: Map<string, string>;
@@ -233,39 +234,40 @@ const visitor: traverse.Visitor<S> = {
                 path.skip();
                 return;
             }
-            const declarations = path.node.declarations;
-            for (let i = 0; i < declarations.length; ++i) {
-                const id = declarations[i].id;
-                const newId = path.scope.generateUidIdentifierBasedOnNode(id);
-                st_set(st, lvaltoName(id), newId.name);
-                const expr = declarations[i].init || eUndefined;
-                const varDeclaration = buildVarDeclaration({
-                    VARIABLE: newId,
-                    EXPRESSION: reifyExpr(st, expr)
-                });
-                path.insertBefore(varDeclaration);
+            if (path.node.declarations.length !== 1) {
+              throw new Error('expected exactly one declaration');
             }
+            const declaration = path.node.declarations[0];
+            const id = declaration.id;
+            const newId = path.scope.generateUidIdentifierBasedOnNode(id);
+            st_set(st, lvaltoName(id), newId.name);
+            const expr = declaration.init || eUndefined;
+            const varDeclaration = buildVarDeclaration({
+                VARIABLE: newId,
+                EXPRESSION: reifyExpr(st, expr)
+            });
+            path.insertBefore(varDeclaration);
         }
     },
-    CallExpression: {
-        enter(path: traverse.NodePath<t.CallExpression>, st) {
-            if ((path.node as any).__runtime__) {
-              path.skip();
-              return;
-            }
-            const args = path.node.arguments;
-            for(let i=0; i<args.length; i++) {
-                const arg = args[i];
-                if (arg.type !== 'Identifier') {
-                    throw new Error('Only Identifier args supported.');
-                }
-                const argumentStmt = buildArgumentStmt({
-                  EXPRESSION: reifyExpr(st, arg)
-                })
-                path.insertBefore(argumentStmt);
-            }
-        }
-    },
+    // CallExpression: {
+    //     enter(path: traverse.NodePath<t.CallExpression>, st) {
+    //         if ((path.node as any).__runtime__) {
+    //           path.skip();
+    //           return;
+    //         }
+    //         const args = path.node.arguments;
+    //         for(let i=0; i<args.length; i++) {
+    //             const arg = args[i];
+    //             if (arg.type !== 'Identifier') {
+    //                 throw new Error('Only Identifier args supported.');
+    //             }
+    //             const argumentStmt = buildArgumentStmt({
+    //               EXPRESSION: reifyExpr(st, arg)
+    //             })
+    //             path.insertBefore(argumentStmt);
+    //         }
+    //     }
+    // },
     ExpressionStatement: {
         enter(path: traverse.NodePath<t.ExpressionStatement>, st) {
             if ((path.node as any).__runtime__) {
@@ -347,9 +349,13 @@ function reifyExpr(st: S, expr: t.Expression): t.Expression {
         let x = st_get(st, expr.name);
         if (x === undefined) {
             console.log(expr);
-            throw new Error(`no binding for ${x}`);
+            throw new Error(`no binding for ${expr.name}`);
         }
         return t.identifier(x);
+    }
+    else if (expr.type === 'CallExpression') {
+      return t.sequenceExpression(expr.arguments.map(e =>
+        buildArgumentExpr({ EXPRESSION: reifyExpr(st, e as t.Expression) })));
     }
     else if (expr.type === 'UnaryExpression') {
         let e = reifyExpr(st, expr.argument);
