@@ -564,3 +564,104 @@ test('call expression, multiple arguments 2', () => {
   let input = 100;
   run_test(code, input);
 });
+
+test('while loops 1', () => {
+  let code = `
+  function main(x) {
+    let i = 0;
+    let y = 100;
+    while(i < 10) {
+      y = y + 100;
+      i = i + 1;
+    }
+    return y;
+  }
+
+  main
+  `;
+
+  let input = 100;
+  run_test(code, input);
+});
+
+test('while loops 2', () => {
+  let code = `
+
+  function adder(x, y) {
+    return x + y;
+  }
+
+  function main(x) {
+    let i = 0;
+    let y = 100;
+    while(i < 10) {
+      let hundred = 100;
+      let ret = adder(y, hundred);
+      y = ret;
+      i = i + 1;
+    }
+    return y;
+  }
+
+  main
+  `;
+
+  let input = 100;
+  run_test(code, input);
+});
+
+test('recursion 1', () => {
+  let code = `
+  function factorial(x) {
+    if(x === 0) {
+      return 1;
+    } else {
+      let y = x - 1;
+      let z = factorial(y);
+      return x + z;
+    }
+  }
+
+  function main(x) {
+    let y = factorial(x);
+    return y;
+  }
+
+  main
+  `;
+
+  let input = 5;
+  run_test(code, input);
+});
+
+test('recursion 2', () => {
+  let code = `
+  function count_every_other(x, mod) {
+    if (x === 0) {
+      return 0;
+    }
+    if(mod) {
+      let newX = x - 1;
+      let newMod = false;
+      let recur = count_every_other(newX, newMod);
+      return 1 + recur;
+    } else {
+      let newX = x - 1;
+      let newMod = true;
+      let recur = count_every_other(newX, newMod);
+      return recur;
+    }
+  }
+
+  function main(x) {
+    let mod = true;
+    let y = count_every_other(x, mod);
+    return y;
+  }
+
+  main
+  `;
+
+  let input = 5;
+  run_test(code, input);
+});

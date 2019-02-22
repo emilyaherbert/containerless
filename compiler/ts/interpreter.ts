@@ -183,9 +183,10 @@ export class Interpreter {
         case '>=': return { kind: 'boolean', value: (v1.value >= v2.value) };
         case '==': return { kind: 'boolean', value: (v1.value == v2.value) };
         case '===': return { kind: 'boolean', value: (v1.value === v2.value) };
+        case '===num': return { kind: 'boolean', value: (v1.value === v2.value) };
         case '!=': return { kind: 'boolean', value: (v1.value != v2.value) };
         case '!==': return { kind: 'boolean', value: (v1.value !== v2.value) };
-        default: throw new Error("Found unimplemented op in eval_binop.");
+        default: throw new Error(`Found unimplemented ${op} in eval_binop.`);
       }
     } else if(v1.kind === 'boolean' && v2.kind === 'boolean') {
       switch(op) {
