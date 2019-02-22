@@ -85,7 +85,7 @@ export class Interpreter {
     }
 
     if(this.st.values.length > 0) return this.st.values[this.st.values.length-1];
-    else throw "No values!";
+    else throw new Error("No values!");
   }
 
   private eval_stmt(e: Stmt, input: Exp) {
@@ -106,12 +106,11 @@ export class Interpreter {
         break;
       }
       case 'block': {
-        // potential errors here...
+        this.st.push();
         for(let i=0; i<e.body.length; i++) {
-          this.st.push();
           this.eval_stmt(e.body[i], input);
-          this.st.pop();
         }
+        this.st.pop();
         break;
       }
       case 'return': {
@@ -119,8 +118,8 @@ export class Interpreter {
         this.st.values.push(v);
         break;
       }
-      case 'unknown': throw "Found unimplemented unknown case in eval_stmt."
-      default: throw `Found unimplemented kind ${e.kind} in eval_stmt.`;
+      case 'unknown': throw new Error("Found unimplemented unknown case in eval_stmt.");
+      default: throw new Error(`Found unimplemented kind ${e.kind} in eval_stmt.`);
     }
   }
 
@@ -145,13 +144,13 @@ export class Interpreter {
           if(typeof(v) !== 'undefined') {
             return v;
           } else {
-            throw "Found free identifier"
+            throw new Error("Found undefined identifier.");
           }
         } else {
-          throw "Found free identifier."
+          throw new Error("Found free identifier.");
         }
       }
-      default: throw "Found unimplemented e.kind in eval_exp.";
+      default: throw new Error("Found unimplemented e.kind in eval_exp.");
     }
   }
 
@@ -161,12 +160,12 @@ export class Interpreter {
         case 'unary-': return { kind: 'number', value: -v.value };
         case 'unary+': return { kind: 'number', value: v.value };
         case '~': return { kind: 'number', value: ~v.value };
-        default: throw "Found unimplemented op in eval_unaryop."
+        default: throw new Error("Found unimplemented op in eval_unaryop.");
       }
     } else if (v.kind === 'boolean' && op === '!') {
       return { kind: 'boolean', value: !v.value };
     } else {
-      throw "Found unimplemented op in eval_unaryop."
+      throw new Error("Found unimplemented op in eval_unaryop.");
     }
   }
 
@@ -186,7 +185,7 @@ export class Interpreter {
         case '===': return { kind: 'boolean', value: (v1.value === v2.value) };
         case '!=': return { kind: 'boolean', value: (v1.value != v2.value) };
         case '!==': return { kind: 'boolean', value: (v1.value !== v2.value) };
-        default: throw "Found unimplemented op in eval_binop."
+        default: throw new Error("Found unimplemented op in eval_binop.");
       }
     } else if(v1.kind === 'boolean' && v2.kind === 'boolean') {
       switch(op) {
@@ -196,7 +195,7 @@ export class Interpreter {
         case '===': return { kind: 'boolean', value: (v1.value === v2.value) };
         case '!=': return { kind: 'boolean', value: (v1.value != v2.value) };
         case '!==': return { kind: 'boolean', value: (v1.value !== v2.value) };
-        default: throw "Found unimplemented op in eval_binop."
+        default: throw new Error("Found unimplemented op in eval_binop.");
       }
     } else if(v1.kind === 'string' && v2.kind === 'string') {
       switch(op) {
@@ -205,10 +204,10 @@ export class Interpreter {
         case '===': return { kind: 'boolean', value: (v1.value === v2.value) };
         case '!=': return { kind: 'boolean', value: (v1.value != v2.value) };
         case '!==': return { kind: 'boolean', value: (v1.value !== v2.value) };
-        default: throw "Found unimplemented op in eval_binop."
+        default: throw new Error("Found unimplemented op in eval_binop.");
       }
     } else {
-      throw "Found mismatched v1.kind and v2.kind in eval_binop."
+      throw new Error("Found mismatched v1.kind and v2.kind in eval_binop.");
     }
   }
 
@@ -216,7 +215,7 @@ export class Interpreter {
   private unwrap_boolean(e: Exp): boolean {
     switch(e.kind) {
       case 'boolean': return e.value;
-      default: throw "Expected boolean in unwrap_boolean."
+      default: throw new Error("Expected boolean in unwrap_boolean.");
     }
   }
 

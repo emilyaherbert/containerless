@@ -5,6 +5,10 @@ let program : Stmt[] = [];
 let stack: Stmt[][] = [];
 let current = program;
 
+let args_stack : Exp[] = [];
+
+let return_cell : Exp | undefined = undefined
+
 let nextName : Name = 0;
 export function bind(e: Exp): Id {
     let name = nextName++;
@@ -27,30 +31,58 @@ export function input(): Exp {
 }
 
 export function argument(e: Exp) {
-    current.push({
-      kind: 'argument',
-      e: e });
+    args_stack.push(e);
 }
 
-// TODO(emily): Bug with multiple arguments.
-// bind() puts an argument onto the stack such that the second argument is not the most recent.
-// 'call expression multiple arguments'
-export function parameter(name: string): Id {
-  //console.log(current);
-  let theArg = current[current.length - 1];
-  //console.log(theArg);
-  if(theArg.kind !== 'argument') {
-    throw "Expected previous statement of kind argument in parameter()."
+export function parameter(): Id {
+  if(args_stack.length > 0) {
+    const e = args_stack[args_stack.length - 1];
+    args_stack.pop();
+    return bind(e);
+  } else {
+    throw new Error ("Found empty args_stack in parameter().");
   }
-  current.pop();
-
-  return bind(theArg.e);
 }
+
+/*
+export function return_(value: Exp) {
+  if(return_cell !== undefined) {
+    return_cell = value;
+  } else {
+    throw new Error ("Found nonempty return_cell in return_().");
+  }
+}
+
+export function expectReturn() {
+  if(return_cell !== undefined) {
+    const value = return_cell;
+    return_cell = undefined;
+    return value;
+  } else {
+    throw new Error ("Found nonempty return_cell in return_().");
+  }
+}
+*/
 
 export function return_(value: Exp) {
   current.push({
     kind: 'return',
-    value: value });
+    value: value
+  })
+}
+
+export function expectReturn(): Exp {
+  if(current.length > 0) {
+    const theReturn = current[current.length - 1];
+    current.pop();
+    if(theReturn.kind === 'return') {
+      return theReturn.value;
+    } else {
+      throw new Error("Expected kind return for theReturn.kind.");
+    }
+  } else {
+    throw new Error("Found empty current in expectReturn().")
+  }
 }
 
 // If there is no else, initialize as empty block Exp.

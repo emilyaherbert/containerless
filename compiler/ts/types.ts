@@ -14,7 +14,6 @@ export type Exp =
     { kind: 'boolean', value: boolean } |
     Id |
     { kind: 'input' } |
-    { kind: 'parameter' } |
     { kind: 'unaryop', op: string, e: Exp } |
     { kind: 'binop', op: string, e1: Exp, e2: Exp };
 
