@@ -1,5 +1,4 @@
 import { Name, Id, Typ, Exp, Stmt } from "../ts/types";
-import { tsNamespaceExportDeclaration, numberLiteralTypeAnnotation } from "@babel/types";
 
 class State {
   constructor() {}
@@ -186,7 +185,7 @@ export class Interpreter {
         case '===': return { kind: 'boolean', value: (v1.value === v2.value) };
         case '!=': return { kind: 'boolean', value: (v1.value != v2.value) };
         case '!==': return { kind: 'boolean', value: (v1.value !== v2.value) };
-        default: throw "Found unimplemented op in eval_binop."
+        default: throw "Found unimplemented op on numeric inputs in eval_binop."
       }
     } else if(v1.kind === 'boolean' && v2.kind === 'boolean') {
       switch(op) {
@@ -196,16 +195,16 @@ export class Interpreter {
         case '===': return { kind: 'boolean', value: (v1.value === v2.value) };
         case '!=': return { kind: 'boolean', value: (v1.value != v2.value) };
         case '!==': return { kind: 'boolean', value: (v1.value !== v2.value) };
-        default: throw "Found unimplemented op in eval_binop."
+        default: throw "Found unimplemented op on boolean inputs in eval_binop."
       }
     } else if(v1.kind === 'string' && v2.kind === 'string') {
       switch(op) {
-        case '+': return { kind: 'string', value: (v1.value + v2.value) };
+        case '+str': return { kind: 'string', value: (v1.value + v2.value) };
         case '==': return { kind: 'boolean', value: (v1.value == v2.value) };
         case '===': return { kind: 'boolean', value: (v1.value === v2.value) };
         case '!=': return { kind: 'boolean', value: (v1.value != v2.value) };
         case '!==': return { kind: 'boolean', value: (v1.value !== v2.value) };
-        default: throw "Found unimplemented op in eval_binop."
+        default: throw "Found unimplemented op on string inputs in eval_binop."
       }
     } else {
       throw "Found mismatched v1.kind and v2.kind in eval_binop."

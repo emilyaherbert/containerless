@@ -49,7 +49,7 @@ const buildLogicalExpr : EXPRMAP = ['and','or']
         ret[elem] = mkExpr2(`$T.` + elem + `(EXPRESSION1, EXPRESSION2)`);
         return ret;
     }, {});
-const buildBinaryExpr : EXPRMAP = ['add', 'gt', 'lt', 'geq', 'leq', 'sub', 'div', 'mul', 'remainder', 'pow', 'bitand', 'bitor', 'bitxor', 'rshift', 'unsignedrs', 'lshift', 'lshift', 'eq','ineq', 'exacteq','exactineq']
+const buildBinaryExpr : EXPRMAP = ['add', 'gt', 'lt', 'geq', 'leq', 'sub', 'div', 'mul', 'remainder', 'pow', 'bitand', 'bitor', 'bitxor', 'rshift', 'unsignedrs', 'lshift', 'lshift', 'eq', 'ineq', 'exacteq', 'exactineq']
     .reduce((ret : EXPRMAP, elem) => {
         ret[elem] = mkExpr2(`$T.` + elem + `(EXPRESSION1, EXPRESSION2)`);
         return ret;
@@ -67,6 +67,8 @@ const buildEnterIf = mkStmt(`$T.enterIf(EXPRESSION);`);
 const buildReturnStmt = mkStmt(`$T.return_(EXPRESSION);`);
 const buildArgumentStmt = mkStmt(`$T.argument(EXPRESSION);`);
 const buildArgumentExpr = mkExpr(`$T.argument(EXPRESSION)`);
+
+let eUndefined = t.unaryExpression('void', t.numericLiteral(0));
 
 type S = {
     names: Map<string, string>;
@@ -103,8 +105,7 @@ function st_push(st: S): S {
 
 function st_pop(st: S): S {
   if(st.stack.length > 0) {
-    st.names = st.stack[st.stack.length - 1];
-    st.stack.pop();
+    st.names = st.stack.pop()!;
     return st;
   } else {
     throw "Found unexpected empty st.stack in st_pop."
@@ -118,7 +119,6 @@ const visitor: traverse.Visitor<S> = {
         },
         exit(path: traverse.NodePath<t.Program>, st) {
             const id = t.identifier('$T'); // TODO(arjun): capture
-
             let requireStmt = buildRequireStmt({
                 VARIABLE: id
             });
@@ -321,29 +321,19 @@ const visitor: traverse.Visitor<S> = {
     }
 };
 
-let eUndefined = t.unaryExpression('void', t.numericLiteral(0));
-
-function call(f: t.Expression, ...args: t.Expression[]): t.Expression {
-    return t.callExpression(f, args);
-}
-
-function mem(object: t.Expression, field: string) {
-    return t.memberExpression(object, t.identifier(field));
-}
-
 // TODO(emily): Just want to clarify - why have we done this with a seperate function and not with babel? 
 function reifyExpr(st: S, expr: t.Expression): t.Expression {
     if (expr.type === 'NumericLiteral') {
-        const numericExpr = buildNumericExpr({
-          EXPRESSION: expr
-        });
+        const numericExpr = buildNumericExpr({ EXPRESSION: expr });
         return numericExpr;
     }
     else if (expr.type === 'BooleanLiteral') {
-        const booleanExpr = buildBooleanExpr({
-          EXPRESSION: expr
-        })
+        const booleanExpr = buildBooleanExpr({ EXPRESSION: expr });
         return booleanExpr;
+    }
+    else if (expr.type === 'StringLiteral') {
+      const booleanExpr = buildStringExpr({ EXPRESSION: expr });
+      return booleanExpr;
     }
     else if (expr.type === 'Identifier') {
         let x = st_get(st, expr.name);

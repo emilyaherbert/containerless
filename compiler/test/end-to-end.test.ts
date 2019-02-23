@@ -11,6 +11,7 @@ function run_test(code: string, input: string | boolean | number) {
   // are assuming that the tracing does not change the semantics of 'code'.
   let trace = insertTracing.transform(code);
   let func_output = eval(trace)(input);
+  // console.log(JSON.stringify($T.program_(), null, 2)); // for debugging
   let ast_output = interp.eval($T.program_(), wrap_exp(input));
   expect(unwrap_exp(ast_output)).toBe(func_output);
 }
@@ -55,6 +56,7 @@ function unwrap_exp(e: Exp): string | boolean | number {
     default: throw "Found unexpected e.king in unwrap_exp."
   }
 }
+
 test('test', () => {
   let code = `
   function main(x) {
@@ -83,6 +85,36 @@ test('multiple if statements', () => {
   `;
 
   let input = 33;
+  run_test(code, input);
+});
+
+test('if no else 1', () => {
+  let code = `
+  function main(x) {
+    if(true) {
+      return 42;
+    }
+    return 24;
+  }
+  main
+  `;
+
+  let input = 0;
+  run_test(code, input);
+});
+
+test('if no else 2', () => {
+  let code = `
+  function main(x) {
+    if(false) {
+      return 42;
+    }
+    return 24;
+  }
+  main
+  `;
+
+  let input = 0;
   run_test(code, input);
 });
 
@@ -136,7 +168,6 @@ test('logical expression 3', () => {
   run_test(code, input);
 });
 
-// TODO(Chris): Assignment does not work if trying to assign over the 'input' variable
 test('assignment 1', () => {
   let code = `
   function main(x) {
@@ -164,36 +195,6 @@ test('assignment 2', () => {
   `;
 
   let input = 3;
-  run_test(code, input);
-});
-
-test('if no else 1', () => {
-  let code = `
-  function main(x) {
-    if(true) {
-      return 42;
-    }
-    return 24;
-  }
-  main
-  `;
-
-  let input = 0;
-  run_test(code, input);
-});
-
-test('if no else 2', () => {
-  let code = `
-  function main(x) {
-    if(false) {
-      return 42;
-    }
-    return 24;
-  }
-  main
-  `;
-
-  let input = 0;
   run_test(code, input);
 });
 
@@ -403,3 +404,43 @@ test('call expression multiple arguments', () => {
 
   run_test_no_input(code);
 });
+
+test('strings 1', () => {
+  let code = `
+  function main(x) {
+    return "hello world!";
+  }
+  main
+  `;
+
+  let input = 0;
+  run_test(code, input);
+});
+
+test('strings 2', () => {
+  let code = `
+  function main(x) {
+    return "hello " + "world!";
+  }
+  main
+  `;
+
+  let input = 0;
+  run_test(code, input);
+});
+
+// TODO(Chris): This will not work for now as long as we assume 'input'
+// is a 'number' type in getTyp()
+/*
+test('strings 3', () => {
+  let code = `
+  function main(x) {
+    return "hello " + x;
+  }
+  main
+  `;
+
+  let input = "arjun";
+  run_test(code, input);
+});
+*/

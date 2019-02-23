@@ -109,16 +109,15 @@ function getTyp(e: Exp): Typ {
             return unaryOpReturnType.get(e.op)!;
         }
         else {
-            throw 'Not implemented';
+            throw 'unaryop not implemented';
         }
     }
     else if (e.kind === 'binop') {
         if (binOpReturnType.has(e.op)) {
-            // TODO(Chriscbr): why do I need the ! operator when I am guarding the expression?
             return binOpReturnType.get(e.op)!;
         }
         else {
-            throw 'Not implemented';
+            throw 'binary op not implemented';
         }
     }
     else if (e.kind === 'input') {
@@ -170,7 +169,6 @@ export const lt             = genericBinOp('<',      { kind: 'number' } , { kind
 export const gt             = genericBinOp('>',      { kind: 'number' } , { kind: 'boolean' });
 export const leq            = genericBinOp('<=',     { kind: 'number' } , { kind: 'boolean' });
 export const geq            = genericBinOp('>=',     { kind: 'number' } , { kind: 'boolean' });
-export const add            = genericBinOp('+num',   { kind: 'number' } , { kind: 'number' });
 export const sub            = genericBinOp('-',      { kind: 'number' } , { kind: 'number' });
 export const div            = genericBinOp('/',      { kind: 'number' } , { kind: 'number' });
 export const mul            = genericBinOp('*',      { kind: 'number' } , { kind: 'number' });
@@ -184,6 +182,22 @@ export const bitor          = genericBinOp('|',      { kind: 'number' } , { kind
 export const bitxor         = genericBinOp('^',      { kind: 'number' } , { kind: 'number' });
 export const and            = genericBinOp('&&',     { kind: 'boolean' }, { kind: 'boolean' });
 export const or             = genericBinOp('||',     { kind: 'boolean' }, { kind: 'boolean' });
+
+
+// TODO(Chris): Adding binary operations with multiple type signatures manually for now...
+binOpReturnType.set('+num', { kind: 'number' });
+binOpReturnType.set('+str', { kind: 'string' });
+export const add = function(e1: Exp, e2: Exp): Exp {
+    if (getTyp(e1).kind === 'number' &&
+        getTyp(e2).kind === 'number') {
+        return { kind: 'binop', op: '+num', e1, e2 };
+    } else if (getTyp(e1).kind === 'string' &&
+               getTyp(e2).kind === 'string') {
+        return { kind: 'binop', op: '+str', e1, e2 };
+    } else {
+        throw 'Not implemented';
+    }
+}
 
 export function num(n: number): Exp {
     return { kind: 'number', value: n };
