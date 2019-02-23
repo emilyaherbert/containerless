@@ -54,11 +54,13 @@ const buildBinaryExpr : EXPRMAP = ['add', 'gt', 'lt', 'geq', 'leq', 'sub', 'div'
         ret[elem] = mkExpr2(`$T.` + elem + `(EXPRESSION1, EXPRESSION2)`);
         return ret;
     }, {});
+const buildArgumentExpr = mkExpr(`$T.argument(EXPRESSION)`);
 
 const buildVarDeclaration = mkStmt(`let VARIABLE = $T.bind(EXPRESSION);`);
 const buildVarUpdate = mkStmt(`$T.update(VARIABLE, EXPRESSION);`);
 const buildInputDeclaration = mkStmt(`let VARIABLE = $T.input();`);
 const buildParameterDeclaration = mkStmt(`let VARIABLE = $T.parameter();`);
+const buildExpectReturnDeclaration = mkStmt(`let VARIABLE = $T.expectReturn();`)
 
 const buildRequireStmt = mkStmt(`let VARIABLE = require('../dist/runtime');`);
 const buildIfStmt = mkStmt(`$T.if_(EXPRESSION);`);
@@ -66,7 +68,6 @@ const buildIfElseStmt = mkStmt(`$T.ifElse(EXPRESSION);`);
 const buildEnterIf = mkStmt(`$T.enterIf(EXPRESSION);`);
 const buildReturnStmt = mkStmt(`$T.return_(EXPRESSION);`);
 const buildArgumentStmt = mkStmt(`$T.argument(EXPRESSION);`);
-const buildArgumentExpr = mkExpr(`$T.argument(EXPRESSION)`);
 
 let eUndefined = t.unaryExpression('void', t.numericLiteral(0));
 
@@ -242,11 +243,30 @@ const visitor: traverse.Visitor<S> = {
             const newId = path.scope.generateUidIdentifierBasedOnNode(id);
             st_set(st, lvaltoName(id), newId.name);
             const expr = declaration.init || eUndefined;
-            const varDeclaration = buildVarDeclaration({
+            
+            if(t.isCallExpression(expr)) {
+              const args = expr.arguments;
+              for(let i=0; i<args.length; i++) {
+                const arg = args[i];
+                if(arg.type !== 'Identifier') {
+                  throw new Error('Only Identifier args supported.');
+                }
+                const argumentStmt = buildArgumentStmt({
+                  EXPRESSION: reifyExpr(st, arg)
+                })
+                path.insertBefore(argumentStmt);
+              }
+              const expectReturnDeclaration = buildExpectReturnDeclaration({
                 VARIABLE: newId,
-                EXPRESSION: reifyExpr(st, expr)
-            });
-            path.insertBefore(varDeclaration);
+              })
+              path.insertAfter(expectReturnDeclaration);
+            } else {
+              const varDeclaration = buildVarDeclaration({
+                  VARIABLE: newId,
+                  EXPRESSION: reifyExpr(st, expr)
+              });
+              path.insertBefore(varDeclaration);
+            }
         }
     },
     // CallExpression: {

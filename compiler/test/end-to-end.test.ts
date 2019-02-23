@@ -351,31 +351,6 @@ test('tricky scope 6', () => {
 test('call expression 1', () => {
   let code = `
   function F(x) {
-    return x;
-  }
-  let y = 100;
-  F(y);
-  `;
-
-  run_test_no_input(code);
-});
-
-test('call expression 2', () => {
-  let code = `
-  function F(x) {
-    x = 100;
-    return x;
-  }
-  let a = 0;
-  F(a);
-  `;
-
-  run_test_no_input(code);
-});
-
-test('call expression 3', () => {
-  let code = `
-  function F(x) {
     return x*2;
   }
 
@@ -392,17 +367,304 @@ test('call expression 3', () => {
   run_test(code, input);
 });
 
-test('call expression multiple arguments', () => {
+test('call expression 2', () => {
   let code = `
-  function F(x, y) {
-    return x;
+  function F(x) {
+    return x * 2;
   }
-  let a = 0;
-  let b = 100;
-  F(a, b);
+
+  function G(x) {
+    return x * 10;
+  }
+
+  function main(x) {
+    let y = F(x);
+    let z = G(y);
+    return z;
+  }
+
+  main
   `;
 
-  run_test_no_input(code);
+  let input = 5;
+  run_test(code, input);
+});
+
+test('call expression 3', () => {
+  let code = `
+  function F(x) {
+    return x * 2;
+  }
+
+  function G(x) {
+    return x * 10;
+  }
+
+  function main(x) {
+    let y = F(x);
+    let z = G(y);
+    return z;
+  }
+
+  main
+  `;
+
+  let input = -100;
+  run_test(code, input);
+});
+
+test('call expression 4', () => {
+  let code = `
+  function F(x) {
+    return x * 2;
+  }
+
+  function G(x) {
+    return x * 10;
+  }
+
+  function main(x) {
+    if(x < 0) {
+      let y = F(x);
+      return y + 10;;
+    } else {
+      let y = G(x);
+      return y + 10;;
+    }
+  }
+
+  main
+  `;
+
+  let input = -100;
+  run_test(code, input);
+});
+
+test('call expression 5', () => {
+  let code = `
+  function F(x) {
+    return x * 2;
+  }
+
+  function G(x) {
+    return x * 10;
+  }
+
+  function main(x) {
+    if(x < 0) {
+      let y = F(x);
+      return y + 10;
+    } else {
+      let y = G(x);
+      return y + 10;
+    }
+  }
+
+  main
+  `;
+
+  let input = 100;
+  run_test(code, input);
+});
+
+test('call expression 5', () => {
+  let code = `
+  function F(x) {
+    return x * 2;
+  }
+
+  function G(x) {
+    return x * 10;
+  }
+
+  function main(x) {
+    let z = 0;
+    if(x < 0) {
+      let y = F(x);
+      z = y;
+    } else {
+      let y = G(x);
+      z = y;
+    }
+    return z;
+  }
+
+  main
+  `;
+
+  let input = -100;
+  run_test(code, input);
+});
+
+test('call expression 6', () => {
+  let code = `
+  function F(x) {
+    return x * 2;
+  }
+
+  function G(x) {
+    return x * 10;
+  }
+
+  function main(x) {
+    let z = 0;
+    if(x < 0) {
+      let y = F(x);
+      z = y;
+    } else {
+      let y = G(x);
+      z = y;
+    }
+    return z;
+  }
+
+  main
+  `;
+
+  let input = 100;
+  run_test(code, input);
+});
+
+
+test('call expression, multiple arguments 1', () => {
+  let code = `
+  function F(x, y) {
+    return x + y;
+  }
+
+  function main(x) {
+    let a = 100;
+    let b = 100;
+    let c = F(a, b);
+    return c;
+  }
+
+  main
+  `;
+
+  let input = 100;
+  run_test(code, input);
+});
+
+test('call expression, multiple arguments 2', () => {
+  let code = `
+  function F(x, y) {
+    return x + y;
+  }
+
+  function main(x) {
+    let a = 100;
+    let b = 100;
+    let c = F(a, b);
+    return a + b + c;
+  }
+
+  main
+  `;
+
+  let input = 100;
+  run_test(code, input);
+});
+
+test('while loops 1', () => {
+  let code = `
+  function main(x) {
+    let i = 0;
+    let y = 100;
+    while(i < 10) {
+      y = y + 100;
+      i = i + 1;
+    }
+    return y;
+  }
+
+  main
+  `;
+
+  let input = 100;
+  run_test(code, input);
+});
+
+test('while loops 2', () => {
+  let code = `
+
+  function adder(x, y) {
+    return x + y;
+  }
+
+  function main(x) {
+    let i = 0;
+    let y = 100;
+    while(i < 10) {
+      let hundred = 100;
+      let ret = adder(y, hundred);
+      y = ret;
+      i = i + 1;
+    }
+    return y;
+  }
+
+  main
+  `;
+
+  let input = 100;
+  run_test(code, input);
+});
+
+test('recursion 1', () => {
+  let code = `
+  function factorial(x) {
+    if(x === 0) {
+      return 1;
+    } else {
+      let y = x - 1;
+      let z = factorial(y);
+      return x + z;
+    }
+  }
+
+  function main(x) {
+    let y = factorial(x);
+    return y;
+  }
+
+  main
+  `;
+
+  let input = 5;
+  run_test(code, input);
+});
+
+test('recursion 2', () => {
+  let code = `
+  function count_every_other(x, mod) {
+    if (x === 0) {
+      return 0;
+    }
+    if(mod) {
+      let newX = x - 1;
+      let newMod = false;
+      let recur = count_every_other(newX, newMod);
+      return 1 + recur;
+    } else {
+      let newX = x - 1;
+      let newMod = true;
+      let recur = count_every_other(newX, newMod);
+      return recur;
+    }
+  }
+
+  function main(x) {
+    let mod = true;
+    let y = count_every_other(x, mod);
+    return y;
+  }
+
+  main
+  `;
+
+  let input = 5;
+  run_test(code, input);
 });
 
 test('strings 1', () => {
