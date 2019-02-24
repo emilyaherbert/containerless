@@ -1,4 +1,5 @@
 function main(x) {
-  return "hello world!";
+  let y = 1 > 0 ? 1 : 2;
+  return y;
 }
 main

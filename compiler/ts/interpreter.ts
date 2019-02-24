@@ -137,6 +137,17 @@ export class Interpreter {
         let v2 = this.eval_exp(e.e2, input);
         return this.eval_binop(e.op, v1, v2);
       }
+      case 'ternary': {
+        let test = this.eval_exp(e.test, input);
+        if (test.kind !== 'boolean') {
+          throw new Error("ternary test did not evaluate to a boolean.");
+        }
+        if (this.unwrap_boolean(test)) {
+          return this.eval_exp(e.consequent, input);
+        } else {
+          return this.eval_exp(e.alternate, input);
+        }
+      }
       case 'identifier': {
         if(this.st.has(e.name)) {
           let v = this.st.get(e.name);

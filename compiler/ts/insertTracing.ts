@@ -5,17 +5,7 @@ import * as template from '@babel/template';
 
 function mkExpr(code: string) {
   const tmpl = template.expression(code,
-      { placeholderPattern: /(EXPRESSION)/ });
-  return function (binds: { [index: string]: any })  {
-      let expr = tmpl(binds);
-      (expr as any).__runtime__ = true;
-      return expr;
-  };
-}
-
-function mkExpr2(code: string) {
-  const tmpl = template.expression(code,
-      { placeholderPattern: /(EXPRESSION1)|(EXPRESSION2)/ });
+      { placeholderPattern: /(EXPRESSION\d?)/ });
   return function (binds: { [index: string]: any })  {
       let expr = tmpl(binds);
       (expr as any).__runtime__ = true;
@@ -46,15 +36,16 @@ const buildUnaryExpr : EXPRMAP = ['neg','plus','not','bitnot']
     }, {});
 const buildLogicalExpr : EXPRMAP = ['and','or']
     .reduce((ret : EXPRMAP, elem) => {
-        ret[elem] = mkExpr2(`$T.` + elem + `(EXPRESSION1, EXPRESSION2)`);
+        ret[elem] = mkExpr(`$T.` + elem + `(EXPRESSION1, EXPRESSION2)`);
         return ret;
     }, {});
 const buildBinaryExpr : EXPRMAP = ['add', 'gt', 'lt', 'geq', 'leq', 'sub', 'div', 'mul', 'remainder', 'pow', 'bitand', 'bitor', 'bitxor', 'rshift', 'unsignedrs', 'lshift', 'lshift', 'eq', 'ineq', 'exacteq', 'exactineq']
     .reduce((ret : EXPRMAP, elem) => {
-        ret[elem] = mkExpr2(`$T.` + elem + `(EXPRESSION1, EXPRESSION2)`);
+        ret[elem] = mkExpr(`$T.` + elem + `(EXPRESSION1, EXPRESSION2)`);
         return ret;
     }, {});
 const buildArgumentExpr = mkExpr(`$T.argument(EXPRESSION)`);
+const buildTernaryExpr = mkExpr(`$T.ternary(EXPRESSION1, EXPRESSION2, EXPRESSION3)`);
 
 const buildVarDeclaration = mkStmt(`let VARIABLE = $T.bind(EXPRESSION);`);
 const buildVarUpdate = mkStmt(`$T.update(VARIABLE, EXPRESSION);`);
@@ -148,8 +139,7 @@ const visitor: traverse.Visitor<S> = {
             const params = path.node.params;
             // TODO(emily): Change hard-coded main.
             if(name === null) {
-              throw "Function name cannot be null.";
-              return;
+              throw new Error("Function name cannot be null.");
             }
             if(name.name === 'main') {
                 for (let i = 0; i < params.length; ++i) {
@@ -269,25 +259,6 @@ const visitor: traverse.Visitor<S> = {
             }
         }
     },
-    // CallExpression: {
-    //     enter(path: traverse.NodePath<t.CallExpression>, st) {
-    //         if ((path.node as any).__runtime__) {
-    //           path.skip();
-    //           return;
-    //         }
-    //         const args = path.node.arguments;
-    //         for(let i=0; i<args.length; i++) {
-    //             const arg = args[i];
-    //             if (arg.type !== 'Identifier') {
-    //                 throw new Error('Only Identifier args supported.');
-    //             }
-    //             const argumentStmt = buildArgumentStmt({
-    //               EXPRESSION: reifyExpr(st, arg)
-    //             })
-    //             path.insertBefore(argumentStmt);
-    //         }
-    //     }
-    // },
     ExpressionStatement: {
         enter(path: traverse.NodePath<t.ExpressionStatement>, st) {
             if ((path.node as any).__runtime__) {
@@ -404,12 +375,8 @@ function reifyExpr(st: S, expr: t.Expression): t.Expression {
       return logicalExpr;
     }
     else if (expr.type === 'BinaryExpression') {
-        // TODO(Chris): Do we try to perform type checking here to see what the
-        // left and right expressions are (to handle commonly used overloaded
-        // ops like '+')? Our current implementation of $T suggests it will
-        // have separate adding functions, +num and +str.
-        let e1 = reifyExpr(st, expr.left);
-        let e2 = reifyExpr(st, expr.right);
+        const e1 = reifyExpr(st, expr.left);
+        const e2 = reifyExpr(st, expr.right);
         let traceOpName: string;
         switch (expr.operator) {
           case '+':   traceOpName = 'add'; break;
@@ -439,8 +406,19 @@ function reifyExpr(st: S, expr: t.Expression): t.Expression {
         const binaryExpr = buildBinaryExpr[traceOpName]({
           EXPRESSION1: e1,
           EXPRESSION2: e2
-        })
+        });
         return binaryExpr;
+    }
+    else if (expr.type === 'ConditionalExpression') {
+      const test = reifyExpr(st, expr.test);
+      const consequent = reifyExpr(st, expr.consequent);
+      const alternate = reifyExpr(st, expr.alternate);
+      const ternaryExpr = buildTernaryExpr({
+        EXPRESSION1: test,
+        EXPRESSION2: consequent,
+        EXPRESSION3: alternate
+      });
+      return ternaryExpr;
     }
     else {
         throw new Error(`unsupported expression type: ${expr.type}`);

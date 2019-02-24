@@ -152,6 +152,15 @@ function getTyp(e: Exp): Typ {
             throw 'binary op not implemented';
         }
     }
+    else if (e.kind === 'ternary') {
+        const consequentType = getTyp(e.consequent);
+        const alternateType = getTyp(e.alternate);
+        if (consequentType.kind !== alternateType.kind) {
+            throw new Error(`consequent and alternate have different types, ${consequentType.kind} and ${alternateType.kind}`); // TODO(Chris): for now
+        } else {
+            return consequentType;
+        }
+    }
     else if (e.kind === 'input') {
         return { kind: 'number' } // TODO(arjun): For now
     }
@@ -216,10 +225,9 @@ export const and            = genericBinOp('&&',     { kind: 'boolean' }, { kind
 export const or             = genericBinOp('||',     { kind: 'boolean' }, { kind: 'boolean' });
 
 
-// TODO(Chris): Adding binary operations with multiple type signatures manually for now...
 binOpReturnType.set('+num', { kind: 'number' });
 binOpReturnType.set('+str', { kind: 'string' });
-export const add = function(e1: Exp, e2: Exp): Exp {
+export function add(e1: Exp, e2: Exp): Exp {
     if (getTyp(e1).kind === 'number' &&
         getTyp(e2).kind === 'number') {
         return { kind: 'binop', op: '+num', e1, e2 };
@@ -228,6 +236,14 @@ export const add = function(e1: Exp, e2: Exp): Exp {
         return { kind: 'binop', op: '+str', e1, e2 };
     } else {
         throw 'Not implemented';
+    }
+}
+
+export function ternary(test: Exp, consequent: Exp, alternate: Exp): Exp {
+    if (getTyp(test).kind === 'boolean') {
+        return { kind: 'ternary', test, consequent, alternate };
+    } else {
+        throw new Error(`Ternary expression test is ${getTyp(test).kind}, not a boolean`);
     }
 }
 

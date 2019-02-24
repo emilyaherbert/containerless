@@ -15,7 +15,8 @@ export type Exp =
     Id |
     { kind: 'input' } |
     { kind: 'unaryop', op: string, e: Exp } |
-    { kind: 'binop', op: string, e1: Exp, e2: Exp };
+    { kind: 'binop', op: string, e1: Exp, e2: Exp } |
+    { kind: 'ternary', test: Exp, consequent: Exp, alternate: Exp };
 
 export type Stmt =
     { kind: 'let', name: Name, e: Exp } |

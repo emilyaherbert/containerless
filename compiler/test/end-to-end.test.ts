@@ -426,10 +426,10 @@ test('call expression 4', () => {
   function main(x) {
     if(x < 0) {
       let y = F(x);
-      return y + 10;;
+      return y + 10;
     } else {
       let y = G(x);
-      return y + 10;;
+      return y + 10;
     }
   }
 
@@ -706,3 +706,31 @@ test('strings 3', () => {
   run_test(code, input);
 });
 */
+
+test('ternary expression 1', () => {
+  let code = `
+  function main(x) {
+    let y = x > 0 ? 1 : -1;
+    return y;
+  }
+  main
+  `;
+
+  let input = -3;
+  run_test(code, input);
+});
+
+test('ternary expression 2', () => {
+  let code = `
+  function main(x) {
+    let y = x > 0 ? 1
+      : x < -3 ? -1
+      : 0;
+    return y;
+  }
+  main
+  `;
+
+  let input = -1;
+  run_test(code, input);
+});
