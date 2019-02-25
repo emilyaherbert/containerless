@@ -55,6 +55,7 @@ const buildExpectReturnDeclaration = mkStmt(`let VARIABLE = $T.expectReturn();`)
 const buildRequireStmt = mkStmt(`let VARIABLE = require('../dist/runtime');`);
 const buildIfStmt = mkStmt(`$T.if_(EXPRESSION);`);
 const buildIfElseStmt = mkStmt(`$T.ifElse(EXPRESSION);`);
+const buildExitIfStmt = mkStmt(`$T.exitIf();`);
 const buildEnterIf = mkStmt(`$T.enterIf(EXPRESSION);`);
 const buildReturnStmt = mkStmt(`$T.return_(EXPRESSION);`);
 const buildArgsStmt = mkStmt(`$T.args(EXPRESSION);`);
@@ -184,6 +185,8 @@ const visitor: traverse.Visitor<S> = {
             const consequent = path.node.consequent;
             const alternate = path.node.alternate;
 
+            const exitIfStmt = buildExitIfStmt({});
+
             if(alternate === null) {
               // If statement.
 
@@ -199,6 +202,7 @@ const visitor: traverse.Visitor<S> = {
                 EXPRESSION: t.booleanLiteral(true)
               });
               (path.node.consequent as t.BlockStatement).body.unshift(enterIfTrue);
+              (path.node.consequent as t.BlockStatement).body.push(exitIfStmt);
 
             } else {
               // IfElse statement.
@@ -215,6 +219,7 @@ const visitor: traverse.Visitor<S> = {
                 EXPRESSION: t.booleanLiteral(true)
               });
               (path.node.consequent as t.BlockStatement).body.unshift(enterIfTrue);
+              (path.node.consequent as t.BlockStatement).body.push(exitIfStmt);
               
               if (!t.isBlockStatement(alternate)) {
                   path.node.alternate = t.blockStatement([alternate]);
@@ -223,6 +228,7 @@ const visitor: traverse.Visitor<S> = {
                 EXPRESSION: t.booleanLiteral(false)
               });
               (path.node.alternate as t.BlockStatement).body.unshift(enterIfFalse);
+              (path.node.alternate as t.BlockStatement).body.push(exitIfStmt);
             }
         }
     },
