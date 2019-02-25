@@ -12,22 +12,16 @@ function run_test(code: string, input: string | boolean | number) {
   let trace = insertTracing.transform(code);
   console.log(trace);
   let func_output = eval(trace)(input);
-  // console.log(JSON.stringify($T.program_(), null, 2)); // for debugging
+  $T.log();
   let ast_output = interp.eval($T.program_(), wrap_exp(input));
   expect(ast_output).toEqual(wrap_exp(func_output));
 }
 
 function wrap_exp(v : number | string | boolean): Exp {
   switch (typeof v) {
-    case 'string':
-      return $T.str(v);
-      break;
-    case 'number':
-      return $T.num(v);
-      break;
-    case 'boolean':
-      return $T.bool(v);
-      break;
+    case 'string': return $T.str(v);
+    case 'number': return $T.num(v);
+    case 'boolean': return $T.bool(v);
     default: throw "Found unexpected type in wrap_exp."
   }
 }

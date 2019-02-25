@@ -5,12 +5,10 @@ let program : Stmt[] = [];
 let stack: Stmt[][] = [];
 let current = program;
 
-let args_stack : Exp[] = [];
-let args_stack2: Exp[][] = [];
+let args_stack : Exp[][] = [];
 
 let nextName : Name = 0;
 export function bind(e: Exp): Id {
-    console.log(e);
     let name = nextName++;
     let t = getTyp(e);
     current.push({ kind: 'let', name: name, e: e });
@@ -30,29 +28,14 @@ export function input(): Exp {
     return { kind: 'input' };
 }
 
-// TODO(emily): Change this so that it passes arrays.
-export function argument(e: Exp) {
-    args_stack.push(e);
-}
-
-export function parameter(): Id {
-  if(args_stack.length > 0) {
-    const e = args_stack[args_stack.length - 1];
-    args_stack.pop();
-    return bind(e);
-  } else {
-    throw new Error ("Found empty args_stack in parameter().");
-  }
-}
-
 export function args(es: Exp[]) {
-  args_stack2.push(es);
+  args_stack.push(es);
 }
 
 export function params(): Id[] {
-  if(args_stack2.length > 0) {
-    const es = args_stack2[args_stack2.length - 1];
-    args_stack2.pop();
+  if(args_stack.length > 0) {
+    const es = args_stack[args_stack.length - 1];
+    args_stack.pop();
     return es.map(bind);
   } else {
     throw new Error ("Found empty args_stack in params().");

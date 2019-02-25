@@ -29,7 +29,6 @@ const buildNumericExpr = mkExpr(`$T.num(EXPRESSION)`);
 const buildBooleanExpr = mkExpr(`$T.bool(EXPRESSION)`);
 const buildStringExpr = mkExpr(`$T.str(EXPRESSION)`);
 type EXPRMAP =  { [key: string]: (binds: { [index: string]: any; }) => t.Expression };
-
 const buildUnaryExpr : EXPRMAP = ['neg','plus','not','bitnot']
     .reduce((ret : EXPRMAP, elem) => {
         ret[elem] = mkExpr(`$T.` + elem + `(EXPRESSION)`);
