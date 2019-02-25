@@ -1,27 +1,69 @@
 import { Name, Id, Typ, Exp, Stmt } from "../ts/types";
-import { DH_UNABLE_TO_CHECK_GENERATOR } from "constants";
 
-let program : Stmt[] = [];
-let stack: Stmt[][] = [];
-let current = program;
+class AST {
+  constructor() {}
 
+  private program : Stmt[] = [];
+  private stack : Stmt[][] = [];
+  private current = this.program;
+
+  public push(e: Stmt) {
+    this.current.push(e);
+  }
+
+  public pop() {
+    this.current.pop();
+  }
+
+  public prev(): Stmt {
+    if(this.current.length > 0) {
+      return this.current[this.current.length - 1];
+    } else {
+      throw new Error("Expected nonempty this.current.");
+    }
+  }
+
+  public push_scope() {
+    this.stack.push(this.current);
+    this.current = [];
+  }
+
+  public pop_scope() {
+    this.current = this.stack.pop()!;
+  }
+
+  public get_current() {
+    return this.current;
+  }
+
+  public get_program() {
+    return this.program;
+  }
+
+  public fresh_build() {}
+
+  public clear() {
+    this.program = [];
+    this.stack = [];
+    this.current = this.program;
+  }
+
+}
+
+let ast = new AST();
 let args_stack : Exp[][] = [];
 
 let nextName : Name = 0;
 export function bind(e: Exp): Id {
     let name = nextName++;
     let t = getTyp(e);
-    current.push({ kind: 'let', name: name, e: e });
+    ast.push({ kind: 'let', name: name, e: e });
     return { kind: 'identifier', name: name, type: t };
 }
 
 export function update(id: Id, e: Exp): void {
     let t = getTyp(e);
-    current.push({
-      kind: 'assignment',
-      id: id,
-      e: e
-    });
+    ast.push({ kind: 'assignment', id: id, e: e });
 }
 
 export function input(): Exp {
@@ -43,37 +85,29 @@ export function params(): Id[] {
 }
 
 export function return_(value: Exp) {
-  current.push({
-    kind: 'return',
-    value: value
-  })
+  ast.push({ kind: 'return', value: value })
 }
 
 export function expectReturn(): Exp {
-  if(current.length > 0) {
-    const theReturn = current[current.length - 1];
-    current.pop();
-    if(theReturn.kind === 'return') {
-      return theReturn.value;
-    } else {
-      throw new Error("Expected kind return for theReturn.kind.");
-    }
+  const theReturn = ast.prev();
+  ast.pop();
+  if(theReturn.kind === 'return') {
+    return theReturn.value;
   } else {
-    throw new Error("Found empty current in expectReturn().")
+    throw new Error("Expected kind return for theReturn.kind.");
   }
 }
 
 // If there is no else, initialize as empty block Exp.
 export function if_(test: Exp) {
-  current.push({
-      kind: 'if',
+  ast.push({ kind: 'if',
       test: test,
       then: { kind: 'unknown' },
       else: { kind: 'block', body: []} });
 }
 
 export function ifElse(test: Exp) {
-    current.push({
+    ast.push({
         kind: 'if',
         test: test,
         then: { kind: 'unknown' },
@@ -81,24 +115,23 @@ export function ifElse(test: Exp) {
 }
 
 export function enterIf(condition: boolean) {
-    let theIf = current[current.length - 1];
+    let theIf = ast.prev();
     if (theIf.kind !== 'if') {
         throw 'Total disaster';
     }
-    stack.push(current);
-    current = [];
+    ast.push_scope();
 
     // TODO(arjun): Test condition
     if (condition) {
-        theIf.then = { kind: 'block', body: current };
+        theIf.then = { kind: 'block', body: ast.get_current() };
     }
     else {
-        theIf.else = { kind: 'block', body: current };
+        theIf.else = { kind: 'block', body: ast.get_current() };
     }
 }
 
 export function exitIf() {
-    current = stack.pop()!;
+    ast.pop_scope();
 }
 
 function getTyp(e: Exp): Typ {
@@ -238,17 +271,15 @@ export function bool(b: boolean): Exp {
 }
 
 export function log() {
-    console.log(JSON.stringify(program, null, 2));
+    console.log(JSON.stringify(ast.get_program(), null, 2));
 }
 
 // TODO(emily): Used for testing, replace with something more elegant.
 // i.e. https://github.com/plasma-umass/ElementaryJS/blob/master/ts/runtime.ts#L316
 export function clear() {
-  program = [];
-  stack = [];
-  current = program;
+  ast.clear();
 }
 
 export function program_() {
-  return program;
+  return ast.get_program();
 }
