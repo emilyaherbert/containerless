@@ -10,54 +10,25 @@ function run_test(code: string, input: string | boolean | number) {
   // NOTE(arjun): We could also run 'eval(code)(input)', but we are not. We
   // are assuming that the tracing does not change the semantics of 'code'.
   let trace = insertTracing.transform(code);
+  console.log(trace);
   let func_output = eval(trace)(input);
-  // console.log(JSON.stringify($T.program_(), null, 2)); // for debugging
+  //$T.log();
   let ast_output = interp.eval($T.program_(), wrap_exp(input));
-  expect(unwrap_exp(ast_output)).toBe(func_output);
-}
-
-function run_test_no_input(code: string) {
-  $T.clear();
-
-  let trace = insertTracing.transform(code);
-  let func_output = eval(trace);
-  let ast_output = interp.eval($T.program_(), wrap_exp(-1)); // dummy input
-
-  expect(unwrap_exp(ast_output)).toBe(func_output);
+  expect(ast_output).toEqual(wrap_exp(func_output));
 }
 
 function wrap_exp(v : number | string | boolean): Exp {
   switch (typeof v) {
-    case 'string':
-      return $T.str(v);
-      break;
-    case 'number':
-      return $T.num(v);
-      break;
-    case 'boolean':
-      return $T.bool(v);
-      break;
+    case 'string': return $T.str(v);
+    case 'number': return $T.num(v);
+    case 'boolean': return $T.bool(v);
     default: throw "Found unexpected type in wrap_exp."
   }
 }
 
 // TODO(arjun): Just use wrap_exp and .toEqual
-function unwrap_exp(e: Exp): string | boolean | number {
-  switch(e.kind) {
-    case 'string':
-      return e.value;
-      break;
-    case 'number':
-      return e.value;
-      break;
-    case 'boolean':
-      return e.value;
-      break;
-    default: throw "Found unexpected e.king in unwrap_exp."
-  }
-}
 
-test('test', () => {
+test('test 1', () => {
   let code = `
   function main(x) {
     let y = 1 + 1;

@@ -14,7 +14,7 @@ function mkExpr(code: string) {
 }
 
 // Converts string into a statement that can be avoided by visitors
-// by checking the __doNotVisit__ property.
+// by checking the __runtime__ property.
 function mkStmt(code: string) {
     const tmpl = template.statement(code,
         { placeholderPattern: /(VARIABLE)|(EXPRESSION)/ });
@@ -50,15 +50,16 @@ const buildTernaryExpr = mkExpr(`$T.ternary(EXPRESSION1, EXPRESSION2, EXPRESSION
 const buildVarDeclaration = mkStmt(`let VARIABLE = $T.bind(EXPRESSION);`);
 const buildVarUpdate = mkStmt(`$T.update(VARIABLE, EXPRESSION);`);
 const buildInputDeclaration = mkStmt(`let VARIABLE = $T.input();`);
-const buildParameterDeclaration = mkStmt(`let VARIABLE = $T.parameter();`);
 const buildExpectReturnDeclaration = mkStmt(`let VARIABLE = $T.expectReturn();`)
 
 const buildRequireStmt = mkStmt(`let VARIABLE = require('../dist/runtime');`);
 const buildIfStmt = mkStmt(`$T.if_(EXPRESSION);`);
 const buildIfElseStmt = mkStmt(`$T.ifElse(EXPRESSION);`);
+const buildExitIfStmt = mkStmt(`$T.exitIf();`);
 const buildEnterIf = mkStmt(`$T.enterIf(EXPRESSION);`);
 const buildReturnStmt = mkStmt(`$T.return_(EXPRESSION);`);
-const buildArgumentStmt = mkStmt(`$T.argument(EXPRESSION);`);
+const buildArgsStmt = mkStmt(`$T.args(EXPRESSION);`);
+const buildParamsStmt = mkStmt(`let EXPRESSION = $T.params();`);
 
 let eUndefined = t.unaryExpression('void', t.numericLiteral(0));
 
@@ -153,16 +154,23 @@ const visitor: traverse.Visitor<S> = {
                     body.unshift(inputDeclaration);
                 }
             } else {
+                const param_names : t.Identifier[] = [];
                 for (let i = 0; i < params.length; ++i) {
                     const param = params[i];
                     if (param.type !== 'Identifier') {
                         throw new Error('only identifier params supported');
                     }
-                    const parameterDeclaration = buildParameterDeclaration({
-                      VARIABLE: st_get(st, param.name)
-                    })
-                    body.unshift(parameterDeclaration);
+                    const name = st_get(st, param.name);
+                    if(name !== undefined) {
+                      param_names[i] = t.identifier(name);
+                    } else {
+                      throw new Error("Found undefined name in FunctionDeclaration.");
+                    }
                 }
+                const paramsStmt = buildParamsStmt({
+                  EXPRESSION: t.arrayPattern(param_names)
+                })
+                body.unshift(paramsStmt);
             }
         }
     },
@@ -176,6 +184,8 @@ const visitor: traverse.Visitor<S> = {
             const innerExpr = path.node.test;
             const consequent = path.node.consequent;
             const alternate = path.node.alternate;
+
+            const exitIfStmt = buildExitIfStmt({});
 
             if(alternate === null) {
               // If statement.
@@ -192,6 +202,7 @@ const visitor: traverse.Visitor<S> = {
                 EXPRESSION: t.booleanLiteral(true)
               });
               (path.node.consequent as t.BlockStatement).body.unshift(enterIfTrue);
+              (path.node.consequent as t.BlockStatement).body.push(exitIfStmt);
 
             } else {
               // IfElse statement.
@@ -208,6 +219,7 @@ const visitor: traverse.Visitor<S> = {
                 EXPRESSION: t.booleanLiteral(true)
               });
               (path.node.consequent as t.BlockStatement).body.unshift(enterIfTrue);
+              (path.node.consequent as t.BlockStatement).body.push(exitIfStmt);
               
               if (!t.isBlockStatement(alternate)) {
                   path.node.alternate = t.blockStatement([alternate]);
@@ -216,6 +228,7 @@ const visitor: traverse.Visitor<S> = {
                 EXPRESSION: t.booleanLiteral(false)
               });
               (path.node.alternate as t.BlockStatement).body.unshift(enterIfFalse);
+              (path.node.alternate as t.BlockStatement).body.push(exitIfStmt);
             }
         }
     },
@@ -236,16 +249,18 @@ const visitor: traverse.Visitor<S> = {
             
             if(t.isCallExpression(expr)) {
               const args = expr.arguments;
+              let exprs : t.Expression[] = [];
               for(let i=0; i<args.length; i++) {
                 const arg = args[i];
                 if(arg.type !== 'Identifier') {
                   throw new Error('Only Identifier args supported.');
                 }
-                const argumentStmt = buildArgumentStmt({
-                  EXPRESSION: reifyExpr(st, arg)
-                })
-                path.insertBefore(argumentStmt);
+                exprs.push(reifyExpr(st, arg));
               }
+              const argsStmt = buildArgsStmt({
+                EXPRESSION: t.arrayExpression(exprs)
+              })
+              path.insertBefore(argsStmt);
               const expectReturnDeclaration = buildExpectReturnDeclaration({
                 VARIABLE: newId,
               })

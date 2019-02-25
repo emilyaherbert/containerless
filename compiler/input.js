@@ -1,5 +1,8 @@
 function main(x) {
-  let y = 1 > 0 ? 1 : 2;
-  return y;
+  let y = 3;
+  if (true) {
+    y = 5;
+  }
+  y = 7;
 }
 main
