@@ -6,11 +6,11 @@ let stack: Stmt[][] = [];
 let current = program;
 
 let args_stack : Exp[] = [];
-
-let return_cell : Exp | undefined = undefined
+let args_stack2: Exp[][] = [];
 
 let nextName : Name = 0;
 export function bind(e: Exp): Id {
+    console.log(e);
     let name = nextName++;
     let t = getTyp(e);
     current.push({ kind: 'let', name: name, e: e });
@@ -30,6 +30,7 @@ export function input(): Exp {
     return { kind: 'input' };
 }
 
+// TODO(emily): Change this so that it passes arrays.
 export function argument(e: Exp) {
     args_stack.push(e);
 }
@@ -44,25 +45,19 @@ export function parameter(): Id {
   }
 }
 
-/*
-export function return_(value: Exp) {
-  if(return_cell !== undefined) {
-    return_cell = value;
-  } else {
-    throw new Error ("Found nonempty return_cell in return_().");
-  }
+export function args(es: Exp[]) {
+  args_stack2.push(es);
 }
 
-export function expectReturn() {
-  if(return_cell !== undefined) {
-    const value = return_cell;
-    return_cell = undefined;
-    return value;
+export function params(): Id[] {
+  if(args_stack2.length > 0) {
+    const es = args_stack2[args_stack2.length - 1];
+    args_stack2.pop();
+    return es.map(bind);
   } else {
-    throw new Error ("Found nonempty return_cell in return_().");
+    throw new Error ("Found empty args_stack in params().");
   }
 }
-*/
 
 export function return_(value: Exp) {
   current.push({

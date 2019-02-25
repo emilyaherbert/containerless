@@ -10,20 +10,11 @@ function run_test(code: string, input: string | boolean | number) {
   // NOTE(arjun): We could also run 'eval(code)(input)', but we are not. We
   // are assuming that the tracing does not change the semantics of 'code'.
   let trace = insertTracing.transform(code);
+  console.log(trace);
   let func_output = eval(trace)(input);
   // console.log(JSON.stringify($T.program_(), null, 2)); // for debugging
   let ast_output = interp.eval($T.program_(), wrap_exp(input));
-  expect(unwrap_exp(ast_output)).toBe(func_output);
-}
-
-function run_test_no_input(code: string) {
-  $T.clear();
-
-  let trace = insertTracing.transform(code);
-  let func_output = eval(trace);
-  let ast_output = interp.eval($T.program_(), wrap_exp(-1)); // dummy input
-
-  expect(unwrap_exp(ast_output)).toBe(func_output);
+  expect(ast_output).toEqual(wrap_exp(func_output));
 }
 
 function wrap_exp(v : number | string | boolean): Exp {
@@ -42,20 +33,6 @@ function wrap_exp(v : number | string | boolean): Exp {
 }
 
 // TODO(arjun): Just use wrap_exp and .toEqual
-function unwrap_exp(e: Exp): string | boolean | number {
-  switch(e.kind) {
-    case 'string':
-      return e.value;
-      break;
-    case 'number':
-      return e.value;
-      break;
-    case 'boolean':
-      return e.value;
-      break;
-    default: throw "Found unexpected e.king in unwrap_exp."
-  }
-}
 
 test('test', () => {
   let code = `
