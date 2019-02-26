@@ -1,4 +1,4 @@
-import { Name, Id, Typ, Exp, Stmt } from "../ts/types";
+import { Exp, Stmt, Obj } from "../ts/types";
 
 class State {
   constructor() {}
@@ -160,7 +160,15 @@ export class Interpreter {
           throw new Error("Found free identifier.");
         }
       }
-      default: throw new Error("Found unimplemented e.kind in eval_exp.");
+      case 'object': {
+        return e;
+      }
+      case 'member': {
+        let o = this.eval_exp(e.object, input);
+        let member = this.unwrap_object(o)[e.field];
+        return this.eval_exp(member, input);
+      }
+      default: throw new Error(`Found unimplemented e.kind in eval_exp.`);
     }
   }
 
@@ -227,6 +235,13 @@ export class Interpreter {
     switch(e.kind) {
       case 'boolean': return e.value;
       default: throw new Error("Expected boolean in unwrap_boolean.");
+    }
+  }
+
+  private unwrap_object(e: Exp): Obj {
+    switch(e.kind) {
+      case 'object': return e.value;
+      default: throw new Error("Expected object in unwrap_object.");
     }
   }
 

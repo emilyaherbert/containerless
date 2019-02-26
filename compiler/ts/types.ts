@@ -1,11 +1,15 @@
 export type Name = number;
 
+// Javascript internal object type.
+export type Obj = { [key: string]: Exp };
+
 export type Id = { kind: 'identifier', name: Name, type: Typ };
 
 export type Typ =
     { kind: 'number' } |
     { kind: 'string' } |
     { kind: 'boolean' } |
+    { kind: 'object' } |
     { kind: 'undefined' };
 
 export type Exp =
@@ -16,7 +20,9 @@ export type Exp =
     { kind: 'input' } |
     { kind: 'unaryop', op: string, e: Exp } |
     { kind: 'binop', op: string, e1: Exp, e2: Exp } |
-    { kind: 'ternary', test: Exp, consequent: Exp, alternate: Exp };
+    { kind: 'ternary', test: Exp, consequent: Exp, alternate: Exp } |
+    { kind: 'object', value: { [key: string]: Exp } } |
+    { kind: 'member', object: Exp, field: string };
 
 export type Stmt =
     { kind: 'let', name: Name, e: Exp } |

@@ -1,4 +1,4 @@
-import { Name, Id, Typ, Exp, Stmt } from "../ts/types";
+import { Name, Id, Typ, Exp, Stmt, Obj } from "../ts/types";
 
 class AST {
   constructor() {}
@@ -39,19 +39,20 @@ class AST {
   public get_program() {
     return this.program;
   }
-
-  public fresh_build() {}
-
-  public clear() {
-    this.program = [];
-    this.stack = [];
-    this.current = this.program;
-  }
-
 }
 
 let ast = new AST();
+let ast_builder = new AST();
 let args_stack : Exp[][] = [];
+
+export function startTrace() {
+  ast = new AST();
+}
+
+export function stopTrace() {
+  ast_builder = ast;
+  // Merge ast and ast_builder.
+}
 
 let nextName : Name = 0;
 export function bind(e: Exp): Id {
@@ -92,7 +93,7 @@ export function expectReturn(): Exp {
   const theReturn = ast.prev();
   ast.pop();
   if(theReturn.kind === 'return') {
-    return theReturn.value;
+    return bind(theReturn.value);
   } else {
     throw new Error("Expected kind return for theReturn.kind.");
   }
@@ -117,7 +118,7 @@ export function ifElse(test: Exp) {
 export function enterIf(condition: boolean) {
     let theIf = ast.prev();
     if (theIf.kind !== 'if') {
-        throw 'Total disaster';
+        throw new Error("Expected previous Stmt to be an if.");
     }
     ast.push_scope();
 
@@ -152,7 +153,7 @@ function getTyp(e: Exp): Typ {
             return unaryOpReturnType.get(e.op)!;
         }
         else {
-            throw 'unaryop not implemented';
+            throw new Error("Found unimplemented unaryop.");
         }
     }
     else if (e.kind === 'binop') {
@@ -160,23 +161,28 @@ function getTyp(e: Exp): Typ {
             return binOpReturnType.get(e.op)!;
         }
         else {
-            throw 'binary op not implemented';
+            throw new Error("Found unimplemented binop.");
         }
     }
     else if (e.kind === 'ternary') {
         const consequentType = getTyp(e.consequent);
         const alternateType = getTyp(e.alternate);
         if (consequentType.kind !== alternateType.kind) {
-            throw new Error(`consequent and alternate have different types, ${consequentType.kind} and ${alternateType.kind}`); // TODO(Chris): for now
+            // TODO(Chris): for now
+            throw new Error(`Consequent and alternate have different types, ${consequentType.kind} and ${alternateType.kind}.`);
         } else {
             return consequentType;
         }
     }
     else if (e.kind === 'input') {
-        return { kind: 'number' } // TODO(arjun): For now
+        return { kind: 'number' }; // TODO(arjun): For now
+    }
+    else if (e.kind === 'object') {
+      return { kind: 'object' };
     }
     else {
-        throw 'Not implemented';
+      console.log(e);
+      throw new Error('Not implemented.');
     }
 }
 
@@ -189,7 +195,7 @@ function genericUnaryOp(opStr: string, inputType: Typ, returnType: Typ): (e: Exp
         if (getTyp(e).kind === inputType.kind) {
             return { kind: 'unaryop', op: opStr, e };
         } else {
-            throw 'Not implemented';
+            throw new Error('Not implemented.');
         }
     }
 }
@@ -201,7 +207,7 @@ function genericBinOp(opStr: string, inputType: Typ, returnType: Typ): (e1: Exp,
             getTyp(e2).kind === inputType.kind) {
             return { kind: 'binop', op: opStr, e1, e2 };
         } else {
-            throw 'Not implemented';
+            throw new Error('Not implemented.');
         }
     }
 }
@@ -246,7 +252,7 @@ export function add(e1: Exp, e2: Exp): Exp {
                getTyp(e2).kind === 'string') {
         return { kind: 'binop', op: '+str', e1, e2 };
     } else {
-        throw 'Not implemented';
+        throw new Error('Not implemented.');
     }
 }
 
@@ -270,6 +276,21 @@ export function bool(b: boolean): Exp {
   return { kind: 'boolean', value: b };
 }
 
+export function object(o: Obj): Exp {
+  return { kind: 'object', value: o };
+}
+
+export function member(o: Exp, f: string): Exp {
+  if(o.kind !== 'identifier') {
+    console.log(o);
+    throw new Error("Expected identifier.");
+  }
+  if(o.type.kind !== 'object') {
+    throw new Error("Expected object.");
+  }
+  return { kind: 'member', object: o, field: f };
+}
+
 export function log() {
     console.log(JSON.stringify(ast.get_program(), null, 2));
 }
@@ -277,7 +298,9 @@ export function log() {
 // TODO(emily): Used for testing, replace with something more elegant.
 // i.e. https://github.com/plasma-umass/ElementaryJS/blob/master/ts/runtime.ts#L316
 export function clear() {
-  ast.clear();
+  ast = new AST();
+  ast_builder = new AST();
+  args_stack = [];
 }
 
 export function program_() {
