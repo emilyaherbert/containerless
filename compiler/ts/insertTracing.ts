@@ -46,12 +46,15 @@ const buildBinaryExpr : EXPRMAP = ['add', 'gt', 'lt', 'geq', 'leq', 'sub', 'div'
     }, {});
 const buildArgumentExpr = mkExpr(`$T.argument(EXPRESSION)`);
 const buildTernaryExpr = mkExpr(`$T.ternary(EXPRESSION1, EXPRESSION2, EXPRESSION3)`);
+const buildObjectExpr = mkExpr(`$T.obj(EXPRESSION)`);
 
 const buildVarDeclaration = mkStmt(`let VARIABLE = $T.bind(EXPRESSION);`);
 const buildVarUpdate = mkStmt(`$T.update(VARIABLE, EXPRESSION);`);
 const buildInputDeclaration = mkStmt(`let VARIABLE = $T.input();`);
 const buildExpectReturnDeclaration = mkStmt(`let VARIABLE = $T.expectReturn();`)
 
+const buildStartTraceStmt = mkStmt(`$T.startTrace();`)
+const buildStopTraceStmt = mkStmt(`$T.stopTrace();`);
 const buildRequireStmt = mkStmt(`let VARIABLE = require('../dist/runtime');`);
 const buildIfStmt = mkStmt(`$T.if_(EXPRESSION);`);
 const buildIfElseStmt = mkStmt(`$T.ifElse(EXPRESSION);`);
@@ -111,6 +114,14 @@ const visitor: traverse.Visitor<S> = {
             st_clear(st);
         },
         exit(path: traverse.NodePath<t.Program>, st) {
+            const startTraceStmt = buildStartTraceStmt({});
+            path.node.body.unshift(startTraceStmt);
+
+            // TODO(emily): Find better way to insert $T.stopTrace() as
+            // second to last element.
+            const stopTraceStmt = buildStopTraceStmt({});
+            path.node.body.splice(path.node.body.length - 1, 0, stopTraceStmt);
+
             const id = t.identifier('$T'); // TODO(arjun): capture
             let requireStmt = buildRequireStmt({
                 VARIABLE: id
@@ -329,115 +340,118 @@ const visitor: traverse.Visitor<S> = {
 
 // TODO(emily): Just want to clarify - why have we done this with a seperate function and not with babel? 
 function reifyExpr(st: S, expr: t.Expression): t.Expression {
-    if (expr.type === 'NumericLiteral') {
-        const numericExpr = buildNumericExpr({ EXPRESSION: expr });
-        return numericExpr;
-    }
-    else if (expr.type === 'BooleanLiteral') {
-        const booleanExpr = buildBooleanExpr({ EXPRESSION: expr });
-        return booleanExpr;
-    }
-    else if (expr.type === 'StringLiteral') {
-      const booleanExpr = buildStringExpr({ EXPRESSION: expr });
-      return booleanExpr;
-    }
-    else if (expr.type === 'Identifier') {
-        let x = st_get(st, expr.name);
-        if (x === undefined) {
-            console.log(expr);
-            throw new Error(`no binding for ${expr.name}`);
-        }
-        return t.identifier(x);
-    }
-    else if (expr.type === 'CallExpression') {
-      return t.sequenceExpression(expr.arguments.map(e =>
-        buildArgumentExpr({ EXPRESSION: reifyExpr(st, e as t.Expression) })));
-    }
-    else if (expr.type === 'UnaryExpression') {
-        let e = reifyExpr(st, expr.argument);
-        let traceOpName: string;
-        switch (expr.operator) {
-            case '-': traceOpName = 'neg'; break;
-            case '+': traceOpName = 'plus'; break;
-            case '!': traceOpName = 'not'; break;
-            case '~': traceOpName = 'bitnot'; break;
-            default: // cases 'typeof', 'void', 'delete', 'throw' not handled
-                throw new Error(`unsupported binary operator: ${expr.operator}`);
-        }
-        const unaryExpr = buildUnaryExpr[traceOpName]({
-          EXPRESSION: e
-        })
-        return unaryExpr;
-    }
-    else if (expr.type == 'LogicalExpression') {
-      let e1 = reifyExpr(st, expr.left);
-      let e2 = reifyExpr(st, expr.right);
-      let traceOpName: string;
-      switch (expr.operator) {
-        case '&&':
-          traceOpName = 'and';
-          break;
-        case '||':
-          traceOpName = 'or';
-          break;
-        default:
-          throw new Error(`unsupported logical operator: ${expr.operator}`);
-      }
-      const logicalExpr = buildLogicalExpr[traceOpName]({
-        EXPRESSION1: e1,
-        EXPRESSION2: e2
-      })
-      return logicalExpr;
-    }
-    else if (expr.type === 'BinaryExpression') {
-        const e1 = reifyExpr(st, expr.left);
-        const e2 = reifyExpr(st, expr.right);
-        let traceOpName: string;
-        switch (expr.operator) {
-          case '+':   traceOpName = 'add'; break;
-          case '>':   traceOpName = 'gt'; break;
-          case '<':   traceOpName = 'lt'; break;
-          case '>=':  traceOpName = 'geq'; break;
-          case '<=':  traceOpName = 'leq'; break;
-          case '-':   traceOpName = 'sub'; break;
-          case '/':   traceOpName = 'div'; break;
-          case '*':   traceOpName = 'mul'; break;
-          case '%':   traceOpName = 'remainder'; break;
-          case '**':  traceOpName = 'pow'; break;
-          case '&':   traceOpName = 'bitand'; break;
-          case '|':   traceOpName = 'bitor'; break;
-          case '^':   traceOpName = 'bitxor'; break;
-          case '>>':  traceOpName = 'rshift'; break;
-          case '>>>': traceOpName = 'unsignedrshift'; break;
-          case '<<':  traceOpName = 'lshift'; break;
-          case '<<':  traceOpName = 'lshift'; break;
-          case '==':  traceOpName = 'eq'; break;
-          case '!=':  traceOpName = 'ineq'; break;
-          case '===': traceOpName = 'exacteq'; break;
-          case '!==': traceOpName = 'exactineq'; break;
-          default: // cases 'in', and 'instanceof' not handled
-              throw new Error(`unsupported binary operator: ${expr.operator}`);
-        }
-        const binaryExpr = buildBinaryExpr[traceOpName]({
-          EXPRESSION1: e1,
-          EXPRESSION2: e2
-        });
-        return binaryExpr;
-    }
-    else if (expr.type === 'ConditionalExpression') {
-      const test = reifyExpr(st, expr.test);
-      const consequent = reifyExpr(st, expr.consequent);
-      const alternate = reifyExpr(st, expr.alternate);
-      const ternaryExpr = buildTernaryExpr({
-        EXPRESSION1: test,
-        EXPRESSION2: consequent,
-        EXPRESSION3: alternate
-      });
-      return ternaryExpr;
-    }
-    else {
-        throw new Error(`unsupported expression type: ${expr.type}`);
-    }
+  switch (expr.type) {
+    case 'NumericLiteral': return buildNumericExpr({ EXPRESSION: expr });
+    case 'BooleanLiteral': return buildBooleanExpr({ EXPRESSION: expr });
+    case 'StringLiteral': return buildStringExpr({ EXPRESSION: expr });
+    case 'Identifier': return reifyIdentifier(st, expr);
+    case 'CallExpression': return reifyCallExpression(st, expr);
+    case 'LogicalExpression': return reifyLogicalExpression(st, expr);
+    case 'UnaryExpression': return reifyUnaryExpression(st, expr);
+    case 'BinaryExpression': return reifyBinaryExpression(st, expr);
+    case 'ConditionalExpression': return reifyConditionalExpression(st, expr);
+    default: throw new Error(`unsupported expression type: ${expr.type}`);
+  }
+}
+
+function reifyIdentifier(st: S, expr: t.Identifier): t.Expression {
+  let x = st_get(st, expr.name);
+  if (x === undefined) {
+      console.log(expr);
+      throw new Error(`no binding for ${expr.name}`);
+  }
+  return t.identifier(x);
+}
+
+function reifyCallExpression(st: S, expr: t.CallExpression): t.Expression {
+  return t.sequenceExpression(expr.arguments.map(e =>
+    buildArgumentExpr({ EXPRESSION: reifyExpr(st, e as t.Expression) })));
+}
+
+function reifyLogicalExpression(st: S, expr: t.LogicalExpression): t.Expression {
+  let e1 = reifyExpr(st, expr.left);
+  let e2 = reifyExpr(st, expr.right);
+  let traceOpName: string;
+  switch (expr.operator) {
+    case '&&':
+      traceOpName = 'and';
+      break;
+    case '||':
+      traceOpName = 'or';
+      break;
+    default:
+      throw new Error(`unsupported logical operator: ${expr.operator}`);
+  }
+  const logicalExpr = buildLogicalExpr[traceOpName]({
+    EXPRESSION1: e1,
+    EXPRESSION2: e2
+  })
+  return logicalExpr;
+}
+
+function reifyUnaryExpression(st: S, expr: t.UnaryExpression): t.Expression {
+  let e = reifyExpr(st, expr.argument);
+  let traceOpName: string;
+  switch (expr.operator) {
+      case '-': traceOpName = 'neg'; break;
+      case '+': traceOpName = 'plus'; break;
+      case '!': traceOpName = 'not'; break;
+      case '~': traceOpName = 'bitnot'; break;
+      default: // cases 'typeof', 'void', 'delete', 'throw' not handled
+          throw new Error(`unsupported binary operator: ${expr.operator}`);
+  }
+  const unaryExpr = buildUnaryExpr[traceOpName]({
+    EXPRESSION: e
+  })
+  return unaryExpr;
+}
+
+function reifyBinaryExpression(st: S, expr: t.BinaryExpression): t.Expression {
+  const e1 = reifyExpr(st, expr.left);
+  const e2 = reifyExpr(st, expr.right);
+  let traceOpName: string;
+  switch (expr.operator) {
+    case '+':   traceOpName = 'add'; break;
+    case '>':   traceOpName = 'gt'; break;
+    case '<':   traceOpName = 'lt'; break;
+    case '>=':  traceOpName = 'geq'; break;
+    case '<=':  traceOpName = 'leq'; break;
+    case '-':   traceOpName = 'sub'; break;
+    case '/':   traceOpName = 'div'; break;
+    case '*':   traceOpName = 'mul'; break;
+    case '%':   traceOpName = 'remainder'; break;
+    case '**':  traceOpName = 'pow'; break;
+    case '&':   traceOpName = 'bitand'; break;
+    case '|':   traceOpName = 'bitor'; break;
+    case '^':   traceOpName = 'bitxor'; break;
+    case '>>':  traceOpName = 'rshift'; break;
+    case '>>>': traceOpName = 'unsignedrshift'; break;
+    case '<<':  traceOpName = 'lshift'; break;
+    case '<<':  traceOpName = 'lshift'; break;
+    case '==':  traceOpName = 'eq'; break;
+    case '!=':  traceOpName = 'ineq'; break;
+    case '===': traceOpName = 'exacteq'; break;
+    case '!==': traceOpName = 'exactineq'; break;
+    default: // cases 'in', and 'instanceof' not handled
+        throw new Error(`unsupported binary operator: ${expr.operator}`);
+  }
+  const binaryExpr = buildBinaryExpr[traceOpName]({
+    EXPRESSION1: e1,
+    EXPRESSION2: e2
+  });
+  return binaryExpr;
+}
+
+function reifyConditionalExpression(st: S, expr: t.ConditionalExpression): t.Expression {
+  const test = reifyExpr(st, expr.test);
+  const consequent = reifyExpr(st, expr.consequent);
+  const alternate = reifyExpr(st, expr.alternate);
+  const ternaryExpr = buildTernaryExpr({
+    EXPRESSION1: test,
+    EXPRESSION2: consequent,
+    EXPRESSION3: alternate
+  });
+  return ternaryExpr;
 }
 
 /**
