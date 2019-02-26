@@ -28,7 +28,7 @@ function mkStmt(code: string) {
 const buildNumericExpr = mkExpr(`$T.num(EXPRESSION)`);
 const buildBooleanExpr = mkExpr(`$T.bool(EXPRESSION)`);
 const buildStringExpr = mkExpr(`$T.str(EXPRESSION)`);
-type EXPRMAP =  { [key: string]: (binds: { [index: string]: any; }) => t.Expression };
+type EXPRMAP = { [key: string]: (binds: { [index: string]: any; }) => t.Expression };
 const buildUnaryExpr : EXPRMAP = ['neg','plus','not','bitnot']
     .reduce((ret : EXPRMAP, elem) => {
         ret[elem] = mkExpr(`$T.` + elem + `(EXPRESSION)`);
@@ -46,7 +46,8 @@ const buildBinaryExpr : EXPRMAP = ['add', 'gt', 'lt', 'geq', 'leq', 'sub', 'div'
     }, {});
 const buildArgumentExpr = mkExpr(`$T.argument(EXPRESSION)`);
 const buildTernaryExpr = mkExpr(`$T.ternary(EXPRESSION1, EXPRESSION2, EXPRESSION3)`);
-const buildObjectExpr = mkExpr(`$T.obj(EXPRESSION)`);
+const buildObjectExpr = mkExpr(`$T.object(EXPRESSION)`);
+const buildMemberExpr = mkExpr(`$T.member(EXPRESSION1, EXPRESSION2)`);
 
 const buildVarDeclaration = mkStmt(`let VARIABLE = $T.bind(EXPRESSION);`);
 const buildVarUpdate = mkStmt(`$T.update(VARIABLE, EXPRESSION);`);
@@ -338,7 +339,6 @@ const visitor: traverse.Visitor<S> = {
     }
 };
 
-// TODO(emily): Just want to clarify - why have we done this with a seperate function and not with babel? 
 function reifyExpr(st: S, expr: t.Expression): t.Expression {
   switch (expr.type) {
     case 'NumericLiteral': return buildNumericExpr({ EXPRESSION: expr });
@@ -350,6 +350,8 @@ function reifyExpr(st: S, expr: t.Expression): t.Expression {
     case 'UnaryExpression': return reifyUnaryExpression(st, expr);
     case 'BinaryExpression': return reifyBinaryExpression(st, expr);
     case 'ConditionalExpression': return reifyConditionalExpression(st, expr);
+    case 'ObjectExpression': return reifyObjectExpression(st, expr);
+    case 'MemberExpression': return reifyMemberExpression(st, expr);
     default: throw new Error(`unsupported expression type: ${expr.type}`);
   }
 }
@@ -452,6 +454,52 @@ function reifyConditionalExpression(st: S, expr: t.ConditionalExpression): t.Exp
     EXPRESSION3: alternate
   });
   return ternaryExpr;
+}
+
+function reifyObjectExpression(st: S, expr: t.ObjectExpression): t.Expression {
+  const properties = expr.properties;
+  const innerProperties : (babel.types.ObjectMethod |
+                           babel.types.ObjectProperty |
+                           babel.types.SpreadElement)[] = [];
+  for(let i=0; i<properties.length; i++) {
+    const property = properties[i];
+    switch (property.type) {
+      case 'ObjectProperty': {
+        const key = property.key;
+        const value = property.value;
+        if(!t.isIdentifier(key)) {
+          throw new Error("Only Identifier keys supported.");
+        }
+        if(!t.isExpression(value)) {
+          throw new Error("Only Expression values supported.");
+        }
+        innerProperties.push(t.objectProperty(key, reifyExpr(st, value)));
+        break;
+      }
+      default: throw new Error(`Unsupported property.type: ${property.type}.`);
+    }
+  }
+  const objExpression = buildObjectExpr({
+    EXPRESSION: t.objectExpression(innerProperties)
+  })
+  return objExpression;
+}
+
+// TODO(emily): Add functionality for { x : 1 }.x
+function reifyMemberExpression(st: S, expr: t.MemberExpression): t.Expression {
+  const object = reifyExpr(st, expr.object);
+  const property = expr.property; // reifyExpr(st, expr.property);
+  if(!t.isIdentifier(object)) {
+    throw new Error("Only Identifier objects expected.");
+  }
+  if(!t.isIdentifier(property)) {
+    throw new Error("Only Identifier properties expected.");
+  }
+  const memberExpression = buildMemberExpr({
+    EXPRESSION1: t.identifier(object.name),
+    EXPRESSION2: t.stringLiteral(property.name) // TODO(emily): Should these be Exp's? Say a function is used to calculate the field...
+  })
+  return memberExpression;
 }
 
 /**

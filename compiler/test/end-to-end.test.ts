@@ -1,11 +1,11 @@
 const $T = require('../dist/runtime');
 import { Interpreter } from '../ts/interpreter';
 import * as insertTracing from '../ts/insertTracing';
-import { Exp } from "../ts/types";
+import { Exp, Obj } from "../ts/types";
 
 let interp = new Interpreter();
 
-function run_test(code: string, input: string | boolean | number) {
+function run_test(code: string, input: (string | boolean | number)) {
   $T.clear();
   // NOTE(arjun): We could also run 'eval(code)(input)', but we are not. We
   // are assuming that the tracing does not change the semantics of 'code'.
@@ -17,16 +17,15 @@ function run_test(code: string, input: string | boolean | number) {
   expect(ast_output).toEqual(wrap_exp(func_output));
 }
 
-function wrap_exp(v : number | string | boolean): Exp {
+function wrap_exp(v : (number | string | boolean)): Exp {
   switch (typeof v) {
     case 'string': return $T.str(v);
     case 'number': return $T.num(v);
     case 'boolean': return $T.bool(v);
+    //case 'object': return wrap_object(v);
     default: throw "Found unexpected type in wrap_exp."
   }
 }
-
-// TODO(arjun): Just use wrap_exp and .toEqual
 
 test('test 1', () => {
   let code = `
@@ -698,6 +697,81 @@ test('ternary expression 2', () => {
       : x < -3 ? -1
       : 0;
     return y;
+  }
+  main
+  `;
+
+  let input = -1;
+  run_test(code, input);
+});
+
+test('objects 1', () => {
+  let code = `
+  function main(x) {
+    let y = { a : 1 };
+    return y.a;
+  }
+  main
+  `;
+
+  let input = -1;
+  run_test(code, input);
+});
+
+test('objects 2', () => {
+  let code = `
+  function main(x) {
+    let y = { a : 1, b : 2 };
+    return y.a;
+  }
+  main
+  `;
+
+  let input = -1;
+  run_test(code, input);
+});
+
+test('objects 3', () => {
+  let code = `
+  function main(x) {
+    let y = { a : 1, b : 2 };
+    return y.b;
+  }
+  main
+  `;
+
+  let input = -1;
+  run_test(code, input);
+});
+
+test('objects 4', () => {
+  let code = `
+  function F(a) {
+    return { x : 100, z : 1000 };
+  }
+
+  function main(x) {
+    let a = 2;
+    let y = F(a);
+    return y.x;
+  }
+  main
+  `;
+
+  let input = -1;
+  run_test(code, input);
+});
+
+test('objects 5', () => {
+  let code = `
+  function F(a) {
+    return { x : 100, z : 1000 };
+  }
+
+  function main(x) {
+    let a = 2;
+    let y = F(a);
+    return y.z;
   }
   main
   `;
