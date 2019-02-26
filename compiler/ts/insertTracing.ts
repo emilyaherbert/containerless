@@ -157,7 +157,7 @@ const visitor: traverse.Visitor<S> = {
             if(name.name === 'main') {
                 for (let i = 0; i < params.length; ++i) {
                     const param = params[i];
-                    if (param.type !== 'Identifier') {
+                    if (!t.isIdentifier(param)) {
                         throw new Error('only identifier params supported');
                     }
                     const inputDeclaration = buildInputDeclaration({
@@ -169,7 +169,7 @@ const visitor: traverse.Visitor<S> = {
                 const param_names : t.Identifier[] = [];
                 for (let i = 0; i < params.length; ++i) {
                     const param = params[i];
-                    if (param.type !== 'Identifier') {
+                    if (!t.isIdentifier(param)) {
                         throw new Error('only identifier params supported');
                     }
                     const name = st_get(st, param.name);
@@ -264,7 +264,7 @@ const visitor: traverse.Visitor<S> = {
               let exprs : t.Expression[] = [];
               for(let i=0; i<args.length; i++) {
                 const arg = args[i];
-                if(arg.type !== 'Identifier') {
+                if(!t.isIdentifier(arg)) {
                   throw new Error('Only Identifier args supported.');
                 }
                 exprs.push(reifyExpr(st, arg));
@@ -510,7 +510,7 @@ function reifyMemberExpression(st: S, expr: t.MemberExpression): t.Expression {
  * @returns the name of the identifier, if 'lval' is an identifier
  */
 function lvaltoName(lval: t.LVal): string {
-    if (lval.type === 'Identifier') {
+    if (t.isIdentifier(lval)) {
         return lval.name;
     } else if (lval.type === 'RestElement' && lval.argument.type === 'Identifier') {
         return lval.argument.name;
