@@ -1,8 +1,6 @@
 function main(x) {
-  let y = 3;
-  if (true) {
-    y = 5;
-  }
-  y = 7;
+  let y = { a : 1 };
+  y.a = 2;
+  return y.a;
 }
 main

@@ -62,9 +62,8 @@ export function bind(e: Exp): Id {
     return { kind: 'identifier', name: name, type: t };
 }
 
-export function update(id: Id, e: Exp): void {
-    let t = getTyp(e);
-    ast.push({ kind: 'assignment', id: id, e: e });
+export function update(e1: Exp, e2: Exp): void {
+    ast.push({ kind: 'assignment', e1: e1, e2: e2 });
 }
 
 export function input(): Exp {

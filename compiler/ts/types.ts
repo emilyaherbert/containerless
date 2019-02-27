@@ -26,7 +26,7 @@ export type Exp =
 
 export type Stmt =
     { kind: 'let', name: Name, e: Exp } |
-    { kind: 'assignment', id: Id, e: Exp } |
+    { kind: 'assignment', e1: Exp, e2: Exp } |
     { kind: 'if', test: Exp, then: Stmt, else: Stmt } |
     { kind: 'block', body: Stmt[] } |
     { kind: 'argument', e: Exp } |

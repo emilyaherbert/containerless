@@ -95,7 +95,18 @@ export class Interpreter {
         break;
       }
       case 'assignment': {
-        this.st.update(e.id.name, this.eval_exp(e.e, input));
+        // TODO(Chris): this should be refactored
+        if(e.e1.kind === 'identifier') {
+          this.st.update(e.e1.name, this.eval_exp(e.e2, input));
+        } else if (e.e1.kind === 'member') {
+          // TODO(Chris): not sure if some kind of st.update is needed?
+          // modifying the object should affect it for all references, since
+          // we are not creating a copy
+          let o = this.eval_exp(e.e1.object, input);
+          this.unwrap_object(o)[e.e1.field] = this.eval_exp(e.e2, input);
+        } else {
+          throw new Error('Invalid assignment expression.');
+        }
         break;
       }
       case 'if': {

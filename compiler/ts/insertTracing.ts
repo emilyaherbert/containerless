@@ -296,15 +296,25 @@ const visitor: traverse.Visitor<S> = {
                 if (path.node.expression.operator === '=') {
                     const origExpr = path.node.expression;
                     const rightExpr = origExpr.right;
-                    const varName = st_get(st, lvaltoName(origExpr.left));
-                    if (varName === undefined) {
-                        throw new Error('assigning to an undeclared variable');
-                    }
-                    const varUpdate = buildVarUpdate({
+                    const leftExpr = origExpr.left;
+
+                    // TODO(Chris): what on earth are babel "Patterns"?
+                    if (t.isIdentifier(leftExpr)) {
+                      const varName = st_get(st, lvaltoName(origExpr.left));
+                      const varUpdate = buildVarUpdate({
                         VARIABLE: varName,
                         EXPRESSION: reifyExpr(st, rightExpr)
-                    });
-                    path.insertBefore(varUpdate);
+                      });
+                      path.insertBefore(varUpdate);
+                    } else if (t.isMemberExpression(leftExpr)) {
+                      const memberUpdate = buildVarUpdate({
+                        VARIABLE: reifyExpr(st, leftExpr),
+                        EXPRESSION: reifyExpr(st, rightExpr)
+                      });
+                      path.insertBefore(memberUpdate);
+                    } else {
+                      throw new Error('left side of expression statment is not supported');
+                    }
                 }
             }
         }
@@ -458,9 +468,9 @@ function reifyConditionalExpression(st: S, expr: t.ConditionalExpression): t.Exp
 
 function reifyObjectExpression(st: S, expr: t.ObjectExpression): t.Expression {
   const properties = expr.properties;
-  const innerProperties : (babel.types.ObjectMethod |
-                           babel.types.ObjectProperty |
-                           babel.types.SpreadElement)[] = [];
+  const innerProperties : (t.ObjectMethod |
+                           t.ObjectProperty |
+                           t.SpreadElement)[] = [];
   for(let i=0; i<properties.length; i++) {
     const property = properties[i];
     switch (property.type) {
