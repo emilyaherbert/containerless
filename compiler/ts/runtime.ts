@@ -218,6 +218,11 @@ export const plus           = genericUnaryOp('unary+', { kind: 'number' } , { ki
 export const not            = genericUnaryOp('!',      { kind: 'boolean' }, { kind: 'boolean' });
 export const bitnot         = genericUnaryOp('~',      { kind: 'number' } , { kind: 'number' });
 
+// TODO(Chris): should we just cut to the chase and return "undefined" here?
+export function _void(e: Exp): Exp {
+  return { kind: 'unaryop', op: 'void', e };
+}
+
 export const eq             = genericBinOp('==num',  { kind: 'number' } , { kind: 'boolean' });
 export const ineq           = genericBinOp('!=num',  { kind: 'number' } , { kind: 'boolean' });
 export const exacteq        = genericBinOp('===num', { kind: 'number' } , { kind: 'boolean' });
@@ -273,6 +278,10 @@ export function str(s: string): Exp {
 
 export function bool(b: boolean): Exp {
   return { kind: 'boolean', value: b };
+}
+
+export function undefined(): Exp {
+  return { kind: 'undefined' };
 }
 
 export function object(o: Obj): Exp {

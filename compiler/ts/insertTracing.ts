@@ -29,7 +29,7 @@ const buildNumericExpr = mkExpr(`$T.num(EXPRESSION)`);
 const buildBooleanExpr = mkExpr(`$T.bool(EXPRESSION)`);
 const buildStringExpr = mkExpr(`$T.str(EXPRESSION)`);
 type EXPRMAP = { [key: string]: (binds: { [index: string]: any; }) => t.Expression };
-const buildUnaryExpr : EXPRMAP = ['neg','plus','not','bitnot']
+const buildUnaryExpr : EXPRMAP = ['neg', 'plus', 'not', 'bitnot', '_void']
     .reduce((ret : EXPRMAP, elem) => {
         ret[elem] = mkExpr(`$T.` + elem + `(EXPRESSION)`);
         return ret;
@@ -405,10 +405,11 @@ function reifyUnaryExpression(st: S, expr: t.UnaryExpression): t.Expression {
   let e = reifyExpr(st, expr.argument);
   let traceOpName: string;
   switch (expr.operator) {
-      case '-': traceOpName = 'neg'; break;
-      case '+': traceOpName = 'plus'; break;
-      case '!': traceOpName = 'not'; break;
-      case '~': traceOpName = 'bitnot'; break;
+      case '-':    traceOpName = 'neg'; break;
+      case '+':    traceOpName = 'plus'; break;
+      case '!':    traceOpName = 'not'; break;
+      case '~':    traceOpName = 'bitnot'; break;
+      case 'void': traceOpName = '_void'; break;
       default: // cases 'typeof', 'void', 'delete', 'throw' not handled
           throw new Error(`unsupported binary operator: ${expr.operator}`);
   }

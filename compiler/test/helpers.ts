@@ -17,11 +17,12 @@ export function run_test(code: string, input: (string | boolean | number)) {
   expect(ast_output).toEqual(wrap_exp(func_output));
 }
 
-function wrap_exp(v : (number | string | boolean)): Exp {
+function wrap_exp(v : (number | string | boolean | undefined)): Exp {
   switch (typeof v) {
     case 'string': return $T.str(v);
     case 'number': return $T.num(v);
     case 'boolean': return $T.bool(v);
+    case 'undefined': return $T.undefined();
     //case 'object': return wrap_object(v);
     default: throw "Found unexpected type in wrap_exp."
   }

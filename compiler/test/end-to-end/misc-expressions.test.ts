@@ -358,3 +358,15 @@ test('ternary expression 2', () => {
   let input = -1;
   helpers.run_test(code, input);
 });
+
+test('void expression', () => {
+  let code = `
+  function main(x) {
+    return void 3;
+  }
+  main
+  `;
+
+  let input = -1;
+  helpers.run_test(code, input);
+});

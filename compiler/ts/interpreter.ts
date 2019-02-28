@@ -138,6 +138,7 @@ export class Interpreter {
       case 'number': return e;
       case 'string': return e;
       case 'boolean': return e;
+      case 'undefined': return e;
       case 'input': return input;
       case 'unaryop': {
         let v = this.eval_exp(e.e, input);
@@ -184,6 +185,7 @@ export class Interpreter {
   }
 
   private eval_unaryop(op: String, v: Exp): Exp {
+    if (op === 'void') return { kind: 'undefined' };
     if (v.kind === 'number') {
       switch (op) {
         case 'unary-': return { kind: 'number', value: -v.value };

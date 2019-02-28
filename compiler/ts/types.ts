@@ -16,6 +16,7 @@ export type Exp =
     { kind: 'number', value: number } |
     { kind: 'string', value: string } |
     { kind: 'boolean', value: boolean } |
+    { kind: 'undefined' } |
     Id |
     { kind: 'input' } |
     { kind: 'unaryop', op: string, e: Exp } |
