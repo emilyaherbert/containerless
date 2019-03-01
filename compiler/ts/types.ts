@@ -1,7 +1,11 @@
-export type Name = number;
 
-// Javascript internal object type.
-export type Obj = { [key: string]: Exp };
+/*
+
+Runtime Types
+
+*/
+
+export type Name = number;
 
 export type Id = { kind: 'identifier', name: Name, type: Typ };
 
@@ -11,6 +15,8 @@ export type Typ =
     { kind: 'boolean' } |
     { kind: 'object' } |
     { kind: 'undefined' };
+
+export type Object = { kind: 'object', value: { [key: string]: Exp } };
 
 export type Exp =
     { kind: 'number', value: number } |
@@ -22,11 +28,12 @@ export type Exp =
     { kind: 'unaryop', op: string, e: Exp } |
     { kind: 'binop', op: string, e1: Exp, e2: Exp } |
     { kind: 'ternary', test: Exp, consequent: Exp, alternate: Exp } |
-    { kind: 'object', value: { [key: string]: Exp } } |
+    Object |
     { kind: 'member', object: Exp, field: string };
 
 export type If = { kind: 'if', test: Exp, then: Stmt, else: Stmt };
 export type While = { kind: 'while', test: Exp, body: Stmt };
+export type Return = { kind: 'return', value: Exp };
 
 export type Stmt =
     { kind: 'let', name: Name, e: Exp } |
@@ -35,5 +42,17 @@ export type Stmt =
     While |
     { kind: 'block', body: Stmt[] } |
     { kind: 'argument', e: Exp } |
-    { kind: 'return', value: Exp } |
+    Return |
     { kind: 'unknown' }
+
+
+/*
+
+Internal Types
+
+*/
+
+export const unaryOpReturnType = new Map<string, Typ>();
+export const binOpReturnType = new Map<string, Typ>();
+
+export type Obj = { [key: string]: Exp };

@@ -1,7 +1,7 @@
 import { Name, Id, Typ, Exp, Stmt, Obj } from "../ts/types";
 import * as helpers from "./helpers"
 
-class AST {
+export class AST {
   constructor() {}
 
   private program : Stmt[] = [];
@@ -43,7 +43,6 @@ class AST {
 }
 
 let ast = new AST();
-let ast_builder = new AST();
 let args_stack : Exp[][] = [];
 
 export function startTrace() {
@@ -51,8 +50,7 @@ export function startTrace() {
 }
 
 export function stopTrace() {
-  ast_builder = ast;
-  // Merge ast and ast_builder.
+  // NOTE: reset AST pointers.
 }
 
 let nextName : Name = 0;
@@ -81,7 +79,7 @@ export function params(): Id[] {
     args_stack.pop();
     return es.map(bind);
   } else {
-    throw new Error ("Found empty args_stack in params().");
+    throw new Error ("Found empty args_stack.");
   }
 }
 
@@ -90,13 +88,8 @@ export function return_(value: Exp) {
 }
 
 export function expectReturn(): Exp {
-  const theReturn = ast.prev();
-  ast.pop();
-  if(theReturn.kind === 'return') {
-    return bind(theReturn.value);
-  } else {
-    throw new Error("Expected kind return for theReturn.kind.");
-  }
+  let theReturn = helpers.expect_return(ast.prev());
+  return bind(theReturn.value);
 }
 
 // If there is no else, initialize as empty block Exp.
@@ -116,7 +109,7 @@ export function ifElse(test: Exp) {
 }
 
 export function enterIf(condition: boolean) {
-    const theIf = helpers.expect_if(ast.prev());
+    let theIf = helpers.expect_if(ast.prev());
 
     ast.push_scope();
 
@@ -150,57 +143,6 @@ export function enterWhile() {
 
 export function exitWhile() {
   ast.pop_scope();
-}
-
-function getTyp(e: Exp): Typ {
-    if (e.kind === 'string') {
-        return { kind: 'string' };
-    }
-    else if (e.kind === 'boolean') {
-        return { kind: 'boolean' };
-    }
-    else if (e.kind === 'number') {
-        return { kind: 'number' };
-    }
-    else if (e.kind === 'identifier') {
-        return e.type;
-    }
-    else if (e.kind === 'unaryop') {
-        if (unaryOpReturnType.has(e.op)) {
-            return unaryOpReturnType.get(e.op)!;
-        }
-        else {
-            throw new Error("Found unimplemented unaryop.");
-        }
-    }
-    else if (e.kind === 'binop') {
-        if (binOpReturnType.has(e.op)) {
-            return binOpReturnType.get(e.op)!;
-        }
-        else {
-            throw new Error("Found unimplemented binop.");
-        }
-    }
-    else if (e.kind === 'ternary') {
-        const consequentType = getTyp(e.consequent);
-        const alternateType = getTyp(e.alternate);
-        if (consequentType.kind !== alternateType.kind) {
-            // TODO(Chris): for now
-            throw new Error(`Consequent and alternate have different types, ${consequentType.kind} and ${alternateType.kind}.`);
-        } else {
-            return consequentType;
-        }
-    }
-    else if (e.kind === 'input') {
-        return { kind: 'number' }; // TODO(arjun): For now
-    }
-    else if (e.kind === 'object') {
-      return { kind: 'object' };
-    }
-    else {
-      console.log(e);
-      throw new Error('Not implemented.');
-    }
 }
 
 const unaryOpReturnType = new Map<string, Typ>();
@@ -263,7 +205,6 @@ export const bitxor         = genericBinOp('^',      { kind: 'number' } , { kind
 export const and            = genericBinOp('&&',     { kind: 'boolean' }, { kind: 'boolean' });
 export const or             = genericBinOp('||',     { kind: 'boolean' }, { kind: 'boolean' });
 
-
 binOpReturnType.set('+num', { kind: 'number' });
 binOpReturnType.set('+str', { kind: 'string' });
 export function add(e1: Exp, e2: Exp): Exp {
@@ -282,7 +223,7 @@ export function ternary(test: Exp, consequent: Exp, alternate: Exp): Exp {
     if (getTyp(test).kind === 'boolean') {
         return { kind: 'ternary', test, consequent, alternate };
     } else {
-        throw new Error(`Ternary expression test is ${getTyp(test).kind}, not a boolean`);
+        throw new Error(`Ternary expression test is ${getTyp(test).kind}, not a boolean.`);
     }
 }
 
@@ -307,11 +248,9 @@ export function object(o: Obj): Exp {
 }
 
 export function member(o: Exp, f: string): Exp {
-  if(o.kind !== 'identifier') {
-    console.log(o);
-    throw new Error("Expected identifier.");
-  }
-  if(o.type.kind !== 'object') {
+  let id = helpers.expect_identifier(o);
+  
+  if(id.type.kind !== 'object') {
     throw new Error("Expected object.");
   }
   return { kind: 'member', object: o, field: f };
@@ -325,10 +264,60 @@ export function log() {
 // i.e. https://github.com/plasma-umass/ElementaryJS/blob/master/ts/runtime.ts#L316
 export function clear() {
   ast = new AST();
-  ast_builder = new AST();
   args_stack = [];
 }
 
 export function program_() {
   return ast.get_program();
+}
+
+function getTyp(e: Exp): Typ {
+  if (e.kind === 'string') {
+      return { kind: 'string' };
+  }
+  else if (e.kind === 'boolean') {
+      return { kind: 'boolean' };
+  }
+  else if (e.kind === 'number') {
+      return { kind: 'number' };
+  }
+  else if (e.kind === 'identifier') {
+      return e.type;
+  }
+  else if (e.kind === 'unaryop') {
+      if (unaryOpReturnType.has(e.op)) {
+          return unaryOpReturnType.get(e.op)!;
+      }
+      else {
+          throw new Error("Found unimplemented unaryop.");
+      }
+  }
+  else if (e.kind === 'binop') {
+      if (binOpReturnType.has(e.op)) {
+          return binOpReturnType.get(e.op)!;
+      }
+      else {
+          throw new Error("Found unimplemented binop.");
+      }
+  }
+  else if (e.kind === 'ternary') {
+      const consequentType = getTyp(e.consequent);
+      const alternateType = getTyp(e.alternate);
+      if (consequentType.kind !== alternateType.kind) {
+          // TODO(Chris): for now
+          throw new Error(`Consequent and alternate have different types, ${consequentType.kind} and ${alternateType.kind}.`);
+      } else {
+          return consequentType;
+      }
+  }
+  else if (e.kind === 'input') {
+      return { kind: 'number' }; // TODO(arjun): For now
+  }
+  else if (e.kind === 'object') {
+    return { kind: 'object' };
+  }
+  else {
+    console.log(e);
+    throw new Error('Not implemented.');
+  }
 }
