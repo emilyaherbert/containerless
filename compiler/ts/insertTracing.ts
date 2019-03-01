@@ -28,6 +28,7 @@ function mkStmt(code: string) {
 const buildNumericExpr = mkExpr(`$T.num(EXPRESSION)`);
 const buildBooleanExpr = mkExpr(`$T.bool(EXPRESSION)`);
 const buildStringExpr = mkExpr(`$T.str(EXPRESSION)`);
+
 type EXPRMAP = { [key: string]: (binds: { [index: string]: any; }) => t.Expression };
 const buildUnaryExpr : EXPRMAP = ['neg', 'plus', 'not', 'bitnot', '_void']
     .reduce((ret : EXPRMAP, elem) => {
@@ -44,24 +45,49 @@ const buildBinaryExpr : EXPRMAP = ['add', 'gt', 'lt', 'geq', 'leq', 'sub', 'div'
         ret[elem] = mkExpr(`$T.` + elem + `(EXPRESSION1, EXPRESSION2)`);
         return ret;
     }, {});
-const buildArgumentExpr = mkExpr(`$T.argument(EXPRESSION)`);
 const buildTernaryExpr = mkExpr(`$T.ternary(EXPRESSION1, EXPRESSION2, EXPRESSION3)`);
+
+const buildArgumentExpr = mkExpr(`$T.argument(EXPRESSION)`);
 const buildObjectExpr = mkExpr(`$T.object(EXPRESSION)`);
+
 const buildMemberExpr = mkExpr(`$T.member(EXPRESSION1, EXPRESSION2)`);
 
 const buildVarDeclaration = mkStmt(`let VARIABLE = $T.bind(EXPRESSION);`);
 const buildVarUpdate = mkStmt(`$T.update(VARIABLE, EXPRESSION);`);
+
 const buildInputDeclaration = mkStmt(`let VARIABLE = $T.input();`);
 const buildExpectReturnDeclaration = mkStmt(`let VARIABLE = $T.expectReturn();`)
 
 const buildStartTraceStmt = mkStmt(`$T.startTrace();`)
 const buildStopTraceStmt = mkStmt(`$T.stopTrace();`);
+
 const buildRequireStmt = mkStmt(`let VARIABLE = require('../dist/runtime');`);
+
 const buildIfStmt = mkStmt(`$T.if_(EXPRESSION);`);
 const buildIfElseStmt = mkStmt(`$T.ifElse(EXPRESSION);`);
-const buildExitIfStmt = mkStmt(`$T.exitIf();`);
 const buildEnterIf = mkStmt(`$T.enterIf(EXPRESSION);`);
+const buildExitIfStmt = mkStmt(`$T.exitIf();`);
+
+// TODO(emily): It would be more efficient to have:
+// 
+// $T.enterWhile(foo);
+// $T.enterBlock();
+//  some code
+// $T.exitBlock();
+//
+// $T.if_(bar):
+// $T.enterBlock();
+//  some code
+// $T.exitBlock();
+//
+// This generates a problem in the runtime though, with looking back at previous statements.
+
+const buildWhileStmt = mkStmt(`$T.while_(EXPRESSION);`);
+const buildEnterWhileStmt = mkStmt(`$T.enterWhile();`);
+const buildExitWhileStmt = mkStmt(`$T.exitWhile();`);
+
 const buildReturnStmt = mkStmt(`$T.return_(EXPRESSION);`);
+
 const buildArgsStmt = mkStmt(`$T.args(EXPRESSION);`);
 const buildParamsStmt = mkStmt(`let EXPRESSION = $T.params();`);
 
@@ -205,7 +231,6 @@ const visitor: traverse.Visitor<S> = {
               const ifStmt = buildIfStmt({
                 EXPRESSION: reifyExpr(st, innerExpr)
               })
-              path.insertBefore(ifStmt);
 
               if (!t.isBlockStatement(consequent)) {
                 path.node.consequent = t.blockStatement([consequent]);
@@ -213,6 +238,8 @@ const visitor: traverse.Visitor<S> = {
               const enterIfTrue = buildEnterIf({
                 EXPRESSION: t.booleanLiteral(true)
               });
+
+              path.insertBefore(ifStmt);
               (path.node.consequent as t.BlockStatement).body.unshift(enterIfTrue);
               (path.node.consequent as t.BlockStatement).body.push(exitIfStmt);
 
@@ -222,7 +249,6 @@ const visitor: traverse.Visitor<S> = {
               const ifElseStmt = buildIfElseStmt({
                 EXPRESSION: reifyExpr(st, innerExpr)
               })
-              path.insertBefore(ifElseStmt);
 
               if (!t.isBlockStatement(consequent)) {
                 path.node.consequent = t.blockStatement([consequent]);
@@ -230,8 +256,6 @@ const visitor: traverse.Visitor<S> = {
               const enterIfTrue = buildEnterIf({
                 EXPRESSION: t.booleanLiteral(true)
               });
-              (path.node.consequent as t.BlockStatement).body.unshift(enterIfTrue);
-              (path.node.consequent as t.BlockStatement).body.push(exitIfStmt);
               
               if (!t.isBlockStatement(alternate)) {
                   path.node.alternate = t.blockStatement([alternate]);
@@ -239,10 +263,40 @@ const visitor: traverse.Visitor<S> = {
               const enterIfFalse = buildEnterIf({
                 EXPRESSION: t.booleanLiteral(false)
               });
+
+              path.insertBefore(ifElseStmt);
+              (path.node.consequent as t.BlockStatement).body.unshift(enterIfTrue);
+              (path.node.consequent as t.BlockStatement).body.push(exitIfStmt);
               (path.node.alternate as t.BlockStatement).body.unshift(enterIfFalse);
               (path.node.alternate as t.BlockStatement).body.push(exitIfStmt);
             }
         }
+    },
+    WhileStatement: {
+      enter(path: traverse.NodePath<t.WhileStatement>, st) {
+        if ((path.node as any).__runtime__) {
+          path.skip();
+          return;
+        }
+
+        const test = path.node.test;
+        const body = path.node.body;
+
+        const whileStmt = buildWhileStmt({
+          EXPRESSION: reifyExpr(st, test)
+        });
+        
+        if(!t.isBlockStatement(body)) {
+          path.node.body = t.blockStatement([body]);
+        }
+
+        const enterWhileStmt = buildEnterWhileStmt({});
+        const exitWhileStmt = buildExitWhileStmt({});
+
+        path.insertBefore(whileStmt);
+        (path.node.body as t.BlockStatement).body.unshift(enterWhileStmt);
+        (path.node.body as t.BlockStatement).body.push(exitWhileStmt);
+      }
     },
     VariableDeclaration: {
         enter(path: traverse.NodePath<t.VariableDeclaration>, st) {

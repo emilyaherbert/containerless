@@ -1,4 +1,5 @@
 import { Name, Id, Typ, Exp, Stmt, Obj } from "../ts/types";
+import * as helpers from "./helpers"
 
 class AST {
   constructor() {}
@@ -115,10 +116,8 @@ export function ifElse(test: Exp) {
 }
 
 export function enterIf(condition: boolean) {
-    let theIf = ast.prev();
-    if (theIf.kind !== 'if') {
-        throw new Error("Expected previous Stmt to be an if.");
-    }
+    const theIf = helpers.expect_if(ast.prev());
+
     ast.push_scope();
 
     // TODO(arjun): Test condition
@@ -132,6 +131,25 @@ export function enterIf(condition: boolean) {
 
 export function exitIf() {
     ast.pop_scope();
+}
+
+export function while_(test: Exp) {
+  ast.push({
+    kind: 'while',
+    test: test,
+    body: { kind: 'unknown' } });
+}
+
+export function enterWhile() {
+  let theWhile = helpers.expect_while(ast.prev());
+
+  ast.push_scope();
+
+  theWhile.body = { kind: 'block', body: ast.get_current() };
+}
+
+export function exitWhile() {
+  ast.pop_scope();
 }
 
 function getTyp(e: Exp): Typ {

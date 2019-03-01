@@ -25,10 +25,14 @@ export type Exp =
     { kind: 'object', value: { [key: string]: Exp } } |
     { kind: 'member', object: Exp, field: string };
 
+export type If = { kind: 'if', test: Exp, then: Stmt, else: Stmt };
+export type While = { kind: 'while', test: Exp, body: Stmt };
+
 export type Stmt =
     { kind: 'let', name: Name, e: Exp } |
     { kind: 'assignment', e1: Exp, e2: Exp } |
-    { kind: 'if', test: Exp, then: Stmt, else: Stmt } |
+    If |
+    While |
     { kind: 'block', body: Stmt[] } |
     { kind: 'argument', e: Exp } |
     { kind: 'return', value: Exp } |

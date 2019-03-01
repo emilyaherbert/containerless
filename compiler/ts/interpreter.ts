@@ -115,6 +115,12 @@ export class Interpreter {
         else this.eval_stmt(e.else, input);
         break;
       }
+      case 'while': {
+        while(this.unwrap_boolean(this.eval_exp(e.test, input))) {
+          this.eval_stmt(e.body, input);
+        }
+        break;
+      }
       case 'block': {
         this.st.push();
         for(let i=0; i<e.body.length; i++) {
