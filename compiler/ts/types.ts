@@ -16,7 +16,7 @@ export type Typ =
     { kind: 'object' } |
     { kind: 'undefined' };
 
-export type Object = { kind: 'object', value: { [key: string]: Exp } };
+export type Object = { kind: 'object', value: Obj };
 
 export type Exp =
     { kind: 'number', value: number } |

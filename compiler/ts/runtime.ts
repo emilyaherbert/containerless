@@ -92,7 +92,6 @@ export function expectReturn(): Exp {
   return bind(theReturn.value);
 }
 
-// If there is no else, initialize as empty block Exp.
 export function if_(test: Exp) {
   ast.push({ kind: 'if',
       test: test,

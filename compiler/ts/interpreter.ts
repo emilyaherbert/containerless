@@ -180,12 +180,18 @@ export class Interpreter {
         }
       }
       case 'object': {
-        return e;
+        const obj = e.value;
+        let innerObj : Obj = {};
+        for (var key in obj) {
+          if (obj.hasOwnProperty(key)) {
+            innerObj[key] = this.eval_exp(obj[key], input);
+          }
+        }
+        return { kind: 'object', value: innerObj };
       }
       case 'member': {
         let o = this.eval_exp(e.object, input);
-        let member = helpers.unwrap_object(o)[e.field];
-        return this.eval_exp(member, input);
+        return helpers.unwrap_object(o)[e.field];
       }
       default: throw new Error(`Found unimplemented e.kind in eval_exp.`);
     }
