@@ -1,35 +1,49 @@
-export type Name = number;
 
-// Javascript internal object type.
-export type Obj = { [key: string]: Exp };
+/*
 
-export type Id = { kind: 'identifier', name: Name, type: Typ };
+Runtime Types
+
+*/
+
+export type ObjectTyp = { kind: 'object', class: number };
 
 export type Typ =
     { kind: 'number' } |
     { kind: 'string' } |
     { kind: 'boolean' } |
-    { kind: 'object' } |
+    ObjectTyp |
     { kind: 'undefined' };
+
+export type Name = number;
+export type IdExp = { kind: 'identifier', name: Name, type: Typ };
+export type ObjectExp = { kind: 'object', class: number, value: { [key: string]: Exp } };
 
 export type Exp =
     { kind: 'number', value: number } |
     { kind: 'string', value: string } |
     { kind: 'boolean', value: boolean } |
     { kind: 'undefined' } |
-    Id |
+    IdExp |
     { kind: 'input' } |
     { kind: 'unaryop', op: string, e: Exp } |
     { kind: 'binop', op: string, e1: Exp, e2: Exp } |
     { kind: 'ternary', test: Exp, consequent: Exp, alternate: Exp } |
-    { kind: 'object', value: { [key: string]: Exp } } |
-    { kind: 'member', object: Exp, field: string };
+    ObjectExp |
+    { kind: 'member', object: IdExp, field: string } ;
+
+export type IfStmt = { kind: 'if', test: Exp, then: Stmt, else: Stmt };
+export type WhileStmt = { kind: 'while', test: Exp, body: Stmt };
+export type ReturnStmt = { kind: 'return', value: Exp };
+
+export type Class = { kind: 'class', name: number, types: { [key: string]: Typ } };
 
 export type Stmt =
+    { kind: 'createClass', class: Class } |
     { kind: 'let', name: Name, e: Exp } |
     { kind: 'assignment', e1: Exp, e2: Exp } |
-    { kind: 'if', test: Exp, then: Stmt, else: Stmt } |
+    IfStmt |
+    WhileStmt |
     { kind: 'block', body: Stmt[] } |
     { kind: 'argument', e: Exp } |
-    { kind: 'return', value: Exp } |
+    ReturnStmt |
     { kind: 'unknown' }

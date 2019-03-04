@@ -13,7 +13,7 @@ test('boolean', () => {
   eval(code);
   let input = $T.num(-1);
   let output = $T.bool(true);
-  let result = interp.eval($T.program_(), input);
+  let result = interp.eval($T.getProgram(), input);
   
   expect(result).toEqual(output);
 })
@@ -28,7 +28,7 @@ test('boolean 2', () => {
   eval(code);
   let input = $T.num(-1);
   let output = $T.bool(false);
-  let result = interp.eval($T.program_(), input);
+  let result = interp.eval($T.getProgram(), input);
   
   expect(result).toEqual(output);
 })
@@ -43,7 +43,7 @@ test('number', () => {
   eval(code);
   let input = $T.num(-1);
   let output = $T.num(36);
-  let result = interp.eval($T.program_(), input);
+  let result = interp.eval($T.getProgram(), input);
   
   expect(result).toEqual(output);
 })
@@ -58,7 +58,7 @@ test('number 2', () => {
   eval(code);
   let input = $T.num(-1);
   let output = $T.num(-36);
-  let result = interp.eval($T.program_(), input);
+  let result = interp.eval($T.getProgram(), input);
   
   expect(result).toEqual(output);
 })
@@ -73,7 +73,7 @@ test('string', () => {
   eval(code);
   let input = $T.num(-1);
   let output = $T.str('foo');
-  let result = interp.eval($T.program_(), input);
+  let result = interp.eval($T.getProgram(), input);
   
   expect(result).toEqual(output);
 })
@@ -88,7 +88,7 @@ test('string 2', () => {
   eval(code);
   let input = $T.num(-1);
   let output = $T.str('bar');
-  let result = interp.eval($T.program_(), input);
+  let result = interp.eval($T.getProgram(), input);
   
   expect(result).toEqual(output);
 })
@@ -103,7 +103,7 @@ test('binop', () => {
   eval(code);
   let input = $T.num(-1);
   let output = $T.bool(true);
-  let result = interp.eval($T.program_(), input);
+  let result = interp.eval($T.getProgram(), input);
   
   expect(result).toEqual(output);
 })
@@ -118,7 +118,7 @@ test('binop 2', () => {
   eval(code);
   let input = $T.num(-1);
   let output = $T.bool(false);
-  let result = interp.eval($T.program_(), input);
+  let result = interp.eval($T.getProgram(), input);
   
   expect(result).toEqual(output);
 })
@@ -134,7 +134,7 @@ test('let', () => {
   eval(code);
   let input = $T.num(-1);
   let output = $T.num(2);
-  let result = interp.eval($T.program_(), input);
+  let result = interp.eval($T.getProgram(), input);
   
   expect(result).toEqual(output);
 })
@@ -151,7 +151,7 @@ test('let 2', () => {
   eval(code);
   let input = $T.num(-1);
   let output = $T.bool(true);
-  let result = interp.eval($T.program_(), input);
+  let result = interp.eval($T.getProgram(), input);
   
   expect(result).toEqual(output);
 })
@@ -169,7 +169,7 @@ test('if', () => {
   eval(code);
   let input = $T.num(-1);
   let output = $T.str('foo');
-  let result = interp.eval($T.program_(), input);
+  let result = interp.eval($T.getProgram(), input);
   
   expect(result).toEqual(output);
 })
@@ -187,7 +187,7 @@ test('if 2', () => {
   eval(code);
   let input = $T.num(-1);
   let output = $T.str('bar');
-  let result = interp.eval($T.program_(), input);
+  let result = interp.eval($T.getProgram(), input);
   
   expect(result).toEqual(output);
 })
@@ -208,7 +208,7 @@ test('function', () => {
   eval(code)(10);
   let input = $T.num(10);
   let output = $T.str('foo');
-  let result = interp.eval($T.program_(), input);
+  let result = interp.eval($T.getProgram(), input);
   
   expect(result).toEqual(output);
 })
@@ -229,7 +229,7 @@ test('function 2', () => {
   eval(code)(100);
   let input = $T.num(100);
   let output = $T.str('bar');
-  let result = interp.eval($T.program_(), input);
+  let result = interp.eval($T.getProgram(), input);
   
   expect(result).toEqual(output);
 })
@@ -249,7 +249,7 @@ test('function 3', () => {
   eval(code)(100);
   let input = $T.num(100);
   let output = $T.num(102);
-  let result = interp.eval($T.program_(), input);
+  let result = interp.eval($T.getProgram(), input);
   
   expect(result).toEqual(output);
 })

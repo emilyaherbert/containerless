@@ -1,11 +1,14 @@
-import { Name, Id, Typ, Exp, Stmt, Obj } from "../ts/types";
+import { Name, IdExp, Typ, Exp, Stmt, Class } from "../ts/types";
+import * as helpers from "./helpers"
 
-class AST {
+export class AST {
   constructor() {}
 
   private program : Stmt[] = [];
   private stack : Stmt[][] = [];
   private current = this.program;
+
+  private classes : Map<number, Class> = new Map();
 
   public push(e: Stmt) {
     this.current.push(e);
@@ -23,39 +26,67 @@ class AST {
     }
   }
 
-  public push_scope() {
+  public pushScope() {
     this.stack.push(this.current);
     this.current = [];
   }
 
-  public pop_scope() {
+  public popScope() {
     this.current = this.stack.pop()!;
   }
 
-  public get_current() {
+  public getCurrent(): Stmt[] {
     return this.current;
   }
 
-  public get_program() {
+  public getProgram(): Stmt[] {
     return this.program;
+  }
+
+  public setClass(c: Class) {
+    this.classes.set(c.name, c);
+  }
+
+  public getClass(name: number): Class {
+    if(!this.classes.has(name)) {
+      throw new Error("No matching class found.");
+    } else {
+      return this.classes.get(name)!;
+    }
+  }
+
+  public findClass(types: { [key: string]: Typ }): (Class | undefined) {
+    // TODO(emily): Find better way of checking equality.
+    // Combining keys and types, hashing, comparing hash values?
+
+    // NOTE(emily):
+    // Should { x : 1, y : 2 } and { y : 1, x : 2 } have the same class? Yes.
+    // Should { x : 1, y : 2 } and { x : 1, z : 2 } have the same class? No.
+
+    // TODO(emily): Check class equality here.
+
+    return undefined;
+  }
+
+  public getClasses(): Class[] {
+    return Array.from(this.classes.values());
   }
 }
 
 let ast = new AST();
-let ast_builder = new AST();
 let args_stack : Exp[][] = [];
 
 export function startTrace() {
+  // TODO(emily): Do something here to prepare for multiple inputs.
   ast = new AST();
 }
 
 export function stopTrace() {
-  ast_builder = ast;
-  // Merge ast and ast_builder.
+  // TODO(emily): Do something here to resolve multiple inputs.
 }
 
 let nextName : Name = 0;
-export function bind(e: Exp): Id {
+export function bind(e: Exp): IdExp {
     let name = nextName++;
     let t = getTyp(e);
     ast.push({ kind: 'let', name: name, e: e });
@@ -74,13 +105,13 @@ export function args(es: Exp[]) {
   args_stack.push(es);
 }
 
-export function params(): Id[] {
+export function params(): IdExp[] {
   if(args_stack.length > 0) {
     const es = args_stack[args_stack.length - 1];
     args_stack.pop();
     return es.map(bind);
   } else {
-    throw new Error ("Found empty args_stack in params().");
+    throw new Error ("Found empty args_stack.");
   }
 }
 
@@ -89,16 +120,10 @@ export function return_(value: Exp) {
 }
 
 export function expectReturn(): Exp {
-  const theReturn = ast.prev();
-  ast.pop();
-  if(theReturn.kind === 'return') {
-    return bind(theReturn.value);
-  } else {
-    throw new Error("Expected kind return for theReturn.kind.");
-  }
+  let theReturn = helpers.expectReturnStmt(ast.prev());
+  return bind(theReturn.value);
 }
 
-// If there is no else, initialize as empty block Exp.
 export function if_(test: Exp) {
   ast.push({ kind: 'if',
       test: test,
@@ -115,74 +140,40 @@ export function ifElse(test: Exp) {
 }
 
 export function enterIf(condition: boolean) {
-    let theIf = ast.prev();
-    if (theIf.kind !== 'if') {
-        throw new Error("Expected previous Stmt to be an if.");
-    }
-    ast.push_scope();
+    let theIf = helpers.expectIfStmt(ast.prev());
+
+    ast.pushScope();
 
     // TODO(arjun): Test condition
     if (condition) {
-        theIf.then = { kind: 'block', body: ast.get_current() };
+        theIf.then = { kind: 'block', body: ast.getCurrent() };
     }
     else {
-        theIf.else = { kind: 'block', body: ast.get_current() };
+        theIf.else = { kind: 'block', body: ast.getCurrent() };
     }
 }
 
 export function exitIf() {
-    ast.pop_scope();
+    ast.popScope();
 }
 
-function getTyp(e: Exp): Typ {
-    if (e.kind === 'string') {
-        return { kind: 'string' };
-    }
-    else if (e.kind === 'boolean') {
-        return { kind: 'boolean' };
-    }
-    else if (e.kind === 'number') {
-        return { kind: 'number' };
-    }
-    else if (e.kind === 'identifier') {
-        return e.type;
-    }
-    else if (e.kind === 'unaryop') {
-        if (unaryOpReturnType.has(e.op)) {
-            return unaryOpReturnType.get(e.op)!;
-        }
-        else {
-            throw new Error("Found unimplemented unaryop.");
-        }
-    }
-    else if (e.kind === 'binop') {
-        if (binOpReturnType.has(e.op)) {
-            return binOpReturnType.get(e.op)!;
-        }
-        else {
-            throw new Error("Found unimplemented binop.");
-        }
-    }
-    else if (e.kind === 'ternary') {
-        const consequentType = getTyp(e.consequent);
-        const alternateType = getTyp(e.alternate);
-        if (consequentType.kind !== alternateType.kind) {
-            // TODO(Chris): for now
-            throw new Error(`Consequent and alternate have different types, ${consequentType.kind} and ${alternateType.kind}.`);
-        } else {
-            return consequentType;
-        }
-    }
-    else if (e.kind === 'input') {
-        return { kind: 'number' }; // TODO(arjun): For now
-    }
-    else if (e.kind === 'object') {
-      return { kind: 'object' };
-    }
-    else {
-      console.log(e);
-      throw new Error('Not implemented.');
-    }
+export function while_(test: Exp) {
+  ast.push({
+    kind: 'while',
+    test: test,
+    body: { kind: 'unknown' } });
+}
+
+export function enterWhile() {
+  let theWhile = helpers.expectWhileStmt(ast.prev());
+
+  ast.pushScope();
+
+  theWhile.body = { kind: 'block', body: ast.getCurrent() };
+}
+
+export function exitWhile() {
+  ast.popScope();
 }
 
 const unaryOpReturnType = new Map<string, Typ>();
@@ -245,7 +236,6 @@ export const bitxor         = genericBinOp('^',      { kind: 'number' } , { kind
 export const and            = genericBinOp('&&',     { kind: 'boolean' }, { kind: 'boolean' });
 export const or             = genericBinOp('||',     { kind: 'boolean' }, { kind: 'boolean' });
 
-
 binOpReturnType.set('+num', { kind: 'number' });
 binOpReturnType.set('+str', { kind: 'string' });
 export function add(e1: Exp, e2: Exp): Exp {
@@ -264,7 +254,7 @@ export function ternary(test: Exp, consequent: Exp, alternate: Exp): Exp {
     if (getTyp(test).kind === 'boolean') {
         return { kind: 'ternary', test, consequent, alternate };
     } else {
-        throw new Error(`Ternary expression test is ${getTyp(test).kind}, not a boolean`);
+        throw new Error(`Ternary expression test is ${getTyp(test).kind}, not a boolean.`);
     }
 }
 
@@ -280,37 +270,112 @@ export function bool(b: boolean): Exp {
   return { kind: 'boolean', value: b };
 }
 
-export function undefined(): Exp {
+export function undefined_(): Exp {
   return { kind: 'undefined' };
 }
 
-export function object(o: Obj): Exp {
-  return { kind: 'object', value: o };
+export function object(o: { [key: string]: Exp }): Exp {
+  let myClass = resolveClass(o);
+  return { kind: 'object', class: myClass.name, value: o };
+}
+
+let nextClassName = 0;
+function resolveClass(o: { [key: string]: Exp }): Class {
+  let types : { [key: string]: Typ } = {};
+  for(var key in o) {
+    types[key] = getTyp(o[key]);
+  }
+  const existingClass = ast.findClass(types);
+  if(existingClass === undefined) {
+    let name = nextClassName++;
+    let newClass : Class = { kind: 'class', name: name, types: types };
+    ast.setClass(newClass);
+    return newClass;
+  } else {
+    return existingClass;
+  }
 }
 
 export function member(o: Exp, f: string): Exp {
-  if(o.kind !== 'identifier') {
-    console.log(o);
-    throw new Error("Expected identifier.");
-  }
-  if(o.type.kind !== 'object') {
-    throw new Error("Expected object.");
-  }
-  return { kind: 'member', object: o, field: f };
+  let id = helpers.expectIdExp(o);
+  return { kind: 'member', object: id, field: f };
 }
 
 export function log() {
-    console.log(JSON.stringify(ast.get_program(), null, 2));
+    console.log(JSON.stringify(ast.getProgram(), null, 2));
 }
 
 // TODO(emily): Used for testing, replace with something more elegant.
 // i.e. https://github.com/plasma-umass/ElementaryJS/blob/master/ts/runtime.ts#L316
 export function clear() {
   ast = new AST();
-  ast_builder = new AST();
   args_stack = [];
 }
 
-export function program_() {
-  return ast.get_program();
+export function getProgram(): Stmt[] {
+  return ast.getProgram();
+}
+
+export function getClasses(): Class[] {
+  return ast.getClasses();
+}
+
+function getTyp(e: Exp): Typ {
+  if (e.kind === 'string') {
+      return { kind: 'string' };
+  }
+  else if (e.kind === 'boolean') {
+      return { kind: 'boolean' };
+  }
+  else if (e.kind === 'number') {
+      return { kind: 'number' };
+  }
+  else if (e.kind === 'identifier') {
+      return e.type;
+  }
+  else if (e.kind === 'unaryop') {
+      if (unaryOpReturnType.has(e.op)) {
+          return unaryOpReturnType.get(e.op)!;
+      }
+      else {
+          throw new Error("Found unimplemented unaryop.");
+      }
+  }
+  else if (e.kind === 'binop') {
+      if (binOpReturnType.has(e.op)) {
+          return binOpReturnType.get(e.op)!;
+      }
+      else {
+          throw new Error("Found unimplemented binop.");
+      }
+  }
+  else if (e.kind === 'ternary') {
+      const consequentType = getTyp(e.consequent);
+      const alternateType = getTyp(e.alternate);
+      if (consequentType.kind !== alternateType.kind) {
+          // TODO(Chris): for now
+          throw new Error(`Consequent and alternate have different types, ${consequentType.kind} and ${alternateType.kind}.`);
+      } else {
+          return consequentType;
+      }
+  }
+  else if (e.kind === 'input') {
+      return { kind: 'number' }; // TODO(arjun): For now
+  }
+  else if (e.kind === 'object') {
+    return { kind: 'object', class: e.class };
+  }
+  else if (e.kind === 'member') {
+    const objectType = helpers.expectObjectTyp(getTyp(e.object));
+    const myClass = ast.getClass(objectType.class);
+    if(!myClass.types.hasOwnProperty(e.field)) {
+      throw new Error("Field not found in class type map.");
+    } else {
+      return myClass.types[e.field];
+    }
+  }
+  else {
+    console.log(e);
+    throw new Error('Not implemented.');
+  }
 }
