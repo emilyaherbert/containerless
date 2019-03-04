@@ -1,4 +1,4 @@
-import { Exp, Stmt, Obj } from "../ts/types";
+import { Exp, Stmt } from "../ts/types";
 import * as helpers from "./helpers";
 
 class State {
@@ -104,7 +104,7 @@ export class Interpreter {
           // modifying the object should affect it for all references, since
           // we are not creating a copy
           let o = this.eval_exp(e.e1.object, input);
-          helpers.unwrap_object(o)[e.e1.field] = this.eval_exp(e.e2, input);
+          helpers.unwrapObject(o)[e.e1.field] = this.eval_exp(e.e2, input);
         } else {
           throw new Error('Invalid assignment expression.');
         }
@@ -112,12 +112,12 @@ export class Interpreter {
       }
       case 'if': {
         let c = this.eval_exp(e.test, input);
-        if(helpers.unwrap_boolean(c)) this.eval_stmt(e.then, input);
+        if(helpers.unwrapBoolean(c)) this.eval_stmt(e.then, input);
         else this.eval_stmt(e.else, input);
         break;
       }
       case 'while': {
-        while(helpers.unwrap_boolean(this.eval_exp(e.test, input))) {
+        while(helpers.unwrapBoolean(this.eval_exp(e.test, input))) {
           this.eval_stmt(e.body, input);
         }
         break;
@@ -161,7 +161,7 @@ export class Interpreter {
         if (test.kind !== 'boolean') {
           throw new Error("ternary test did not evaluate to a boolean.");
         }
-        if (helpers.unwrap_boolean(test)) {
+        if (helpers.unwrapBoolean(test)) {
           return this.eval_exp(e.consequent, input);
         } else {
           return this.eval_exp(e.alternate, input);
@@ -181,17 +181,17 @@ export class Interpreter {
       }
       case 'object': {
         const obj = e.value;
-        let innerObj : Obj = {};
+        let innerObj : { [key: string]: Exp } = {};
         for (var key in obj) {
           if (obj.hasOwnProperty(key)) {
             innerObj[key] = this.eval_exp(obj[key], input);
           }
         }
-        return { kind: 'object', value: innerObj };
+        return { kind: 'object', class: e.class, value: innerObj };
       }
       case 'member': {
         let o = this.eval_exp(e.object, input);
-        return helpers.unwrap_object(o)[e.field];
+        return helpers.unwrapObject(o)[e.field];
       }
       default: throw new Error(`Found unimplemented e.kind in eval_exp.`);
     }

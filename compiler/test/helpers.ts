@@ -1,7 +1,7 @@
 const $T = require('../dist/runtime');
 import { Interpreter } from '../ts/interpreter';
 import * as insertTracing from '../ts/insertTracing';
-import { Exp, Obj } from "../ts/types";
+import { Exp } from "../ts/types";
 
 let interp = new Interpreter();
 
@@ -13,7 +13,9 @@ export function run_test(code: string, input: (string | boolean | number)) {
   //console.log(trace);
   let func_output = eval(trace)(input);
   //$T.log();
-  let ast_output = interp.eval($T.program_(), wrap_exp(input));
+  let classes = $T.getClasses();
+  let program = $T.getProgram();
+  let ast_output = interp.eval(program, wrap_exp(input));
   expect(ast_output).toEqual(wrap_exp(func_output));
 }
 
@@ -22,8 +24,7 @@ function wrap_exp(v : (number | string | boolean | undefined)): Exp {
     case 'string': return $T.str(v);
     case 'number': return $T.num(v);
     case 'boolean': return $T.bool(v);
-    case 'undefined': return $T.undefined();
-    //case 'object': return wrap_object(v);
+    case 'undefined': return $T.undefined_();
     default: throw "Found unexpected type in wrap_exp."
   }
 }

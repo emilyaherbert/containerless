@@ -1,4 +1,4 @@
-import { Name, Id, Typ, Exp, Stmt, Obj } from "../ts/types";
+import { Name, IdExp, Typ, Exp, Stmt, Class } from "../ts/types";
 import * as helpers from "./helpers"
 
 export class AST {
@@ -7,6 +7,8 @@ export class AST {
   private program : Stmt[] = [];
   private stack : Stmt[][] = [];
   private current = this.program;
+
+  private classes : Map<number, Class> = new Map();
 
   public push(e: Stmt) {
     this.current.push(e);
@@ -24,21 +26,50 @@ export class AST {
     }
   }
 
-  public push_scope() {
+  public pushScope() {
     this.stack.push(this.current);
     this.current = [];
   }
 
-  public pop_scope() {
+  public popScope() {
     this.current = this.stack.pop()!;
   }
 
-  public get_current() {
+  public getCurrent(): Stmt[] {
     return this.current;
   }
 
-  public get_program() {
+  public getProgram(): Stmt[] {
     return this.program;
+  }
+
+  public setClass(c: Class) {
+    this.classes.set(c.name, c);
+  }
+
+  public getClass(name: number): Class {
+    if(!this.classes.has(name)) {
+      throw new Error("No matching class found.");
+    } else {
+      return this.classes.get(name)!;
+    }
+  }
+
+  public findClass(types: { [key: string]: Typ }): (Class | undefined) {
+    // TODO(emily): Find better way of checking equality.
+    // Combining keys and types, hashing, comparing hash values?
+
+    // NOTE(emily):
+    // Should { x : 1, y : 2 } and { y : 1, x : 2 } have the same class? Yes.
+    // Should { x : 1, y : 2 } and { x : 1, z : 2 } have the same class? No.
+
+    // TODO(emily): Check class equality here.
+
+    return undefined;
+  }
+
+  public getClasses(): Class[] {
+    return Array.from(this.classes.values());
   }
 }
 
@@ -46,15 +77,16 @@ let ast = new AST();
 let args_stack : Exp[][] = [];
 
 export function startTrace() {
+  // TODO(emily): Do something here to prepare for multiple inputs.
   ast = new AST();
 }
 
 export function stopTrace() {
-  // NOTE: reset AST pointers.
+  // TODO(emily): Do something here to resolve multiple inputs.
 }
 
 let nextName : Name = 0;
-export function bind(e: Exp): Id {
+export function bind(e: Exp): IdExp {
     let name = nextName++;
     let t = getTyp(e);
     ast.push({ kind: 'let', name: name, e: e });
@@ -73,7 +105,7 @@ export function args(es: Exp[]) {
   args_stack.push(es);
 }
 
-export function params(): Id[] {
+export function params(): IdExp[] {
   if(args_stack.length > 0) {
     const es = args_stack[args_stack.length - 1];
     args_stack.pop();
@@ -88,7 +120,7 @@ export function return_(value: Exp) {
 }
 
 export function expectReturn(): Exp {
-  let theReturn = helpers.expect_return(ast.prev());
+  let theReturn = helpers.expectReturnStmt(ast.prev());
   return bind(theReturn.value);
 }
 
@@ -108,21 +140,21 @@ export function ifElse(test: Exp) {
 }
 
 export function enterIf(condition: boolean) {
-    let theIf = helpers.expect_if(ast.prev());
+    let theIf = helpers.expectIfStmt(ast.prev());
 
-    ast.push_scope();
+    ast.pushScope();
 
     // TODO(arjun): Test condition
     if (condition) {
-        theIf.then = { kind: 'block', body: ast.get_current() };
+        theIf.then = { kind: 'block', body: ast.getCurrent() };
     }
     else {
-        theIf.else = { kind: 'block', body: ast.get_current() };
+        theIf.else = { kind: 'block', body: ast.getCurrent() };
     }
 }
 
 export function exitIf() {
-    ast.pop_scope();
+    ast.popScope();
 }
 
 export function while_(test: Exp) {
@@ -133,15 +165,15 @@ export function while_(test: Exp) {
 }
 
 export function enterWhile() {
-  let theWhile = helpers.expect_while(ast.prev());
+  let theWhile = helpers.expectWhileStmt(ast.prev());
 
-  ast.push_scope();
+  ast.pushScope();
 
-  theWhile.body = { kind: 'block', body: ast.get_current() };
+  theWhile.body = { kind: 'block', body: ast.getCurrent() };
 }
 
 export function exitWhile() {
-  ast.pop_scope();
+  ast.popScope();
 }
 
 const unaryOpReturnType = new Map<string, Typ>();
@@ -238,25 +270,39 @@ export function bool(b: boolean): Exp {
   return { kind: 'boolean', value: b };
 }
 
-export function undefined(): Exp {
+export function undefined_(): Exp {
   return { kind: 'undefined' };
 }
 
-export function object(o: Obj): Exp {
-  return { kind: 'object', value: o };
+export function object(o: { [key: string]: Exp }): Exp {
+  let myClass = resolveClass(o);
+  return { kind: 'object', class: myClass.name, value: o };
+}
+
+let nextClassName = 0;
+function resolveClass(o: { [key: string]: Exp }): Class {
+  let types : { [key: string]: Typ } = {};
+  for(var key in o) {
+    types[key] = getTyp(o[key]);
+  }
+  const existingClass = ast.findClass(types);
+  if(existingClass === undefined) {
+    let name = nextClassName++;
+    let newClass : Class = { kind: 'class', name: name, types: types };
+    ast.setClass(newClass);
+    return newClass;
+  } else {
+    return existingClass;
+  }
 }
 
 export function member(o: Exp, f: string): Exp {
-  let id = helpers.expect_identifier(o);
-  
-  if(id.type.kind !== 'object') {
-    throw new Error("Expected object.");
-  }
-  return { kind: 'member', object: o, field: f };
+  let id = helpers.expectIdExp(o);
+  return { kind: 'member', object: id, field: f };
 }
 
 export function log() {
-    console.log(JSON.stringify(ast.get_program(), null, 2));
+    console.log(JSON.stringify(ast.getProgram(), null, 2));
 }
 
 // TODO(emily): Used for testing, replace with something more elegant.
@@ -266,8 +312,12 @@ export function clear() {
   args_stack = [];
 }
 
-export function program_() {
-  return ast.get_program();
+export function getProgram(): Stmt[] {
+  return ast.getProgram();
+}
+
+export function getClasses(): Class[] {
+  return ast.getClasses();
 }
 
 function getTyp(e: Exp): Typ {
@@ -313,7 +363,16 @@ function getTyp(e: Exp): Typ {
       return { kind: 'number' }; // TODO(arjun): For now
   }
   else if (e.kind === 'object') {
-    return { kind: 'object' };
+    return { kind: 'object', class: e.class };
+  }
+  else if (e.kind === 'member') {
+    const objectType = helpers.expectObjectTyp(getTyp(e.object));
+    const myClass = ast.getClass(objectType.class);
+    if(!myClass.types.hasOwnProperty(e.field)) {
+      throw new Error("Field not found in class type map.");
+    } else {
+      return myClass.types[e.field];
+    }
   }
   else {
     console.log(e);

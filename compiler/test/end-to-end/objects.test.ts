@@ -127,3 +127,46 @@ test('object modification 3', () => {
   let input = -1;
   helpers.run_test(code, input);
 });
+
+test('objects in operations 1', () => {
+  let code = `
+  function main(x) {
+    let y = { a : 1, b : 2 };
+    return y.a + y.b;
+  }
+  main
+  `;
+
+  let input = -1;
+  helpers.run_test(code, input);
+});
+
+test('objects in operations 2', () => {
+  let code = `
+  function main(x) {
+    let y = { a : 1, b : 2 };
+    return (y.a > 0);
+  }
+  main
+  `;
+
+  let input = -1;
+  helpers.run_test(code, input);
+});
+
+test('objects in operations 2', () => {
+  let code = `
+  function main(x) {
+    let y = { a : 1, b : 2, c : true };
+    if (y.c) {
+      return (y.a - y.b);
+    } else {
+      return (y.b - y.a);
+    }
+  }
+  main
+  `;
+
+  let input = -1;
+  helpers.run_test(code, input);
+});

@@ -1,6 +1,6 @@
-import { Stmt, If, While, Return, Exp, Id, Obj } from "../ts/types";
+import { Stmt, IfStmt, WhileStmt, ReturnStmt, Exp, IdExp, ObjectTyp, Typ } from "../ts/types";
 
-export function expect_if(e: Stmt): If {
+export function expectIfStmt(e: Stmt): IfStmt {
   if(e.kind !== 'if') {
     throw new Error("Expected if.");
   } else {
@@ -8,7 +8,7 @@ export function expect_if(e: Stmt): If {
   }
 }
 
-export function expect_while(e: Stmt): While {
+export function expectWhileStmt(e: Stmt): WhileStmt {
   if(e.kind !== 'while') {
     throw new Error("Expected while.");
   } else {
@@ -16,7 +16,7 @@ export function expect_while(e: Stmt): While {
   }
 }
 
-export function expect_return(e: Stmt): Return {
+export function expectReturnStmt(e: Stmt): ReturnStmt {
   if(e.kind !== 'return') {
     throw new Error("Expected return.");
   } else {
@@ -24,7 +24,7 @@ export function expect_return(e: Stmt): Return {
   }
 }
 
-export function expect_identifier(e: Exp): Id {
+export function expectIdExp(e: Exp): IdExp {
   if(e.kind !== 'identifier') {
     throw new Error("Expected id.");
   } else {
@@ -32,7 +32,7 @@ export function expect_identifier(e: Exp): Id {
   }
 }
 
-export function expect_object(e: Exp): Object {
+export function expectObject(e: Exp): Object {
   if(e.kind !== 'object') {
     throw new Error("Expected object.");
   } else {
@@ -40,7 +40,15 @@ export function expect_object(e: Exp): Object {
   }
 }
 
-export function unwrap_object(e: Exp): Obj {
+export function expectObjectTyp(t: Typ): ObjectTyp {
+  if(t.kind !== 'object') {
+    throw new Error("Expected object type.");
+  } else {
+    return t;
+  }
+}
+
+export function unwrapObject(e: Exp): { [key: string]: Exp } {
   if(e.kind !== 'object') {
     throw new Error("Expected object.");
   } else {
@@ -48,7 +56,7 @@ export function unwrap_object(e: Exp): Obj {
   }
 }
 
-export function unwrap_boolean(e: Exp): boolean {
+export function unwrapBoolean(e: Exp): boolean {
   switch(e.kind) {
     case 'boolean': return e.value;
     default: throw new Error("Expected boolean in unwrap_boolean.");
