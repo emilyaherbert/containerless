@@ -48,8 +48,8 @@ const buildBinaryExpr : EXPRMAP = ['add', 'gt', 'lt', 'geq', 'leq', 'sub', 'div'
 const buildTernaryExpr = mkExpr(`$T.ternary(EXPRESSION1, EXPRESSION2, EXPRESSION3)`);
 
 const buildArgumentExpr = mkExpr(`$T.argument(EXPRESSION)`);
-const buildObjectExpr = mkExpr(`$T.object(EXPRESSION)`);
 
+const buildObjectExpr = mkExpr(`$T.object(EXPRESSION)`);
 const buildMemberExpr = mkExpr(`$T.member(EXPRESSION1, EXPRESSION2)`);
 
 const buildVarDeclaration = mkStmt(`let VARIABLE = $T.bind(EXPRESSION);`);
@@ -63,10 +63,12 @@ const buildStopTraceStmt = mkStmt(`$T.stopTrace();`);
 
 const buildRequireStmt = mkStmt(`let VARIABLE = require('../dist/runtime');`);
 
+const buildEnterBlockStmt = mkStmt(`$T.enterBlock();`);
+const buildExitBlockStmt = mkStmt(`$T.exitBlock();`);
+
 const buildIfStmt = mkStmt(`$T.if_(EXPRESSION);`);
 const buildIfElseStmt = mkStmt(`$T.ifElse(EXPRESSION);`);
 const buildEnterIf = mkStmt(`$T.enterIf(EXPRESSION);`);
-const buildExitIfStmt = mkStmt(`$T.exitIf();`);
 
 // TODO(emily): It would be more efficient to have:
 // 
@@ -84,7 +86,6 @@ const buildExitIfStmt = mkStmt(`$T.exitIf();`);
 
 const buildWhileStmt = mkStmt(`$T.while_(EXPRESSION);`);
 const buildEnterWhileStmt = mkStmt(`$T.enterWhile();`);
-const buildExitWhileStmt = mkStmt(`$T.exitWhile();`);
 
 const buildReturnStmt = mkStmt(`$T.return_(EXPRESSION);`);
 
@@ -223,7 +224,8 @@ const visitor: traverse.Visitor<S> = {
             const consequent = path.node.consequent;
             const alternate = path.node.alternate;
 
-            const exitIfStmt = buildExitIfStmt({});
+            const enterBlockStmt = buildEnterBlockStmt({});
+            const exitBlockStmt = buildExitBlockStmt({});
 
             if(alternate === null) {
               // If statement.
@@ -241,8 +243,8 @@ const visitor: traverse.Visitor<S> = {
 
               path.insertBefore(ifStmt);
               (path.node.consequent as t.BlockStatement).body.unshift(enterIfTrue);
-              (path.node.consequent as t.BlockStatement).body.push(exitIfStmt);
-
+              (path.node.consequent as t.BlockStatement).body.unshift(enterBlockStmt);
+              (path.node.consequent as t.BlockStatement).body.push(exitBlockStmt);
             } else {
               // IfElse statement.
 
@@ -266,9 +268,12 @@ const visitor: traverse.Visitor<S> = {
 
               path.insertBefore(ifElseStmt);
               (path.node.consequent as t.BlockStatement).body.unshift(enterIfTrue);
-              (path.node.consequent as t.BlockStatement).body.push(exitIfStmt);
+              (path.node.consequent as t.BlockStatement).body.unshift(enterBlockStmt);
+              (path.node.consequent as t.BlockStatement).body.push(exitBlockStmt);
+
               (path.node.alternate as t.BlockStatement).body.unshift(enterIfFalse);
-              (path.node.alternate as t.BlockStatement).body.push(exitIfStmt);
+              (path.node.alternate as t.BlockStatement).body.unshift(enterBlockStmt);
+              (path.node.alternate as t.BlockStatement).body.push(exitBlockStmt);
             }
         }
     },
@@ -291,11 +296,13 @@ const visitor: traverse.Visitor<S> = {
         }
 
         const enterWhileStmt = buildEnterWhileStmt({});
-        const exitWhileStmt = buildExitWhileStmt({});
+        const enterBlockStmt = buildEnterBlockStmt({});
+        const exitBlockStmt = buildExitBlockStmt({});
 
         path.insertBefore(whileStmt);
         (path.node.body as t.BlockStatement).body.unshift(enterWhileStmt);
-        (path.node.body as t.BlockStatement).body.push(exitWhileStmt);
+        (path.node.body as t.BlockStatement).body.unshift(enterBlockStmt);
+        (path.node.body as t.BlockStatement).body.push(exitBlockStmt);
       }
     },
     VariableDeclaration: {

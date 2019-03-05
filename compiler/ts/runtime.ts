@@ -27,6 +27,19 @@ export class AST {
     }
   }
 
+  public blockParent(): Stmt {
+    if(this.stack.length > 0) {
+      const last = this.stack[this.stack.length - 1];
+      if(last.length > 0) {
+        return last[last.length - 1];
+      } else {
+        throw new Error("Expected nonempty last.");
+      }
+    } else {
+      throw new Error("Expect nonempty this.stack;");
+    }
+  }
+
   public pushScope() {
     this.stack.push(this.current);
     this.current = [];
@@ -124,7 +137,16 @@ export function return_(value: Exp) {
 
 export function expectReturn(): Exp {
   let theReturn = helpers.expectReturnStmt(ast.prev());
+  ast.pop();
   return bind(theReturn.value);
+}
+
+export function enterBlock() {
+  ast.pushScope();
+}
+
+export function exitBlock() {
+  ast.popScope();
 }
 
 export function if_(test: Exp) {
@@ -143,9 +165,7 @@ export function ifElse(test: Exp) {
 }
 
 export function enterIf(condition: boolean) {
-    let theIf = helpers.expectIfStmt(ast.prev());
-
-    ast.pushScope();
+    let theIf = helpers.expectIfStmt(ast.blockParent());
 
     // TODO(arjun): Test condition
     if (condition) {
@@ -156,10 +176,6 @@ export function enterIf(condition: boolean) {
     }
 }
 
-export function exitIf() {
-    ast.popScope();
-}
-
 export function while_(test: Exp) {
   ast.push({
     kind: 'while',
@@ -168,15 +184,8 @@ export function while_(test: Exp) {
 }
 
 export function enterWhile() {
-  let theWhile = helpers.expectWhileStmt(ast.prev());
-
-  ast.pushScope();
-
+  let theWhile = helpers.expectWhileStmt(ast.blockParent());
   theWhile.body = { kind: 'block', body: ast.getCurrent() };
-}
-
-export function exitWhile() {
-  ast.popScope();
 }
 
 const unaryOpReturnType = new Map<string, Typ>();
