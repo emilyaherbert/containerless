@@ -9,6 +9,7 @@ export class AST {
   private current = this.program;
 
   private classes : Map<number, Class> = new Map();
+  private hashCodeMap : Map<number, number> = new Map();
 
   public push(e: Stmt) {
     this.current.push(e);
@@ -43,8 +44,9 @@ export class AST {
     return this.program;
   }
 
-  public setClass(c: Class) {
+  public setClass(hashCode: number, c: Class) {
     this.classes.set(c.name, c);
+    this.hashCodeMap.set(hashCode, c.name);
   }
 
   public getClass(name: number): Class {
@@ -56,16 +58,17 @@ export class AST {
   }
 
   public findClass(types: { [key: string]: Typ }): (Class | undefined) {
-    // TODO(emily): Find better way of checking equality.
-    // Combining keys and types, hashing, comparing hash values?
-
-    // NOTE(emily):
-    // Should { x : 1, y : 2 } and { y : 1, x : 2 } have the same class? Yes.
-    // Should { x : 1, y : 2 } and { x : 1, z : 2 } have the same class? No.
-
-    // TODO(emily): Check class equality here.
-
-    return undefined;
+    const hashCode = helpers.createTypeMapHashCode(types);
+    if(this.hashCodeMap.has(hashCode)) {
+      const name = this.hashCodeMap.get(hashCode)!;
+      if(this.classes.has(name)) {
+        return this.classes.get(name);
+      } else {
+        return undefined;
+      }
+    } else {
+      return undefined;
+    }
   }
 
   public getClasses(): Class[] {
@@ -288,8 +291,9 @@ function resolveClass(o: { [key: string]: Exp }): Class {
   const existingClass = ast.findClass(types);
   if(existingClass === undefined) {
     let name = nextClassName++;
+    let hashCode = helpers.createTypeMapHashCode(types);
     let newClass : Class = { kind: 'class', name: name, types: types };
-    ast.setClass(newClass);
+    ast.setClass(hashCode, newClass);
     return newClass;
   } else {
     return existingClass;
@@ -366,8 +370,8 @@ function getTyp(e: Exp): Typ {
     return { kind: 'object', class: e.class };
   }
   else if (e.kind === 'member') {
-    const objectType = helpers.expectObjectTyp(getTyp(e.object));
-    const myClass = ast.getClass(objectType.class);
+    const objectTyp = helpers.expectObjectTyp(getTyp(e.object));
+    const myClass = ast.getClass(objectTyp.class);
     if(!myClass.types.hasOwnProperty(e.field)) {
       throw new Error("Field not found in class type map.");
     } else {

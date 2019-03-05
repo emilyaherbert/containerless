@@ -550,7 +550,6 @@ function reifyObjectExpression(st: S, expr: t.ObjectExpression): t.Expression {
   return objExpression;
 }
 
-// TODO(emily): Add functionality for { x : 1 }.x
 function reifyMemberExpression(st: S, expr: t.MemberExpression): t.Expression {
   const object = reifyExpr(st, expr.object);
   const property = expr.property; // reifyExpr(st, expr.property);

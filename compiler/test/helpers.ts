@@ -10,10 +10,11 @@ export function run_test(code: string, input: (string | boolean | number)) {
   // NOTE(arjun): We could also run 'eval(code)(input)', but we are not. We
   // are assuming that the tracing does not change the semantics of 'code'.
   let trace = insertTracing.transform(code);
-  //console.log(trace);
+  //Sconsole.log(trace);
   let func_output = eval(trace)(input);
   //$T.log();
   let classes = $T.getClasses();
+  console.log(classes);
   let program = $T.getProgram();
   let ast_output = interp.eval(program, wrap_exp(input));
   expect(ast_output).toEqual(wrap_exp(func_output));
