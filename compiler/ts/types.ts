@@ -35,7 +35,7 @@ export type IfStmt = { kind: 'if', test: Exp, then: Stmt, else: Stmt };
 export type WhileStmt = { kind: 'while', test: Exp, body: Stmt };
 export type ReturnStmt = { kind: 'return', value: Exp };
 
-export type Class = { kind: 'class', name: number, types: { [key: string]: Typ } };
+export type Class = { kind: 'class', name: number, types: { [key: string]: Typ } , transitions : { [key: string]: number } };
 
 export type Stmt =
     { kind: 'createClass', class: Class } |

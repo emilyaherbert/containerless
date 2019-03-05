@@ -62,18 +62,3 @@ export function unwrapBoolean(e: Exp): boolean {
     default: throw new Error("Expected boolean in unwrap_boolean.");
   }
 }
-
-export function createTypeMapHashCode(types : { [key: string]: Typ }): number {
-  function createHashCode(s: string): number {
-    for(var i = 0, h = 0; i < s.length; i++)
-        h = Math.imul(31, h) + s.charCodeAt(i) | 0;
-    return h;
-  }
-
-  let hashCode = 0;
-  for(var key in types) {
-    hashCode += createHashCode(key + types[key].kind);
-  }
-
-  return hashCode;
-}

@@ -58,7 +58,7 @@ export class AST {
   }
 
   public findClass(types: { [key: string]: Typ }): (Class | undefined) {
-    const hashCode = helpers.createTypeMapHashCode(types);
+    const hashCode = createTypeMapHashCode(types);
     if(this.hashCodeMap.has(hashCode)) {
       const name = this.hashCodeMap.get(hashCode)!;
       if(this.classes.has(name)) {
@@ -282,7 +282,6 @@ export function object(o: { [key: string]: Exp }): Exp {
   return { kind: 'object', class: myClass.name, value: o };
 }
 
-let nextClassName = 0;
 function resolveClass(o: { [key: string]: Exp }): Class {
   let types : { [key: string]: Typ } = {};
   for(var key in o) {
@@ -290,14 +289,36 @@ function resolveClass(o: { [key: string]: Exp }): Class {
   }
   const existingClass = ast.findClass(types);
   if(existingClass === undefined) {
-    let name = nextClassName++;
-    let hashCode = helpers.createTypeMapHashCode(types);
-    let newClass : Class = { kind: 'class', name: name, types: types };
-    ast.setClass(hashCode, newClass);
-    return newClass;
+    return createNewClass(types);
   } else {
     return existingClass;
   }
+}
+
+let nextClassName = 0;
+function createNewClass(types: { [key: string]: Typ }): Class {
+  let name = nextClassName++;
+  let hashCode = createTypeMapHashCode(types);
+  let transitions : { [key: string]: number } = {};
+  let newClass : Class = { kind: 'class', name: name, types: types, transitions: transitions };
+  ast.setClass(hashCode, newClass);
+  return newClass;
+}
+
+// TODO(emily): Add 'transitions'.
+function createTypeMapHashCode(types : { [key: string]: Typ }): number {
+  function createHashCode(s: string): number {
+    for(var i = 0, h = 0; i < s.length; i++)
+        h = Math.imul(31, h) + s.charCodeAt(i) | 0;
+    return h;
+  }
+
+  let hashCode = 0;
+  for(var key in types) {
+    hashCode += createHashCode(key + types[key].kind);
+  }
+
+  return hashCode;
 }
 
 export function member(o: Exp, f: string): Exp {
