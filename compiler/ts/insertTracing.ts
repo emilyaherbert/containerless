@@ -51,6 +51,7 @@ const buildArgumentExpr = mkExpr(`$T.argument(EXPRESSION)`);
 
 const buildObjectExpr = mkExpr(`$T.object(EXPRESSION)`);
 const buildMemberExpr = mkExpr(`$T.member(EXPRESSION1, EXPRESSION2)`);
+const buildMemberUpdateStmt = mkStmt(`$T.updateObject(VARIABLE, EXPRESSION);`);
 
 const buildVarDeclaration = mkStmt(`let VARIABLE = $T.bind(EXPRESSION);`);
 const buildVarUpdate = mkStmt(`$T.update(VARIABLE, EXPRESSION);`);
@@ -368,11 +369,11 @@ const visitor: traverse.Visitor<S> = {
                       });
                       path.insertBefore(varUpdate);
                     } else if (t.isMemberExpression(leftExpr)) {
-                      const memberUpdate = buildVarUpdate({
+                      const memberUpdateStmt = buildMemberUpdateStmt({
                         VARIABLE: reifyExpr(st, leftExpr),
                         EXPRESSION: reifyExpr(st, rightExpr)
-                      });
-                      path.insertBefore(memberUpdate);
+                      })
+                      path.insertBefore(memberUpdateStmt);
                     } else {
                       throw new Error('left side of expression statment is not supported');
                     }

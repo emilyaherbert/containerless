@@ -17,6 +17,7 @@ export type Typ =
 export type Name = number;
 export type IdExp = { kind: 'identifier', name: Name, type: Typ };
 export type ObjectExp = { kind: 'object', class: number, value: { [key: string]: Exp } };
+export type MemberExp = { kind: 'member', object: IdExp, field: string };
 
 export type Exp =
     { kind: 'number', value: number } |
@@ -29,16 +30,13 @@ export type Exp =
     { kind: 'binop', op: string, e1: Exp, e2: Exp } |
     { kind: 'ternary', test: Exp, consequent: Exp, alternate: Exp } |
     ObjectExp |
-    { kind: 'member', object: IdExp, field: string } ;
+    MemberExp ;
 
 export type IfStmt = { kind: 'if', test: Exp, then: Stmt, else: Stmt };
 export type WhileStmt = { kind: 'while', test: Exp, body: Stmt };
 export type ReturnStmt = { kind: 'return', value: Exp };
 
-export type Class = { kind: 'class', name: number, types: { [key: string]: Typ } , transitions : { [key: string]: number } };
-
 export type Stmt =
-    { kind: 'createClass', class: Class } |
     { kind: 'let', name: Name, e: Exp } |
     { kind: 'assignment', e1: Exp, e2: Exp } |
     IfStmt |

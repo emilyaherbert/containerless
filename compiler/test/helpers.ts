@@ -10,14 +10,30 @@ export function run_test(code: string, input: (string | boolean | number)) {
   // NOTE(arjun): We could also run 'eval(code)(input)', but we are not. We
   // are assuming that the tracing does not change the semantics of 'code'.
   let trace = insertTracing.transform(code);
-  //console.log(trace);
   let func_output = eval(trace)(input);
-  //$T.log();
   let classes = $T.getClasses();
-  //console.log(classes);
   let program = $T.getProgram();
   let ast_output = interp.eval(program, wrap_exp(input));
   expect(ast_output).toEqual(wrap_exp(func_output));
+}
+
+export function run_tests(code: string, inputs: (string | boolean | number)[]) {
+  $T.clear()
+  let trace = insertTracing.transform(code);
+  console.log(trace);
+  let func_outputs : (string | boolean | number)[] = [];
+  for(let i=0; i<inputs.length; i++) {
+    func_outputs.push(eval(trace)(inputs[i]));
+  }
+  let classes = $T.getClasses();
+  let program = $T.getProgram();
+  let ast_outputs : Exp[] = [];
+  for(let i=0; i<inputs.length; i++) {
+    ast_outputs.push(interp.eval(program, wrap_exp(inputs[i])));
+  }
+  for(let i=0; i<inputs.length; i++) {
+    expect(ast_outputs[i]).toEqual(wrap_exp(func_outputs[i]));
+  }
 }
 
 function wrap_exp(v : (number | string | boolean | undefined)): Exp {

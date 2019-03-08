@@ -1,5 +1,10 @@
-import { Name, IdExp, Typ, Exp, Stmt, Class } from "../ts/types";
+import { Name, IdExp, Typ, Exp, Stmt, MemberExp } from "../ts/types";
 import * as helpers from "./helpers"
+
+type Class = { kind: 'class',
+  name: number,
+  types: Map<string, Typ>,
+  transitions : Map<[string, Typ], number>};
 
 export class AST {
   constructor() {}
@@ -70,7 +75,7 @@ export class AST {
     }
   }
 
-  public findClass(types: { [key: string]: Typ }): (Class | undefined) {
+  public findClass(types: Map<string, Typ>): (Class | undefined) {
     const hashCode = createTypeMapHashCode(types);
     if(this.hashCodeMap.has(hashCode)) {
       const name = this.hashCodeMap.get(hashCode)!;
@@ -292,9 +297,9 @@ export function object(o: { [key: string]: Exp }): Exp {
 }
 
 function resolveClass(o: { [key: string]: Exp }): Class {
-  let types : { [key: string]: Typ } = {};
+  let types : Map<string, Typ> = new Map();
   for(var key in o) {
-    types[key] = getTyp(o[key]);
+    types.set(key, getTyp(o[key]));
   }
   const existingClass = ast.findClass(types);
   if(existingClass === undefined) {
@@ -305,17 +310,43 @@ function resolveClass(o: { [key: string]: Exp }): Class {
 }
 
 let nextClassName = 0;
-function createNewClass(types: { [key: string]: Typ }): Class {
+function createNewClass(types: Map<string, Typ>): Class {
   let name = nextClassName++;
   let hashCode = createTypeMapHashCode(types);
-  let transitions : { [key: string]: number } = {};
+  let transitions : Map<[string, Typ], number> = new Map();
   let newClass : Class = { kind: 'class', name: name, types: types, transitions: transitions };
   ast.setClass(hashCode, newClass);
   return newClass;
 }
 
-// TODO(emily): Add 'transitions'.
-function createTypeMapHashCode(types : { [key: string]: Typ }): number {
+/*
+
+TODO(emily): Do we need to add transitions to the hash code?
+I don't believe that we do but I'm not fully convinced...
+
+We would need to add transitions to the hash code if we expected to encounter a
+situation like:
+
+Class A :
+types : { x : number, y : number }
+transitions : { z : C }
+
+Class B :
+types : { x : number, y : number }
+transitions : { woah : D }
+
+Class C :
+...
+
+Class D :
+...
+
+But I think because we are using hidden classes, we are gaurenteed that there can
+exist no two classes that have the exact same type map, and if two objects have the
+same type map, then they are intended to be the same hidden class.
+
+*/
+function createTypeMapHashCode(types : Map<string, Typ>): number {
   function createHashCode(s: string): number {
     for(var i = 0, h = 0; i < s.length; i++)
         h = Math.imul(31, h) + s.charCodeAt(i) | 0;
@@ -323,9 +354,9 @@ function createTypeMapHashCode(types : { [key: string]: Typ }): number {
   }
 
   let hashCode = 0;
-  for(var key in types) {
-    hashCode += createHashCode(key + types[key].kind);
-  }
+  types.forEach((value, key) => {
+    hashCode += createHashCode(key + value.kind);
+  })
 
   return hashCode;
 }
@@ -333,6 +364,48 @@ function createTypeMapHashCode(types : { [key: string]: Typ }): number {
 export function member(o: Exp, f: string): Exp {
   let id = helpers.expectIdExp(o);
   return { kind: 'member', object: id, field: f };
+}
+
+/*
+
+TODO(emily): Currently, if an object needs to change it's hidden class,
+it never does so 'officially'. The class is updated here, such that in the AST
+the object will have Class A until it uses something new and becomes Class B.
+
+I am *pretty sure* that this is the intended implementation of hidden classes,
+but I am not sure how this will work with rust. We may have to enforce that all
+hidden class updates are global through the whole AST. This would come with its
+own issues though.
+
+*/
+export function updateObject(o: Exp, e: Exp) {
+  let member = helpers.expectMemberExp(o);
+  let objectTyp = helpers.expectObjectTyp(getTyp(member.object))
+  let myClass = ast.getClass(objectTyp.class);
+  if(myClass.types.hasOwnProperty(member.field)) {
+    update(member, e);
+  } else {
+    let newTypes = new Map(myClass.types);
+    let eType = getTyp(e);
+    newTypes.set(member.field, eType);
+    let newClass = createNewClass(newTypes);
+    myClass.transitions.set([member.field, eType], newClass.name);
+
+    let newMember : MemberExp = ({
+      kind: 'member',
+      object: ({
+        kind: 'identifier',
+        name: member.object.name,
+        type: ({
+          kind: 'object',
+          class: newClass.name
+        })
+      }),
+      field: member.field
+    })
+
+    update(newMember, e);
+  }
 }
 
 export function log() {
@@ -402,10 +475,10 @@ function getTyp(e: Exp): Typ {
   else if (e.kind === 'member') {
     const objectTyp = helpers.expectObjectTyp(getTyp(e.object));
     const myClass = ast.getClass(objectTyp.class);
-    if(!myClass.types.hasOwnProperty(e.field)) {
-      throw new Error("Field not found in class type map.");
+    if(myClass.types.has(e.field)) {
+      return myClass.types.get(e.field)!;
     } else {
-      return myClass.types[e.field];
+      throw new Error("Field not found in class type map.");
     }
   }
   else {

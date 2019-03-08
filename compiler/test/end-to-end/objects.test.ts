@@ -297,6 +297,59 @@ test('objects and functions 1', () => {
   helpers.run_test(code, input);
 });
 
+test('hidden classes 1', () => {
+  let code = `
+  function createObject(a, b) {
+    return { x : a, y : b };
+  }
+
+  function main(input) {
+    let a = 100;
+    let b = input;
+    let c = 10000;
+    let alices = createObject(a, b);
+    let bobs = createObject(b, c);
+    alices.z = true;
+    if(alices.z) {
+      return bobs.y;
+    } else {
+      return bobs.x;
+    }
+  }
+  main
+  `;
+
+  let input = 1000;
+  helpers.run_test(code, input);
+});
+
+test('hidden classes 2', () => {
+  let code = `
+  function createObject(a, b) {
+    return { x : a, y : b };
+  }
+
+  function main(input) {
+    let a = 100;
+    let b = input;
+    let c = 10000;
+    let alices = createObject(a, b);
+    let bobs = createObject(b, c);
+    alices.z = true;
+    bobs.z = 1;
+    if(alices.z) {
+      return bobs.z;
+    } else {
+      return bobs.x;
+    }
+  }
+  main
+  `;
+
+  let input = 1000;
+  helpers.run_test(code, input);
+});
+
 // TODO(emily): This does not pass because the else is 'unknown' in the AST.
 // This should hopefully be resolved when we account for multiple inputs.
 /*

@@ -1,4 +1,4 @@
-import { Stmt, IfStmt, WhileStmt, ReturnStmt, Exp, IdExp, ObjectTyp, Typ } from "../ts/types";
+import { Stmt, IfStmt, WhileStmt, ReturnStmt, Exp, IdExp, MemberExp, ObjectTyp, Typ } from "../ts/types";
 
 export function expectIfStmt(e: Stmt): IfStmt {
   if(e.kind !== 'if') {
@@ -39,6 +39,14 @@ export function expectObject(e: Exp): Object {
     return e;
   }
 }
+
+export function expectMemberExp(e: Exp): MemberExp {
+  if(e.kind !== 'member') {
+    throw new Error("Expected object.");
+  } else {
+    return e;
+  }
+} 
 
 export function expectObjectTyp(t: Typ): ObjectTyp {
   if(t.kind !== 'object') {
