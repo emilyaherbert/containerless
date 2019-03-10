@@ -9,8 +9,8 @@ type Class = { kind: 'class',
 export class AST {
   constructor() {}
 
-  private program : Stmt[] = [];
-  private stack : Stmt[][] = [];
+  private program : Stmt[] = [ { kind: 'unknown' }];
+  private stack : Stmt[][] = [ this.program ];
   private current = this.program;
 
   private classes : Map<number, Class> = new Map();
@@ -146,14 +146,6 @@ export function expectReturn(): Exp {
   return bind(theReturn.value);
 }
 
-export function enterBlock() {
-  ast.pushScope();
-}
-
-export function exitBlock() {
-  ast.popScope();
-}
-
 export function if_(test: Exp) {
   ast.push({ kind: 'if',
       test: test,
@@ -170,15 +162,21 @@ export function ifElse(test: Exp) {
 }
 
 export function enterIf(condition: boolean) {
-    let theIf = helpers.expectIfStmt(ast.blockParent());
+  let theIf = helpers.expectIfStmt(ast.prev());
 
-    // TODO(arjun): Test condition
-    if (condition) {
-        theIf.then = { kind: 'block', body: ast.getCurrent() };
-    }
-    else {
-        theIf.else = { kind: 'block', body: ast.getCurrent() };
-    }
+  ast.pushScope();
+
+  // TODO(arjun): Test condition
+  if (condition) {
+      theIf.then = { kind: 'block', body: ast.getCurrent() };
+  }
+  else {
+      theIf.else = { kind: 'block', body: ast.getCurrent() };
+  }
+}
+
+export function exitIf() {
+  ast.popScope();
 }
 
 export function while_(test: Exp) {
@@ -189,8 +187,13 @@ export function while_(test: Exp) {
 }
 
 export function enterWhile() {
-  let theWhile = helpers.expectWhileStmt(ast.blockParent());
+  let theWhile = helpers.expectWhileStmt(ast.prev());
+  ast.pushScope();
   theWhile.body = { kind: 'block', body: ast.getCurrent() };
+}
+
+export function exitWhile() {
+  ast.popScope();
 }
 
 const unaryOpReturnType = new Map<string, Typ>();
