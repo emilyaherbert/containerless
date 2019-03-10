@@ -9,53 +9,54 @@ type Class = { kind: 'class',
 export class AST {
   constructor() {}
 
+  private writing = false;
+
   private program : Stmt[] = [];
-  private stack : Stmt[][] = [];
-  private current = this.program;
+  public stack : Stmt[][] = [ this.program ];
+  
+  private currentRover = -1;
 
   private classes : Map<number, Class> = new Map();
   private hashCodeMap : Map<number, number> = new Map();
 
+  public current(): Stmt[] {
+    return this.stack[this.stack.length - 1];
+  }
+
   public push(e: Stmt) {
-    this.current.push(e);
+    this.current().push(e);
+    this.currentRover++;
   }
 
   public pop() {
-    this.current.pop();
+    this.current().pop();
+    this.currentRover--;
   }
 
   public prev(): Stmt {
-    if(this.current.length > 0) {
-      return this.current[this.current.length - 1];
-    } else {
-      throw new Error("Expected nonempty this.current.");
-    }
-  }
-
-  public blockParent(): Stmt {
-    if(this.stack.length > 0) {
-      const last = this.stack[this.stack.length - 1];
-      if(last.length > 0) {
-        return last[last.length - 1];
+    if(this.current().length > 0) {
+      if(this.currentRover > -1) {
+        if(this.current().length > this.currentRover) {
+          return this.current()[this.currentRover];
+        } else {
+          throw new Error("Nuclear meltdown with rovers.");
+        }
       } else {
-        throw new Error("Expected nonempty last.");
+        throw new Error("Expected this.currentRover > 0.");
       }
     } else {
-      throw new Error("Expect nonempty this.stack;");
+      throw new Error("Expected nonempty this.current().");
     }
   }
 
   public pushScope() {
-    this.stack.push(this.current);
-    this.current = [];
+    this.stack.push([]);
+    this.currentRover = -1;
   }
 
   public popScope() {
-    this.current = this.stack.pop()!;
-  }
-
-  public getCurrent(): Stmt[] {
-    return this.current;
+    this.stack.pop();
+    this.currentRover = this.current().length - 1;
   }
 
   public getProgram(): Stmt[] {
@@ -168,10 +169,10 @@ export function enterIf(condition: boolean) {
 
   // TODO(arjun): Test condition
   if (condition) {
-      theIf.then = { kind: 'block', body: ast.getCurrent() };
+      theIf.then = { kind: 'block', body: ast.current() };
   }
   else {
-      theIf.else = { kind: 'block', body: ast.getCurrent() };
+      theIf.else = { kind: 'block', body: ast.current() };
   }
 }
 
@@ -189,7 +190,7 @@ export function while_(test: Exp) {
 export function enterWhile() {
   let theWhile = helpers.expectWhileStmt(ast.prev());
   ast.pushScope();
-  theWhile.body = { kind: 'block', body: ast.getCurrent() };
+  theWhile.body = { kind: 'block', body: ast.current() };
 }
 
 export function exitWhile() {
