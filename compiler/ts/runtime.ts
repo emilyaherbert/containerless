@@ -9,8 +9,8 @@ type Class = { kind: 'class',
 export class AST {
   constructor() {}
 
-  private program : Stmt[] = [ { kind: 'unknown' }];
-  private stack : Stmt[][] = [ this.program ];
+  private program : Stmt[] = [];
+  private stack : Stmt[][] = [];
   private current = this.program;
 
   private classes : Map<number, Class> = new Map();
