@@ -12,7 +12,7 @@ export class AST {
   private writing = false;
 
   private program : Stmt[] = [ { kind: 'unknown' }];
-  public stack : Stmt[][] = [ this.program ];
+  private stack : Stmt[][] = [ this.program ];
   
   private currentRover = 0;
 
