@@ -10,7 +10,6 @@ export function run_test(code: string, input: (string | boolean | number)) {
   // NOTE(arjun): We could also run 'eval(code)(input)', but we are not. We
   // are assuming that the tracing does not change the semantics of 'code'.
   let trace = insertTracing.transform(code);
-  console.log(trace);
   let func_output = eval(trace)(input);
   let classes = $T.getClasses();
   let program = $T.getProgram();
@@ -21,7 +20,6 @@ export function run_test(code: string, input: (string | boolean | number)) {
 export function run_tests(code: string, inputs: (string | boolean | number)[]) {
   $T.clear()
   let trace = insertTracing.transform(code);
-  console.log(trace);
   let func_outputs : (string | boolean | number)[] = [];
   for(let i=0; i<inputs.length; i++) {
     func_outputs.push(eval(trace)(inputs[i]));

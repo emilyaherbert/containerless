@@ -59,8 +59,7 @@ const buildVarUpdate = mkStmt(`$T.update(VARIABLE, EXPRESSION);`);
 const buildInputDeclaration = mkStmt(`let VARIABLE = $T.input();`);
 const buildExpectReturnDeclaration = mkStmt(`let VARIABLE = $T.expectReturn();`)
 
-const buildStartTraceStmt = mkStmt(`$T.startTrace();`)
-const buildStopTraceStmt = mkStmt(`$T.stopTrace();`);
+const buildStartTraceStmt = mkStmt(`$T.startTrace();`);
 
 const buildRequireStmt = mkStmt(`let VARIABLE = require('../dist/runtime');`);
 
@@ -144,11 +143,6 @@ const visitor: traverse.Visitor<S> = {
         exit(path: traverse.NodePath<t.Program>, st) {
             const startTraceStmt = buildStartTraceStmt({});
             path.node.body.unshift(startTraceStmt);
-
-            // TODO(emily): Find better way to insert $T.stopTrace() as
-            // second to last element.
-            const stopTraceStmt = buildStopTraceStmt({});
-            path.node.body.splice(path.node.body.length - 1, 0, stopTraceStmt);
 
             const id = t.identifier('$T'); // TODO(arjun): capture
             let requireStmt = buildRequireStmt({

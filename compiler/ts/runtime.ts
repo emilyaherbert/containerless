@@ -11,7 +11,7 @@ export class AST {
 
   private writing = false;
 
-  private program : Stmt[] = [];
+  private program : Stmt[] = [ { kind: 'unknown' }];
   public stack : Stmt[][] = [ this.program ];
   
   private currentRover = -1;
@@ -20,37 +20,71 @@ export class AST {
   private hashCodeMap : Map<number, number> = new Map();
 
   public current(): Stmt[] {
-    return this.stack[this.stack.length - 1];
+    if(this.stack.length > 0) {
+      return this.stack[this.stack.length - 1];
+    } else {
+      throw new Error("Expected nonempty this.stack.");
+    }
   }
 
   public push(e: Stmt) {
-    this.current().push(e);
+    let current = this.current();
+    if(this.hasNext() && this.next().kind === 'unknown') {
+      this.writing = true;
+      current.pop();
+    }
+    if(this.writing) {
+      current.push(e);
+    }
     this.currentRover++;
   }
 
   public pop() {
-    this.current().pop();
+    if(this.writing) {
+      this.current().pop();
+    }
     this.currentRover--;
   }
 
+  public hasPrev(): boolean {
+    let current = this.current();
+    return (current.length > 0 &&
+      this.currentRover > -1 &&
+      current.length > this.currentRover);
+  }
+
+  // NOTE(emily): The previous value is in the location of the current currentRover.
   public prev(): Stmt {
-    if(this.current().length > 0) {
-      if(this.currentRover > -1) {
-        if(this.current().length > this.currentRover) {
-          return this.current()[this.currentRover];
-        } else {
-          throw new Error("Nuclear meltdown with rovers.");
-        }
-      } else {
-        throw new Error("Expected this.currentRover > 0.");
-      }
+    if(this.hasPrev()) {
+      return this.current()[this.currentRover];
     } else {
-      throw new Error("Expected nonempty this.current().");
+      throw new Error("No previous Stmt.");
+    }
+  }
+
+  public hasNext(): boolean {
+    let current = this.current();
+    let i = this.currentRover + 1;
+    return (current.length > 0 &&
+      i > -1 &&
+      current.length > i);
+  }
+
+  public next(): Stmt {
+    if(this.hasNext()) {
+      return this.current()[this.currentRover + 1];
+    } else {
+      throw new Error("No next Stmt.");
     }
   }
 
   public pushScope() {
     this.stack.push([]);
+    this.currentRover = -1;
+  }
+
+  public pushScopeWith(stmts: Stmt[]) {
+    this.stack.push(stmts);
     this.currentRover = -1;
   }
 
@@ -93,18 +127,19 @@ export class AST {
   public getClasses(): Class[] {
     return Array.from(this.classes.values());
   }
+
+  public refresh() {
+    this.stack = [ this.program ];
+    this.currentRover = -1;
+    this.writing = false;
+  }
 }
 
 let ast = new AST();
 let args_stack : Exp[][] = [];
 
 export function startTrace() {
-  // TODO(emily): Do something here to prepare for multiple inputs.
-  ast = new AST();
-}
-
-export function stopTrace() {
-  // TODO(emily): Do something here to resolve multiple inputs.
+  ast.refresh();
 }
 
 let nextName : Name = 0;
@@ -143,14 +178,21 @@ export function return_(value: Exp) {
 
 export function expectReturn(): Exp {
   let theReturn = helpers.expectReturnStmt(ast.prev());
-  ast.pop();
+  // TODO(emily): In order to do multiple inputs, the AST cannot lose track of returns.
+  // What we were doing before was removing the returns when we found an 'expectReturn',
+  // but if we do that for multiple traces, the 'expectReturns' throw errors as they
+  // *expect returns*, and there are none.
+  // Not an issue now, but possibly an issue when compiling to rust as we cannot
+  // blindly remove them because of how main works. -> Change main?
+  
+  //ast.pop();
   return bind(theReturn.value);
 }
 
 export function if_(test: Exp) {
   ast.push({ kind: 'if',
       test: test,
-      then: { kind: 'unknown' },
+      then: { kind: 'block', body: [ { kind: 'unknown' } ]},
       else: { kind: 'block', body: []} });
 }
 
@@ -158,21 +200,25 @@ export function ifElse(test: Exp) {
     ast.push({
         kind: 'if',
         test: test,
-        then: { kind: 'unknown' },
-        else: { kind: 'unknown' } });
+        then: { kind: 'block', body: [ { kind: 'unknown' } ]},
+        else: { kind: 'block', body: [ { kind: 'unknown' } ]} });
 }
 
 export function enterIf(condition: boolean) {
   let theIf = helpers.expectIfStmt(ast.prev());
 
-  ast.pushScope();
-
   // TODO(arjun): Test condition
   if (condition) {
+    if(theIf.then.kind === 'block') {
+      ast.pushScopeWith(theIf.then.body);
       theIf.then = { kind: 'block', body: ast.current() };
+    }
   }
   else {
+    if(theIf.else.kind === 'block') {
+      ast.pushScopeWith(theIf.else.body);
       theIf.else = { kind: 'block', body: ast.current() };
+    }
   }
 }
 
@@ -421,6 +467,8 @@ export function log() {
 export function clear() {
   ast = new AST();
   args_stack = [];
+  nextName = 0;
+  nextClassName = 0;
 }
 
 export function getProgram(): Stmt[] {
