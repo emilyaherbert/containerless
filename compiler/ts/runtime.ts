@@ -14,7 +14,7 @@ export class AST {
   private program : Stmt[] = [ { kind: 'unknown' }];
   public stack : Stmt[][] = [ this.program ];
   
-  private currentRover = -1;
+  private currentRover = 0;
 
   private classes : Map<number, Class> = new Map();
   private hashCodeMap : Map<number, number> = new Map();
@@ -49,14 +49,13 @@ export class AST {
   public hasPrev(): boolean {
     let current = this.current();
     return (current.length > 0 &&
-      this.currentRover > -1 &&
-      current.length > this.currentRover);
+      this.currentRover > 0 &&
+      current.length > (this.currentRover - 1));
   }
 
-  // NOTE(emily): The previous value is in the location of the current currentRover.
   public prev(): Stmt {
     if(this.hasPrev()) {
-      return this.current()[this.currentRover];
+      return this.current()[this.currentRover - 1];
     } else {
       throw new Error("No previous Stmt.");
     }
@@ -64,15 +63,14 @@ export class AST {
 
   public hasNext(): boolean {
     let current = this.current();
-    let i = this.currentRover + 1;
     return (current.length > 0 &&
-      i > -1 &&
-      current.length > i);
+      this.currentRover > -1 &&
+      current.length > this.currentRover);
   }
 
   public next(): Stmt {
     if(this.hasNext()) {
-      return this.current()[this.currentRover + 1];
+      return this.current()[this.currentRover];
     } else {
       throw new Error("No next Stmt.");
     }
@@ -80,17 +78,17 @@ export class AST {
 
   public pushScope() {
     this.stack.push([]);
-    this.currentRover = -1;
+    this.currentRover = 0;
   }
 
   public pushScopeWith(stmts: Stmt[]) {
     this.stack.push(stmts);
-    this.currentRover = -1;
+    this.currentRover = 0;
   }
 
   public popScope() {
     this.stack.pop();
-    this.currentRover = this.current().length - 1;
+    this.currentRover = this.current().length;
   }
 
   public getProgram(): Stmt[] {
@@ -130,7 +128,7 @@ export class AST {
 
   public refresh() {
     this.stack = [ this.program ];
-    this.currentRover = -1;
+    this.currentRover = 0;
     this.writing = false;
   }
 }
