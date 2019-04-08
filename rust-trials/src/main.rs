@@ -22,12 +22,19 @@ struct Point {
 }
 
 #[derive(Clone)]
+struct TwoPoints {
+  p1 : Point,
+  p2 : Point
+}
+
+#[derive(Clone)]
 enum Value {
     Int(i32),
     Bool(bool),
     Stringg(String),
     Arr(Box<Vec<Value>>),
-    VPoint(Point)
+    VPoint(Point),
+    VTwoPoints(TwoPoints)
 }
 
 impl PartialEq for Value {
@@ -89,6 +96,11 @@ impl Pool {
     return self.values.len() - 1;
   }
 
+  fn alloc_vtwopoints(&mut self, v: TwoPoints) -> usize {
+    self.values.push(Value::VTwoPoints(v));
+    return self.values.len() - 1;
+  }
+
   fn read(&mut self, addr: usize) -> &mut Value {
     return &mut self.values[addr];
   }
@@ -124,6 +136,13 @@ impl Pool {
   fn read_vpoint(&mut self, addr: usize) -> &mut Point {
     match self.read(addr) {
       Value::VPoint(p) => return p,
+      _ => panic!("oops")
+    }
+  }
+
+  fn read_vtwopoints(&mut self, addr: usize) -> &mut TwoPoints {
+    match self.read(addr) {
+      Value::VTwoPoints(p) => return p,
       _ => panic!("oops")
     }
   }
@@ -164,6 +183,13 @@ impl Pool {
   fn read_vpoint_imm(&self, addr: usize) -> Point {
     match self.read_imm(addr) {
       Value::VPoint(p) => return p,
+      _ => panic!("oops")
+    }
+  }
+
+  fn read_vtwopoints_imm(&self, addr: usize) -> TwoPoints {
+    match self.read_imm(addr) {
+      Value::VTwoPoints(p) => return p,
       _ => panic!("oops")
     }
   }
@@ -278,6 +304,63 @@ fn obj_test(pool: &mut Pool) -> bool {
   return pool.read_vpoint_imm(obj).x == 100;
 }
 
+fn obj_test2(pool: &mut Pool) -> bool {
+  let p1 = Point { x:2, y:3 };
+  let obj1 = pool.alloc_vpoint(p1);
+
+  let p2 = Point { x:200, y:300 };
+  let obj2 = pool.alloc_vpoint(p2);
+
+  /*
+  { 2, 3 }
+  { 200, 300 }
+  */
+
+  (*pool.read_vpoint(obj1)).x = 100;
+  (*pool.read_vpoint(obj2)).y = pool.read_vpoint_imm(obj1).y;
+
+  /*
+  { 100, 3 }
+  { 200, 3 }
+  */
+
+  return pool.read_vpoint_imm(obj1).x + pool.read_vpoint_imm(obj2).x == 300
+         && pool.read_vpoint_imm(obj1).y + pool.read_vpoint_imm(obj2).y == 6;
+}
+
+fn obj_test3(pool: &mut Pool) -> bool {
+  let p1 = Point { x:2, y:3 };
+  let p2 = Point { x:200, y:300 };
+  let p = TwoPoints { p1: p1, p2: p2 };
+
+  /*
+  { 2, 3 }
+  { 200, 300 }
+  */
+
+  let obj = pool.alloc_vtwopoints(p);
+
+  return pool.read_vtwopoints_imm(obj).p1.x == 2;
+}
+
+fn obj_test4(pool: &mut Pool) -> bool {
+  let p1 = Point { x:2, y:3 };
+  let p2 = Point { x:200, y:300 };
+  let p = TwoPoints { p1: p1, p2: p2 };
+
+  /*
+  { 2, 3 }
+  { 200, 300 }
+  */
+
+  let obj = pool.alloc_vtwopoints(p);
+
+  (*pool.read_vtwopoints(obj)).p1.x = 4000;
+  (*pool.read_vtwopoints(obj)).p2.y = 4000;
+
+  return pool.read_vtwopoints_imm(obj).p1.x == pool.read_vtwopoints_imm(obj).p2.y;
+}
+
 fn main() {
   let mut pool = Pool { values: vec![] };
 
@@ -293,4 +376,7 @@ fn main() {
   println!("{}", array_test2(&mut pool));
 
   println!("{}", obj_test(&mut pool));
+  println!("{}", obj_test2(&mut pool));
+  println!("{}", obj_test3(&mut pool));
+  println!("{}", obj_test4(&mut pool));
 }
