@@ -11,16 +11,23 @@ The current paradigm relies heavily on turning references to
 owned values. This is only possible if you copy or clone the value.
 
 Rust does this automatically for most things, but we have to derive
-it specifically for Value.
+it specifically.
 
 */
+
+#[derive(Clone)]
+struct Point {
+  x : i32,
+  y : i32
+}
 
 #[derive(Clone)]
 enum Value {
     Int(i32),
     Bool(bool),
     Stringg(String),
-    Arr(Box<Vec<Value>>)
+    Arr(Box<Vec<Value>>),
+    VPoint(Point)
 }
 
 impl PartialEq for Value {
@@ -77,6 +84,11 @@ impl Pool {
     return self.values.len() - 1;
   }
 
+  fn alloc_vpoint(&mut self, v: Point) -> usize {
+    self.values.push(Value::VPoint(v));
+    return self.values.len() - 1;
+  }
+
   fn read(&mut self, addr: usize) -> &mut Value {
     return &mut self.values[addr];
   }
@@ -105,6 +117,13 @@ impl Pool {
   fn read_array(&mut self, addr: usize) -> &mut Vec<Value> {
     match self.read(addr) {
       Value::Arr(vec) => return vec,
+      _ => panic!("oops")
+    }
+  }
+
+  fn read_vpoint(&mut self, addr: usize) -> &mut Point {
+    match self.read(addr) {
+      Value::VPoint(p) => return p,
       _ => panic!("oops")
     }
   }
@@ -138,6 +157,13 @@ impl Pool {
   fn read_array_imm(&self, addr: usize) -> Vec<Value> {
     match self.read_imm(addr) {
       Value::Arr(vec) => return *vec,
+      _ => panic!("oops")
+    }
+  }
+
+  fn read_vpoint_imm(&self, addr: usize) -> Point {
+    match self.read_imm(addr) {
+      Value::VPoint(p) => return p,
       _ => panic!("oops")
     }
   }
@@ -244,6 +270,14 @@ fn array_test2(pool: &mut Pool) -> bool {
   return pool.read_array(a)[5] == Value::Int(5);
 }
 
+fn obj_test(pool: &mut Pool) -> bool {
+  let p = Point { x:2, y:3 };
+  let obj = pool.alloc_vpoint(p);
+  (*pool.read_vpoint(obj)).x = 100;
+
+  return pool.read_vpoint_imm(obj).x == 100;
+}
+
 fn main() {
   let mut pool = Pool { values: vec![] };
 
@@ -257,4 +291,6 @@ fn main() {
 
   println!("{}", array_test(&mut pool));
   println!("{}", array_test2(&mut pool));
+
+  println!("{}", obj_test(&mut pool));
 }
