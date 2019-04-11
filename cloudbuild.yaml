@@ -1,0 +1,9 @@
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: [
+            'build',
+            '-t', 'gcr.io/umass-plasma/github.com/plasma-umass/decontainerization:latest',
+            '--cache-from', 'gcr.io/umass-plasma/github.com/plasma-umass/decontainerization:latest',
+            '.'
+        ]
+images: ['gcr.io/umass-plasma/github.com/plasma-umass/decontainerization:latest']
