@@ -36,6 +36,15 @@ pub enum Exp {
     BinOp { op: BinOp, e1: Box<Exp>, e2: Box<Exp> }
 }
 
+#[derive(PartialEq, Debug, Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum Stmt {
+    Let { name: String, body: Exp },
+    Assign { name : String, expr: Exp },
+    If { test: Exp, then_part: Box<Stmt>, else_part: Box<Stmt> },
+    While { test: Exp, body: Box<Stmt> }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
