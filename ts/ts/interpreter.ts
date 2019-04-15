@@ -91,7 +91,7 @@ export class Interpreter {
   private eval_stmt(e: Stmt, input: Exp) {
     switch(e.kind) {
       case 'let': {
-        let v = this.eval_exp(e.e, input);
+        let v = this.eval_exp(e.body, input);
         this.st.set(e.name, v);
         break;
       }

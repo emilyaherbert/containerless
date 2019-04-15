@@ -165,7 +165,7 @@ export function bind(e: Exp): IdExp {
   let name = nextName++;
   let t = getTyp(e);
   ast.setTEnv(name, t);
-  ast.push({ kind: 'let', name: name, e: e });
+  ast.push({ kind: 'let', name: name, body: e });
   return { kind: 'identifier', name: name, type: t };
 }
 
@@ -489,7 +489,7 @@ export function updateObject(o: Exp, e: Exp) {
 }
 
 export function log() {
-    console.log(JSON.stringify(ast.getProgram(), null, 2));
+    console.log(JSON.stringify({ kind: 'block', body: ast.getProgram() } , null, 2));
 }
 
 // TODO(emily): Used for testing, replace with something more elegant.

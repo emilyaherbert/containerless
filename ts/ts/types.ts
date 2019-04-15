@@ -37,7 +37,7 @@ export type WhileStmt = { kind: 'while', test: Exp, body: Stmt };
 export type ReturnStmt = { kind: 'return', value: Exp };
 
 export type Stmt =
-    { kind: 'let', name: Name, e: Exp } |
+    { kind: 'let', name: Name, body: Exp } |
     { kind: 'assignment', e1: Exp, e2: Exp } |
     IfStmt |
     WhileStmt |
