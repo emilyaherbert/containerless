@@ -1,5 +1,6 @@
-import { Name, IdExp, Typ, Exp, Stmt, MemberExp } from "../ts/types";
+import { Name, IdExp, Typ, Exp, Stmt, MemberExp, ObjectExp } from "../ts/types";
 import * as helpers from "./helpers"
+import { identifier } from "@babel/types";
 
 type Class = { kind: 'class',
   name: number,
@@ -16,8 +17,15 @@ export class AST {
   
   private currentRover = 0;
 
+  // Class name to class implementation.
   private classes : Map<number, Class> = new Map();
+
+  // Hashcode to class name.
   private hashCodeMap : Map<number, number> = new Map();
+
+  // Variable name to class name.
+  // Write only.
+  private tenv : Map<number, [Typ]> = new Map();
 
   public current(): Stmt[] {
     if(this.stack.length > 0) {
@@ -122,8 +130,20 @@ export class AST {
     }
   }
 
+  public setTEnv(v: number, t: Typ) {
+    if(this.tenv.has(v)) {
+      this.tenv.get(v)!.push(t);
+    } else {
+      this.tenv.set(v, [t]);
+    }
+  }
+
   public getClasses(): Class[] {
     return Array.from(this.classes.values());
+  }
+
+  public getTEnv(): Map<number, [Typ]> {
+    return this.tenv;
   }
 
   public refresh() {
@@ -142,18 +162,27 @@ export function startTrace() {
 
 let nextName : Name = 0;
 export function bind(e: Exp): IdExp {
-    let name = nextName++;
-    let t = getTyp(e);
-    ast.push({ kind: 'let', name: name, e: e });
-    return { kind: 'identifier', name: name, type: t };
+  let name = nextName++;
+  let t = getTyp(e);
+  ast.setTEnv(name, t);
+  ast.push({ kind: 'let', name: name, e: e });
+  return { kind: 'identifier', name: name, type: t };
 }
 
-export function update(e1: Exp, e2: Exp): void {
-    ast.push({ kind: 'assignment', e1: e1, e2: e2 });
+export function updateByName(e1: Exp, e2: Exp): void {
+  const idExp = helpers.expectIdExp(e1);
+  let t = getTyp(e2);
+  ast.setTEnv(idExp.name, t);
+  ast.push({ kind: 'assignment', e1: e1, e2: e2 });
+}
+
+// Should only be used to update contents of objects, arrays, etc.
+export function updateByExp(e1: Exp, e2: Exp): void {
+  ast.push({ kind: 'assignment', e1: e1, e2: e2 });
 }
 
 export function input(): Exp {
-    return { kind: 'input' };
+  return { kind: 'input' };
 }
 
 export function args(es: Exp[]) {
@@ -414,45 +443,48 @@ export function member(o: Exp, f: string): Exp {
   return { kind: 'member', object: id, field: f };
 }
 
-/*
-
-TODO(emily): Currently, if an object needs to change it's hidden class,
-it never does so 'officially'. The class is updated here, such that in the AST
-the object will have Class A until it uses something new and becomes Class B.
-
-I am *pretty sure* that this is the intended implementation of hidden classes,
-but I am not sure how this will work with rust. We may have to enforce that all
-hidden class updates are global through the whole AST. This would come with its
-own issues though.
-
-*/
 export function updateObject(o: Exp, e: Exp) {
-  let member = helpers.expectMemberExp(o);
-  let objectTyp = helpers.expectObjectTyp(getTyp(member.object))
+  // NOTE(emily): Exp is confusing here because o is only on the LHS of assignment.
+  // But it has to be this way because $T statements arguments are javascript id's.
+  let memberExp = helpers.expectMemberExp(o);
+  let idExp = memberExp.object;
+  let objectTyp = helpers.expectObjectTyp(getTyp(idExp));
   let myClass = ast.getClass(objectTyp.class);
-  if(myClass.types.hasOwnProperty(member.field)) {
-    update(member, e);
+
+  if(myClass.types.hasOwnProperty(memberExp.field)) {
+    updateByExp(memberExp, e);
+
   } else {
     let newTypes = new Map(myClass.types);
     let eType = getTyp(e);
-    newTypes.set(member.field, eType);
+    newTypes.set(memberExp.field, eType);
     let newClass = createNewClass(newTypes);
-    myClass.transitions.set([member.field, eType], newClass.name);
+    myClass.transitions.set([memberExp.field, eType], newClass.name);
 
-    let newMember : MemberExp = ({
-      kind: 'member',
-      object: ({
-        kind: 'identifier',
-        name: member.object.name,
-        type: ({
-          kind: 'object',
-          class: newClass.name
-        })
-      }),
-      field: member.field
+    // Typ of object in member expression.
+    let newTyp : Typ = ({
+      kind: 'object',
+      class: newClass.name
+    })
+  
+    // Rebuilt id handle on object in member expression.
+    let newIdExp : IdExp = ({
+      kind: 'identifier',
+        name: memberExp.object.name,
+        type: newTyp
     })
 
-    update(newMember, e);
+    // Update the typ env with updated typ for object.
+    ast.setTEnv(newIdExp.name, newTyp);
+
+    let newMemberExp : MemberExp = ({
+      kind: 'member',
+      object: newIdExp,
+      field: memberExp.field
+    })
+
+    // Update the member itself.
+    updateByExp(newMemberExp, e);
   }
 }
 
@@ -475,6 +507,10 @@ export function getProgram(): Stmt[] {
 
 export function getClasses(): Class[] {
   return ast.getClasses();
+}
+
+export function getTEnv(): Map<number, [Typ]> {
+  return ast.getTEnv();
 }
 
 function getTyp(e: Exp): Typ {

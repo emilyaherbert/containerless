@@ -12,6 +12,8 @@ export function run_test(code: string, input: (string | boolean | number)) {
   let trace = insertTracing.transform(code);
   let func_output = eval(trace)(input);
   let classes = $T.getClasses();
+  let tenv = $T.getTEnv();
+  console.log(tenv);
   let program = $T.getProgram();
   let ast_output = interp.eval(program, wrap_exp(input));
   expect(ast_output).toEqual(wrap_exp(func_output));
@@ -25,6 +27,8 @@ export function run_tests(code: string, inputs: (string | boolean | number)[]) {
     func_outputs.push(eval(trace)(inputs[i]));
   }
   let classes = $T.getClasses();
+  let tenv = $T.getTEnv();
+  console.log(tenv);
   let program = $T.getProgram();
   let ast_outputs : Exp[] = [];
   for(let i=0; i<inputs.length; i++) {

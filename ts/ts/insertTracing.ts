@@ -54,7 +54,7 @@ const buildMemberExpr = mkExpr(`$T.member(EXPRESSION1, EXPRESSION2)`);
 const buildMemberUpdateStmt = mkStmt(`$T.updateObject(VARIABLE, EXPRESSION);`);
 
 const buildVarDeclaration = mkStmt(`let VARIABLE = $T.bind(EXPRESSION);`);
-const buildVarUpdate = mkStmt(`$T.update(VARIABLE, EXPRESSION);`);
+const buildVarUpdate = mkStmt(`$T.updateByName(VARIABLE, EXPRESSION);`);
 
 const buildInputDeclaration = mkStmt(`let VARIABLE = $T.input();`);
 const buildExpectReturnDeclaration = mkStmt(`let VARIABLE = $T.expectReturn();`)
