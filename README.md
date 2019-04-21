@@ -7,7 +7,7 @@ Linked with [Neon](https://neon-bindings.com/).
 ~~~
 yarn run build && neon build && yarn run run
 yarn run build && neon build && yarn run test
-yarn run build && neon build && yarn run test/linked/
+yarn run build && neon build && yarn run test test/linked/
 ~~~
 
 - `yarn run build`: builds TypeScript
