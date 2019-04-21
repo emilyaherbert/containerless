@@ -505,6 +505,10 @@ export function getProgram(): Stmt[] {
   return ast.getProgram();
 }
 
+export function getProgramAsString(): String {
+  return JSON.stringify({ kind: 'block', body: ast.getProgram() } , null, 2)
+}
+
 export function getClasses(): Class[] {
   return ast.getClasses();
 }

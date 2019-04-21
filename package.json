@@ -1,7 +1,7 @@
 {
   "name": "compiler",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "dist/index.js",
   "license": "BSD-3-Clause",
   "devDependencies": {
     "@types/babel__core": "^7.0.4",
@@ -12,12 +12,14 @@
     "@types/node": "^10.12.19",
     "jest": "^24.1.0",
     "ts-jest": "^23.10.5",
-    "typescript": "^3.2.4"
+    "typescript": "^3.2.4",
+    "neon-cli": "^0.2.0"
   },
   "scripts": {
     "build": "./node_modules/.bin/tsc",
     "run": "node ./dist/index.js",
-    "test": "jest"
+    "test": "jest",
+    "install": "neon build"
   },
   "jest": {
     "transform": {

@@ -1,0 +1,16 @@
+native/target
+native/index.node
+native/artifacts.json
+**/*~
+**/node_modules
+**/.DS_Store
+
+/dist
+/node_modules
+
+*.so
+*.dylib
+
+yarn.lock
+input.js
+trace.rs

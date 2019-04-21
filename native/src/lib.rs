@@ -6,12 +6,15 @@ extern crate serde_json;
 extern crate libloading;
 #[macro_use]
 extern crate duct;
+#[macro_use]
+extern crate neon;
 mod types;
 
 use types::*;
 use quote::*;
 use quote::__rt::TokenStream;
 use proc_macro2::Span;
+use neon::prelude::*;
 
 fn compile_op(op: &BinOp) -> TokenStream {
     match op {
@@ -68,7 +71,7 @@ fn compile_stmt(stmt: &types::Stmt) -> quote::__rt::TokenStream {
 
 }
 
-fn compile_program(stmt: &Stmt)-> quote::__rt::TokenStream {
+fn compile_program(stmt: &Stmt) -> quote::__rt::TokenStream {
     let q_stmt = compile_stmt(stmt);
     quote! {
         #[no_mangle]
@@ -78,49 +81,40 @@ fn compile_program(stmt: &Stmt)-> quote::__rt::TokenStream {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+fn compile(mut cx: FunctionContext) -> JsResult<JsString> {
+  use std::io::Write;
 
-    fn test_run(src_json: &str) -> f64 {
-        use std::io::Read;
-        use std::io::Write;
-        let mut file = std::fs::File::open(src_json)
-            .expect("JSON file not found");
-        let mut json_string = String::new();
-        file.read_to_string(&mut json_string).expect("file read failed");
-        let stmt: Stmt = serde_json::from_str(&json_string)
-            .expect("failed to parse JSON");
-        let rust_code = compile_program(&stmt);
-        let mut rs_file = std::fs::File::create("trace.rs")
-            .expect("could not create .rs file");
-        rs_file.write_all(format!("{}", rust_code).as_bytes())
-            .expect("could not write write file");
-        cmd!("rustc", "--crate-type", "cdylib", "trace.rs").run()
-            .expect("Compiling Rust failed");
-        let lib = libloading::Library::new("libtrace.dylib")
-            .expect("Loading dylib failed");
-        unsafe {
-            let fun: libloading::Symbol<unsafe extern fn() -> f64> =
-                lib.get(b"trace_main")
-                    .expect("symbol trace_main not found");
-            return fun();
-        }
-    }
+  let program = cx.argument::<JsString>(0)?.value();
+  let stmt: Stmt = serde_json::from_str(&program)
+    .expect("Failed to parse JSON.");
+  let rust_code = compile_program(&stmt);
+  let mut rs_file = std::fs::File::create("trace.rs")
+    .expect("Could not create .rs file.");
+  rs_file.write_all(format!("{}", rust_code).as_bytes())
+    .expect("Could not write to file.");
+  cmd!("rustc", "--crate-type", "cdylib", "trace.rs").run()
+    .expect("Compiling to Rust failed.");
 
-    #[test]
-    fn test_loading() {
-        assert_eq!(test_run("example.json"), 12.0);
-    }
-
+  Ok(cx.string("Done compiling."))
 }
-fn main() {
-    use std::io::Read;
-    let args: Vec<_> = std::env::args().collect();
-    let mut file = std::fs::File::open(&args[1]).expect("file not found");
-    let mut json_string = String::new();
-    file.read_to_string(&mut json_string).expect("file read failed");
-    let stmt: Stmt = serde_json::from_str(&json_string).expect("failed to parse JSON");
-    let s = compile_program(&stmt);
-    println!("{}", s);
+
+fn run(mut cx: FunctionContext) -> JsResult<JsNumber> {
+
+  let lib = libloading::Library::new("libtrace.so")
+      .expect("Loading .so failed.");
+
+  unsafe {
+    let fun: libloading::Symbol<unsafe extern fn() -> f64> =
+      lib.get(b"trace_main")
+        .expect("Symbol trace_main not found.");
+    return Ok(cx.number(fun()));
+  }
+
+  Ok(cx.number(1))
 }
+
+register_module!(mut m, {
+    m.export_function("compile", compile)?;
+    m.export_function("run", run)?;
+    Ok(())
+});

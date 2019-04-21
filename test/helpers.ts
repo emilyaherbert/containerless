@@ -1,4 +1,6 @@
 const $T = require('../dist/runtime');
+const $R = require('../native');
+
 import { Interpreter } from '../ts/interpreter';
 import * as insertTracing from '../ts/insertTracing';
 import { Exp } from "../ts/types";
@@ -13,7 +15,6 @@ export function run_test(code: string, input: (string | boolean | number)) {
   let func_output = eval(trace)(input);
   let classes = $T.getClasses();
   let tenv = $T.getTEnv();
-  console.log(tenv);
   let program = $T.getProgram();
   let ast_output = interp.eval(program, wrap_exp(input));
   expect(ast_output).toEqual(wrap_exp(func_output));
@@ -37,6 +38,22 @@ export function run_tests(code: string, inputs: (string | boolean | number)[]) {
   for(let i=0; i<inputs.length; i++) {
     expect(ast_outputs[i]).toEqual(wrap_exp(func_outputs[i]));
   }
+}
+
+export function run_linked_test(code: string, input: (string | boolean | number)) {
+  $T.clear();
+  let trace = insertTracing.transform(code);
+  let func_output = eval(trace)(input);
+
+  let classes = $T.getClasses();
+  let tenv = $T.getTEnv();
+  let program = $T.getProgram();
+  let programStr = $T.getProgramAsString();
+
+  $R.compile(programStr);
+  let rust_output = $R.run();
+
+  expect(rust_output).toEqual(func_output);
 }
 
 function wrap_exp(v : (number | string | boolean | undefined)): Exp {
