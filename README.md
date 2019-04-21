@@ -1,7 +1,10 @@
-# neon-decontainerization
+# decontainerization
 
-`yarn run build && neon build && yarn run run`
-`yarn run build && neon build && yarn test`
+~~~
+yarn run build && neon build && yarn run run
+yarn run build && neon build && yarn run test
+yarn run build && neon build && yarn run test/linked/
+~~~
 
 ### Commands:
 
@@ -12,19 +15,24 @@
 
 ### Organization
 
-`
+~~~
 decontainerization
+  ├── cloudbuild.yaml
+  ├── Dockerfile
+  ├── .dockerignore
   ├── .gitignore
   ├── native/
   │   └── ...
   ├── package.json
   ├── README.md
+  ├── rust-trials/
+  │   └── ...
   ├── test/
   │   └── ...
   ├── ts/
   │   └── ...
-  └── tsconfig.jsonls
-`
+  └── tsconfig.json
+~~~
 
 - `ts`: TypeScript source
 - `native`: Rust source
