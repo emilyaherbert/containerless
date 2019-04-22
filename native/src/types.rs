@@ -21,7 +21,9 @@ use serde::Deserialize;
 pub enum BinOp {
     #[serde(rename = "+num")]
     Add,
-    Mul
+    Mul,
+    #[serde(rename = "<")]
+    LT
 }
 
 #[derive(PartialEq, Debug, Deserialize)]
@@ -30,6 +32,7 @@ pub enum Exp {
     Number { value: f64 },
     String { value: String },
     Boolean { value: bool },
+    Input {},
     Undefined {},
     Identifier { name: usize },
     #[serde(rename = "binop")]
@@ -47,6 +50,7 @@ pub enum Stmt {
     Return { value: Exp }
 }
 
+/*
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -85,3 +89,4 @@ mod tests {
     }
 
 }
+*/

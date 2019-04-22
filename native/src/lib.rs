@@ -1,4 +1,5 @@
 #![macro_use]
+#![allow(unreachable_code)]
 extern crate quote;
 extern crate syn;
 extern crate serde;
@@ -19,7 +20,8 @@ use neon::prelude::*;
 fn compile_op(op: &BinOp) -> TokenStream {
     match op {
         BinOp::Add => quote! { + },
-        BinOp::Mul => quote! { * }
+        BinOp::Mul => quote! { * },
+        BinOp::LT => quote! { < }
     }
 }
 
@@ -35,6 +37,8 @@ fn compile_exp(e: &types::Exp) -> quote::__rt::TokenStream {
         },
         Exp::Number { value } => quote! { #value },
         Exp::String { value } => quote! { #value },
+        Exp::Boolean { value } => quote! { #value },
+        Exp::Input {} => quote! { trace_input },
         Exp::BinOp { op, e1, e2 } => {
             let q_op = compile_op(op);
             let q_e1 = compile_exp(&e1);
@@ -60,6 +64,14 @@ fn compile_stmt(stmt: &types::Stmt) -> quote::__rt::TokenStream {
                 #(#q_body)*
             }
         },
+        Stmt::If { test, then_part, else_part } => {
+          let q_test = compile_exp(test);
+          let q_then_part = compile_stmt(then_part);
+          let q_else_part = compile_stmt(else_part);
+          quote! {
+            if #q_test { #q_then_part } else { #q_else_part }
+          }
+        }
         Stmt::Return { value } => {
             let q_value = compile_exp(value);
             quote! {
@@ -75,7 +87,7 @@ fn compile_program(stmt: &Stmt) -> quote::__rt::TokenStream {
     let q_stmt = compile_stmt(stmt);
     quote! {
         #[no_mangle]
-        pub extern "C" fn trace_main() -> f64 {
+        pub extern "C" fn trace_main(trace_input: f64) -> f64 {
             #q_stmt
         }
     }
@@ -85,6 +97,7 @@ fn compile(mut cx: FunctionContext) -> JsResult<JsString> {
   use std::io::Write;
 
   let program = cx.argument::<JsString>(0)?.value();
+
   let stmt: Stmt = serde_json::from_str(&program)
     .expect("Failed to parse JSON.");
   let rust_code = compile_program(&stmt);
@@ -100,14 +113,19 @@ fn compile(mut cx: FunctionContext) -> JsResult<JsString> {
 
 fn run(mut cx: FunctionContext) -> JsResult<JsNumber> {
 
-  let lib = libloading::Library::new("libtrace.so")
-      .expect("Loading .so failed.");
+  let trace_input = cx.argument::<JsNumber>(0)?.value();
+
+  // NOTE(emily): cdylib produces a .dylib file on mac and a .so file on linux.
+  // ¯\_(ツ)_/¯
+  let lib = libloading::Library::new("libtrace.dylib")
+      .or_else(|_| libloading::Library::new("libtrace.so"))
+      .expect("Loading dynamic library failed.");
 
   unsafe {
-    let fun: libloading::Symbol<unsafe extern fn() -> f64> =
+    let fun: libloading::Symbol<unsafe extern fn(t_i: f64) -> f64> =
       lib.get(b"trace_main")
         .expect("Symbol trace_main not found.");
-    return Ok(cx.number(fun()));
+    return Ok(cx.number(fun(trace_input)));
   }
 
   Ok(cx.number(1))

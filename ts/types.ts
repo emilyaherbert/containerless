@@ -32,7 +32,7 @@ export type Exp =
     ObjectExp |
     MemberExp ;
 
-export type IfStmt = { kind: 'if', test: Exp, then: Stmt, else: Stmt };
+export type IfStmt = { kind: 'if', test: Exp, then_part: Stmt, else_part: Stmt };
 export type WhileStmt = { kind: 'while', test: Exp, body: Stmt };
 export type ReturnStmt = { kind: 'return', value: Exp };
 

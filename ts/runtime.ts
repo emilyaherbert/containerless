@@ -219,16 +219,16 @@ export function expectReturn(): Exp {
 export function if_(test: Exp) {
   ast.push({ kind: 'if',
       test: test,
-      then: { kind: 'block', body: [ { kind: 'unknown' } ]},
-      else: { kind: 'block', body: []} });
+      then_part: { kind: 'block', body: [ { kind: 'unknown' } ]},
+      else_part: { kind: 'block', body: []} });
 }
 
 export function ifElse(test: Exp) {
     ast.push({
         kind: 'if',
         test: test,
-        then: { kind: 'block', body: [ { kind: 'unknown' } ]},
-        else: { kind: 'block', body: [ { kind: 'unknown' } ]} });
+        then_part: { kind: 'block', body: [ { kind: 'unknown' } ]},
+        else_part: { kind: 'block', body: [ { kind: 'unknown' } ]} });
 }
 
 export function enterIf(condition: boolean) {
@@ -236,15 +236,15 @@ export function enterIf(condition: boolean) {
 
   // TODO(arjun): Test condition
   if (condition) {
-    if(theIf.then.kind === 'block') {
-      ast.pushScopeWith(theIf.then.body);
-      theIf.then = { kind: 'block', body: ast.current() };
+    if(theIf.then_part.kind === 'block') {
+      ast.pushScopeWith(theIf.then_part.body);
+      theIf.then_part = { kind: 'block', body: ast.current() };
     }
   }
   else {
-    if(theIf.else.kind === 'block') {
-      ast.pushScopeWith(theIf.else.body);
-      theIf.else = { kind: 'block', body: ast.current() };
+    if(theIf.else_part.kind === 'block') {
+      ast.pushScopeWith(theIf.else_part.body);
+      theIf.else_part = { kind: 'block', body: ast.current() };
     }
   }
 }

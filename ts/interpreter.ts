@@ -112,8 +112,8 @@ export class Interpreter {
       }
       case 'if': {
         let c = this.eval_exp(e.test, input);
-        if(helpers.unwrapBoolean(c)) this.eval_stmt(e.then, input);
-        else this.eval_stmt(e.else, input);
+        if(helpers.unwrapBoolean(c)) this.eval_stmt(e.then_part, input);
+        else this.eval_stmt(e.else_part, input);
         break;
       }
       case 'while': {

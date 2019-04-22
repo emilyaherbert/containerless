@@ -49,11 +49,38 @@ export function run_linked_test(code: string, input: (string | boolean | number)
   let tenv = $T.getTEnv();
   let program = $T.getProgram();
   let programStr = $T.getProgramAsString();
+  //console.log(programStr);
 
   $R.compile(programStr);
-  let rust_output = $R.run();
+  let rust_output = $R.run(input);
+  //console.log(rust_output);
 
   expect(rust_output).toEqual(func_output);
+}
+
+export function run_linked_tests(code: string, inputs: (string | boolean | number)[]) {
+  $T.clear();
+  let trace = insertTracing.transform(code);
+  let func_outputs : (string | boolean | number)[] = [];
+  for(let i=0; i<inputs.length; i++) {
+    func_outputs.push(eval(trace)(inputs[i]));
+  }
+
+  let classes = $T.getClasses();
+  let tenv = $T.getTEnv();
+  let program = $T.getProgram();
+  let programStr = $T.getProgramAsString();
+  //console.log(programStr);
+
+  $R.compile(programStr);
+  let rust_outputs : (string | boolean | number)[] = [];
+  for(let i=0; i<inputs.length; i++) {
+    rust_outputs.push($R.run(inputs[i]));
+  }
+
+  for(let i=0; i<inputs.length; i++) {
+    expect(rust_outputs[i]).toEqual(func_outputs[i]);
+  }
 }
 
 function wrap_exp(v : (number | string | boolean | undefined)): Exp {
