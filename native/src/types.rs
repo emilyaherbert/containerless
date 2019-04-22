@@ -18,12 +18,27 @@
 use serde::Deserialize;
 
 #[derive(PartialEq, Debug, Deserialize)]
+pub enum UnaryOp {
+  #[serde(rename = "unary-")]
+  Neg
+}
+
+#[derive(PartialEq, Debug, Deserialize)]
 pub enum BinOp {
     #[serde(rename = "+num")]
     Add,
+    #[serde(rename = "-")]
+    Sub,
+    #[serde(rename = "*")]
     Mul,
     #[serde(rename = "<")]
-    LT
+    LT,
+    #[serde(rename = "<=")]
+    LTE,
+    #[serde(rename = ">")]
+    GT,
+    #[serde(rename = ">=")]
+    GTE
 }
 
 #[derive(PartialEq, Debug, Deserialize)]
@@ -36,7 +51,9 @@ pub enum Exp {
     Undefined {},
     Identifier { name: usize },
     #[serde(rename = "binop")]
-    BinOp { op: BinOp, e1: Box<Exp>, e2: Box<Exp> }
+    BinOp { op: BinOp, e1: Box<Exp>, e2: Box<Exp> },
+    #[serde(rename = "unaryop")]
+    UnaryOp { op: UnaryOp, e: Box<Exp> }
 }
 
 #[derive(PartialEq, Debug, Deserialize)]

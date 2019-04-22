@@ -60,3 +60,22 @@ test('simple if 2', () => {
   let inputs = [-10, 10];
   helpers.run_linked_tests(code, inputs);
 });
+
+// NOTE(emily): Um does Rust not have order of operations?
+test('multiple if statements', () => {
+  let code = `
+  function main(x) {
+    if (x <= 1) {
+      return 1;
+    } else if (x > 30) {
+      return -3;
+    } else {
+      return x * (x - 2);
+    }
+  }
+  main
+  `;
+
+  let inputs = [0, 31, 10];
+  helpers.run_linked_tests(code, inputs);
+});

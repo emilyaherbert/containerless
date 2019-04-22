@@ -1,5 +1,6 @@
 #![macro_use]
 #![allow(unreachable_code)]
+
 extern crate quote;
 extern crate syn;
 extern crate serde;
@@ -17,11 +18,21 @@ use quote::__rt::TokenStream;
 use proc_macro2::Span;
 use neon::prelude::*;
 
+fn compile_unary_op(op: &UnaryOp) -> TokenStream {
+    match op {
+        UnaryOp::Neg => quote! { - }
+    }
+}
+
 fn compile_op(op: &BinOp) -> TokenStream {
     match op {
         BinOp::Add => quote! { + },
+        BinOp::Sub => quote! { - },
         BinOp::Mul => quote! { * },
-        BinOp::LT => quote! { < }
+        BinOp::LT => quote! { < },
+        BinOp::LTE => quote! { <= },
+        BinOp::GT => quote! { > },
+        BinOp::GTE => quote! { >= }
     }
 }
 
@@ -43,8 +54,13 @@ fn compile_exp(e: &types::Exp) -> quote::__rt::TokenStream {
             let q_op = compile_op(op);
             let q_e1 = compile_exp(&e1);
             let q_e2 = compile_exp(&e2);
-            quote! { #q_e1 #q_op #q_e2 }
+            quote! { (#q_e1 #q_op #q_e2) }
         },
+        Exp::UnaryOp { op, e } => {
+          let q_op = compile_unary_op(op);
+          let q_e = compile_exp(e);
+          quote! { (#q_op #q_e) }
+        }
         _ => panic!("wtf")
     }
 }
@@ -87,6 +103,7 @@ fn compile_program(stmt: &Stmt) -> quote::__rt::TokenStream {
     let q_stmt = compile_stmt(stmt);
     quote! {
         #[no_mangle]
+        #[allow(unused_parens)]
         pub extern "C" fn trace_main(trace_input: f64) -> f64 {
             #q_stmt
         }
