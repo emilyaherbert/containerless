@@ -6,7 +6,26 @@ const {Datastore} = require('@google-cloud/datastore');
 const datastore = new Datastore();
 
 /**
- * Creates and/or updates a user.
+ * Gets a Datastore key from the kind/key pair in the request.
+ *
+ * @param {object} requestData Cloud Function request data.
+ * @param {string} requestData.key Datastore key string.
+ * @param {string} requestData.kind Datastore kind.
+ * @returns {object} Datastore key object.
+ */
+function getKeyFromRequestData(requestData) {
+
+  if (!requestData.username) {
+    throw new Error(
+      'Username not provided. Make sure you have a "username" property in your request.'
+    );
+  }
+
+  return datastore.key(["User", requestData.username]);
+}
+
+/**
+ * Creates a user.
  *
  * @example
  * gcloud functions call register --data '{"username":"emily", "password": "herbert"}'
@@ -21,18 +40,18 @@ exports.register = (req, res) => {
 
   if (!req.body.username) {
     throw new Error(
-      'Username not provided. Make sure you have a "username" property in your request'
+      'Username not provided. Make sure you have a "username" property in your request.'
     );
   }
 
   if (!req.body.password) {
     throw new Error(
-      'Password not provided. Make sure you have a "password" property in your request'
+      'Password not provided. Make sure you have a "password" property in your request.'
     );
   }
 
-  const key = datastore.key(["User", req.body.username]);
-  const data = { "password" : req.body.password };
+  const key = getKeyFromRequestData(req.body);
+  const data = { "username" : req.body.username, "password" : req.body.password };
 
   const entity = {
     key: key,
@@ -41,7 +60,7 @@ exports.register = (req, res) => {
 
   return datastore
     .save(entity)
-    .then(() => res.status(200).send(`Entity ${key.path.join('/')} saved.`))
+    .then(() => res.status(200).send(`User ${req.body.username} registered.`))
     .catch(err => {
       console.error(err);
       res.status(500).send(err.message);
@@ -62,7 +81,19 @@ exports.register = (req, res) => {
  * @param {object} res Cloud Function response context.
  */
 exports.login = (req, res) => {
-  const key = datastore.key(["User", req.body.username]);
+  if (!req.body.username) {
+    throw new Error(
+      'Username not provided. Make sure you have a "username" property in your request.'
+    );
+  }
+
+  if (!req.body.password) {
+    throw new Error(
+      'Password not provided. Make sure you have a "password" property in your request.'
+    );
+  }
+
+  const key = getKeyFromRequestData(req.body);
 
   return datastore
     .get(key)
@@ -98,7 +129,19 @@ exports.login = (req, res) => {
  * @param {object} res Cloud Function response context.
  */
 exports.remove = (req, res) => {
-  const key = datastore.key(["User", req.body.username]);
+  if (!req.body.username) {
+    throw new Error(
+      'Username not provided. Make sure you have a "username" property in your request.'
+    );
+  }
+
+  if (!req.body.password) {
+    throw new Error(
+      'Password not provided. Make sure you have a "password" property in your request.'
+    );
+  }
+
+  const key = getKeyFromRequestData(req.body);
 
   return datastore
     .get(key)

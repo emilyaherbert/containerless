@@ -1,8 +1,8 @@
 #!/bin/bash
 # Shell script to emulate/deploy all Cloud Functions in the file
 
-${FUNCTIONS_CMD} deploy set --trigger-http
+gcloud functions deploy register --trigger-http --project umass-plasma --runtime nodejs8
 echo '-----------------------------'
-${FUNCTIONS_CMD} deploy get --trigger-http
+gcloud functions deploy login --trigger-http --project umass-plasma --runtime nodejs8
 echo '-----------------------------'
-${FUNCTIONS_CMD} deploy del --trigger-http
+gcloud functions deploy remove --trigger-http --project umass-plasma --runtime nodejs8
