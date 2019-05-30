@@ -6,3 +6,5 @@ echo '-----------------------------'
 gcloud functions deploy login --trigger-http --project umass-plasma --runtime nodejs8
 echo '-----------------------------'
 gcloud functions deploy remove --trigger-http --project umass-plasma --runtime nodejs8
+echo '-----------------------------'
+gcloud functions deploy list --trigger-http --project umass-plasma --runtime nodejs8

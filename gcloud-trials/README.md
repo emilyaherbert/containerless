@@ -11,4 +11,4 @@
         gcloud functions call register --project umass-plasma --data '{"username":"emily", "password":"herbert"}'
         gcloud functions call login    --project umass-plasma --data '{"username":"emily", "password":"herbert"}'
         gcloud functions call remove   --project umass-plasma --data '{"username":"emily", "password":"herbert"}'
-        gcloud functions call list   --project umass-plasma
+        gcloud functions call list     --project umass-plasma
