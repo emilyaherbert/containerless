@@ -1,9 +1,11 @@
 'use strict';
 
 const {Datastore} = require('@google-cloud/datastore');
-
-// Instantiates a client
 const datastore = new Datastore();
+
+const {Storage} = require('@google-cloud/storage');
+const storage = new Storage();
+const bucket = storage.bucket('umass-plasma-test-bucket');
 
 /**
  * Gets a Datastore key from the kind/key pair in the request.
@@ -138,4 +140,34 @@ exports.list = async (req, res) => {
   users.forEach(u => str += u.username + "\n");
 
   return res.status(200).send(str);
+};
+
+/**
+ * Checks that username/ password combination is correct and retrieves a file.
+ *
+ * @example
+ * gcloud functions call getFile --data '{"username":"emily", "password":"herbert", "srcfile":"government_secrets.txt", "destfile":"government_secrets.txt"}'
+ *
+ * @param {object} req Cloud Function request context.
+ * @param {object} req.body The request body.
+ * @param {string} req.body.username User's username.
+ * @param {string} req.body.password User's password.
+ * @param {string} req.body.srcfile Desired file.
+ * @param {object} res Cloud Function response context.
+ * 
+ * https://github.com/googleapis/google-cloud-node
+ * 
+ */
+exports.getFile = (req, res) => {
+  checkFields(req, res);
+  if(!req.body.srcfile) { res.status(400).send(`Source file field not provided.`); }
+  if(!req.body.destfile) { res.status(400).send(`Destination file field not provided.`); }
+
+  return authorize(req, res, function(req, res) {
+    return bucket
+      .file(req.body.srcfile)
+      .download({
+        destination: req.body.destfile
+      }, function(err) { res.status(500).send(err); });
+  });
 };

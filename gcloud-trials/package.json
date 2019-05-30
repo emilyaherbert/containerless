@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@google-cloud/datastore": "^3.1.2",
+    "@google-cloud/storage": "^2.5.0",
     "supertest": "^4.0.0"
   },
   "devDependencies": {
