@@ -5,7 +5,7 @@
         gcloud functions deploy login    --trigger-http --project umass-plasma --runtime nodejs8
         gcloud functions deploy remove   --trigger-http --project umass-plasma --runtime nodejs8
         gcloud functions deploy list     --trigger-http --project umass-plasma --runtime nodejs8
-        gcloud functions deploy getFile     --trigger-http --project umass-plasma --runtime nodejs8
+        gcloud functions deploy getFile  --trigger-http --project umass-plasma --runtime nodejs8
 
 ## Test
         gcloud functions call register --project umass-plasma --data '{"username":"emily", "password":"herbert"}'

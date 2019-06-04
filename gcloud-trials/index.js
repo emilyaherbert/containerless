@@ -55,11 +55,13 @@ exports.register = (req, res) => {
     .catch(err => {
       console.error(err);
       res.status(500).send(err.message);
-      //return Promise.reject(err);
+      return Promise.reject(err);
     });
 };
 
 function authorize(req, res, next) {
+    checkFields(req, res);
+
   const key = getKeyFromRequestData(req.body);
 
   return datastore
@@ -77,7 +79,7 @@ function authorize(req, res, next) {
     .catch(err => {
       console.error(err);
       res.status(500).send(err.message);
-      //return Promise.reject(err);
+      return Promise.reject(err);
     });
 }
 
@@ -94,8 +96,6 @@ function authorize(req, res, next) {
  * @param {object} res Cloud Function response context.
  */
 exports.login = (req, res) => {
-  checkFields(req, res);
-
   return authorize(req, res, function(req, res) {
     res.status(200).send(`Login successful!`);
   });
@@ -114,8 +114,6 @@ exports.login = (req, res) => {
  * @param {object} res Cloud Function response context.
  */
 exports.remove = (req, res) => {
-  checkFields(req, res);
-
   return authorize(req, res, function(req, res) {
     const key = getKeyFromRequestData(req.body);
     return datastore
@@ -146,7 +144,7 @@ exports.list = async (req, res) => {
  * Checks that username/ password combination is correct and retrieves a file.
  *
  * @example
- * gcloud functions call getFile --data '{"username":"emily", "password":"herbert", "srcfile":"government_secrets.txt", "destfile":"government_secrets.txt"}'
+ * gcloud functions call getFile --data '{"username":"emily", "password":"herbert", "srcfile":"government_secrets.txt"}'
  *
  * @param {object} req Cloud Function request context.
  * @param {object} req.body The request body.
@@ -159,15 +157,15 @@ exports.list = async (req, res) => {
  * 
  */
 exports.getFile = (req, res) => {
-  checkFields(req, res);
   if(!req.body.srcfile) { res.status(400).send(`Source file field not provided.`); }
-  if(!req.body.destfile) { res.status(400).send(`Destination file field not provided.`); }
 
   return authorize(req, res, function(req, res) {
     return bucket
-      .file(req.body.srcfile)
-      .download({
-        destination: req.body.destfile
-      }, function(err) { res.status(500).send(err); });
-  });
+        .file(req.body.srcfile)
+        .download()
+        .then(function(data) {
+            const contents = data[0];
+            res.status(200).send(contents);
+        });
+    });
 };
