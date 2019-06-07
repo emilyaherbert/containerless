@@ -14,9 +14,3 @@ https://stackoverflow.com/questions/53061329/cannot-authenticate-into-google-dat
 https://github.com/googleapis/googleapis/blob/master/google/datastore/datastore.yaml
 https://developers.google.com/identity/protocols/OAuth2ServiceAccount#authorizingrequests
 https://cloud.google.com/storage/docs/authentication
-
-Client ID:
-494493709319-r3vg5eafjiipbuce5o9n346sskbebovn.apps.googleusercontent.com
-
-Client Secret:
-494493709319-r3vg5eafjiipbuce5o9n346sskbebovn.apps.googleusercontent.com
