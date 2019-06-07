@@ -23,6 +23,15 @@ fn main() {
         .expect("No PROJECT_NAME environment variable found");
     let ds = ds::DS::new(google_app_creds,project_name);
 
-    ds.lookup_one();
+    let res = ds.lookup_one();
+    match res {
+        Ok(e) => {
+            match e {
+                Some(entity) => println!("Succes!"),
+                None => println!("Returned none.")
+            }
+        },
+        Err(e) => println!("{}",e)
+    }
 
 }

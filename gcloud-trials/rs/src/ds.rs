@@ -1,6 +1,7 @@
 use hyper::{
     net::HttpsConnector,
-    Client
+    Client,
+    client::response::Response
 };
 
 use hyper_rustls::{
@@ -18,8 +19,11 @@ use google_datastore1::{
     PathElement,
     Entity,
     LookupRequest,
+    LookupResponse,
     CommitRequest,
     Mutation,
+    Result,
+    EntityResult
 };
 
 pub struct DS {
@@ -29,6 +33,7 @@ pub struct DS {
 
 impl DS {
 
+    // https://github.com/n-k/dstest
     pub fn new(key_file: String, project: String) -> DS {
         let client_secret = oauth2::service_account_key_from_file(&key_file).unwrap();
         let client = Client::with_connector(HttpsConnector::new(TlsClient::new()));
@@ -38,7 +43,7 @@ impl DS {
         DS {ds: hub, project: project}
     }
 
-    pub fn lookup_one(&self) -> bool {
+    pub fn lookup_one(&self) -> Result<Option<Entity>> {
         let mut req = LookupRequest {
             keys: Some(vec![
                 Key {
@@ -55,30 +60,33 @@ impl DS {
             read_options: None
         };
 
-        let result = self.ds
+        let result: Result<(Response, LookupResponse)> = self.ds
             .projects()
             .lookup(req, &self.project)
             .doit();
 
         match result {
-            Err(e) =>
-                match e {
-                    // The Error enum provides details about what exactly happened.
-                    // You can also just use its `Debug`, `Display` or `Error` traits
-                    Error::HttpError(_) => println!("HttpError"),
-                    |Error::MissingAPIKey => println!("MissingAPIKey"),
-                    |Error::MissingToken(_) => println!("MissingToken"),
-                    |Error::Cancelled => println!("Cancelled"),
-                    |Error::UploadSizeLimitExceeded(_, _) => println!("UploadSizeLimitExceeded"),
-                    |Error::Failure(_) => println!("Failure"),
-                    |Error::BadRequest(_) => println!("BadRequest"),
-                    |Error::FieldClash(_) => println!("FieldClash"),
-                    |Error::JsonDecodeError(_, _) => println!("{}", e),
-                },
-            Ok(res) => println!("Success: {:?}", res),
-        };
-
-        true
+            Ok(res) => {
+                let (response, lookup_response): (Response, LookupResponse) = res;
+                Ok(DS::unwrap_entity_from_lookup_response(lookup_response))
+            },
+            Err(e) => {
+               Err(e)
+            }
+        }
     }
 
+    fn unwrap_entity_from_lookup_response (lookup_response:LookupResponse) -> Option<Entity> {
+        match lookup_response.found {
+            Some (entities) => {
+                match entities.first() {
+                    Some(_entity) => {
+                        _entity.entity.clone()
+                    },
+                    None => None
+                }
+            },
+            None => None
+        }
+    }
 }
