@@ -9,9 +9,25 @@ extern crate hyper_rustls;
 extern crate google_datastore1;
 extern crate serde_json;
 
-mod datastore_mods;
-
 use std::env;
+
+use hyper::{
+    net::HttpsConnector,
+    Client,
+    client::response::Response
+};
+
+use hyper_rustls::{
+    TlsClient
+};
+
+use oauth2::{
+    ServiceAccountAccess,
+    Authenticator,
+    DefaultAuthenticatorDelegate,
+    ApplicationSecret,
+    MemoryStorage
+};
 
 use serde_json::{
     Value,
@@ -34,26 +50,45 @@ use google_datastore1::{
     PartitionId,
     BeginTransactionRequest,
     TransactionOptions,
-    ReadWrite
-};
-
-use datastore_mods::{
-    ds,
-    funs
+    ReadWrite,
 };
 
 use std::collections::HashMap;
 
+use std::default::Default;
+
 // https://docs.rs/google-datastoprojectIdre1/1.0.8+20181002/google_datastore1/
-// https://github.com/n-k/dstest
 
 fn main() {
 
-    let google_app_creds = env::var("GOOGLE_APPLICATION_CREDENTIALS")
+    let key_file = env::var("GOOGLE_APPLICATION_CREDENTIALS")
         .expect("No GOOGLE_APPLICATION_CREDENTIALS environment variable found");
     let project_name = env::var("PROJECT_NAME")
         .expect("No PROJECT_NAME environment variable found");
-    let datastore = ds::DS::new(google_app_creds,project_name);
+
+    
+    /*
+    let client_secret = oauth2::service_account_key_from_file(&key_file).unwrap();
+    let client = Client::with_connector(HttpsConnector::new(TlsClient::new()));
+    let access = ServiceAccountAccess::new(client_secret, client);
+    let ds = Datastore::new(client, access);
+    */
+
+    
+    let secret: ApplicationSecret = Default::default();
+    let auth = Authenticator::new(
+        &secret,
+        DefaultAuthenticatorDelegate,
+        Client::with_connector(HttpsConnector::new(TlsClient::new())),
+        <MemoryStorage as Default>::default(),
+        None
+    );
+    let ds = Datastore::new(
+        Client::with_connector(hyper::net::HttpsConnector::new(hyper_rustls::TlsClient::new())),
+        auth
+    );
+    
+    
 
     let mut props = HashMap::new();
     props.insert(
@@ -107,7 +142,7 @@ fn main() {
             )
         };
 
-    match datastore.ds.projects().begin_transaction(request, "umass-plasma").doit() {
+    match ds.projects().begin_transaction(request, "umass-plasma").doit() {
         Err(err) => println!("{:?}", err),
         Ok(ok) => {
             let (foo, bar) = ok;
@@ -147,67 +182,9 @@ fn main() {
                         }
                     ])
                 };
-            let res = datastore.ds.projects().commit(request, "umass-plasma").doit();
+            let res = ds.projects().commit(request, "umass-plasma").doit();
             println!("\n{:?}\n", res);
         }
-    }
-
-    /*
-    let request =
-        BeginTransactionRequest {
-            transaction_options: Some(
-                TransactionOptions {
-                    read_write: Some(
-                        ReadWrite {
-                            previous_transaction: None
-                        }
-                    ),
-                    read_only: None
-                }
-            )
-        };
-
-    match datastore.ds.projects().begin_transaction(request, "umass-plasma").doit() {
-        Err(err) => println!("{:?}", err),
-        Ok(ok) => {
-            let (foo, bar) = ok;
-            match datastore.lookup_one() {
-                Err(err) => println!("{:?}", err),
-                Ok(ok) => {
-                    match ok {
-                        None => println!("None!"),
-                        Some(entity) => {
-                            let request =
-                                CommitRequest {
-                                    mode: Some("TRANSACTIONAL".to_string()),
-                                    transaction: bar.transaction,
-                                    mutations: Some(vec![
-                                        Mutation {
-                                            upsert: None,
-                                            delete: None,
-                                            update: None,
-                                            insert: Some(entity),
-                                            base_version: None
-                                        }
-                                    ]),
-                                };
-                            let res = datastore.ds.projects().commit(request, "umass-plasma").doit();
-                            println!("{:?}", res)
-                        }
-                    }
-                }
-            }
-        }
-    }
-    */
-
-    /*
-    let request = json!({
-        "username":"pop",
-        "password":"tart"
-    });
-
-    funs::register(&datastore, &request);
-    */
+    };
 
 }
