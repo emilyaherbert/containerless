@@ -26,7 +26,10 @@ use oauth2::{
     Authenticator,
     DefaultAuthenticatorDelegate,
     ApplicationSecret,
-    MemoryStorage
+    MemoryStorage,
+    ServiceAccountKey,
+    GetToken,
+    FlowType
 };
 
 use serde_json::{
@@ -67,29 +70,16 @@ fn main() {
         .expect("No PROJECT_NAME environment variable found");
 
     
-    /*
-    let client_secret = oauth2::service_account_key_from_file(&key_file).unwrap();
+    let client_secret: ServiceAccountKey = oauth2::service_account_key_from_file(&key_file)
+        .unwrap();
     let client = Client::with_connector(HttpsConnector::new(TlsClient::new()));
-    let access = ServiceAccountAccess::new(client_secret, client);
+    let access = ServiceAccountAccess::new(
+        client_secret,
+        client
+    );
+    let client = Client::with_connector(HttpsConnector::new(TlsClient::new()));
     let ds = Datastore::new(client, access);
-    */
-
     
-    let secret: ApplicationSecret = Default::default();
-    let auth = Authenticator::new(
-        &secret,
-        DefaultAuthenticatorDelegate,
-        Client::with_connector(HttpsConnector::new(TlsClient::new())),
-        <MemoryStorage as Default>::default(),
-        None
-    );
-    let ds = Datastore::new(
-        Client::with_connector(hyper::net::HttpsConnector::new(hyper_rustls::TlsClient::new())),
-        auth
-    );
-    
-    
-
     let mut props = HashMap::new();
     props.insert(
         "username".to_string(),
@@ -129,62 +119,41 @@ fn main() {
     );
 
     let request =
-        BeginTransactionRequest {
-            transaction_options: Some(
-                TransactionOptions {
-                    read_write: Some(
-                        ReadWrite {
-                            previous_transaction: None
-                        }
-                    ),
-                    read_only: None
-                }
-            )
-        };
-
-    match ds.projects().begin_transaction(request, "umass-plasma").doit() {
-        Err(err) => println!("{:?}", err),
-        Ok(ok) => {
-            let (foo, bar) = ok;
-            println!("{:?}", bar.transaction);
-            let request =
-                CommitRequest {
-                    mode: Some("TRANSACTIONAL".to_string()),
-                    transaction: bar.transaction,
-                    mutations: Some(vec![
-                        Mutation {
-                            upsert: None,
-                            delete: None,
-                            update: None,
-                            insert: Some(
-                                Entity {
-                                    key: Some(
-                                        Key {
-                                            path: Some(
-                                                vec![PathElement {
-                                                    kind: Some("User".to_string()),
-                                                    id: None,
-                                                    name: Some("pop2".to_string())
-                                                }]
-                                            ),
-                                            partition_id: Some(
-                                                PartitionId {
-                                                    project_id: Some("umass-plasma".to_string()),
-                                                    namespace_id: None
-                                                }
-                                            )
-                                        }
+        CommitRequest {
+            mode: Some("NON_TRANSACTIONAL".to_string()),
+            transaction: None,
+            mutations: Some(vec![
+                Mutation {
+                    insert: None,
+                    delete: None,
+                    update: None,
+                    upsert: Some(
+                        Entity {
+                            key: Some(
+                                Key {
+                                    path: Some(
+                                        vec![PathElement {
+                                            kind: Some("User".to_string()),
+                                            id: None,
+                                            name: Some("pop2".to_string())
+                                        }]
                                     ),
-                                    properties: Some(props)
+                                    partition_id: Some(
+                                        PartitionId {
+                                            project_id: Some("umass-plasma".to_string()),
+                                            namespace_id: None
+                                        }
+                                    )
                                 }
                             ),
-                            base_version: None
+                            properties: Some(props)
                         }
-                    ])
-                };
-            let res = ds.projects().commit(request, "umass-plasma").doit();
-            println!("\n{:?}\n", res);
-        }
-    };
+                    ),
+                    base_version: None
+                }
+            ])
+        };
+    let res = ds.projects().commit(request, "umass-plasma").doit();
+    println!("\n{:?}\n", res);
 
 }

@@ -1,4 +1,6 @@
 service_key.json
+google-apis-rs
+cmn
 
 # Created by https://www.gitignore.io/api/rust
 # Edit at https://www.gitignore.io/?templates=rust
