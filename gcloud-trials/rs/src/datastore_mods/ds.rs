@@ -23,11 +23,12 @@ use google_datastore1::{
     CommitRequest,
     Mutation,
     Result,
-    EntityResult
+    EntityResult,
+    CommitResponse
 };
 
 pub struct DS {
-    ds: Datastore<Client, ServiceAccountAccess<Client>>,
+    pub ds: Datastore<Client, ServiceAccountAccess<Client>>,
     project: String
 }
 
@@ -38,9 +39,54 @@ impl DS {
         let client_secret = oauth2::service_account_key_from_file(&key_file).unwrap();
         let client = Client::with_connector(HttpsConnector::new(TlsClient::new()));
         let access = ServiceAccountAccess::new(client_secret, client);
-        let client = Client::with_connector(HttpsConnector::new(TlsClient::new()));
         let hub = Datastore::new(client, access);
         DS {ds: hub, project: project}
+    }
+
+    pub fn key(&self, kind: String, name: String) -> Key {
+        let path_element: PathElement =
+            PathElement {
+                kind: Some(kind),
+                id: None,
+                name: Some(name)
+            };
+        let key: Key =
+            Key {
+                path: Some(vec![path_element]),
+                partition_id: None
+            };
+        key
+    }
+
+    // Actually upsert but eh.
+    pub fn save(&self, entity: Entity) -> Result<String> {
+        // https://github.com/n-k/dstest/blob/master/src/db.rs
+        let req =
+            CommitRequest {
+                transaction: None,
+                mutations: Some(vec![
+                    Mutation {
+                        insert: None,
+                        delete: None,
+                        update: None,
+                        upsert: Some(entity),
+                        base_version: None
+                    }
+                ]),
+                mode: Some("NON_TRANSACTIONAL".to_string())
+            };
+
+        println!("{:?}", req);
+        
+        let result: Result<(Response, CommitResponse)> = self.ds
+            .projects()
+            .commit(req, &self.project)
+            .doit();
+        
+        match result {
+            Ok(res) => Ok("Ok!".to_string()),
+            Err(err) => Err(err)
+        }
     }
 
     pub fn lookup_one(&self) -> Result<Option<Entity>> {
