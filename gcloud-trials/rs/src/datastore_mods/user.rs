@@ -12,30 +12,51 @@ use std::{
     collections::HashMap
 };
 
+pub struct UserKey {
+    pub key: Key
+}
+
+impl UserKey {
+    pub fn new(project_name: &String, username: String) -> UserKey {
+        let key =
+                Key {
+                path: Some(
+                    vec![PathElement {
+                        kind: Some("User".to_string()),
+                        id: None,
+                        name: Some(username.clone())
+                    }]
+                ),
+                partition_id: Some(
+                    PartitionId {
+                        project_id: Some(project_name.clone()),
+                        namespace_id: None
+                    }
+                )
+            };
+        return UserKey { key: key };
+    }
+
+    pub fn get_key(&self) -> Key {
+        return self.key.clone();
+    }
+}
+
 pub struct User {
-    pub project_name: String,
+    pub key: UserKey,
     pub username: String,
     pub password: String
 }
 
 impl User {
 
+    pub fn new(project_name: &String, username: String, password: String) -> User {
+        let key = UserKey::new(project_name, username.clone());
+        return User { key: key, username: username.clone(), password: password.clone() };
+    }
+
     pub fn get_key(&self) -> Key {
-        Key {
-            path: Some(
-                vec![PathElement {
-                    kind: Some("User".to_string()),
-                    id: None,
-                    name: Some(self.username.to_string())
-                }]
-            ),
-            partition_id: Some(
-                PartitionId {
-                    project_id: Some(self.project_name.to_string()),
-                    namespace_id: None
-                }
-            )
-        }
+        return self.key.key.clone();
     }
 
     pub fn to_entity(&self) -> Entity {

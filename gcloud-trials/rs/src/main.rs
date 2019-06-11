@@ -13,6 +13,7 @@ mod datastore_mods;
 
 use datastore_mods::{
     user::User,
+    user::UserKey,
     ds::DS
 };
 
@@ -78,11 +79,11 @@ fn main() {
     let ds = DS::new(key_file, &project_name);
     
     let new_user =
-        User {
-            project_name: project_name.to_string(),
-            username: "Edward4".to_string(),
-            password: "Snowden4".to_string()
-        };
+        User::new(
+            &project_name,
+            "Edward4".to_string(),
+            "Snowden4".to_string()
+        );
 
     let result = ds.insert(&new_user);
     println!("\n{:?}\n", result);
@@ -95,5 +96,14 @@ fn main() {
 
     let result4 = ds.update(&new_user);
     println!("\n{:?}\n", result4);
+
+    let old_user =
+        UserKey::new(
+            &project_name,
+            "emily".to_string()
+        );
+
+    let result5 = ds.get(&old_user);
+    println!("\n{:?}\n", result5);
 
 }

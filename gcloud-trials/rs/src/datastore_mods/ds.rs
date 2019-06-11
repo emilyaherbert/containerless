@@ -1,7 +1,8 @@
 // https://github.com/n-k/dstest/blob/master/src/db.rs
 
 use datastore_mods::{
-    user::User
+    user::User,
+    user::UserKey
 };
 
 use hyper::{
@@ -24,7 +25,10 @@ use google_datastore1::{
     CommitRequest,
     Mutation,
     Key,
-    CommitResponse
+    CommitResponse,
+    LookupRequest,
+    LookupResponse,
+    Entity
 };
 
 pub struct DS {
@@ -44,8 +48,13 @@ impl DS {
         DS {ds: hub, project_name: project_name.to_string()}
     }
 
-    fn handle_commit_response(&self, result: std::result::Result<(Response, CommitResponse), Error>) -> std::result::Result<Option<Key>, Error> {
-        match result {
+    fn commit(&self, request: CommitRequest) -> std::result::Result<Option<Key>, Error> {
+        let response = self.ds
+            .projects()
+            .commit(request, &self.project_name)
+            .doit();
+
+        match response {
             Ok((_, commit_response)) => {
                 match commit_response.mutation_results {
                     Some(mut_results) => {
@@ -79,12 +88,7 @@ impl DS {
                 ])
             };
 
-        let result = self.ds
-            .projects()
-            .commit(request, &self.project_name)
-            .doit();
-
-        return self.handle_commit_response(result);
+        return self.commit(request);
     }
 
     pub fn delete(&self, user: &User) -> std::result::Result<Option<Key>, Error> {
@@ -103,12 +107,7 @@ impl DS {
                 ])
             };
 
-        let result = self.ds
-            .projects()
-            .commit(request, &self.project_name)
-            .doit();
-
-        return self.handle_commit_response(result);
+        return self.commit(request);
     }
 
     pub fn update(&self, user: &User) -> std::result::Result<Option<Key>, Error> {
@@ -127,12 +126,7 @@ impl DS {
                 ])
             };
 
-        let result = self.ds
-            .projects()
-            .commit(request, &self.project_name)
-            .doit();
-
-        return self.handle_commit_response(result);
+        return self.commit(request);
     }
 
     pub fn upsert(&self, user: &User) -> std::result::Result<Option<Key>, Error> {
@@ -151,11 +145,43 @@ impl DS {
                 ])
             };
 
-        let result = self.ds
+        return self.commit(request);
+    }
+
+    fn lookup(&self, request: LookupRequest) -> std::result::Result<Option<Entity>, Error> {
+        let response = self.ds
             .projects()
-            .commit(request, &self.project_name)
+            .lookup(request, &self.project_name)
             .doit();
 
-        return self.handle_commit_response(result);
+        match response {
+            Ok((_, lookup_response)) => {
+                match lookup_response.found {
+                    Some(fs) => {
+                        match fs.first() {
+                            Some(entity_result) => Ok(entity_result.entity.clone()),
+                            None => Ok(None)
+                        }
+                    },
+                    None => Ok(None)
+                }
+            },
+            Err(e) => {
+                Err(e)
+            },
+        }   
     }
+
+    pub fn get(&self, user_key: &UserKey) -> std::result::Result<Option<Entity>, Error> {
+        let request =
+            LookupRequest {
+                keys: Some(vec![
+                    user_key.get_key()
+                ]),
+                read_options: None
+            };
+
+        return self.lookup(request);
+    }
+
 }
