@@ -2,6 +2,7 @@
 #![allow(unused_variables)]
 #![allow(unused_imports)]
 #![allow(unused_mut)]
+#![allow(unused_must_use)]
 
 extern crate yup_oauth2 as oauth2;
 extern crate hyper;
@@ -14,7 +15,8 @@ mod datastore_mods;
 use datastore_mods::{
     user::User,
     user::UserKey,
-    ds::DS
+    ds::DS,
+    funs
 };
 
 use hyper::{
@@ -78,32 +80,11 @@ fn main() {
         .expect("No PROJECT_NAME environment variable found");
     let ds = DS::new(key_file, &project_name);
     
-    let new_user =
-        User::new(
-            &project_name,
-            "Edward4".to_string(),
-            "Snowden4".to_string()
-        );
+    let input = json!({
+        "username": "Edward6",
+        "password": "Snowden6"
+    });
 
-    let result = ds.insert(&new_user);
-    println!("\n{:?}\n", result);
-
-    let result2 = ds.delete(&new_user);
-    println!("\n{:?}\n", result2);
-
-    let result3 = ds.upsert(&new_user);
-    println!("\n{:?}\n", result3);
-
-    let result4 = ds.update(&new_user);
-    println!("\n{:?}\n", result4);
-
-    let old_user =
-        UserKey::new(
-            &project_name,
-            "emily".to_string()
-        );
-
-    let result5 = ds.get(&old_user);
-    println!("\n{:?}\n", result5);
+    funs::register(ds, &input);
 
 }

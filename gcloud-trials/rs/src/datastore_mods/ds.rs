@@ -33,7 +33,7 @@ use google_datastore1::{
 
 pub struct DS {
     pub ds: Datastore<Client, ServiceAccountAccess<Client>>,
-    project_name: String
+    pub project_name: String
 }
 
 impl DS {
