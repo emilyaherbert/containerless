@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(unused_mut)]
 #![allow(unused_must_use)]
+#![allow(unused_parens)]
 
 extern crate yup_oauth2 as oauth2;
 extern crate hyper;
@@ -70,8 +71,6 @@ use std::{
     default::Default
 };
 
-// https://docs.rs/google-datastoprojectIdre1/1.0.8+20181002/google_datastore1/
-
 fn main() {
 
     let key_file = env::var("GOOGLE_APPLICATION_CREDENTIALS")
@@ -81,10 +80,11 @@ fn main() {
     let ds = DS::new(key_file, &project_name);
     
     let input = json!({
-        "username": "Edward6",
-        "password": "Snowden6"
+        "username": "Edward7",
+        "password": "Snowden7"
     });
 
-    funs::register(ds, &input);
+    funs::register(&ds, &input);
+    funs::login(&ds, &input);
 
 }

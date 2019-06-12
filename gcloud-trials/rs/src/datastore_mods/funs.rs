@@ -23,9 +23,10 @@ fn check_fields(request_data: &Value) -> Result<String, DatastoreError> {
     }
 }
 
-pub fn register(ds: &DS, request_data: &Value) {
+pub fn register(ds: &DS, request_data: &Value) -> String {
+    let mut ret = "".to_string();
     match check_fields(request_data) {
-        Err(err) => println!("{:?}", err),
+        Err(err) => ret.push_str(&err.to_string()),
         Ok(_) => {
             let user =
                 User::new(
@@ -37,20 +38,24 @@ pub fn register(ds: &DS, request_data: &Value) {
 
             ds.upsert(&user)
             .and_then(|ok| {
-                println!("User {:?} registered.", request_data["username"].as_str().unwrap().to_string());
+                ret.push_str("User ");
+                ret.push_str(&request_data["username"].as_str().unwrap().to_string());
+                ret.push_str(" registered.");
                 Ok(ok)
             })
             .or_else(|err| {
-                println!("{:?}", err);
+                ret.push_str(&err.to_string());
                 Err(err)
             });
         }
-    }
+    };
+    return ret;
 }
 
-fn authorize<F>(ds: &DS, request_data: &Value, next: F) where F: Fn(&Value) {
+fn authorize(ds: &DS, request_data: &Value, next: impl Fn(&Value)->String) -> String {
+    let mut ret = "".to_string();
     match check_fields(request_data) {
-        Err(err) => println!("{:?}", err),
+        Err(err) => ret.push_str(&err.to_string()),
         Ok(_) => {
             let user_key =
                 UserKey::new(
@@ -63,31 +68,32 @@ fn authorize<F>(ds: &DS, request_data: &Value, next: F) where F: Fn(&Value) {
                 match &ok {
                     Some(entity) => {
                         match User::from_entity(entity) {
-                            Err(err) => println!("{:?}", err),
+                            Err(err) => ret.push_str(&err.to_string()),
                             Ok(user) => {
                                 if(request_data["password"].as_str().unwrap().to_string() == user.password) {
                                     next(request_data);
                                 } else {
-                                    println!("Incorrect password!");
+                                    ret.push_str("Incorrect password!");
                                 }
                             }
                         }
-                    }
-                    None => println!("User not found!")
+                    },
+                    None => ret.push_str("User not found!")
                 };
+                next(request_data);
                 Ok(ok)
             })
             .or_else(|err| {
-                println!("{:?}", err);
+                ret.push_str(&err.to_string());
                 Err(err)
             });
         }
-    }
-
+    };
+    return ret;
 }
 
-pub fn login(ds: &DS, request_data: &Value) {
-    authorize(ds, request_data, |req| {
-        println!("Login successful!");
-    })
+pub fn login(ds: &DS, request_data: &Value) -> String {
+    return authorize(ds, request_data, |req| {
+        return ("Login successful!".to_string());
+    });
 }
