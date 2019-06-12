@@ -10,6 +10,7 @@ extern crate hyper;
 extern crate hyper_rustls;
 extern crate google_datastore1;
 extern crate serde_json;
+extern crate pretty_env_logger;
 
 mod datastore_mods;
 
