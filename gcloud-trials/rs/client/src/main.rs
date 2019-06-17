@@ -1,5 +1,6 @@
 #![deny(warnings)]
 extern crate hyper;
+extern crate hyper_tls;
 extern crate pretty_env_logger;
 
 use std::env;
@@ -7,6 +8,8 @@ use std::io::{self, Write};
 
 use hyper::Client;
 use hyper::rt::{self, Future, Stream};
+
+use hyper_tls::HttpsConnector;
 
 fn main() {
     pretty_env_logger::init();
@@ -23,10 +26,6 @@ fn main() {
     // HTTPS requires picking a TLS implementation, so give a better
     // warning if the user tries to request an 'https' URL.
     let url = url.parse::<hyper::Uri>().unwrap();
-    if url.scheme_part().map(|s| s.as_ref()) != Some("http") {
-        println!("This example only works with 'http' URLs.");
-        return;
-    }
 
     // Run the runtime with the future trying to fetch and print this URL.
     //
@@ -36,7 +35,9 @@ fn main() {
 }
 
 fn fetch_url(url: hyper::Uri) -> impl Future<Item=(), Error=()> {
-    let client = Client::new();
+    let https = HttpsConnector::new(4).expect("TLS initialization failed");
+    let client = Client::builder()
+        .build::<_, hyper::Body>(https);
 
     client
         // Fetch the url...
