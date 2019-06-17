@@ -1,0 +1,7 @@
+[package]
+name = "hyper-test"
+version = "0.0.0"
+
+[dependencies]
+hyper = "0.12"
+pretty_env_logger = "0.2.0"
