@@ -16,6 +16,51 @@ pub trait FamilyLt<'a> {
 }
 
 /// All decontainerized functions implement this trait.
+///
+/// Every decontainerized function implements a pair of Rust functions
+/// called `new` and `callback`. The `new` function returns the initial state
+/// and `callback` takes the current state as an argument and optionally
+/// returns a future. If `callback` returns a future, then the runtime
+/// system waits for it to complete successfully  and then reapplies `callback`.
+/// Therefore, `callback` is repeatedly applied to the current state until
+/// it returns `Option::None`.
+///
+/// Finally, to facilitate memory allocation, `new` receives a borrowed
+/// reference to an arena. Therefore, the state produced by `new` contains
+/// references to the arena.
+///
+///  The natural definition of the trait is as follows:
+///
+/// ```text
+/// pub trait Decontainerized {
+///     type State;
+///     type Result : Future<Item = (), Error = ()> + Send;
+///     fn new(arena: &Bump) -> State
+///     fn callback(arena: &Bump, state: &State) -> Option<Self::Result>;
+/// }
+/// ```
+///
+/// Although this code compiles, this definition does not work because
+/// `State` to contain borrowed pointers with the same lifetime as the arena.
+/// We do not want to add a lifetime parameter to the trait itself, since it
+/// will "bubble up" to the rest of the runtime system. Ideally, we would
+/// be able to write the following type:
+///
+/// ```text
+/// pub trait Decontainerized {
+///     type State<'x>;
+///     type Result : Future<Item = (), Error = ()> + Send;
+///     fn new<'a>(arena: &'a Bump) -> State<'a>
+///     fn callback<'a>(
+///         arena: &'a Bump,
+///         state: &'a State)
+///         -> Option<Self::Result>;
+/// }
+/// ```
+///
+/// However, the `type State<'x>` notation is a proposed Rust extension that
+/// has not be implemented (even in nightly). As a workaround, we use
+/// type families as shown below.
 pub trait Decontainerized {
 
     /// Note that the methods `new` and `callback` require this associated type
