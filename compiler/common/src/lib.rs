@@ -1,5 +1,6 @@
 
-use std::collections::HashMap;
+// extern crate im;
+use im_rc::hashmap::HashMap;
 
 pub type Env = HashMap<String, Type>;
 
@@ -17,7 +18,7 @@ pub enum Trexp {
     BinOp(Box<Trexp>, Box<Trexp>),
     From(String, String),
     Let(String, Box<Trexp>, Box<Trexp>),
-    Set(String, Box<Trexp>, Box<Trexp>),
+    Set(String, Box<Trexp>),
     If(Box<Trexp>, Box<Trexp>, Box<Trexp>),
     While(Box<Trexp>, Box<Trexp>),
     Label(String, Box<Trexp>),
@@ -26,10 +27,11 @@ pub enum Trexp {
     Clos(HashMap<String, Box<Trexp>>),
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum Type<'a> {
+#[derive(Debug, PartialEq, Clone)]
+pub enum Type {
     TBool,
     TInt,
     TUnknown,
-    TClos(HashMap<String, Box<Type>>),
+    TUnit,
+    TClos(Env),
 }
