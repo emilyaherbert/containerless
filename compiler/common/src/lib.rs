@@ -5,6 +5,7 @@ pub mod types {
 
     pub type Env = HashMap<String, Type>;
 
+    // Constants
     #[derive(Debug)]
     pub enum AExp {
         Bool(bool),
@@ -13,19 +14,41 @@ pub mod types {
         From(String, String)
     }
 
+    /*
+        The traces do something weird with the grammar. In the original JS grammar,
+        the only production that used bexp was:
+        
+        cexp ::= let x = bexp in cexp
+
+        But because bexp includes function application, which translates to a pyramid of let's, it becomes:
+
+        bexp ::= let x = bexp in cexp
+            ...
+        cexp ::= let x = bexp in cexp
+            ...
+    */
+
+    // Named Expressions
+    #[derive(Debug)]
+    pub enum BExp {
+        AExp(AExp),
+        BinOp(AExp, AExp),
+        Clos(HashMap<String, Box<CExp>>),
+        Let(String, Box<BExp>, Box<CExp>),
+    }
+
+    // Commands
     #[derive(Debug)]
     pub enum CExp {
         AExp(AExp),
         Seq(Box<CExp>, Box<CExp>),
-        BinOp(Box<CExp>, Box<CExp>),
-        Let(String, Box<CExp>, Box<CExp>),
-        Set(String, Box<CExp>),
-        If(Box<CExp>, Box<CExp>, Box<CExp>),
-        While(Box<CExp>, Box<CExp>),
+        Let(String, Box<BExp>, Box<CExp>),
+        Set(String, AExp),
+        If(AExp, Box<CExp>, Box<CExp>),
+        While(AExp, Box<CExp>),
         Label(String, Box<CExp>),
-        Break(String, Box<CExp>),
+        Break(String, AExp),
         Unknown,
-        Clos(HashMap<String, Box<CExp>>),
     }
 
     #[derive(Debug, PartialEq, Clone)]
