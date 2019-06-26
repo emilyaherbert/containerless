@@ -8,20 +8,19 @@ extern crate common;
 
 use im_rc::hashmap::HashMap;
 
-use common::{
+use common::types;
+use types::{
     Env,
-    TrexpAtom,
-    TrexpAtom::{
+    AExp::{
         Bool,
         Int,
-        Id
+        Id,
+        From,
     },
-    Trexp,
-    Trexp::{
+    CExp::{
         AExp,
         Seq,
         BinOp,
-        From,
         Let,
         Set,
         If,
@@ -31,7 +30,6 @@ use common::{
         Unknown,
         Clos
     },
-    Type,
     Type::{
         TBool,
         TInt,
@@ -40,14 +38,14 @@ use common::{
     }
 };
 
-fn expect_bool(ty: Type) {
+fn expect_bool(ty: types::Type) {
     match ty {
         TBool => {},
         _ => panic!("Expected TBool."),
     }
 }
 
-fn check_aexp(env: &Env, aexp: &TrexpAtom) -> Type {
+fn check_aexp(env: &Env, aexp: &types::AExp) -> types::Type {
     match aexp {
         Bool(_) => return TBool,
         Int(_) => return TInt,
@@ -55,25 +53,6 @@ fn check_aexp(env: &Env, aexp: &TrexpAtom) -> Type {
             let ty = env.get(x)
                 .unwrap_or_else(|| panic!("Id not found."));
             return ty.clone();
-        },
-    }
-}
-
-fn check_trexp(env: &Env, trexp: &Trexp) -> Type {
-    match trexp {
-        AExp(aexp) => return check_aexp(env, aexp),
-        Seq(trexp1, trexp2) => {
-            check_trexp(env, trexp1);
-            return check_trexp(env, trexp2);
-        },
-        BinOp(trexp1, trexp2) => {
-            let t1 = check_trexp(env, trexp1);
-            let t2 = check_trexp(env, trexp2);
-            if (t1 == t2) {
-                return t1;
-            } else {
-                panic!("Mismatched BinOp types!");
-            }
         },
         From(x, y) => {
             match env.get(x) {
@@ -87,14 +66,33 @@ fn check_trexp(env: &Env, trexp: &Trexp) -> Type {
                 None => panic!("Expected closure!")
             }
         }
-        Let(x, trexp1, trexp2) => {
-            let t1 = check_trexp(env, trexp1);
+    }
+}
+
+fn check_cexp(env: &Env, cexp: &types::CExp) -> types::Type {
+    match cexp {
+        AExp(aexp) => return check_aexp(env, aexp),
+        Seq(cexp1, cexp2) => {
+            check_cexp(env, cexp1);
+            return check_cexp(env, cexp2);
+        },
+        BinOp(cexp1, cexp2) => {
+            let t1 = check_cexp(env, cexp1);
+            let t2 = check_cexp(env, cexp2);
+            if (t1 == t2) {
+                return t1;
+            } else {
+                panic!("Mismatched BinOp types!");
+            }
+        },
+        Let(x, cexp1, cexp2) => {
+            let t1 = check_cexp(env, cexp1);
             let mut env2 = env.clone();
             env2.insert(x.to_string(), t1);
-            return check_trexp(&env2, trexp2);
+            return check_cexp(&env2, cexp2);
         },
-        Set(x, trexp) => {
-            let t = check_trexp(env, trexp);
+        Set(x, cexp) => {
+            let t = check_cexp(env, cexp);
             match env.get(x) {
                 Some(other) => {
                     if(t == *other) {
@@ -106,26 +104,26 @@ fn check_trexp(env: &Env, trexp: &Trexp) -> Type {
                 None => return t,
             }
         },
-        If(trexp1, trexp2, trexp3) => {
-            expect_bool(check_trexp(env, trexp1));
-            let t1 = check_trexp(env, trexp2);
-            let t2 = check_trexp(env, trexp3);
+        If(cexp1, cexp2, cexp3) => {
+            expect_bool(check_cexp(env, cexp1));
+            let t1 = check_cexp(env, cexp2);
+            let t2 = check_cexp(env, cexp3);
             if (t1 == t2) {
                 return t1;
             } else {
                 panic!("Mismatched If types!");
             }
         },
-        While(trexp1, trexp2) => {
-            expect_bool(check_trexp(env, trexp1));
-            return check_trexp(env, trexp2);
+        While(cexp1, cexp2) => {
+            expect_bool(check_cexp(env, cexp1));
+            return check_cexp(env, cexp2);
         },
-        Label(_, trexp) => return check_trexp(env, trexp),
-        Break(_, trexp) => return check_trexp(env, trexp),
+        Label(_, cexp) => return check_cexp(env, cexp),
+        Break(_, cexp) => return check_cexp(env, cexp),
         Unknown => return TUnknown,
-        Clos(trexps) => {
-            let types: Env = trexps.iter()
-                .map(|(id, trexp)| (id.to_string(), check_trexp(env, trexp)))
+        Clos(cexps) => {
+            let types: Env = cexps.iter()
+                .map(|(id, cexp)| (id.to_string(), check_cexp(env, cexp)))
                 .collect();
             return TClos(types);
         }
@@ -133,130 +131,130 @@ fn check_trexp(env: &Env, trexp: &Trexp) -> Type {
 }
 
 fn main() {
-    let test_trexp = BinOp(Box::new(AExp(Int(10))), Box::new(AExp(Int(1))));
-    println!("{:?}", test_trexp);
+    let test_cexp = BinOp(Box::new(AExp(Int(10))), Box::new(AExp(Int(1))));
+    println!("{:?}", test_cexp);
 
     let env: Env = HashMap::new();
 
-    let result = check_trexp(&env, &test_trexp);
+    let result = check_cexp(&env, &test_cexp);
     println!("{:?}", result);
 
 }
 
 #[test]
 fn test_add() {
-    let test_trexp = BinOp(Box::new(AExp(Int(10))), Box::new(AExp(Int(1))));
+    let test_cexp = BinOp(Box::new(AExp(Int(10))), Box::new(AExp(Int(1))));
     let env: Env = HashMap::new();
-    let result = check_trexp(&env, &test_trexp);
+    let result = check_cexp(&env, &test_cexp);
     assert_eq!(result, TInt);
 }
 
 #[test]
 #[should_panic]
 fn test_add_p() {
-    let test_trexp = BinOp(Box::new(AExp(Int(10))), Box::new(AExp(Bool(false))));
+    let test_cexp = BinOp(Box::new(AExp(Int(10))), Box::new(AExp(Bool(false))));
     let env: Env = HashMap::new();
-    let result = check_trexp(&env, &test_trexp);
+    let result = check_cexp(&env, &test_cexp);
     assert_eq!(result, TInt);
 }
 
 #[test]
 fn test_let() {
-    let test_trexp = {
+    let test_cexp = {
         Let("x".to_string(),
             Box::new(AExp(Int(13))),
             Box::new(AExp(Id("x".to_string()))))
     };
     let env: Env = HashMap::new();
-    let result = check_trexp(&env, &test_trexp);
+    let result = check_cexp(&env, &test_cexp);
     assert_eq!(result, TInt);
 }
 
 #[test]
 fn test_set() {
-    let test_trexp = {
+    let test_cexp = {
         Let("x".to_string(),
             Box::new(AExp(Bool(false))),
             Box::new(Set("x".to_string(),
                 Box::new(AExp(Bool(true))))))
     };
     let env: Env = HashMap::new();
-    let result = check_trexp(&env, &test_trexp);
+    let result = check_cexp(&env, &test_cexp);
     assert_eq!(result, TBool);
 }
 
 #[test]
 #[should_panic]
 fn test_set_p() {
-    let test_trexp = {
+    let test_cexp = {
         Let("x".to_string(),
             Box::new(AExp(Int(13))),
             Box::new(Set("x".to_string(),
                 Box::new(AExp(Bool(false))))))
     };
     let env: Env = HashMap::new();
-    let result = check_trexp(&env, &test_trexp);
+    let result = check_cexp(&env, &test_cexp);
     assert_eq!(result, TInt);
 }
 
 #[test]
 fn test_if() {
-    let test_trexp = {
+    let test_cexp = {
         If(Box::new(AExp(Bool(true))),
             Box::new(AExp(Int(4))),
             Box::new(AExp(Int(10))))
     };
     let env: Env = HashMap::new();
-    let result = check_trexp(&env, &test_trexp);
+    let result = check_cexp(&env, &test_cexp);
     assert_eq!(result, TInt);
 }
 
 #[test]
 #[should_panic]
 fn test_if_p() {
-    let test_trexp = {
+    let test_cexp = {
         If(Box::new(AExp(Bool(true))),
             Box::new(AExp(Int(4))),
             Box::new(AExp(Bool(false))))
     };
     let env: Env = HashMap::new();
-    let result = check_trexp(&env, &test_trexp);
+    let result = check_cexp(&env, &test_cexp);
     assert_eq!(result, TInt);
 }
 
 #[test]
 fn test_while() {
-    let test_trexp = {
+    let test_cexp = {
         While(Box::new(AExp(Bool(false))),
             Box::new(Seq(Box::new(BinOp(Box::new(AExp(Int(10))), Box::new(AExp(Int(1))))),
                 Box::new(AExp(Bool(false))))))
     };
     let env: Env = HashMap::new();
-    let result = check_trexp(&env, &test_trexp);
+    let result = check_cexp(&env, &test_cexp);
     assert_eq!(result, TBool);
 }
 
 #[test]
 #[should_panic]
 fn test_while_p() {
-    let test_trexp = {
+    let test_cexp = {
         While(Box::new(AExp(Int(4))),
             Box::new(Seq(Box::new(BinOp(Box::new(AExp(Int(10))), Box::new(AExp(Int(1))))),
                 Box::new(AExp(Bool(false))))))
     };
     let env: Env = HashMap::new();
-    let result = check_trexp(&env, &test_trexp);
+    let result = check_cexp(&env, &test_cexp);
     assert_eq!(result, TBool);
 }
 
 #[test]
 fn test_label() {
-    let test_trexp = {
+    let test_cexp = {
         Label("fitbit".to_string(),
             Box::new(Break("fitbit".to_string(),
                 Box::new(Unknown))))
     };
     let env: Env = HashMap::new();
-    let result = check_trexp(&env, &test_trexp);
+    let result = check_cexp(&env, &test_cexp);
     assert_eq!(result, TUnknown);
 }

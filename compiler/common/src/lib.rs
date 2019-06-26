@@ -1,37 +1,40 @@
 
-// extern crate im;
-use im_rc::hashmap::HashMap;
+pub mod types {
 
-pub type Env = HashMap<String, Type>;
+    use im_rc::hashmap::HashMap;
 
-#[derive(Debug)]
-pub enum TrexpAtom {
-    Bool(bool),
-    Int(i32),
-    Id(String)
-}
+    pub type Env = HashMap<String, Type>;
 
-#[derive(Debug)]
-pub enum Trexp {
-    AExp(TrexpAtom),
-    Seq(Box<Trexp>, Box<Trexp>),
-    BinOp(Box<Trexp>, Box<Trexp>),
-    From(String, String),
-    Let(String, Box<Trexp>, Box<Trexp>),
-    Set(String, Box<Trexp>),
-    If(Box<Trexp>, Box<Trexp>, Box<Trexp>),
-    While(Box<Trexp>, Box<Trexp>),
-    Label(String, Box<Trexp>),
-    Break(String, Box<Trexp>),
-    Unknown,
-    Clos(HashMap<String, Box<Trexp>>),
-}
+    #[derive(Debug)]
+    pub enum AExp {
+        Bool(bool),
+        Int(i32),
+        Id(String),
+        From(String, String)
+    }
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum Type {
-    TBool,
-    TInt,
-    TUnknown,
-    TUnit,
-    TClos(Env),
+    #[derive(Debug)]
+    pub enum CExp {
+        AExp(AExp),
+        Seq(Box<CExp>, Box<CExp>),
+        BinOp(Box<CExp>, Box<CExp>),
+        Let(String, Box<CExp>, Box<CExp>),
+        Set(String, Box<CExp>),
+        If(Box<CExp>, Box<CExp>, Box<CExp>),
+        While(Box<CExp>, Box<CExp>),
+        Label(String, Box<CExp>),
+        Break(String, Box<CExp>),
+        Unknown,
+        Clos(HashMap<String, Box<CExp>>),
+    }
+
+    #[derive(Debug, PartialEq, Clone)]
+    pub enum Type {
+        TBool,
+        TInt,
+        TUnknown,
+        TUnit,
+        TClos(HashMap<String, Type>),
+    }
+
 }
