@@ -1,6 +1,11 @@
 
 use im_rc::hashmap::HashMap;
 
+use serde::{
+    Deserialize,
+    Serialize,
+};
+
 pub type Env = HashMap<String, Type>;
 
 /*
@@ -47,14 +52,14 @@ pub type Env = HashMap<String, Type>;
  */
 
 // Constants
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub enum Exp {
     Bool(bool),
     Int(i32),
     Id(String),
     From(String, String),
     BinOp(Box<Exp>, Box<Exp>),
-    Clos(HashMap<String, Box<Exp>>),
+    Clos(Vec<(String, Box<Exp>)>),
     Seq(Box<Exp>, Box<Exp>),
     Let(String, Box<Exp>, Box<Exp>),
     Set(String, Box<Exp>),
@@ -73,3 +78,5 @@ pub enum Type {
     TUnit,
     TClos(HashMap<String, Type>),
 }
+
+pub type State = HashMap<String, Type>;

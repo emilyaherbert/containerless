@@ -32,7 +32,8 @@ use typed_traces::{
         TInt,
         TUnknown,
         TClos
-    }
+    },
+    State
 };
 
 fn expect_bool(ty: Type) {
@@ -42,14 +43,7 @@ fn expect_bool(ty: Type) {
     }
 }
 
-fn check_let(env: &Env, x: String, exp1: &Exp, exp2: &Exp) -> Type {
-    let t1 = check_exp(env, exp1);
-    let mut env2 = env.clone();
-    env2.insert(x, t1);
-    return check_exp(&env2, exp2);
-}
-
-fn check_exp(env: &Env, exp: &Exp) -> Type {
+fn check_exp(state: &mut State, env: &Env, exp: &Exp) -> Type {
     match exp {
         Bool(_) => return TBool,
         Int(_) => return TInt,
@@ -71,8 +65,8 @@ fn check_exp(env: &Env, exp: &Exp) -> Type {
             }
         }
         BinOp(exp1, exp2) => {
-            let t1 = check_exp(env, exp1);
-            let t2 = check_exp(env, exp2);
+            let t1 = check_exp(state, env, exp1);
+            let t2 = check_exp(state, env, exp2);
             if (t1 == t2) {
                 return t1;
             } else {
@@ -81,17 +75,23 @@ fn check_exp(env: &Env, exp: &Exp) -> Type {
         },
         Clos(exps) => {
             let types: Env = exps.iter()
-                .map(|(id, exp)| (id.to_string(), check_exp(env, exp)))
+                .map(|(id, exp)| (id.to_string(), check_exp(state, env, exp)))
                 .collect();
             return TClos(types);
         },
         Seq(exp1, exp2) => {
-            check_exp(env, exp1);
-            return check_exp(env, exp2);
+            check_exp(state, env, exp1);
+            return check_exp(state, env, exp2);
         },
-        Let(x, exp1, exp2) => return check_let(env, x.to_string(), exp1, exp2),
+        Let(x, exp1, exp2) => {
+            let t1 = check_exp(state, env, exp1);
+            let mut env2 = env.clone();
+            env2.insert(x.to_string(), t1.clone());
+            state.insert(x.to_string(), t1);
+            return check_exp(state, &env2, exp2);
+        }
         Set(x, exp) => {
-            let t = check_exp(env, exp);
+            let t = check_exp(state, env, exp);
             match env.get(x) {
                 Some(other) => {
                     if(t == *other) {
@@ -104,9 +104,9 @@ fn check_exp(env: &Env, exp: &Exp) -> Type {
             }
         },
         If(exp1, exp2, exp3) => {
-            expect_bool(check_exp(env, exp1));
-            let t1 = check_exp(env, exp2);
-            let t2 = check_exp(env, exp3);
+            expect_bool(check_exp(state, env, exp1));
+            let t1 = check_exp(state, env, exp2);
+            let t2 = check_exp(state, env, exp3);
             if (t1 == t2) {
                 return t1;
             } else {
@@ -114,142 +114,170 @@ fn check_exp(env: &Env, exp: &Exp) -> Type {
             }
         },
         While(exp1, exp2) => {
-            expect_bool(check_exp(env, exp1));
-            return check_exp(env, exp2);
+            expect_bool(check_exp(state, env, exp1));
+            return check_exp(state, env, exp2);
         },
-        Label(_, exp) => return check_exp(env, exp),
-        Break(_, exp) => return check_exp(env, exp),
+        Label(_, exp) => return check_exp(state, env, exp),
+        Break(_, exp) => return check_exp(state, env, exp),
         Unknown => return TUnknown,
     }
 }
 
 fn main() {
     let test_exp = BinOp(Box::new(Int(10)), Box::new(Int(1)));
+    println!("{:?}", serde_json::to_string(&test_exp));
+
     println!("{:?}", test_exp);
 
+    let mut state: State = HashMap::new();
     let env: Env = HashMap::new();
 
-    let result = check_exp(&env, &test_exp);
+    let result = check_exp(&mut state, &env, &test_exp);
     println!("{:?}", result);
 
 }
 
+fn run_test(exp: Exp, solution: Type) {
+    let mut state: State = HashMap::new();
+    let env: Env = HashMap::new();
+    let result = check_exp(&mut state, &env, &exp);
+    println!("\n{:?}\n", state);
+    assert_eq!(result, solution);
+}
+
+fn parse_exp(s: &str) -> Exp {
+    serde_json::from_str(&s).expect("Expression (as JSON)")
+}
+
+fn run_test_json(s: &str, solution: Type) {
+    let exp = parse_exp(s);
+    let mut state: State = HashMap::new();
+    let env: Env = HashMap::new();
+    let result = check_exp(&mut state, &env, &exp);
+    println!("\n{:?}\n", state);
+    assert_eq!(result, solution);
+}
+
+#[test]
+fn parse_add() {
+    assert_eq!(parse_exp(r#"
+        { "BinOp": [{ "Int" : 10 },
+                    { "Int" : 1  }]}
+    "#), BinOp(Box::new(Int(10)), Box::new(Int(1))));
+}
+
 #[test]
 fn test_add() {
-    let test_exp = BinOp(Box::new(Int(10)), Box::new(Int(1)));
-    let env: Env = HashMap::new();
-    let result = check_exp(&env, &test_exp);
-    assert_eq!(result, TInt);
+    run_test(
+        BinOp(Box::new(Int(10)), Box::new(Int(1))),
+        TInt
+    );
 }
 
 #[test]
 #[should_panic]
 fn test_add_p() {
-    let test_exp = BinOp(Box::new(Int(10)), Box::new(Bool(false)));
-    let env: Env = HashMap::new();
-    let result = check_exp(&env, &test_exp);
-    assert_eq!(result, TInt);
+    run_test(
+        BinOp(Box::new(Int(10)), Box::new(Bool(false))),
+        TInt
+    );
 }
 
 #[test]
 fn test_let() {
-    let test_exp = {
+    run_test(
         Let("x".to_string(),
             Box::new(Int(13)),
-            Box::new(Id("x".to_string())))
-    };
-    let env: Env = HashMap::new();
-    let result = check_exp(&env, &test_exp);
-    assert_eq!(result, TInt);
+            Box::new(Id("x".to_string()))),
+        TInt
+    );
 }
 
 #[test]
 fn test_set() {
-    let test_exp = {
+    run_test(
         Let("x".to_string(),
             Box::new(Bool(false)),
             Box::new(Set("x".to_string(),
-                Box::new(Bool(true)))))
-    };
-    let env: Env = HashMap::new();
-    let result = check_exp(&env, &test_exp);
-    assert_eq!(result, TBool);
+                Box::new(Bool(true))))),
+        TBool
+    );
 }
 
 #[test]
 #[should_panic]
 fn test_set_p() {
-    let test_exp = {
+    run_test(
         Let("x".to_string(),
             Box::new(Int(13)),
             Box::new(Set("x".to_string(),
-                Box::new(Bool(false)))))
-    };
-    let env: Env = HashMap::new();
-    let result = check_exp(&env, &test_exp);
-    assert_eq!(result, TInt);
+                Box::new(Bool(false))))),
+        TInt
+    );
 }
 
 #[test]
 fn test_if() {
-    let test_exp = {
+    run_test(
         If(Box::new(Bool(true)),
             Box::new(Int(4)),
-            Box::new(Int(10)))
-    };
-    let env: Env = HashMap::new();
-    let result = check_exp(&env, &test_exp);
-    assert_eq!(result, TInt);
+            Box::new(Int(10))),
+        TInt
+    );
 }
 
 #[test]
 #[should_panic]
 fn test_if_p() {
-    let test_exp = {
+    run_test(
         If(Box::new(Bool(true)),
             Box::new(Int(4)),
-            Box::new(Bool(false)))
-    };
-    let env: Env = HashMap::new();
-    let result = check_exp(&env, &test_exp);
-    assert_eq!(result, TInt);
+            Box::new(Bool(false))),
+        TInt
+    );
 }
 
 #[test]
 fn test_while() {
-    let test_exp = {
+    run_test(
         While(Box::new(Bool(false)),
             Box::new(Seq(Box::new(Bool(false)),
-                Box::new(Bool(false)))))
-    };
-    let env: Env = HashMap::new();
-    let result = check_exp(&env, &test_exp);
-    assert_eq!(result, TBool);
+                Box::new(Bool(false))))),
+        TBool
+    );
 }
 
 #[test]
 #[should_panic]
 fn test_while_p() {
-    let test_exp = {
+    run_test(
         While(Box::new(Int(4)),
             Box::new(Seq(Box::new(Bool(false)),
-                Box::new(Bool(false)))))
-    };
-    let env: Env = HashMap::new();
-    let result = check_exp(&env, &test_exp);
-    assert_eq!(result, TBool);
+                Box::new(Bool(false))))),
+        TBool
+    );
 }
 
 #[test]
 fn test_label() {
-    let test_exp = {
+    run_test(
         Let("computer".to_string(),
             Box::new(Int(32)),
             Box::new(Label("fitbit".to_string(),
                 Box::new(Break("fitbit".to_string(),
-                    Box::new(Id("computer".to_string())))))))
-    };
-    let env: Env = HashMap::new();
-    let result = check_exp(&env, &test_exp);
-    assert_eq!(result, TInt);
+                    Box::new(Id("computer".to_string()))))))),
+        TInt
+    );
+}
+
+#[test]
+fn test_if_json() {
+    run_test_json(
+        r#"
+            { "If" : [{ "Bool" : true },
+                      { "Int" : 7 },
+                      { "Int" : 9 }]}
+        "#,
+        TInt
+    );
 }
