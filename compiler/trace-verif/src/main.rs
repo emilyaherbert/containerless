@@ -7,6 +7,7 @@
 extern crate common;
 
 use im_rc::hashmap::HashMap;
+pub mod typed_traces;
 
 use common::types::{
     Env,

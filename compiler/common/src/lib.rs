@@ -1,12 +1,14 @@
 
 pub mod types {
 
+    use serde::Deserialize;
+
     use im_rc::hashmap::HashMap;
 
     pub type Env = HashMap<String, Type>;
 
     // Constants
-    #[derive(Debug)]
+    #[derive(Debug, Deserialize)]
     pub enum AExp {
         Bool(bool),
         Int(i32),
@@ -29,16 +31,16 @@ pub mod types {
     */
 
     // Named Expressions
-    #[derive(Debug)]
+    #[derive(Debug, Deserialize)]
     pub enum BExp {
         AExp(AExp),
         BinOp(AExp, AExp),
-        Clos(HashMap<String, Box<CExp>>),
+        Clos(Vec<(String, Box<CExp>)>),
         Let(String, Box<BExp>, Box<CExp>),
     }
 
     // Commands
-    #[derive(Debug)]
+    #[derive(Debug, Deserialize)]
     pub enum CExp {
         AExp(AExp),
         Seq(Box<CExp>, Box<CExp>),
