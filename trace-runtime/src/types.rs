@@ -1,5 +1,5 @@
 use std::{pin::Pin, marker::PhantomData};
-use futures::{Future, Poll, Async};
+use futures::{Future, Poll, Async, future};
 use bumpalo::Bump;
 
 /// An empty type. We need to define our own until the `!` type is
@@ -15,15 +15,41 @@ pub trait FamilyLt<'a> {
     type Out;
 }
 
+/// An enumeration of the events that a decontainerized function can run
+/// within Rust.
+pub enum AsyncOp {
+    /// This event immediately completes, which is useful for testing without
+    /// performing real I/O.
+    Immediate,
+    Request(String)
+}
+
+/// The execution context allows a callback to send new events.
+pub struct ExecutionContext {
+    new_ops: Vec<(AsyncOp, usize)>
+}
+
+impl ExecutionContext {
+
+    /// Send a new event. The argument `indicator` is sent back with the
+    /// response, which helps the decontainerized keep track of multiple
+    /// pending requests. There is no requirement that indicators be distinct,
+    /// but that will be helpful to client code.
+    pub fn loopback(&mut self, op: AsyncOp, indicator: usize) {
+        self.new_ops.push((op, indicator));
+    }
+}
+
 /// All decontainerized functions implement this trait.
 ///
 /// Every decontainerized function implements a pair of Rust functions
 /// called `new` and `callback`. The `new` function returns the initial state
-/// and `callback` takes the current state as an argument and optionally
-/// returns a future. If `callback` returns a future, then the runtime
-/// system waits for it to complete successfully  and then reapplies `callback`.
-/// Therefore, `callback` is repeatedly applied to the current state until
-/// it returns `Option::None`.
+/// and `callback` takes the current state as an argument and an execution
+/// context. The execution context has a method called `loopback` that allows
+/// `callback` to send events and run again (i.e., loopback) when a response
+/// to the event is received. If `callback` returns without sending new events
+/// and there are no pending events, then the decontainerized function completes
+/// successfully.
 ///
 /// Finally, to facilitate memory allocation, `new` receives a borrowed
 /// reference to an arena. Therefore, the state produced by `new` contains
@@ -34,9 +60,8 @@ pub trait FamilyLt<'a> {
 /// ```text
 /// pub trait Decontainerized {
 ///     type State;
-///     type Result : Future<Item = (), Error = ()> + Send;
 ///     fn new(arena: &Bump) -> State
-///     fn callback(arena: &Bump, state: &State) -> Option<Self::Result>;
+///     fn callback(arena: &Bump, state: &State, &mut ExecutionContext) -> ();
 /// }
 /// ```
 ///
@@ -49,12 +74,12 @@ pub trait FamilyLt<'a> {
 /// ```text
 /// pub trait Decontainerized {
 ///     type State<'x>;
-///     type Result : Future<Item = (), Error = ()> + Send;
 ///     fn new<'a>(arena: &'a Bump) -> State<'a>
-///     fn callback<'a>(
+///     fn callback<'a,'b>(
 ///         arena: &'a Bump,
-///         state: &'a State)
-///         -> Option<Self::Result>;
+///         state: &'a State,
+///         ec: &'mut ExecutionContext)
+///         -> ();
 /// }
 /// ```
 ///
@@ -82,18 +107,6 @@ pub trait Decontainerized {
     /// to values allocated in the arena.
     type StateFamily : Send;
 
-    /// The type result produced by the decontainerized function. It is possible
-    /// for this type to be a particular structure that implements `Future`.
-    /// However, a simple alternative is the following type, which will work
-    /// for any function by boxing the result:
-    ///
-    /// ```ignore
-    /// type Result = Box<Future<Item = (), Error = ()> + Send>;
-    /// ```
-    ///
-    /// We should not worry about a single extra box for every request.
-    type Result : Future<Item = (), Error = ()> + Send;
-
     /// Initializes the decontainerized function. This function borrows the
     /// arena and produces a structure with the type `StateFamily<'a>::Out`.
     /// That structure may be parameterized by `'a,`, thus may hold references
@@ -103,18 +116,13 @@ pub trait Decontainerized {
         <Self::StateFamily as FamilyLt<'a>>::Out where
         Self::StateFamily: FamilyLt<'a>;
 
-    fn callback<'a>(
+    fn callback<'a, 'b>(
         arena: &'a Bump,
-        state: &'a mut <Self::StateFamily as FamilyLt<'a>>::Out)
-        -> Option<Self::Result> where
-      Self::StateFamily: FamilyLt<'a>;
+        state: &'a mut <Self::StateFamily as FamilyLt<'a>>::Out,
+        ec: &'b mut ExecutionContext)
+        -> () where
+        Self::StateFamily: FamilyLt<'a>;
 
-}
-
-enum MachineState<T> {
-    Ready,
-    Waiting(T),
-    Done
 }
 
 // This structure owns an arena and has an unsafe implementation of `Send`.
@@ -132,7 +140,7 @@ struct DecontainerImpl<T> where
   T : Send + Sized + Decontainerized {
     task: PhantomData<T>,
     arena: Arena,
-    machine_state: MachineState<T::Result>,
+    machine_state: Vec<(bool, Box<Future<Item = usize, Error = ()> + Send>)>,
     // We really mean for `state` to have the following type:
     //
     // ```
@@ -165,7 +173,8 @@ fn forget_type<T>(x: Box<T>) -> Box<Never> {
 
 pub struct Decontainer<T> where
     T : Send + Sized + Decontainerized {
-    pinned: Pin<Box<DecontainerImpl<T>>>
+    pinned: Pin<Box<DecontainerImpl<T>>>,
+    ec : ExecutionContext
 }
 
 #[allow(unused)]
@@ -190,8 +199,9 @@ impl<T> Decontainer<T> where
                 arena: Arena { bump: arena },
                 state: state,
                 task: PhantomData,
-                machine_state: MachineState::Ready
-            })
+                machine_state: vec![ (false, Box::new(future::ok(0))) ]
+            }),
+            ec: ExecutionContext { new_ops: Vec::new() }
         };
     }
 
@@ -200,8 +210,7 @@ impl<T> Decontainer<T> where
 #[allow(unused)]
 impl<T> Future for Decontainer<T> where
     T : Send + Sized + Decontainerized,
-    <T as Decontainerized>::StateFamily: for<'a> FamilyLt<'a>,
-    <T as Decontainerized>::Result: futures::future::Future  {
+    <T as Decontainerized>::StateFamily: for<'a> FamilyLt<'a>  {
 
     type Item = ();
     type Error = ();
@@ -209,38 +218,55 @@ impl<T> Future for Decontainer<T> where
     fn poll<'a>(
         &'a mut self
     ) -> Poll<Self::Item, Self::Error> {
+        // Boilerplate to address pinning
         let mut_ref = unsafe { Pin::as_mut(&mut self.pinned) };
         let self_ = unsafe { Pin::get_unchecked_mut(mut_ref) };
+
+        assert!(self.ec.new_ops.len() == 0);
+        let mut ec = &mut self.ec;
         loop {
-            match &mut self_.machine_state {
-                MachineState::Done => panic!("already done"),
-                MachineState::Ready => {
-                    let state = unsafe { remember_type::<T>(&mut self_.state) };
-                    match T::callback(&self_.arena.bump, state) {
-                        Option::None => {
-                            self_.machine_state = MachineState::Done;
-                            return Result::Ok(Async::Ready(()));
-                        },
-                        Option::Some(f) => {
-                            self_.machine_state = MachineState::Waiting(f)
-                        }
-                    }
-                }
-                MachineState::Waiting(future) => {
-                    match future.poll() {
-                        Result::Err(err) => {
-                            eprintln!("Error: {:?}", &err);
-                            return Result::Err(err)
-                        },
-                        Result::Ok(Async::NotReady) => {
-                            return Result::Ok(Async::NotReady);
-                        },
-                        Result::Ok(Async::Ready(_)) => {
-                            self_.machine_state = MachineState::Ready;
-                        }
+            // Nothing left to do, so we are ready. Note that
+            // Decontainer::new() adds a single future to machine_state, so
+            // this is not empty initially.
+            if self_.machine_state.len() == 0 {
+                return Result::Ok(Async::Ready(()));
+            }
+            let mut any_completed = false;
+            for (completed, future) in self_.machine_state.iter_mut() {
+                assert!(*completed == false);
+                match future.poll() {
+                    Result::Err(err) => {
+                        eprintln!("Error: {:?}", &err);
+                        return Result::Err(err)
+                    },
+                    Result::Ok(Async::NotReady) => {
+                        // Try next future
+                    },
+                    Result::Ok(Async::Ready(n)) => {
+                        *completed = true;
+                        any_completed = true;
+                        let state = unsafe { remember_type::<T>(&mut self_.state) };
+                        T::callback(&self_.arena.bump, state, &mut ec);
                     }
                 }
             }
+            // Nothing completed, thus never executed T::callback.
+            if any_completed == false {
+                return Result::Ok(Async::NotReady);
+            }
+            self_.machine_state.retain(|(completed, _)| *completed == false);
+            // Create a future for each new operation.
+            for (op, indicator) in ec.new_ops.iter() {
+                match op {
+                    AsyncOp::Immediate => {
+                        self_.machine_state.push((false, Box::new(future::ok(*indicator))));
+                    },
+                    AsyncOp::Request(_) => {
+                        panic!("request not yet implemented");
+                    }
+                }
+            }
+            ec.new_ops.clear();
         }
     }
 

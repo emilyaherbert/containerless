@@ -34,7 +34,6 @@ mod tests {
 
     impl Decontainerized for ExampleTask {
         type StateFamily = ExampleStateFamily;
-        type Result = Box<Future<Item = (), Error = ()> + Send>;
         fn new<'a>(
             arena: &'a Bump) ->
             <Self::StateFamily as FamilyLt<'a>>::Out where
@@ -45,16 +44,16 @@ mod tests {
 
         fn callback<'a>(
             arena: &'a Bump,
-            state: &'a mut <Self::StateFamily as FamilyLt<'a>>::Out)
-        -> Option<Self::Result> where
+            state: &'a mut <Self::StateFamily as FamilyLt<'a>>::Out,
+            ec: &mut ExecutionContext) -> () where
         Self::StateFamily: FamilyLt<'a> {
             let state = ExampleStateFamily::to(state);
             let y = arena.alloc(*state.x + 1);
             state.x = y;
             if *state.x == 150 {
-                return Option::None;
+                return;
             }
-            return Option::Some(Box::new(ok(())));
+            ec.loopback(AsyncOp::Immediate, 1);
         }
 
     }
