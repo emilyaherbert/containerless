@@ -5,6 +5,5 @@ authors = ["emilyaherbert <emilyherbert@cs.umass.edu>"]
 edition = "2018"
 
 [dependencies]
-common = { path = "../common" }
 im-rc = "*"
 quote = "*"

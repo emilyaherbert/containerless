@@ -1,3 +1,4 @@
+
 use im_rc::hashmap::HashMap;
 
 pub type Env = HashMap<String, Type>;
@@ -45,34 +46,30 @@ pub type Env = HashMap<String, Type>;
  * return x;
  */
 
-struct Let {
-    name: String,
-    typ: Type,
-    named: Exp,
-    body: Exp
-}
-
 // Constants
 #[derive(Debug)]
 pub enum Exp {
     Bool(bool),
     Int(i32),
     Id(String),
-    BinOp(Exp, Exp),
+    From(String, String),
+    BinOp(Box<Exp>, Box<Exp>),
+    Clos(HashMap<String, Box<Exp>>),
     Seq(Box<Exp>, Box<Exp>),
-    Let(Let),
-    Set(String, Exp),
+    Let(String, Box<Exp>, Box<Exp>),
+    Set(String, Box<Exp>),
     If(Box<Exp>, Box<Exp>, Box<Exp>),
     While(Box<Exp>, Box<Exp>),
     Label(String, Box<Exp>),
-    Break(String, Exp)
-}
-
-#[derive(Debug)]
-pub enum Type {
-    Bool,
-    Int,
+    Break(String, Box<Exp>),
     Unknown,
-    Unit
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub enum Type {
+    TBool,
+    TInt,
+    TUnknown,
+    TUnit,
+    TClos(HashMap<String, Type>),
+}
