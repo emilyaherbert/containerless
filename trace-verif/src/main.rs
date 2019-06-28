@@ -3,6 +3,7 @@
 #![allow(unused_variables)]
 #![allow(unused_parens)]
 #![allow(unused_must_use)]
+#![allow(non_snake_case)]
 
 mod typed_traces;
 
@@ -21,6 +22,7 @@ use typed_traces::{
         Seq,
         Let,
         Set,
+        SetFrom,
         If,
         While,
         Label,
@@ -100,7 +102,30 @@ fn check_exp(state: &mut State, env: &Env, exp: &Exp) -> Type {
                         panic!("Mismatched types!");
                     }
                 },
-                None => return t,
+                None => panic!("Id not found."),
+            }
+        },
+        SetFrom(x, y, exp) => {
+            let t = check_exp(state, env, exp);
+            match env.get(x) {
+                Some(clos) => {
+                    match clos {
+                        TClos(env2) => {
+                            match env2.get(y) {
+                                Some(other) => {
+                                    if(t == *other) {
+                                        return t;
+                                    } else {
+                                        panic!("Midmatched types!");
+                                    }
+                                },
+                                None => panic!("Id not found"),
+                            }
+                        },
+                        _ => panic!("Expected closure."),
+                    }
+                },
+                None => panic!("Id not found."),
             }
         },
         If(exp1, exp2, exp3) => {
@@ -141,7 +166,7 @@ fn run_test(exp: Exp, solution: Type) {
     let mut state: State = HashMap::new();
     let env: Env = HashMap::new();
     let result = check_exp(&mut state, &env, &exp);
-    println!("\n{:?}\n", state);
+    //println!("\n{:?}\n", state);
     assert_eq!(result, solution);
 }
 
@@ -151,10 +176,11 @@ fn parse_exp(s: &str) -> Exp {
 
 fn run_test_json(s: &str, solution: Type) {
     let exp = parse_exp(s);
+    println!("\n{:?}\n", exp);
     let mut state: State = HashMap::new();
     let env: Env = HashMap::new();
     let result = check_exp(&mut state, &env, &exp);
-    println!("\n{:?}\n", state);
+    //println!("\n{:?}\n", state);
     assert_eq!(result, solution);
 }
 
@@ -280,4 +306,61 @@ fn test_if_json() {
         "#,
         TInt
     );
+}
+
+#[test]
+fn test_fun() {
+
+    // let a = 1 in 
+    // let fun = clos(a -> a, ) in 
+    // let d = let $0 = fun in  let b = 5 in  let c = $0.a  +  b in  c in  d
+
+    let exp = Let ( "a".to_string(),
+                 Box::new( Int(1)),
+                 Box::new( Let ("fun".to_string(),
+                               Box::new( Clos(vec![ ("a".to_string(), Box::new( Id("a".to_string()) ))])),
+                               Box::new( Let ("d".to_string(),
+                                              Box::new( Let ("$0".to_string(),
+                                                             Box::new( Id("fun".to_string())),
+                                                             Box::new( Let("b".to_string(),
+                                                                           Box::new( Int(5) ),
+                                                                           Box::new( Let("c".to_string(),
+                                                                                         Box::new( BinOp( Box::new( From("$0".to_string(),
+                                                                                                                         "a".to_string())),
+                                                                                                          Box::new( Id("b".to_string())))),
+                                                                                         Box::new( Id("c".to_string())))))))),
+                                              Box::new( Id("d".to_string()))))))
+    );
+
+
+    run_test(exp, TInt);
+
+    /*
+    run_test_json(
+        r#"
+            { "Let" : [ "a",
+                       { "Int" : 1 },
+                       { "Let" : [ "fun",
+                                   { "Clos" : [ ["a", { "Id" : "a" }] ] },
+                                   { "Let" : [ "d",
+                                               { "Let" : [ "$0"
+                                                           { "Id" : "fun" },
+                                                           { "Let" : [ "b",
+                                                                       { "Int" : 5 },
+                                                                       { "Let" : }
+                                                                     ]
+                                                           }
+                                                         ]
+                                               },
+                                               { "Id" : "d" }                                              
+                                             ]
+                                   }
+                                 ]
+                       }
+                      ]
+            }
+        "#,
+        TInt
+    );
+    */
 }
