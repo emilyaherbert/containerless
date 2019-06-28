@@ -45,7 +45,13 @@ fn expect_bool(ty: Type) {
     }
 }
 
-fn check_exp(state: &mut State, env: &Env, exp: &Exp) -> Type {
+/*
+
+    Checks types.
+    Fills in state object.
+
+*/
+pub fn check_exp(state: &mut State, env: &Env, exp: &Exp) -> Type {
     match exp {
         Bool(_) => return TBool,
         Int(_) => return TInt,
@@ -116,7 +122,7 @@ fn check_exp(state: &mut State, env: &Env, exp: &Exp) -> Type {
                                     if(t == *other) {
                                         return t;
                                     } else {
-                                        panic!("Midmatched types!");
+                                        panic!("Mismatched types!");
                                     }
                                 },
                                 None => panic!("Id not found"),
@@ -127,7 +133,7 @@ fn check_exp(state: &mut State, env: &Env, exp: &Exp) -> Type {
                 },
                 None => panic!("Id not found."),
             }
-        },
+        }
         If(exp1, exp2, exp3) => {
             expect_bool(check_exp(state, env, exp1));
             let t1 = check_exp(state, env, exp2);
@@ -148,18 +154,73 @@ fn check_exp(state: &mut State, env: &Env, exp: &Exp) -> Type {
     }
 }
 
+/*
+
+    Transforms:
+    Let(x, exp1, exp2)
+    to:
+    Seq(SetFrom(state, x, exp1),
+        exp2)
+
+*/
+pub fn state_transformation(exp: &Exp) -> Exp {
+    match exp {
+        Bool(b) => return Bool(*b),
+        Int(n) => return Int(*n),
+        Id(x) => return Id(x.to_string()),
+        From(x, y) => return From(x.to_string(), y.to_string()),
+        BinOp(exp1, exp2) => {
+            let e1 = state_transformation(exp1);
+            let e2 = state_transformation(exp2);
+            return BinOp(Box::new(e1), Box::new(e2));
+        },
+        Seq(exp1, exp2) => {
+            let e1 = state_transformation(exp1);
+            let e2 = state_transformation(exp2);
+            return BinOp(Box::new(e1), Box::new(e2));
+        },
+        Let(x, exp1, exp2) => {
+            let e1 = state_transformation(exp1);
+            let e2 = state_transformation(exp2);
+            return Seq(Box::new(SetFrom("state".to_string(), x.to_string(), Box::new(e1))),
+                       Box::new(e2));
+        },
+        Set(x, exp) => {
+            let e = state_transformation(exp);
+            return Set(x.to_string(), Box::new(e));
+        },
+        SetFrom(x, y, exp) => {
+            let e = state_transformation(exp);
+            return SetFrom(x.to_string(), y.to_string(), Box::new(e));
+        },
+        If(exp1, exp2, exp3) => {
+            let e1 = state_transformation(exp1);
+            let e2 = state_transformation(exp2);
+            let e3 = state_transformation(exp3);
+            return If(Box::new(e1),
+                      Box::new(e2),
+                      Box::new(e3));
+        },
+        While(exp1, exp2) => {
+            let e1 = state_transformation(exp1);
+            let e2 = state_transformation(exp2);
+            return While(Box::new(e1),
+                         Box::new(e2));
+        },
+        Label(x, exp) => {
+            let e = state_transformation(exp);
+            return Label(x.to_string(), Box::new(e));
+        },
+        Break(x, exp) => {
+            let e = state_transformation(exp);
+            return Break(x.to_string(), Box::new(e));
+        }
+        _ => panic!("Not implemented!"),
+    }
+}
+
 fn main() {
-    let test_exp = BinOp(Box::new(Int(10)), Box::new(Int(1)));
-    println!("{:?}", serde_json::to_string(&test_exp));
-
-    println!("{:?}", test_exp);
-
-    let mut state: State = HashMap::new();
-    let env: Env = HashMap::new();
-
-    let result = check_exp(&mut state, &env, &test_exp);
-    println!("{:?}", result);
-
+    
 }
 
 fn run_test(exp: Exp, solution: Type) {
