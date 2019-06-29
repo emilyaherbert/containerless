@@ -11,6 +11,5 @@ native/artifacts.json
 *.so
 *.dylib
 
-yarn.lock
 input.js
 trace.rs
