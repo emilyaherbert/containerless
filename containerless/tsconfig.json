@@ -1,0 +1,11 @@
+{
+    "include": [ "./ts" ],
+    "exclude": [ "./dist" ],
+    "compilerOptions": {
+        "strict": true,
+        "noImplicitReturns": true,
+        "noUnusedLocals": true,
+        "module": "commonjs",
+        "outDir": "./dist"
+    }
+}
