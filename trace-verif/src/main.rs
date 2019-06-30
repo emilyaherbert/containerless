@@ -369,6 +369,22 @@ fn test_if_json() {
     );
 }
 
+fn let_(name: &str, named: Exp, body: Exp) -> Exp {
+    return Let(name.to_string(), Box::new(named), Box::new(body));
+}
+
+fn int(n: i32) -> Exp {
+    return Int(n);
+}
+
+fn id(x: &str) -> Exp {
+    return Id(x.to_string());
+}
+
+fn clos<'a>(binds: Vec<(&'a str, Exp)>) -> Exp {
+    return Clos(binds.into_iter().map(|(x, e)| (x.to_string(), Box::new(e))).collect())
+}
+
 #[test]
 fn test_fun() {
 
@@ -376,23 +392,18 @@ fn test_fun() {
     // let fun = clos(a -> a, ) in 
     // let d = let $0 = fun in  let b = 5 in  let c = $0.a  +  b in  c in  d
 
-    let exp = Let ( "a".to_string(),
-                 Box::new( Int(1)),
-                 Box::new( Let ("fun".to_string(),
-                               Box::new( Clos(vec![ ("a".to_string(), Box::new( Id("a".to_string()) ))])),
-                               Box::new( Let ("d".to_string(),
-                                              Box::new( Let ("$0".to_string(),
-                                                             Box::new( Id("fun".to_string())),
-                                                             Box::new( Let("b".to_string(),
-                                                                           Box::new( Int(5) ),
-                                                                           Box::new( Let("c".to_string(),
-                                                                                         Box::new( BinOp( Box::new( From("$0".to_string(),
-                                                                                                                         "a".to_string())),
-                                                                                                          Box::new( Id("b".to_string())))),
-                                                                                         Box::new( Id("c".to_string())))))))),
-                                              Box::new( Id("d".to_string()))))))
-    );
-
+    let exp = let_("a",
+        int(1),
+        let_("fun",
+            clos(vec![ ("a", id("a")) ]),
+                let_("d",
+                    let_("$0", id("fun"),
+                            let_("b", int(5),
+                                let_("c",
+                                    BinOp( Box::new( From("$0".to_string(), "a".to_string())),
+                                            Box::new( Id("b".to_string()))),
+                                            id("c")))),
+                    id("d"))));
 
     run_test(exp, TInt);
 
