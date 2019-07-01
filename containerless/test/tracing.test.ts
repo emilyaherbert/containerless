@@ -1,5 +1,5 @@
 import {
-    block, let_, number, if_, newTrace, callback, identifier, string, binop
+    block, let_, number, if_, newTrace, callback, identifier, string, binop, unknown
 } from '../ts/tracing';
 import { Callbacks } from '../ts/callbacks';
 
@@ -36,12 +36,14 @@ test('tracing both branches of a conditional', () => {
     t.exitBlock();
     t.traceLet('z', number(300));
     t.exitBlock();
+
     t.newTrace();
     t.traceIfFalse(number(0));
     t.traceLet('y', number(200));
     t.exitBlock();
     t.traceLet('z', number(300));
     t.exitBlock();
+
     expect(t.getTrace()).toMatchObject(
         block([
             if_(number(0),
@@ -107,6 +109,64 @@ test('tracing a function', () => {
             let_('x', identifier('z')),
                 let_('y', binop('+', identifier('x'), number(10))),
                 identifier('y')
+            ])),
+        ]));
+});
+
+test('same fun, different control flow', () => {
+    let t = newTrace();
+
+    function F(x: any) {
+        t.traceLet('x', t.popArg());
+        let ret = 0;
+        if(x > 10) {
+            t.traceIfTrue(binop('>', identifier('x'), number(10)));
+            t.traceLet('ret', number(42));
+            ret = 42;
+        } else {
+            t.traceIfFalse(binop('>', identifier('x'), number(10)));
+            t.traceLet('ret', number(24));
+            ret = 24;
+        }
+        t.exitBlock();
+
+        t.traceReturn(identifier("ret"));
+    }
+
+    let a = 11;
+    t.traceLet('a', number(11));
+    t.pushArg(identifier('a'));
+    t.traceNamed('w');
+    let w = F(a);
+    t.exitBlock();
+
+    let b = 9;
+    t.traceLet('b', number(9));
+    t.pushArg(identifier('b'));
+    t.traceNamed('v');
+    let v = F(b);
+    t.exitBlock();
+
+    t.exitBlock();
+
+    t.pretty_print();
+
+    expect(t.getTrace()).toMatchObject(block([
+        let_('a', number(11)),
+        let_('w', block([
+             let_('x', identifier('a')),
+             if_(binop('>', identifier('x'), number(10)),
+                [let_('ret', number(42))],
+                [unknown()]),
+             identifier("ret")
+            ])),
+        let_('b', number(9)),
+        let_('v', block([
+             let_('x', identifier('b')),
+             if_(binop('>', identifier('x'), number(10)),
+                [unknown()],
+                [let_('ret', number(24))]),
+             identifier("ret")
             ])),
         ]));
 });

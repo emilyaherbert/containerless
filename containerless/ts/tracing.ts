@@ -17,7 +17,7 @@
  *   body of a callback function. The program must call 'exitBlock' at the end
  *   of a callback, since it is a block as well.
  */
-export type BinOp = '+';
+export type BinOp = '+' | '>';
 
 type BlockExp = { kind: 'block', body: Exp[] };
 
@@ -286,6 +286,10 @@ export class Trace {
         else {
             throw new Error(`hole contains ${exp.kind}`);
         }
+    }
+
+    pretty_print(): void {
+        console.log(JSON.stringify(this.getTrace() , null, 2));
     }
 
 }
