@@ -22,6 +22,7 @@ export type BinOp = '+' | '>';
 type BlockExp = { kind: 'block', body: Exp[] };
 
 type LetExp = { kind: 'let', name: string, named: Exp };
+type SetExp = { kind: 'set', name: string, named: Exp };
 type IfExp = { kind: 'if', cond: Exp, truePart: Exp[], falsePart: Exp[] };
 type CallbackExp = { kind: 'callback', event: string, arg: Exp, body: Exp[] };
 
@@ -47,6 +48,7 @@ export type Exp
     | { kind: 'binop', op: BinOp, e1: Exp, e2: Exp }
     | IfExp
     | LetExp
+    | SetExp
     | BlockExp
     | CallbackExp;
 
@@ -76,6 +78,10 @@ export function callback(event: string, arg: Exp, body: Exp[]): CallbackExp {
 
 export function let_(name: string, named: Exp): LetExp {
     return { kind: 'let', name, named };
+}
+
+export function set_(name: string, named: Exp): SetExp {
+    return { kind: 'set', name, named };
 }
 
 export function block(body: Exp[]): BlockExp {
@@ -232,6 +238,24 @@ export class Trace {
         }
     }
 
+    traceSet(name: string, named: Exp): void {
+        let exp = this.getCurrentExp();
+        if (exp.kind === 'unknown') {
+            this.setExp(set_(name, named));
+        }
+        else if (exp.kind === 'set') {
+            if (exp.name !== name) {
+                throw new Error(`Cannot merge set with name ${name} into set with
+                    name ${exp.name}`);
+            }
+            exp.named = mergeExp(exp.named, named);
+            this.mayIncrementCursor();
+        }
+        else {
+            throw new Error(`expected set, got ${exp.kind}`);
+        }
+    }
+
     traceIfTrue(cond: Exp) {
         let exp = this.getCurrentExp();
         if (exp.kind === 'unknown') {
@@ -334,6 +358,14 @@ function mergeExp(e1: Exp, e2: Exp): Exp {
     else if (e1.kind === 'let' && e2.kind === 'let') {
         if (e1.name !== e2.name) {
             throw new Error(`Cannot merge let expressions naming ${e1.name}
+                and ${e2.name}`);
+        }
+        e1.named = mergeExp(e1.named, e2.named);
+        return e1;
+    }
+    else if (e1.kind === 'set' && e2.kind === 'set') {
+        if (e1.name !== e2.name) {
+            throw new Error(`Cannot merge set expressions naming ${e1.name}
                 and ${e2.name}`);
         }
         e1.named = mergeExp(e1.named, e2.named);

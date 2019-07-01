@@ -1,5 +1,5 @@
 import {
-    block, let_, number, if_, newTrace, callback, identifier, string, binop, unknown
+    block, let_, set_, number, if_, newTrace, callback, identifier, string, binop, unknown
 } from '../ts/tracing';
 import { Callbacks } from '../ts/callbacks';
 
@@ -118,19 +118,21 @@ test('same fun, different control flow', () => {
 
     function F(x: any) {
         t.traceLet('x', t.popArg());
+        t.traceLet('ret', number(0));
         let ret = 0;
         if(x > 10) {
             t.traceIfTrue(binop('>', identifier('x'), number(10)));
-            t.traceLet('ret', number(42));
+            t.traceSet('ret', number(42));
             ret = 42;
         } else {
             t.traceIfFalse(binop('>', identifier('x'), number(10)));
-            t.traceLet('ret', number(24));
+            t.traceSet('ret', number(24));
             ret = 24;
         }
         t.exitBlock();
 
         t.traceReturn(identifier("ret"));
+        return ret;
     }
 
     let a = 11;
@@ -153,17 +155,19 @@ test('same fun, different control flow', () => {
         let_('a', number(11)),
         let_('w', block([
              let_('x', identifier('a')),
+             let_('ret', number(0)),
              if_(binop('>', identifier('x'), number(10)),
-                [let_('ret', number(42))],
+                [set_('ret', number(42))],
                 [unknown()]),
              identifier("ret")
             ])),
         let_('b', number(9)),
         let_('v', block([
              let_('x', identifier('b')),
+             let_('ret', number(0)),
              if_(binop('>', identifier('x'), number(10)),
                 [unknown()],
-                [let_('ret', number(24))]),
+                [set_('ret', number(24))]),
              identifier("ret")
             ])),
         ]));
@@ -174,7 +178,6 @@ test('exit fun from within if', () => {
 
     function F(x: any) {
         t.traceLet('x', t.popArg());
-        let ret = 0;
         if(x > 10) {
             t.traceIfTrue(binop('>', identifier('x'), number(10)));
             t.traceReturn(number(42));
@@ -203,8 +206,6 @@ test('exit fun from within if', () => {
     t.exitBlock(); // t.exitBlock() exits the block created by t.traceNamed().
 
     t.exitBlock(); // t.exitBlock exits the program.
-
-    t.pretty_print();
 
     expect(t.getTrace()).toMatchObject(block([
         let_('a', number(11)),
