@@ -27,6 +27,7 @@ use typed_traces::{
         While,
         Label,
         Break,
+        Unknown
     },
     Type,
     Type::{
@@ -42,6 +43,23 @@ fn expect_bool(ty: Type) {
     match ty {
         TBool => {},
         _ => panic!("Expected TBool."),
+    }
+}
+
+fn get_elem_from_tclos(env: &Env, x: &String, y: &String) -> Type {
+    match env.get(x) {
+        Some(clos) => {
+            match clos {
+                TClos(env2) => {
+                    match env2.get(y) {
+                        Some(ty) => return ty.clone(),
+                        None => panic!("Id not found."),
+                    }
+                },
+                _ => panic!("Expected closure."),
+            }
+        },
+        None => panic!("Id not found."),
     }
 }
 
@@ -111,27 +129,21 @@ pub fn check_types(state: &mut State, env: &Env, exp: &Exp) -> Type {
                 None => panic!("Id not found."),
             }
         },
-        SetFrom(x, y, exp) => {
+        SetFrom(names, exp) => {
             let t = check_types(state, env, exp);
-            match env.get(x) {
-                Some(clos) => {
-                    match clos {
-                        TClos(env2) => {
-                            match env2.get(y) {
-                                Some(other) => {
-                                    if(t == *other) {
-                                        return t;
-                                    } else {
-                                        panic!("Mismatched types!");
-                                    }
-                                },
-                                None => panic!("Id not found"),
-                            }
-                        },
-                        _ => panic!("Expected closure."),
-                    }
-                },
-                None => panic!("Id not found."),
+            let mut rover = TUnknown;
+            let mut x = names.first().unwrap();
+            names.iter()
+                .next()
+                .map(|y| {
+                    rover = get_elem_from_tclos(env, x, y);
+                    x = y;
+                    y
+                });
+            if(t == rover) {
+                return t;
+            } else {
+                panic!("Mismatched types!");
             }
         }
         If(exp1, exp2, exp3) => {
@@ -159,13 +171,17 @@ pub fn check_types(state: &mut State, env: &Env, exp: &Exp) -> Type {
     Transforms:
 
     Let(x, exp1, exp2)
-    ->
-    Seq(SetFrom(state, x, exp1),
+        ->
+    Seq(SetFrom(vec![state, x] exp1),
         exp2)
 
     Set(x, exp)
-    ->
-    SetFrom(state, x, exp);
+        ->
+    SetFrom(vec![state, x], exp);
+
+    SetFrom(x, y, exp);
+        ->
+    SetFrom(vec![state, x, y], exp);
 
 */
 pub fn state_transformation(exp: &Exp) -> Exp {
@@ -193,16 +209,20 @@ pub fn state_transformation(exp: &Exp) -> Exp {
         Let(x, exp1, exp2) => {
             let e1 = state_transformation(exp1);
             let e2 = state_transformation(exp2);
-            return Seq(Box::new(SetFrom("state".to_string(), x.to_string(), Box::new(e1))),
+            return Seq(Box::new(SetFrom(vec!["state".to_string(), x.to_string()],
+                                        Box::new(e1))),
                        Box::new(e2));
         },
         Set(x, exp) => {
             let e = state_transformation(exp);
-            return SetFrom("state".to_string(), x.to_string(), Box::new(e));
+            return SetFrom(vec!["state".to_string(), x.to_string()],
+                            Box::new(e));
         },
-        SetFrom(x, y, exp) => {
+        SetFrom(names, exp) => {
             let e = state_transformation(exp);
-            return SetFrom(x.to_string(), y.to_string(), Box::new(e));
+            let mut new_names = names.clone();
+            new_names.insert(0, "state".to_string());
+            return SetFrom(new_names, Box::new(e));
         },
         If(exp1, exp2, exp3) => {
             let e1 = state_transformation(exp1);

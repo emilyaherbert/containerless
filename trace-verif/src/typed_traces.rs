@@ -63,7 +63,7 @@ pub enum Exp {
     Seq(Box<Exp>, Box<Exp>),
     Let(String, Box<Exp>, Box<Exp>),
     Set(String, Box<Exp>),
-    SetFrom(String, String, Box<Exp>),
+    SetFrom(Vec<String>, Box<Exp>),
     If(Box<Exp>, Box<Exp>, Box<Exp>),
     While(Box<Exp>, Box<Exp>),
     Label(String, Box<Exp>),
