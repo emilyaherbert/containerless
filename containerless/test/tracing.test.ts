@@ -1,4 +1,4 @@
-import { block, let_, number, if_, newTrace, callback } from '../ts/types';
+import { block, let_, number, if_, newTrace, callback } from '../ts/tracing';
 
 test('trivial trace', () => {
     let t = newTrace();
