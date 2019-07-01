@@ -51,7 +51,7 @@ fn expect_bool(ty: Type) {
     Fills in state object.
 
 */
-pub fn check_exp(state: &mut State, env: &Env, exp: &Exp) -> Type {
+pub fn check_types(state: &mut State, env: &Env, exp: &Exp) -> Type {
     match exp {
         Bool(_) => return TBool,
         Int(_) => return TInt,
@@ -73,8 +73,8 @@ pub fn check_exp(state: &mut State, env: &Env, exp: &Exp) -> Type {
             }
         }
         BinOp(exp1, exp2) => {
-            let t1 = check_exp(state, env, exp1);
-            let t2 = check_exp(state, env, exp2);
+            let t1 = check_types(state, env, exp1);
+            let t2 = check_types(state, env, exp2);
             if (t1 == t2) {
                 return t1;
             } else {
@@ -83,23 +83,23 @@ pub fn check_exp(state: &mut State, env: &Env, exp: &Exp) -> Type {
         },
         Clos(exps) => {
             let types: Env = exps.iter()
-                .map(|(id, exp)| (id.to_string(), check_exp(state, env, exp)))
+                .map(|(id, exp)| (id.to_string(), check_types(state, env, exp)))
                 .collect();
             return TClos(types);
         },
         Seq(exp1, exp2) => {
-            check_exp(state, env, exp1);
-            return check_exp(state, env, exp2);
+            check_types(state, env, exp1);
+            return check_types(state, env, exp2);
         },
         Let(x, exp1, exp2) => {
-            let t1 = check_exp(state, env, exp1);
+            let t1 = check_types(state, env, exp1);
             let mut env2 = env.clone();
             env2.insert(x.to_string(), t1.clone());
             state.insert(x.to_string(), t1);
-            return check_exp(state, &env2, exp2);
+            return check_types(state, &env2, exp2);
         }
         Set(x, exp) => {
-            let t = check_exp(state, env, exp);
+            let t = check_types(state, env, exp);
             match env.get(x) {
                 Some(other) => {
                     if(t == *other) {
@@ -112,7 +112,7 @@ pub fn check_exp(state: &mut State, env: &Env, exp: &Exp) -> Type {
             }
         },
         SetFrom(x, y, exp) => {
-            let t = check_exp(state, env, exp);
+            let t = check_types(state, env, exp);
             match env.get(x) {
                 Some(clos) => {
                     match clos {
@@ -135,9 +135,9 @@ pub fn check_exp(state: &mut State, env: &Env, exp: &Exp) -> Type {
             }
         }
         If(exp1, exp2, exp3) => {
-            expect_bool(check_exp(state, env, exp1));
-            let t1 = check_exp(state, env, exp2);
-            let t2 = check_exp(state, env, exp3);
+            expect_bool(check_types(state, env, exp1));
+            let t1 = check_types(state, env, exp2);
+            let t2 = check_types(state, env, exp3);
             if (t1 == t2) {
                 return t1;
             } else {
@@ -145,11 +145,11 @@ pub fn check_exp(state: &mut State, env: &Env, exp: &Exp) -> Type {
             }
         },
         While(exp1, exp2) => {
-            expect_bool(check_exp(state, env, exp1));
-            return check_exp(state, env, exp2);
+            expect_bool(check_types(state, env, exp1));
+            return check_types(state, env, exp2);
         },
-        Label(_, exp) => return check_exp(state, env, exp),
-        Break(_, exp) => return check_exp(state, env, exp),
+        Label(_, exp) => return check_types(state, env, exp),
+        Break(_, exp) => return check_types(state, env, exp),
         Unknown => return TUnknown,
     }
 }
@@ -157,10 +157,15 @@ pub fn check_exp(state: &mut State, env: &Env, exp: &Exp) -> Type {
 /*
 
     Transforms:
+
     Let(x, exp1, exp2)
-    to:
+    ->
     Seq(SetFrom(state, x, exp1),
         exp2)
+
+    Set(x, exp)
+    ->
+    SetFrom(state, x, exp);
 
 */
 pub fn state_transformation(exp: &Exp) -> Exp {
@@ -169,6 +174,12 @@ pub fn state_transformation(exp: &Exp) -> Exp {
         Int(n) => return Int(*n),
         Id(x) => return Id(x.to_string()),
         From(x, y) => return From(x.to_string(), y.to_string()),
+        Clos(env2) => {
+            let env3 = env2.iter()
+                .map(|(x, e)| (x.to_string(), Box::new(state_transformation(e))))
+                .collect::<Vec<_>>();
+            return Clos(env3);
+        }
         BinOp(exp1, exp2) => {
             let e1 = state_transformation(exp1);
             let e2 = state_transformation(exp2);
@@ -187,7 +198,7 @@ pub fn state_transformation(exp: &Exp) -> Exp {
         },
         Set(x, exp) => {
             let e = state_transformation(exp);
-            return Set(x.to_string(), Box::new(e));
+            return SetFrom("state".to_string(), x.to_string(), Box::new(e));
         },
         SetFrom(x, y, exp) => {
             let e = state_transformation(exp);
@@ -215,7 +226,7 @@ pub fn state_transformation(exp: &Exp) -> Exp {
             let e = state_transformation(exp);
             return Break(x.to_string(), Box::new(e));
         }
-        _ => panic!("Not implemented!"),
+        Unknown => return Unknown,
     }
 }
 
@@ -226,8 +237,10 @@ fn main() {
 fn run_test(exp: Exp, solution: Type) {
     let mut state: State = HashMap::new();
     let env: Env = HashMap::new();
-    let result = check_exp(&mut state, &env, &exp);
+    let result = check_types(&mut state, &env, &exp);
     //println!("\n{:?}\n", state);
+    let transformed = state_transformation(&exp);
+    println!("\n{:?}", transformed);
     assert_eq!(result, solution);
 }
 
@@ -237,11 +250,12 @@ fn parse_exp(s: &str) -> Exp {
 
 fn run_test_json(s: &str, solution: Type) {
     let exp = parse_exp(s);
-    println!("\n{:?}\n", exp);
     let mut state: State = HashMap::new();
     let env: Env = HashMap::new();
-    let result = check_exp(&mut state, &env, &exp);
+    let result = check_types(&mut state, &env, &exp);
     //println!("\n{:?}\n", state);
+    let transformed = state_transformation(&exp);
+    println!("\n{:?}", transformed);
     assert_eq!(result, solution);
 }
 
