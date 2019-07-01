@@ -34,7 +34,8 @@ use typed_traces::{
         TBool,
         TInt,
         TUnknown,
-        TClos
+        TClos,
+        TUnit
     },
     State
 };
@@ -43,6 +44,55 @@ fn expect_bool(ty: Type) {
     match ty {
         TBool => {},
         _ => panic!("Expected TBool."),
+    }
+}
+
+/*
+
+    Panics if variable names are non-unique.
+    i.e. a name can only appear in a `Let` once.
+
+    Re-using State type for this.
+
+*/
+fn check_unique_names(names: &mut State, exp: &Exp) {
+    match exp {
+        Clos(env2) => {
+            env2.iter()
+                .map(|(_, e)| check_unique_names(names, e));
+        },
+        BinOp(exp1, exp2) => {
+            check_unique_names(names, exp1);
+            check_unique_names(names, exp2);
+        },
+        Seq(exp1, exp2) => {
+            check_unique_names(names, exp1);
+            check_unique_names(names, exp2);
+        },
+        Let(x, exp1, exp2) => {
+            check_unique_names(names, exp1);
+            match names.get(x) {
+                Some(_) => panic!("Found non-unique name."),
+                None => {
+                    names.insert(x.to_string(), TUnit);
+                    check_unique_names(names, exp2);
+                }
+            };
+        },
+        Set(_, exp) => check_unique_names(names, exp),
+        SetFrom(_, exp) => check_unique_names(names, exp),
+        If(exp1, exp2, exp3) => {
+            check_unique_names(names, exp1);
+            check_unique_names(names, exp2);
+            check_unique_names(names, exp3);
+        },
+        While(exp1, exp2) => {
+            check_unique_names(names, exp1);
+            check_unique_names(names, exp2);
+        },
+        Label(_, exp) => check_unique_names(names, exp),
+        Break(_, exp) => check_unique_names(names, exp),
+        _ => {},
     }
 }
 
@@ -255,13 +305,17 @@ fn main() {
 }
 
 fn run_test(exp: Exp, solution: Type) {
+    let mut names: State = HashMap::new();
+    check_unique_names(&mut names, &exp);
+
     let mut state: State = HashMap::new();
     let env: Env = HashMap::new();
     let result = check_types(&mut state, &env, &exp);
     //println!("\n{:?}\n", state);
-    let transformed = state_transformation(&exp);
-    println!("\n{:?}", transformed);
     assert_eq!(result, solution);
+
+    let transformed = state_transformation(&exp);
+    //println!("\n{:?}", transformed)
 }
 
 fn parse_exp(s: &str) -> Exp {
@@ -270,13 +324,7 @@ fn parse_exp(s: &str) -> Exp {
 
 fn run_test_json(s: &str, solution: Type) {
     let exp = parse_exp(s);
-    let mut state: State = HashMap::new();
-    let env: Env = HashMap::new();
-    let result = check_types(&mut state, &env, &exp);
-    //println!("\n{:?}\n", state);
-    let transformed = state_transformation(&exp);
-    println!("\n{:?}", transformed);
-    assert_eq!(result, solution);
+    run_test(exp, solution);
 }
 
 #[test]
@@ -469,4 +517,17 @@ fn test_fun() {
         TInt
     );
     */
+}
+
+#[test]
+#[should_panic]
+fn test_unique_names() {
+    run_test(
+        Let("x".to_string(),
+            Box::new(Bool(false)),
+            Box::new(Let("x".to_string(),
+                     Box::new(Bool(true)),
+                     Box::new(Int(1))))),
+        TBool
+    );
 }
