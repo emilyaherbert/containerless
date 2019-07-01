@@ -8,6 +8,8 @@ use serde::{
 
 pub type Env = HashMap<String, Type>;
 
+pub type IdPath = Vec<String>;
+
 /*
  * Example 1A:
  *
@@ -63,7 +65,7 @@ pub enum Exp {
     Seq(Box<Exp>, Box<Exp>),
     Let(String, Box<Exp>, Box<Exp>),
     Set(String, Box<Exp>),
-    SetFrom(Vec<String>, Box<Exp>),
+    SetFrom(IdPath, Box<Exp>),
     If(Box<Exp>, Box<Exp>, Box<Exp>),
     While(Box<Exp>, Box<Exp>),
     Label(String, Box<Exp>),
