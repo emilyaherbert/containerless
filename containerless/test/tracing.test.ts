@@ -149,8 +149,6 @@ test('same fun, different control flow', () => {
 
     t.exitBlock();
 
-    t.pretty_print();
-
     expect(t.getTrace()).toMatchObject(block([
         let_('a', number(11)),
         let_('w', block([
@@ -167,6 +165,61 @@ test('same fun, different control flow', () => {
                 [unknown()],
                 [let_('ret', number(24))]),
              identifier("ret")
+            ])),
+        ]));
+});
+
+test('exit fun from within if', () => {
+    let t = newTrace();
+
+    function F(x: any) {
+        t.traceLet('x', t.popArg());
+        let ret = 0;
+        if(x > 10) {
+            t.traceIfTrue(binop('>', identifier('x'), number(10)));
+            t.traceReturn(number(42));
+            t.exitBlock(); // t.exitBlock() exits the if, it follows the last t. statement within a block.
+            return 42;
+        } else {
+            t.traceIfFalse(binop('>', identifier('x'), number(10)));
+            t.traceReturn(number(24));
+            t.exitBlock(); // t.exitBlock() exits the if, it follows the last t. statement within a block.
+            return 24;
+        }
+    }
+
+    let a = 11;
+    t.traceLet('a', number(11));
+    t.pushArg(identifier('a'));
+    t.traceNamed('w');
+    let w = F(a);
+    t.exitBlock(); // t.exitBlock() exits the block created by t.traceNamed().
+
+    let b = 9;
+    t.traceLet('b', number(9));
+    t.pushArg(identifier('b'));
+    t.traceNamed('v');
+    let v = F(b);
+    t.exitBlock(); // t.exitBlock() exits the block created by t.traceNamed().
+
+    t.exitBlock(); // t.exitBlock exits the program.
+
+    t.pretty_print();
+
+    expect(t.getTrace()).toMatchObject(block([
+        let_('a', number(11)),
+        let_('w', block([
+             let_('x', identifier('a')),
+             if_(binop('>', identifier('x'), number(10)),
+                [number(42)],
+                [unknown()])
+            ])),
+        let_('b', number(9)),
+        let_('v', block([
+             let_('x', identifier('b')),
+             if_(binop('>', identifier('x'), number(10)),
+                [unknown()],
+                [number(24)])
             ])),
         ]));
 });
