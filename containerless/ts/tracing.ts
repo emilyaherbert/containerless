@@ -23,7 +23,7 @@ type BlockExp = { kind: 'block', body: Exp[] };
 
 type LetExp = { kind: 'let', name: string, named: Exp };
 type IfExp = { kind: 'if', cond: Exp, truePart: Exp[], falsePart: Exp[] };
-type CallbackExp = { kind: 'callback', event: string, arg: string, body: Exp[] };
+type CallbackExp = { kind: 'callback', event: string, arg: Exp, body: Exp[] };
 
 /**
  * NOTE(arjun): We do not make a distinction between statements and expressions.
@@ -43,6 +43,7 @@ export type Exp
     =  { kind: 'unknown' }
     | { kind: 'number', value: number }
     | { kind: 'identifier', name: string }
+    | { kind: 'string', value: string }
     | { kind: 'binop', op: BinOp, e1: Exp, e2: Exp }
     | IfExp
     | LetExp
@@ -57,11 +58,15 @@ export function number(value: number): Exp {
     return { kind: 'number', value };
 }
 
+export function string(value: string): Exp {
+    return { kind: 'string', value };
+}
+
 export function if_(cond: Exp, truePart: Exp[], falsePart: Exp[]): IfExp {
     return { kind: 'if', cond, truePart, falsePart };
 }
 
-export function callback(event: string, arg: string, body: Exp[]): CallbackExp {
+export function callback(event: string, arg: Exp, body: Exp[]): CallbackExp {
     return { kind: 'callback', event, arg, body };
 }
 
@@ -80,7 +85,7 @@ export function unknown(): Exp {
 
 type Cursor = { body: Exp[], index: number };
 
-class Trace {
+export class Trace {
     private trace: BlockExp;
     private cursorStack: Cursor[];
     private cursor: Cursor | undefined;
@@ -212,7 +217,7 @@ class Trace {
         }
     }
 
-    traceCallback(event: string, arg: string): Trace {
+    traceCallback(event: string, arg: Exp): Trace {
         let exp = this.getCurrentExp();
         if (exp.kind === 'unknown') {
             let callbackBody: Exp[] = [ unknown() ];
@@ -220,10 +225,12 @@ class Trace {
             return new Trace(callbackBody);
         }
         else if (exp.kind === 'callback') {
-            if (exp.event !== event || exp.arg !== arg) {
-                throw new Error(`called traceCallback(${event}, ${arg}), but
-                   hole contains traceCallback(${exp.event}, ${exp.arg})`);
+            if (exp.event !== event) {
+                throw new Error(`called traceCallback(${event}), but
+                   hole contains traceCallback(${exp.event})`);
             }
+            exp.arg = mergeExp(exp.arg, arg);
+
             this.mayIncrementCursor();
             return new Trace(exp.body);
         }

@@ -1,4 +1,7 @@
-import { block, let_, number, if_, newTrace, callback } from '../ts/tracing';
+import {
+    block, let_, number, if_, newTrace, callback, identifier, string
+} from '../ts/tracing';
+import { Callbacks } from '../ts/callbacks';
 
 test('trivial trace', () => {
     let t = newTrace();
@@ -50,7 +53,7 @@ test('tracing both branches of a conditional', () => {
 test('callback in trace', () => {
     let t = newTrace();
     t.traceLet('x', number(10));
-    let innerTrace = t.traceCallback('dummy-event', 'x');
+    let innerTrace = t.traceCallback('dummy-event', identifier('x'));
     t.traceLet('y', number(20));
     t.exitBlock();
 
@@ -61,7 +64,29 @@ test('callback in trace', () => {
     expect(t.getTrace()).toMatchObject(
         block([
             let_('x', number(10)),
-            callback('dummy-event', 'x', [
+            callback('dummy-event', identifier('x'), [
                 let_('z', number(30))]),
             let_('y', number(20))]));
+});
+
+test('tracing with callback library', (done) => {
+    let cb = new Callbacks();
+    cb.immediate('hello', (str) => {
+        cb.trace.traceLet('x', number(100));
+        // Why is this in here? If we put it after the last line
+        // (cb.trace.exitBlock), we will get the trace before this callback
+        // is called. If we don't wrap it in setImmediate, we will get it
+        // when cb.trace refers to the inner trace.
+        setImmediate(() => {
+            expect(cb.trace.getTrace()).toMatchObject(
+                block([
+                    callback('immediate', string('hello'), [
+                        let_('x', number(100))]),
+                    let_('y', number(200))]));
+            done();
+        });
+    });
+    cb.trace.traceLet('y', number(200));
+    cb.trace.exitBlock();
+
 });

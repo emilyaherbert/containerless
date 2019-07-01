@@ -1,6 +1,20 @@
 import * as state from './state';
+import * as callbacks from './callbacks';
 
-export * from './callbacks';
+let cb = new callbacks.Callbacks();
+
+export function get(
+    uri: string,
+    callback: (response: undefined | string) => void) {
+    return cb.get(uri, callback);
+}
+
+export function listen(
+    callback: (request: callbacks.Request,
+               responseCallback: callbacks.ResponseCallback) => void) {
+    return cb.listen(callback);
+}
+
 
 if (process.argv.length !== 3) {
     console.error(`Expected port number on command line`);
