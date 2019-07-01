@@ -1,7 +1,7 @@
 import * as request from 'request';
 import * as express from 'express';
 import * as state from './state';
-import { Trace, newTrace, string } from './tracing';
+import { Trace, newTrace, string, number, identifier } from './tracing';
 
 export type Request = {
     path: string
@@ -51,17 +51,21 @@ export class Callbacks {
         callback: (response: undefined | string) => void) {
         // TODO(arjun): string(uri) is not right. This needs to be the expression
         // passed to the function.
-        let innerTrace = this.trace.traceCallback('get', string(uri));
+        let innerTrace = this.trace.traceCallback('get', this.trace.popArg());
         request.get(uri, undefined, (error, resp) => {
             this.withTrace(innerTrace, () => {
                 if (error !== null) {
                     callback(undefined);
                 }
                 else {
+                    // TODO(arjun): Test case with nested closures
+                    innerTrace.pushArg(identifier('$response'));
                     callback(String(resp.body));
+                    innerTrace.exitBlock();
                 }
             });
         });
+        this.trace.traceReturn(number(0));
     }
 
     public listen(

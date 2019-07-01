@@ -1,5 +1,5 @@
 import {
-    block, let_, number, if_, newTrace, callback, identifier, string
+    block, let_, number, if_, newTrace, callback, identifier, string, binop
 } from '../ts/tracing';
 import { Callbacks } from '../ts/callbacks';
 
@@ -67,6 +67,48 @@ test('callback in trace', () => {
             callback('dummy-event', identifier('x'), [
                 let_('z', number(30))]),
             let_('y', number(20))]));
+});
+
+test('tracing a function', () => {
+    let t = newTrace();
+
+    function F(x: any) {
+        t.traceLet('x', t.popArg());
+        t.traceLet('y', binop('+', identifier('x'), number(10)));
+        let y = x + 10;
+        t.traceReturn(identifier('y'));
+        return y;
+    }
+
+    let a = 100;
+    t.traceLet('a', number(100));
+    t.pushArg(identifier('a'));
+    t.traceNamed('w');
+    let w = F(a);
+    t.exitBlock();
+
+    t.traceLet('z', number(200));
+    t.pushArg(identifier('z'));
+    t.traceNamed('v');
+    let v = F(200);
+    t.exitBlock();
+
+    t.exitBlock();
+
+    expect(t.getTrace()).toMatchObject(block([
+        let_('a', number(100)),
+        let_('w', block([
+            let_('x', identifier('a')),
+             let_('y', binop('+', identifier('x'), number(10))),
+             identifier('y')
+            ])),
+        let_('z', number(200)),
+        let_('v', block([
+            let_('x', identifier('z')),
+                let_('y', binop('+', identifier('x'), number(10))),
+                identifier('y')
+            ])),
+        ]));
 });
 
 test('tracing with callback library', (done) => {

@@ -62,6 +62,10 @@ export function string(value: string): Exp {
     return { kind: 'string', value };
 }
 
+export function binop(op: BinOp, e1: Exp, e2: Exp): Exp {
+    return { kind: 'binop', op, e1, e2 };
+}
+
 export function if_(cond: Exp, truePart: Exp[], falsePart: Exp[]): IfExp {
     return { kind: 'if', cond, truePart, falsePart };
 }
@@ -89,12 +93,15 @@ export class Trace {
     private trace: BlockExp;
     private cursorStack: Cursor[];
     private cursor: Cursor | undefined;
+    private traceStack: Exp[];
+
 
     constructor(body: Exp[]) {
         let exp = block(body);
         this.trace = exp;
         this.cursor = { body: exp.body, index: 0 };
         this.cursorStack = [];
+        this.traceStack = [];
     }
 
     private getValidCursor(): Cursor {
@@ -142,6 +149,14 @@ export class Trace {
         this.cursor = cursor;
     }
 
+    pushArg(e: Exp) {
+        this.traceStack.push(e);
+    }
+
+    popArg(): Exp {
+        return this.traceStack.pop()!;
+    }
+
     getTrace(): Exp {
         return this.trace;
     }
@@ -163,6 +178,40 @@ export class Trace {
             this.cursor.body.pop();
         }
         this.cursor = this.cursorStack.pop();
+    }
+
+    traceNamed(name: string): void {
+        let exp = this.getCurrentExp();
+        if (exp.kind === 'unknown') {
+            let namedBlock = block([unknown()]);
+            this.setExp(let_(name, namedBlock));
+            this.enterBlock({ body: namedBlock.body, index: 0 });
+        }
+        else if (exp.kind === 'let') {
+            if (exp.name !== name) {
+                throw new Error(`Cannot merge let with name ${name} into let with
+                    name ${exp.name}`);
+            }
+            this.mayIncrementCursor();
+            let named = exp.named;
+            if (named.kind !== 'block') {
+                throw new Error('Expected block on RHS of let');
+            }
+            this.enterBlock({ body: named.body, index: 0 });
+        }
+        else {
+            throw new Error(`expected let, got ${exp.kind}`);
+        }
+    }
+
+    traceReturn(e1: Exp): void {
+        let e2 = this.getCurrentExp();
+        if (e2.kind === 'unknown') {
+            this.setExp(e1);
+        }
+        else {
+            mergeExp(e2, e1);
+        }
     }
 
     traceLet(name: string, named: Exp): void {
