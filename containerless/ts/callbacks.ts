@@ -54,7 +54,7 @@ export class Callbacks {
         let innerTrace = this.trace.traceCallback('get', string(uri));
         request.get(uri, undefined, (error, resp) => {
             this.withTrace(innerTrace, () => {
-                if (error === null) {
+                if (error !== null) {
                     callback(undefined);
                 }
                 else {
@@ -76,11 +76,17 @@ export class Callbacks {
         }
         state.setListening();
 
+        this.app.get('/trace', (req, resp) => {
+            resp.send(JSON.stringify(this.trace.getTrace()));
+        });
+
         this.app.get('/:path*', (req, resp) => {
             callback({ path: req.path }, (response) => {
                 resp.send(response);
             });
         });
+
+
 
         const port = state.getListenPort();
         this.app.listen(port);

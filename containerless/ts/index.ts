@@ -3,6 +3,10 @@ import * as callbacks from './callbacks';
 
 let cb = new callbacks.Callbacks();
 
+export function getTrace() {
+    return cb.trace;
+}
+
 export function get(
     uri: string,
     callback: (response: undefined | string) => void) {
