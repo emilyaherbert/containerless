@@ -24,12 +24,27 @@ export class Callbacks {
         let outerTrace = this.trace;
         this.trace = trace;
         try {
+            trace.newTrace();
             return body();
         }
         finally {
             trace.exitBlock();
+            // If this callback is called again, which occurs with listen,
+            // then we need to reset the cursor to start from the top.
+            trace.newTrace();
             this.trace = outerTrace;
         }
+    }
+
+    mockCallback(
+        callback: (value: any) => void): (value: any) => void {
+        let innerTrace = this.trace.traceCallback('mock', number(0));
+        return (value: any) => {
+            this.withTrace(innerTrace, () => {
+                innerTrace.pushArg(identifier('$response'));
+                callback(value);
+            });
+        };
     }
 
     immediate(arg: string, callback: (arg: string) => void) {
@@ -61,7 +76,6 @@ export class Callbacks {
                     // TODO(arjun): Test case with nested closures
                     innerTrace.pushArg(identifier('$response'));
                     callback(String(resp.body));
-                    innerTrace.exitBlock();
                 }
             });
         });

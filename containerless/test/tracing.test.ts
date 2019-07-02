@@ -287,3 +287,40 @@ test('while', () => {
             ])
         ]));
 });
+
+test('callback that receives multiple events', () => {
+    let cb = new Callbacks();
+    let sender = cb.mockCallback((value) => {
+        let $value = cb.trace.popArg();
+        cb.trace.traceLet('ret', number(0));
+        let ret = 0;
+        let $cond = binop('>', identifier('value'), number(0));
+        if (value > 0) {
+            cb.trace.traceIfTrue($cond);
+            cb.trace.traceSet('ret', number(200));
+            ret = 200;
+        }
+        else {
+            cb.trace.traceIfFalse($cond);
+            cb.trace.traceSet('ret', number(-200));
+            ret = -200;
+        }
+        // exit the true/false parts, not the function
+        cb.trace.exitBlock();
+    });
+    cb.trace.exitBlock(); // end of the first turn
+    sender(-100); // callback invoked
+    sender(100); // callback invoked
+    expect(cb.trace.getTrace()).toMatchObject(
+        block([
+            callback('mock', number(0), [
+                let_('ret', number(0)),
+                if_(binop('>', identifier('value'), number(0)), [
+                    set_('ret', number(200))
+                ], [
+                    set_('ret', number(-200))
+                ])
+            ])
+        ]));
+
+});
