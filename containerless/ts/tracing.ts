@@ -17,14 +17,17 @@
  *   body of a callback function. The program must call 'exitBlock' at the end
  *   of a callback, since it is a block as well.
  */
-export type BinOp = '+' | '>';
+export type BinOp = '+' | '-' | '>';
 
 type BlockExp = { kind: 'block', body: Exp[] };
 
 type LetExp = { kind: 'let', name: string, named: Exp };
 type SetExp = { kind: 'set', name: string, named: Exp };
 type IfExp = { kind: 'if', cond: Exp, truePart: Exp[], falsePart: Exp[] };
+type WhileExp = { kind: 'while', cond: Exp, body: Exp[] };
 type CallbackExp = { kind: 'callback', event: string, arg: Exp, body: Exp[] };
+type LabelExp = { kind: 'label', name: string, body: Exp[] };
+type BreakExp = { kind: 'break', name: string };
 
 /**
  * NOTE(arjun): We do not make a distinction between statements and expressions.
@@ -47,10 +50,13 @@ export type Exp
     | { kind: 'string', value: string }
     | { kind: 'binop', op: BinOp, e1: Exp, e2: Exp }
     | IfExp
+    | WhileExp
     | LetExp
     | SetExp
     | BlockExp
-    | CallbackExp;
+    | CallbackExp
+    | LabelExp
+    | BreakExp;
 
 export function identifier(name: string): Exp {
     return { kind: 'identifier', name };
@@ -72,6 +78,10 @@ export function if_(cond: Exp, truePart: Exp[], falsePart: Exp[]): IfExp {
     return { kind: 'if', cond, truePart, falsePart };
 }
 
+export function while_(cond: Exp, body: Exp[]): WhileExp {
+    return { kind: 'while', cond: cond, body: body };
+}
+
 export function callback(event: string, arg: Exp, body: Exp[]): CallbackExp {
     return { kind: 'callback', event, arg, body };
 }
@@ -90,6 +100,14 @@ export function block(body: Exp[]): BlockExp {
 
 export function unknown(): Exp {
     return { kind: 'unknown' };
+}
+
+export function label(name: string, body: Exp[]): LabelExp {
+    return { kind: 'label', name: name, body: body };
+}
+
+export function break_(name: string): BreakExp {
+    return { kind: 'break', name: name };
 }
 
 
@@ -134,6 +152,12 @@ export class Trace {
             return;
         }
         cursor.index = cursor.index + 1;
+    }
+
+    private resetCursor() {
+        // loops over current block
+        let cursor = this.getValidCursor();
+        cursor.index = 0;
     }
 
     private setExp(exp: Exp) {
@@ -290,6 +314,27 @@ export class Trace {
         }
     }
 
+    traceWhile(cond: Exp) {
+        let exp = this.getCurrentExp();
+        if (exp.kind === 'unknown') {
+            let newBlock = [unknown()];
+            this.setExp(while_(cond, newBlock));
+            this.enterBlock({ body: newBlock, index: 0 });
+        }
+        else if (exp.kind === 'while') {
+            exp.cond = mergeExp(exp.cond, cond);
+            this.mayIncrementCursor();
+            this.enterBlock({ body: exp.body, index: 0 });
+        }
+        else {
+            throw new Error(`expected while, got ${exp.kind}`);
+        }
+    }
+
+    traceLoop() {
+        this.resetCursor();
+    }
+
     traceCallback(event: string, arg: Exp): Trace {
         let exp = this.getCurrentExp();
         if (exp.kind === 'unknown') {
@@ -309,6 +354,26 @@ export class Trace {
         }
         else {
             throw new Error(`hole contains ${exp.kind}`);
+        }
+    }
+
+    traceLabel(name: string): void {
+        let exp = this.getCurrentExp();
+        if (exp.kind === 'unknown') {
+            let namedBlock = [unknown()];
+            this.setExp(label(name, namedBlock));
+            this.enterBlock({ body: namedBlock, index: 0 });
+        }
+        else if (exp.kind === 'label') {
+            if (exp.name !== name) {
+                throw new Error(`Cannot merge label with name ${name} into label with
+                    name ${exp.name}`);
+            }
+            this.mayIncrementCursor();
+            this.enterBlock({ body: exp.body, index: 0 });
+        }
+        else {
+            throw new Error(`expected label, got ${exp.kind}`);
         }
     }
 
@@ -381,12 +446,25 @@ function mergeExp(e1: Exp, e2: Exp): Exp {
         if (e1.op !== e2.op) {
             throw new Error(`Cannot merge operations ${e1.op} and ${e2.op}`);
         }
-        e1.e1 = mergeExp(e1.e1, e1.e2);
+        e1.e1 = mergeExp(e1.e1, e2.e1);
         e1.e2 = mergeExp(e1.e2, e2.e2);
         return e1;
     }
     else if (e1.kind === 'block' && e2.kind === 'block') {
         e1.body = mergeExpArray(e1.body, e2.body);
+        return e1;
+    }
+    else if (e1.kind === 'label' && e2.kind === 'label') {
+        if(e1.name !== e2.name) {
+            throw new Error(`Mismatched names ${e1.name} and ${e2.name}.`);
+        }
+        e1.body = mergeExpArray(e1.body, e2.body);
+        return e1;
+    }
+    else if (e1.kind === 'break' && e2.kind === 'break') {
+        if(e1.name !== e2.name) {
+            throw new Error(`Mismatched names ${e1.name} and ${e2.name}.`);
+        }
         return e1;
     }
     else {

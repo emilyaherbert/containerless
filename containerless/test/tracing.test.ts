@@ -1,5 +1,5 @@
 import {
-    block, let_, set_, number, if_, newTrace, callback, identifier, string, binop, unknown
+    while_, break_, label, block, let_, set_, number, if_, newTrace, callback, identifier, string, binop, unknown
 } from '../ts/tracing';
 import { Callbacks } from '../ts/callbacks';
 
@@ -245,4 +245,45 @@ test('tracing with callback library', (done) => {
     cb.trace.traceLet('y', number(200));
     cb.trace.exitBlock();
 
+});
+
+test('while', () => {
+    let t = newTrace();
+
+    t.traceLet("x", number(2));
+    let x = 2;
+    t.traceLet("y", number(0));
+    let y = 0;
+
+    t.traceWhile(binop(">", identifier("x"), number(0)));
+    while(x > 0) {
+        t.traceLoop();
+
+        if(x > 1) {
+            t.traceIfTrue(binop('>', identifier('x'), number(1)));
+            t.traceSet('y', binop('+', identifier('y'), number(2)));
+            y = y + 2;
+        } else {
+            t.traceIfFalse(binop('>', identifier('x'), number(1)));
+            t.traceSet('y', binop('+', identifier('y'), number(3)));
+            y = y + 3;
+        }
+        t.exitBlock();
+
+        t.traceSet("x", binop("-", identifier("x"), number(1)));
+        x = x - 1;
+    };
+    t.exitBlock();
+    t.exitBlock();
+
+    expect(t.getTrace()).toMatchObject(block([
+        let_('x', number(2)),
+        let_('y', number(0)),
+        while_(binop('>', identifier('x'), number(0)),
+            [ if_(binop('>', identifier('x'), number(1)),
+                  [ set_('y', binop('+', identifier('y'), number(2))) ],
+                  [ set_('y', binop('+', identifier('y'), number(3))) ]),
+              set_('x', binop('-', identifier('x'), number(1)))
+            ])
+        ]));
 });
