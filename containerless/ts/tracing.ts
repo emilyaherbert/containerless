@@ -144,6 +144,14 @@ export class Trace {
         return cursor.body[cursor.index];
     }
 
+    private getPrevExp() {
+        let cursor = this.getValidCursor();
+        if (cursor.index == 0) {
+            throw new Error(`No parent of current cursor.`);
+        }
+        return cursor.body[cursor.index - 1];
+    }
+
     private mayIncrementCursor() {
         let cursor = this.getValidCursor();
         if (cursor.index === cursor.body.length - 1 &&
@@ -177,6 +185,12 @@ export class Trace {
             this.cursorStack.push(this.cursor);
         }
         this.cursor = cursor;
+    }
+
+    private resumeBlock(body: Exp[]) {
+        let newBody = body;
+        let index = newBody.push(unknown()) - 1;
+        this.enterBlock({ body: newBody, index: index });
     }
 
     pushArg(e: Exp) {
@@ -360,9 +374,9 @@ export class Trace {
     traceLabel(name: string): void {
         let exp = this.getCurrentExp();
         if (exp.kind === 'unknown') {
-            let namedBlock = [unknown()];
-            this.setExp(label(name, namedBlock));
-            this.enterBlock({ body: namedBlock, index: 0 });
+            let labelBody = [unknown()];
+            this.setExp(label(name, labelBody));
+            this.enterBlock({ body: labelBody, index: 0 });
         }
         else if (exp.kind === 'label') {
             if (exp.name !== name) {
@@ -375,6 +389,43 @@ export class Trace {
         else {
             throw new Error(`expected label, got ${exp.kind}`);
         }
+    }
+
+    traceBreak(name: string): void {
+        let exp = this.getCurrentExp();
+        if (exp.kind === 'unknown') {
+            this.setExp(break_(name));
+        }
+        else if (exp.kind === 'break') {
+            if (exp.name !== name) {
+                throw new Error(`Cannot merge break with name ${name} into break with
+                    name ${exp.name}`);
+            }
+        }
+        else {
+            throw new Error(`expected break, got ${exp.kind}`);
+        }
+
+        // Rewind
+        // Keep exiting until you reach the correct label.
+        this.exitBlock();
+        let prev = this.getPrevExp();
+        while((prev.kind === 'label' && prev.name !== name) || prev.kind !== 'label') {
+            this.exitBlock();
+            prev = this.getPrevExp();
+        }
+
+        // Fast-forward
+        // Once we have found the correct label, we need to resume normal control flow.
+        // This places this.cursor at the bottom of body of the label we have just broken to.
+        // If all is well, this should be immediately followed by a t.exitBlock();
+        // The t.exitBlock() cannot occur here because the t.exitBlock() statements need to
+        // inserted uniformly into the source program.
+        // See test case 'nested labels'.
+        if(prev.kind !== 'label') {
+            throw new Error("Expected label!");
+        }
+        this.resumeBlock(prev.body);
     }
 
     pretty_print(): void {

@@ -322,5 +322,180 @@ test('callback that receives multiple events', () => {
                 ])
             ])
         ]));
+});
+
+test('label and break', () => {
+    let t = newTrace();
+
+    t.traceLabel('things');
+    things : {
+        t.traceLet('x', number(77));
+        let x = 77;
+        t.traceBreak('things');
+        break things;
+        t.traceLet('oops', number(666));
+        let oops = 666;
+    }
+    t.exitBlock();
+
+    t.traceLet('keyboard', number(11));
+    let keyboard = 11;
+
+    t.exitBlock();
+
+    expect(t.getTrace()).toMatchObject(block([
+        label('things',
+            [ let_('x', number(77)),
+              break_('things')
+            ]),
+        let_('keyboard', number(11))
+        ]));
+
+});
+
+test('label no break', () => {
+    let t = newTrace();
+
+    t.traceLabel('things');
+    things : {
+        t.traceLet('x', number(77));
+        let x = 77;
+        t.traceLet('oops', number(666));
+        let oops = 666;
+    }
+    t.exitBlock();
+
+    t.traceLet('keyboard', number(11));
+    let keyboard = 11;
+
+    t.exitBlock();
+
+    expect(t.getTrace()).toMatchObject(block([
+        label('things',
+            [ let_('x', number(77)),
+              let_('oops', number(666))
+            ]),
+        let_('keyboard', number(11))
+        ]));
+
+});
+
+test('nested labels', () => {
+    let t = newTrace();
+    
+    t.traceLabel('things');
+    things : {
+        t.traceLet('x', number(1));
+        let x = 1;
+
+        t.traceLabel('betwixt');
+        betwixt : {
+            t.traceLet('y', number(2));
+            let y = 2;
+
+            t.traceLabel('stuff');
+            stuff : {
+                t.traceLet('z', number(3));
+                let z = 3;
+                t.traceBreak('betwixt');
+                break betwixt;
+            }
+            t.exitBlock();
+
+            t.traceLet('there', number(50));
+            let there = 50;
+        }
+        t.exitBlock(); // this is the exitBlock that we have to treat as a special case in traceBreak
+
+        t.traceLet('here', number(51));
+        let here = 51;
+    }
+    t.exitBlock();
+
+    t.traceLet('after', number(80));
+    let after = 80;
+
+    t.exitBlock();
+
+    expect(t.getTrace()).toMatchObject(block([
+        label('things',
+            [ let_('x', number(1)),
+              label('betwixt',
+                [ let_('y', number(2)),
+                  label('stuff',
+                    [ let_('z', number(3)),
+                      break_('betwixt')
+                    ])
+                ]),
+              let_('here', number(51))
+            ]),
+        let_('after', number(80))
+        ]));
+
+});
+
+test('label and if and break', () => {
+    let t = newTrace();
+    t.traceLabel('things');
+    things : {
+        t.traceLet('x', number(77));
+        let x = 77;
+        if(x > 10) {
+            t.traceIfTrue(binop('>', identifier('x'), number(10)));
+            t.traceLet('y', number(333));
+            let y = 333;
+            t.traceBreak('things');
+            break things;
+        } else {
+            t.traceIfFalse(binop('>', identifier('x'), number(10)));
+            t.traceLet('y', number(444));
+            let y = 444;
+            t.traceBreak('things');
+            break things;
+        }
+        t.traceLet('oops', number(666));
+        let oops = 666;
+    }
+    t.exitBlock();
+    t.traceLet('keyboard', number(11));
+    let keyboard = 11;
+    t.exitBlock();
+
+    t.newTrace();
+    t.traceLabel('things');
+    things : {
+        t.traceLet('x', number(77)); // kept at 77 for testing
+        let x = 8;
+        if(x > 10) {
+            t.traceIfTrue(binop('>', identifier('x'), number(10)));
+            t.traceLet('y', number(333));
+            let y = 333;
+            t.traceBreak('things');
+            break things;
+        } else {
+            t.traceIfFalse(binop('>', identifier('x'), number(10)));
+            t.traceLet('y', number(444));
+            let y = 444;
+            t.traceBreak('things');
+            break things;
+        }
+        t.traceLet('oops', number(666));
+        let oops = 666;
+    }
+    t.exitBlock();
+    t.traceLet('keyboard', number(11));
+    t.exitBlock();
+
+    expect(t.getTrace()).toMatchObject(block([
+        label('things',
+            [ let_('x', number(77)),
+              if_(binop('>', identifier('x'), number(10)),
+                 [ let_('y', number(333)),
+                   break_('things') ],
+                 [ let_('y', number(444)),
+                   break_('things') ])
+            ]),
+        let_('keyboard', number(11))
+        ]));
 
 });
