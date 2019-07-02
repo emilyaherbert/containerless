@@ -381,7 +381,7 @@ function mergeExp(e1: Exp, e2: Exp): Exp {
         if (e1.op !== e2.op) {
             throw new Error(`Cannot merge operations ${e1.op} and ${e2.op}`);
         }
-        e1.e1 = mergeExp(e1.e1, e1.e2);
+        e1.e1 = mergeExp(e1.e1, e2.e1);
         e1.e2 = mergeExp(e1.e2, e2.e2);
         return e1;
     }
