@@ -627,3 +627,54 @@ test('if no else', () => {
         let_('z', number(5))
         ]));
 });
+
+test('sometimes break', () => {
+    let t = newTrace();
+    t.traceLet('x', number(1));
+    let x = 1;
+    t.traceLabel('myLabel');
+    myLabel: {
+        if (x > 0) {
+            t.traceIfTrue(binop('>', identifier('x'), number(0)));
+            t.traceBreak('myLabel');
+            break myLabel;
+        } else {
+            t.traceIfFalse(binop('>', identifier('x'), number(0)));
+        }
+        t.exitBlock();
+        t.traceSet('x', number(200));
+        x = 200;
+    }    
+    t.exitBlock();
+
+    t.newTrace();
+    t.traceLet('x', number(1));
+    x = 0;
+    t.traceLabel('myLabel');
+    myLabel: {
+        if (x > 0) {
+            t.traceIfTrue(binop('>', identifier('x'), number(0)));
+            t.traceBreak('myLabel');
+            break myLabel;
+        } else {
+            t.traceIfFalse(binop('>', identifier('x'), number(0)));
+        }
+        t.exitBlock();
+        t.traceSet('x', number(200));
+    }    
+    t.exitBlock();
+
+    t.exitBlock();
+    expect(t.getTrace()).toMatchObject(
+        block([
+            let_('x', number(1)),
+            label('myLabel',
+                [
+                    if_(binop('>', identifier('x'), number(0)),
+                        [ break_('myLabel'),
+                          unknown() ],
+                        []),
+                    set_('x', number(200))
+                ])
+        ]));
+});
