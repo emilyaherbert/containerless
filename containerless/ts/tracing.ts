@@ -147,7 +147,7 @@ export class Trace {
     private getPrevExp() {
         let cursor = this.getValidCursor();
         if (cursor.index == 0) {
-            throw new Error(`No parent of current cursor.`);
+            throw new Error(`No previous exp.`);
         }
         return cursor.body[cursor.index - 1];
     }
@@ -216,10 +216,18 @@ export class Trace {
         }
         let cursor = this.cursor;
         if (cursor.index !== cursor.body.length - 1) {
+            console.log(cursor);
             throw new Error('Exiting block too early');
         }
         if (this.cursor.body[cursor.index].kind === 'unknown') {
             this.cursor.body.pop();
+        }
+        this.cursor = this.cursorStack.pop();
+    }
+
+    private quietExitBlock() {
+        if (this.cursor === undefined) {
+            throw new Error(`called exitBlock on a complete trace`);
         }
         this.cursor = this.cursorStack.pop();
     }
@@ -409,10 +417,10 @@ export class Trace {
 
         // Rewind
         // Keep exiting until you reach the correct label.
-        this.exitBlock();
+        this.quietExitBlock();
         let prev = this.getPrevExp();
         while((prev.kind === 'label' && prev.name !== name) || prev.kind !== 'label') {
-            this.exitBlock();
+            this.quietExitBlock();
             prev = this.getPrevExp();
         }
 

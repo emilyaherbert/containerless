@@ -200,6 +200,14 @@ test('exit fun from within if', () => {
         t.traceBreak('return_');
         break return_;
 
+        Function calls are transformed:
+
+        let a = F(10);
+            ->
+        let fun1 = F(10);
+        let a = fun1.next().value;
+        fun1.next();
+
     */
 
     let t = newTrace();
@@ -255,8 +263,10 @@ test('exit fun from within if', () => {
                 [ let_('x', identifier('a')),
                   if_(binop('>', identifier('x'), number(10)),
                     [ number(42),
-                      break_('return_') ],
-                    [ unknown() ])
+                      break_('return_'),
+                      unknown() ],
+                    [ unknown() ]),
+                  unknown()
                 ])
             ])),
         let_('b', number(9)),
@@ -266,7 +276,10 @@ test('exit fun from within if', () => {
                   if_(binop('>', identifier('x'), number(10)),
                     [ unknown() ],
                     [ number(24),
-                      break_('return_') ])
+                      break_('return_'),
+                      unknown()
+                    ]),
+                  unknown()
                 ])
             ])),
         ]));
@@ -393,7 +406,8 @@ test('label and break', () => {
     expect(t.getTrace()).toMatchObject(block([
         label('things',
             [ let_('x', number(77)),
-              break_('things')
+              break_('things'),
+              unknown()
             ]),
         let_('keyboard', number(11))
         ]));
@@ -471,8 +485,10 @@ test('nested labels', () => {
                 [ let_('y', number(2)),
                   label('stuff',
                     [ let_('z', number(3)),
-                      break_('betwixt')
-                    ])
+                      break_('betwixt'),
+                      unknown()
+                    ]),
+                  unknown()
                 ]),
               let_('here', number(51))
             ]),
@@ -538,11 +554,36 @@ test('label and if and break', () => {
             [ let_('x', number(77)),
               if_(binop('>', identifier('x'), number(10)),
                  [ let_('y', number(333)),
-                   break_('things') ],
+                   break_('things'),
+                   unknown()
+                 ],
                  [ let_('y', number(444)),
-                   break_('things') ])
+                   break_('things'),
+                   unknown()
+                 ]),
+              unknown()
             ]),
         let_('keyboard', number(11))
         ]));
 
+});
+
+test('if no else', () => {
+    let t = newTrace();
+    
+    t.traceLet('x', number(0));
+    let x = 0;
+    t.traceLet('y', number(0));
+    let y = 0;
+    if(x > 1) {
+        t.traceIfTrue(binop('>', identifier('x'), number(1)));
+        t.traceSet('y', number(10));
+        y = 10;
+    }
+    t.exitBlock();
+    t.traceLet('z', number(5));
+    let z = 5;
+
+    t.exitBlock();
+    t.prettyPrint();
 });
