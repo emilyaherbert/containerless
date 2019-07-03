@@ -251,6 +251,7 @@ export class Trace {
     traceReturn(e1: Exp): void {
         let e2 = this.getCurrentExp();
         if (e2.kind === 'unknown') {
+            // This may need to be some { kind: 'return', body: exp };
             this.setExp(e1);
         }
         else {
@@ -428,7 +429,7 @@ export class Trace {
         this.resumeBlock(prev.body);
     }
 
-    pretty_print(): void {
+    prettyPrint(): void {
         console.log(JSON.stringify(this.getTrace() , null, 2));
     }
 

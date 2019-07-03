@@ -174,53 +174,100 @@ test('same fun, different control flow', () => {
 });
 
 test('exit fun from within if', () => {
+    /*
+
+        Functions are transformed:
+
+        function F(x) {
+            // body
+        }
+            ->
+        function* F(x) {
+            t.traceLabel('return_');
+            return_ : {
+                t.traceLet('x', t.popArg());
+                // body
+            }
+            t.exitBlock();
+        }
+
+        Returns are transformed:
+
+        return 42;
+            ->
+        t.traceReturn(number(42));
+        yield 42;
+        t.traceBreak('return_');
+        break return_;
+
+    */
+
     let t = newTrace();
 
-    function F(x: any) {
-        t.traceLet('x', t.popArg());
-        if(x > 10) {
-            t.traceIfTrue(binop('>', identifier('x'), number(10)));
-            t.traceReturn(number(42));
-            t.exitBlock(); // t.exitBlock() exits the if, it follows the last t. statement within a block.
-            return 42;
-        } else {
-            t.traceIfFalse(binop('>', identifier('x'), number(10)));
-            t.traceReturn(number(24));
-            t.exitBlock(); // t.exitBlock() exits the if, it follows the last t. statement within a block.
-            return 24;
-        }
+    function* F(x: any) {
+        t.traceLabel('return_');
+        return_ : {
+            t.traceLet('x', t.popArg());
+
+            if(x > 10) {
+                t.traceIfTrue(binop('>', identifier('x'), number(10)));
+                t.traceReturn(number(42));
+                yield 42;
+                t.traceBreak('return_');
+                break return_;
+            } else {
+                t.traceIfFalse(binop('>', identifier('x'), number(10)));
+                t.traceReturn(number(24));
+                yield 24;
+                t.traceBreak('return_');
+                break return_;
+            }
+            t.exitBlock();
+
+        };
+        t.exitBlock();
     }
 
     let a = 11;
     t.traceLet('a', number(11));
     t.pushArg(identifier('a'));
     t.traceNamed('w');
-    let w = F(a);
-    t.exitBlock(); // t.exitBlock() exits the block created by t.traceNamed().
+    let fun1 = F(a);
+    let w = fun1.next().value;
+    fun1.next();
+    t.exitBlock();
 
     let b = 9;
     t.traceLet('b', number(9));
     t.pushArg(identifier('b'));
     t.traceNamed('v');
-    let v = F(b);
-    t.exitBlock(); // t.exitBlock() exits the block created by t.traceNamed().
+    let fun2 = F(b);
+    let v = fun2.next().value;
+    fun2.next();
+    t.exitBlock();
 
-    t.exitBlock(); // t.exitBlock exits the program.
+    t.exitBlock();
 
     expect(t.getTrace()).toMatchObject(block([
         let_('a', number(11)),
         let_('w', block([
-             let_('x', identifier('a')),
-             if_(binop('>', identifier('x'), number(10)),
-                [number(42)],
-                [unknown()])
+             label('return_',
+                [ let_('x', identifier('a')),
+                  if_(binop('>', identifier('x'), number(10)),
+                    [ number(42),
+                      break_('return_') ],
+                    [ unknown() ])
+                ])
             ])),
         let_('b', number(9)),
         let_('v', block([
-             let_('x', identifier('b')),
-             if_(binop('>', identifier('x'), number(10)),
-                [unknown()],
-                [number(24)])
+             label('return_',
+                [ let_('x', identifier('b')),
+                  if_(binop('>', identifier('x'), number(10)),
+                    [ unknown() ],
+                    [ number(24),
+                      break_('return_') ])
+                ])
             ])),
         ]));
 });
