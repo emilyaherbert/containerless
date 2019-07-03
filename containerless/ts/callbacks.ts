@@ -38,7 +38,7 @@ export class Callbacks {
 
     mockCallback(
         callback: (value: any) => void): (value: any) => void {
-        let innerTrace = this.trace.traceCallback('mock', number(0));
+        let innerTrace = this.trace.traceCallback('mock', number(0), '$response');
         return (value: any) => {
             this.withTrace(innerTrace, () => {
                 innerTrace.pushArg(identifier('$response'));
@@ -48,9 +48,10 @@ export class Callbacks {
     }
 
     immediate(arg: string, callback: (arg: string) => void) {
-        let innerTrace = this.trace.traceCallback('immediate', string(arg));
+        let innerTrace = this.trace.traceCallback('immediate', string(arg), '$x');
         setImmediate(() => {
             this.withTrace(innerTrace, () => {
+                innerTrace.pushArg(identifier('$x'));
                 callback(arg);
             });
         });
@@ -66,10 +67,11 @@ export class Callbacks {
         callback: (response: undefined | string) => void) {
         // TODO(arjun): string(uri) is not right. This needs to be the expression
         // passed to the function.
-        let innerTrace = this.trace.traceCallback('get', this.trace.popArg());
+        let innerTrace = this.trace.traceCallback('get', this.trace.popArg(), '$response');
         request.get(uri, undefined, (error, resp) => {
             this.withTrace(innerTrace, () => {
                 if (error !== null) {
+                    innerTrace.pushArg(identifier('$response'));
                     callback(undefined);
                 }
                 else {

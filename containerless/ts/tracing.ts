@@ -25,7 +25,17 @@ type LetExp = { kind: 'let', name: string, named: Exp };
 type SetExp = { kind: 'set', name: string, named: Exp };
 type IfExp = { kind: 'if', cond: Exp, truePart: Exp[], falsePart: Exp[] };
 type WhileExp = { kind: 'while', cond: Exp, body: Exp[] };
-type CallbackExp = { kind: 'callback', event: string, arg: Exp, body: Exp[] };
+
+/**
+ * event(eventArg, function(callbackArg) { body ... });
+ */
+type CallbackExp = {
+    kind: 'callback',
+    event: string,
+    eventArg: Exp, // argument for the event, e.g. the URL to get
+    callbackArg: string, // name of the argument passed to the callback
+    body: Exp[] // body of the callback
+};
 type LabelExp = { kind: 'label', name: string, body: Exp[] };
 type BreakExp = { kind: 'break', name: string, value: Exp };
 
@@ -85,8 +95,8 @@ export function while_(cond: Exp, body: Exp[]): WhileExp {
     return { kind: 'while', cond: cond, body: body };
 }
 
-export function callback(event: string, arg: Exp, body: Exp[]): CallbackExp {
-    return { kind: 'callback', event, arg, body };
+export function callback(event: string, eventArg: Exp, callbackArg: string, body: Exp[]): CallbackExp {
+    return { kind: 'callback', event, eventArg, callbackArg, body };
 }
 
 export function let_(name: string, named: Exp): LetExp {
@@ -355,19 +365,19 @@ export class Trace {
         this.resetCursor();
     }
 
-    traceCallback(event: string, arg: Exp): Trace {
+    traceCallback(event: string, eventArg: Exp, callbackArg: string): Trace {
         let exp = this.getCurrentExp();
         if (exp.kind === 'unknown') {
             let callbackBody: Exp[] = [ unknown() ];
-            this.setExp(callback(event, arg, callbackBody));
+            this.setExp(callback(event, eventArg, callbackArg, callbackBody));
             return new Trace(callbackBody);
         }
         else if (exp.kind === 'callback') {
-            if (exp.event !== event) {
+            if (exp.event !== event || exp.callbackArg !== callbackArg) {
                 throw new Error(`called traceCallback(${event}), but
                    hole contains traceCallback(${exp.event})`);
             }
-            exp.arg = mergeExp(exp.arg, arg);
+            exp.eventArg = mergeExp(exp.eventArg, eventArg);
 
             this.mayIncrementCursor();
             return new Trace(exp.body);
