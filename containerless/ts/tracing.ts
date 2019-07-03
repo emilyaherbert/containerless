@@ -27,7 +27,7 @@ type IfExp = { kind: 'if', cond: Exp, truePart: Exp[], falsePart: Exp[] };
 type WhileExp = { kind: 'while', cond: Exp, body: Exp[] };
 type CallbackExp = { kind: 'callback', event: string, arg: Exp, body: Exp[] };
 type LabelExp = { kind: 'label', name: string, body: Exp[] };
-type BreakExp = { kind: 'break', name: string };
+type BreakExp = { kind: 'break', name: string, value: Exp };
 
 /**
  * NOTE(arjun): We do not make a distinction between statements and expressions.
@@ -48,6 +48,7 @@ export type Exp
     | { kind: 'number', value: number }
     | { kind: 'identifier', name: string }
     | { kind: 'string', value: string }
+    | { kind: 'undefined' }
     | { kind: 'binop', op: BinOp, e1: Exp, e2: Exp }
     | IfExp
     | WhileExp
@@ -57,6 +58,8 @@ export type Exp
     | CallbackExp
     | LabelExp
     | BreakExp;
+
+export const undefined_ : Exp = { kind: 'undefined' };
 
 export function identifier(name: string): Exp {
     return { kind: 'identifier', name };
@@ -106,8 +109,8 @@ export function label(name: string, body: Exp[]): LabelExp {
     return { kind: 'label', name: name, body: body };
 }
 
-export function break_(name: string): BreakExp {
-    return { kind: 'break', name: name };
+export function break_(name: string, value: Exp): BreakExp {
+    return { kind: 'break', name: name, value };
 }
 
 
@@ -185,12 +188,6 @@ export class Trace {
             this.cursorStack.push(this.cursor);
         }
         this.cursor = cursor;
-    }
-
-    private resumeBlock(body: Exp[]) {
-        let newBody = body;
-        let index = newBody.push(unknown()) - 1;
-        this.enterBlock({ body: newBody, index: index });
     }
 
     pushArg(e: Exp) {
@@ -400,16 +397,17 @@ export class Trace {
         }
     }
 
-    traceBreak(name: string): void {
+    traceBreak(name: string, value: Exp): void {
         let exp = this.getCurrentExp();
         if (exp.kind === 'unknown') {
-            this.setExp(break_(name));
+            this.setExp(break_(name, value));
         }
         else if (exp.kind === 'break') {
             if (exp.name !== name) {
                 throw new Error(`Cannot merge break with name ${name} into break with
                     name ${exp.name}`);
             }
+            exp.value = mergeExp(exp.value, value);
         }
         else {
             throw new Error(`expected break, got ${exp.kind}`);
@@ -431,10 +429,11 @@ export class Trace {
         // The t.exitBlock() cannot occur here because the t.exitBlock() statements need to
         // inserted uniformly into the source program.
         // See test case 'nested labels'.
-        if(prev.kind !== 'label') {
+        if (prev.kind !== 'label') {
             throw new Error("Expected label!");
         }
-        this.resumeBlock(prev.body);
+        // prev.kind === 'label' && prev.name === name
+
     }
 
     prettyPrint(): void {

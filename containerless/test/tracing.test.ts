@@ -1,5 +1,6 @@
 import {
-    while_, break_, label, block, let_, set_, number, if_, newTrace, callback, identifier, string, binop, unknown
+    while_, break_, label, block, let_, set_, number, if_, newTrace, callback,
+    identifier, string, binop, unknown, undefined_
 } from '../ts/tracing';
 import { Callbacks } from '../ts/callbacks';
 
@@ -174,65 +175,22 @@ test('same fun, different control flow', () => {
 });
 
 test('exit fun from within if', () => {
-    /*
-
-        Functions are transformed:
-
-        function F(x) {
-            // body
-        }
-            ->
-        function* F(x) {
-            t.traceLabel('return_');
-            return_ : {
-                t.traceLet('x', t.popArg());
-                // body
-            }
-            t.exitBlock();
-        }
-
-        Returns are transformed:
-
-        return 42;
-            ->
-        t.traceReturn(number(42));
-        yield 42;
-        t.traceBreak('return_');
-        break return_;
-
-        Function calls are transformed:
-
-        let a = F(10);
-            ->
-        let fun1 = F(10);
-        let a = fun1.next().value;
-        fun1.next();
-
-    */
-
     let t = newTrace();
 
-    function* F(x: any) {
+    function F(x: any) {
         t.traceLabel('return_');
-        return_ : {
-            t.traceLet('x', t.popArg());
+        t.traceLet('x', t.popArg());
 
-            if(x > 10) {
-                t.traceIfTrue(binop('>', identifier('x'), number(10)));
-                t.traceReturn(number(42));
-                yield 42;
-                t.traceBreak('return_');
-                break return_;
-            } else {
-                t.traceIfFalse(binop('>', identifier('x'), number(10)));
-                t.traceReturn(number(24));
-                yield 24;
-                t.traceBreak('return_');
-                break return_;
-            }
-            t.exitBlock();
-
-        };
+        if(x > 10) {
+            t.traceIfTrue(binop('>', identifier('x'), number(10)));
+            t.traceBreak('return_', number(42));
+            return 42;
+        } else {
+            t.traceIfFalse(binop('>', identifier('x'), number(10)));
+            t.traceBreak('return_', number(24));
+            return 24;
+        }
+        t.exitBlock();
         t.exitBlock();
     }
 
@@ -240,18 +198,14 @@ test('exit fun from within if', () => {
     t.traceLet('a', number(11));
     t.pushArg(identifier('a'));
     t.traceNamed('w');
-    let fun1 = F(a);
-    let w = fun1.next().value;
-    fun1.next();
+    let w = F(a);
     t.exitBlock();
 
     let b = 9;
     t.traceLet('b', number(9));
     t.pushArg(identifier('b'));
     t.traceNamed('v');
-    let fun2 = F(b);
-    let v = fun2.next().value;
-    fun2.next();
+    let v = F(b);
     t.exitBlock();
 
     t.exitBlock();
@@ -262,8 +216,7 @@ test('exit fun from within if', () => {
              label('return_',
                 [ let_('x', identifier('a')),
                   if_(binop('>', identifier('x'), number(10)),
-                    [ number(42),
-                      break_('return_'),
+                    [ break_('return_', number(42)),
                       unknown() ],
                     [ unknown() ]),
                   unknown()
@@ -275,8 +228,7 @@ test('exit fun from within if', () => {
                 [ let_('x', identifier('b')),
                   if_(binop('>', identifier('x'), number(10)),
                     [ unknown() ],
-                    [ number(24),
-                      break_('return_'),
+                    [ break_('return_', number(24)),
                       unknown()
                     ]),
                   unknown()
@@ -352,6 +304,7 @@ test('callback that receives multiple events', () => {
     let cb = new Callbacks();
     let sender = cb.mockCallback((value) => {
         let $value = cb.trace.popArg();
+        cb.trace.traceLet('value', $value);
         cb.trace.traceLet('ret', number(0));
         let ret = 0;
         let $cond = binop('>', identifier('value'), number(0));
@@ -374,6 +327,7 @@ test('callback that receives multiple events', () => {
     expect(cb.trace.getTrace()).toMatchObject(
         block([
             callback('mock', number(0), [
+                let_('value', identifier('$response')),
                 let_('ret', number(0)),
                 if_(binop('>', identifier('value'), number(0)), [
                     set_('ret', number(200))
@@ -391,12 +345,13 @@ test('label and break', () => {
     things : {
         t.traceLet('x', number(77));
         let x = 77;
-        t.traceBreak('things');
+        t.traceBreak('things', undefined_);
         break things;
         t.traceLet('oops', number(666));
         let oops = 666;
+        t.exitBlock();
     }
-    t.exitBlock();
+
 
     t.traceLet('keyboard', number(11));
     let keyboard = 11;
@@ -406,7 +361,7 @@ test('label and break', () => {
     expect(t.getTrace()).toMatchObject(block([
         label('things',
             [ let_('x', number(77)),
-              break_('things'),
+              break_('things', undefined_),
               unknown()
             ]),
         let_('keyboard', number(11))
@@ -458,20 +413,22 @@ test('nested labels', () => {
             stuff : {
                 t.traceLet('z', number(3));
                 let z = 3;
-                t.traceBreak('betwixt');
+                t.traceBreak('betwixt', undefined_);
                 break betwixt;
+                t.exitBlock();
             }
-            t.exitBlock();
 
             t.traceLet('there', number(50));
             let there = 50;
+            t.exitBlock(); // this is the exitBlock that we have to treat as a special case in traceBreak
+
         }
-        t.exitBlock(); // this is the exitBlock that we have to treat as a special case in traceBreak
 
         t.traceLet('here', number(51));
         let here = 51;
+        t.exitBlock();
     }
-    t.exitBlock();
+
 
     t.traceLet('after', number(80));
     let after = 80;
@@ -485,7 +442,7 @@ test('nested labels', () => {
                 [ let_('y', number(2)),
                   label('stuff',
                     [ let_('z', number(3)),
-                      break_('betwixt'),
+                      break_('betwixt', undefined_),
                       unknown()
                     ]),
                   unknown()
@@ -507,19 +464,20 @@ test('label and if and break', () => {
             t.traceIfTrue(binop('>', identifier('x'), number(10)));
             t.traceLet('y', number(333));
             let y = 333;
-            t.traceBreak('things');
+            t.traceBreak('things', undefined_);
             break things;
         } else {
             t.traceIfFalse(binop('>', identifier('x'), number(10)));
             t.traceLet('y', number(444));
             let y = 444;
-            t.traceBreak('things');
+            t.traceBreak('things', undefined_);
             break things;
         }
         t.traceLet('oops', number(666));
         let oops = 666;
+        t.exitBlock();
     }
-    t.exitBlock();
+
     t.traceLet('keyboard', number(11));
     let keyboard = 11;
     t.exitBlock();
@@ -533,19 +491,19 @@ test('label and if and break', () => {
             t.traceIfTrue(binop('>', identifier('x'), number(10)));
             t.traceLet('y', number(333));
             let y = 333;
-            t.traceBreak('things');
+            t.traceBreak('things', undefined_);
             break things;
         } else {
             t.traceIfFalse(binop('>', identifier('x'), number(10)));
             t.traceLet('y', number(444));
             let y = 444;
-            t.traceBreak('things');
+            t.traceBreak('things', undefined_);
             break things;
         }
         t.traceLet('oops', number(666));
         let oops = 666;
+        t.exitBlock();
     }
-    t.exitBlock();
     t.traceLet('keyboard', number(11));
     t.exitBlock();
 
@@ -554,11 +512,11 @@ test('label and if and break', () => {
             [ let_('x', number(77)),
               if_(binop('>', identifier('x'), number(10)),
                  [ let_('y', number(333)),
-                   break_('things'),
+                   break_('things', undefined_),
                    unknown()
                  ],
                  [ let_('y', number(444)),
-                   break_('things'),
+                   break_('things', undefined_),
                    unknown()
                  ]),
               unknown()
@@ -636,7 +594,7 @@ test('sometimes break', () => {
     myLabel: {
         if (x > 0) {
             t.traceIfTrue(binop('>', identifier('x'), number(0)));
-            t.traceBreak('myLabel');
+            t.traceBreak('myLabel', undefined_);
             break myLabel;
         } else {
             t.traceIfFalse(binop('>', identifier('x'), number(0)));
@@ -654,13 +612,14 @@ test('sometimes break', () => {
     myLabel: {
         if (x > 0) {
             t.traceIfTrue(binop('>', identifier('x'), number(0)));
-            t.traceBreak('myLabel');
+            t.traceBreak('myLabel', undefined_);
             break myLabel;
         } else {
             t.traceIfFalse(binop('>', identifier('x'), number(0)));
         }
         t.exitBlock();
         t.traceSet('x', number(200));
+        x = 200;
     }    
     t.exitBlock();
 
@@ -671,7 +630,7 @@ test('sometimes break', () => {
             label('myLabel',
                 [
                     if_(binop('>', identifier('x'), number(0)),
-                        [ break_('myLabel'),
+                        [ break_('myLabel', undefined_),
                           unknown() ],
                         []),
                     set_('x', number(200))
