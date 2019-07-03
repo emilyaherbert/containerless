@@ -569,8 +569,24 @@ test('label and if and break', () => {
 });
 
 test('if no else', () => {
+    /*
+
+        All if's need to have an else.
+
+        if (cond) {
+            // body
+        }
+            ->
+        if (cond) {
+            t.traceIfTrue(cond);
+            // body
+        } else {
+            t.traceIfFalse(cond);
+        }
+
+    */
+
     let t = newTrace();
-    
     t.traceLet('x', number(0));
     let x = 0;
     t.traceLet('y', number(0));
@@ -579,11 +595,35 @@ test('if no else', () => {
         t.traceIfTrue(binop('>', identifier('x'), number(1)));
         t.traceSet('y', number(10));
         y = 10;
+    } else {
+        t.traceIfFalse(binop('>', identifier('x'), number(1)));
     }
     t.exitBlock();
     t.traceLet('z', number(5));
     let z = 5;
 
+    t.newTrace();
+    t.traceLet('x', number(0)); // same for testing
+    x = 2;
+    t.traceLet('y', number(0));
+    if(x > 1) {
+        t.traceIfTrue(binop('>', identifier('x'), number(1)));
+        t.traceSet('y', number(10));
+        y = 10;
+    } else {
+        t.traceIfFalse(binop('>', identifier('x'), number(1)));
+    }
     t.exitBlock();
-    t.prettyPrint();
+    t.traceLet('z', number(5));
+
+    t.exitBlock();
+    
+    expect(t.getTrace()).toMatchObject(block([
+        let_('x', number(0)),
+        let_('y', number(0)),
+        if_(binop('>', identifier('x'), number(1)),
+            [ set_('y', number(10)) ],
+            [ ]),
+        let_('z', number(5))
+        ]));
 });
