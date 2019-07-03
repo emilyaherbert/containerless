@@ -418,6 +418,7 @@ export class Trace {
                     name ${exp.name}`);
             }
             exp.value = mergeExp(exp.value, value);
+            this.mayIncrementCursor();
         }
         else {
             throw new Error(`expected break, got ${exp.kind}`);
@@ -425,20 +426,14 @@ export class Trace {
 
         // Rewind
         // Keep exiting until you reach the correct label.
-        this.quietExitBlock();
+        this.exitBlock();
         let prev = this.getPrevExp();
         while((prev.kind === 'label' && prev.name !== name) || prev.kind !== 'label') {
             this.quietExitBlock();
             prev = this.getPrevExp();
         }
 
-        // Fast-forward
-        // Once we have found the correct label, we need to resume normal control flow.
-        // This places this.cursor at the bottom of body of the label we have just broken to.
-        // If all is well, this should be immediately followed by a t.exitBlock();
-        // The t.exitBlock() cannot occur here because the t.exitBlock() statements need to
-        // inserted uniformly into the source program.
-        // See test case 'nested labels'.
+        // Resume normal control flow.
         if (prev.kind !== 'label') {
             throw new Error("Expected label!");
         }

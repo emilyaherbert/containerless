@@ -216,8 +216,7 @@ test('exit fun from within if', () => {
              label('return_',
                 [ let_('x', identifier('a')),
                   if_(binop('>', identifier('x'), number(10)),
-                    [ break_('return_', number(42)),
-                      unknown() ],
+                    [ break_('return_', number(42)) ],
                     [ unknown() ]),
                   unknown()
                 ])
@@ -228,9 +227,7 @@ test('exit fun from within if', () => {
                 [ let_('x', identifier('b')),
                   if_(binop('>', identifier('x'), number(10)),
                     [ unknown() ],
-                    [ break_('return_', number(24)),
-                      unknown()
-                    ]),
+                    [ break_('return_', number(24)) ]),
                   unknown()
                 ])
             ])),
@@ -361,8 +358,7 @@ test('label and break', () => {
     expect(t.getTrace()).toMatchObject(block([
         label('things',
             [ let_('x', number(77)),
-              break_('things', undefined_),
-              unknown()
+              break_('things', undefined_)
             ]),
         let_('keyboard', number(11))
         ]));
@@ -378,8 +374,8 @@ test('label no break', () => {
         let x = 77;
         t.traceLet('oops', number(666));
         let oops = 666;
+        t.exitBlock();
     }
-    t.exitBlock();
 
     t.traceLet('keyboard', number(11));
     let keyboard = 11;
@@ -420,8 +416,7 @@ test('nested labels', () => {
 
             t.traceLet('there', number(50));
             let there = 50;
-            t.exitBlock(); // this is the exitBlock that we have to treat as a special case in traceBreak
-
+            t.exitBlock();
         }
 
         t.traceLet('here', number(51));
@@ -442,8 +437,7 @@ test('nested labels', () => {
                 [ let_('y', number(2)),
                   label('stuff',
                     [ let_('z', number(3)),
-                      break_('betwixt', undefined_),
-                      unknown()
+                      break_('betwixt', undefined_)
                     ]),
                   unknown()
                 ]),
@@ -473,6 +467,7 @@ test('label and if and break', () => {
             t.traceBreak('things', undefined_);
             break things;
         }
+        t.exitBlock();
         t.traceLet('oops', number(666));
         let oops = 666;
         t.exitBlock();
@@ -500,6 +495,7 @@ test('label and if and break', () => {
             t.traceBreak('things', undefined_);
             break things;
         }
+        t.exitBlock();
         t.traceLet('oops', number(666));
         let oops = 666;
         t.exitBlock();
@@ -512,12 +508,10 @@ test('label and if and break', () => {
             [ let_('x', number(77)),
               if_(binop('>', identifier('x'), number(10)),
                  [ let_('y', number(333)),
-                   break_('things', undefined_),
-                   unknown()
+                   break_('things', undefined_)
                  ],
                  [ let_('y', number(444)),
-                   break_('things', undefined_),
-                   unknown()
+                   break_('things', undefined_)
                  ]),
               unknown()
             ]),
@@ -602,8 +596,8 @@ test('sometimes break', () => {
         t.exitBlock();
         t.traceSet('x', number(200));
         x = 200;
-    }    
-    t.exitBlock();
+        t.exitBlock();
+    }
 
     t.newTrace();
     t.traceLet('x', number(1));
@@ -620,8 +614,8 @@ test('sometimes break', () => {
         t.exitBlock();
         t.traceSet('x', number(200));
         x = 200;
+        t.exitBlock();
     }    
-    t.exitBlock();
 
     t.exitBlock();
     expect(t.getTrace()).toMatchObject(
@@ -630,8 +624,7 @@ test('sometimes break', () => {
             label('myLabel',
                 [
                     if_(binop('>', identifier('x'), number(0)),
-                        [ break_('myLabel', undefined_),
-                          unknown() ],
+                        [ break_('myLabel', undefined_) ],
                         []),
                     set_('x', number(200))
                 ])
