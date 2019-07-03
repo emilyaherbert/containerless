@@ -26,6 +26,10 @@ type SetExp = { kind: 'set', name: string, named: Exp };
 type IfExp = { kind: 'if', cond: Exp, truePart: Exp[], falsePart: Exp[] };
 type WhileExp = { kind: 'while', cond: Exp, body: Exp[] };
 
+type IdPath = [string];
+type TEnv = Map<String, IdPath>;
+type ClosExp = { kind: 'clos', tenv: TEnv };
+
 /**
  * event(eventArg, function(callbackArg) { body ... });
  */
@@ -67,7 +71,8 @@ export type Exp
     | BlockExp
     | CallbackExp
     | LabelExp
-    | BreakExp;
+    | BreakExp
+    | ClosExp;
 
 export const undefined_ : Exp = { kind: 'undefined' };
 
@@ -123,6 +128,18 @@ export function break_(name: string, value: Exp): BreakExp {
     return { kind: 'break', name: name, value };
 }
 
+export function clos(tenv: TEnv): ClosExp {
+    return { kind: 'clos', tenv: tenv }
+}
+
+let nextId = 0;
+function* freshId(): IterableIterator<string> {
+    while(true) {
+        let ret = "$" + nextId;
+        nextId = nextId + 1;
+        yield ret;
+    }
+}
 
 type Cursor = { body: Exp[], index: number };
 
@@ -131,6 +148,8 @@ export class Trace {
     private cursorStack: Cursor[];
     private cursor: Cursor | undefined;
     private traceStack: Exp[];
+    private traceEnv: TEnv;
+    private traceEnvStack: TEnv[];
 
 
     constructor(body: Exp[]) {
@@ -139,6 +158,8 @@ export class Trace {
         this.cursor = { body: exp.body, index: 0 };
         this.cursorStack = [];
         this.traceStack = [];
+        this.traceEnv = new Map();
+        this.traceEnvStack = [];
     }
 
     private getValidCursor(): Cursor {
@@ -240,6 +261,10 @@ export class Trace {
     }
 
     traceNamed(name: string): void {
+        let w = freshId().next().value;
+        this.traceEnvStack.push(new Map(this.traceEnv));
+        this.traceEnv = new Map();
+
         let exp = this.getCurrentExp();
         if (exp.kind === 'unknown') {
             let namedBlock = block([unknown()]);
@@ -275,6 +300,8 @@ export class Trace {
     }
 
     traceLet(name: string, named: Exp): void {
+        this.traceEnv.set(name, [name]);
+
         let exp = this.getCurrentExp();
         if (exp.kind === 'unknown') {
             this.setExp(let_(name, named));
@@ -285,6 +312,31 @@ export class Trace {
                     name ${exp.name}`);
             }
             exp.named = mergeExp(exp.named, named);
+            this.mayIncrementCursor();
+        }
+        else {
+            throw new Error(`expected let, got ${exp.kind}`);
+        }
+    }
+
+    /*
+        This is a special `traceLet` that constructs its own `named`.
+        TODO: Do something about merging closures.
+    */
+    traceClos(name: string): void {
+        let named = clos(new Map(this.traceEnv));
+        this.traceEnv.set(name, [name]);
+
+        let exp = this.getCurrentExp();
+        if (exp.kind === 'unknown') {
+            this.setExp(let_(name, named));
+        }
+        else if (exp.kind === 'let') {
+            if (exp.name !== name) {
+                throw new Error(`Cannot merge let with name ${name} into let with
+                    name ${exp.name}`);
+            }
+            //exp.named = mergeExp(exp.named, named);
             this.mayIncrementCursor();
         }
         else {

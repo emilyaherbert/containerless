@@ -630,3 +630,39 @@ test('sometimes break', () => {
                 ])
         ]));
 });
+
+test('simple fun', () => {
+    let t = newTrace();
+
+    t.traceLet('a', number(1));
+    let a = 1;
+
+    t.traceClos('F');
+    function F(b: any) {
+        t.traceLabel('return_');
+            t.traceLet('b', t.popArg());
+
+            t.traceLet('c', binop('+', identifier('a'), identifier('b')));
+            let c = a + b;
+            t.traceBreak('return_', identifier('c'));
+            return c;
+
+        t.exitBlock();
+    }
+
+    t.traceLet('d', number(2));
+    let d = 2;
+    t.pushArg(identifier('d'));
+    t.traceNamed('e');
+    let e = F(d);
+    t.exitBlock();
+
+    t.exitBlock();
+
+    t.prettyPrint();
+
+    expect(t.getTrace()).toMatchObject(
+        block([
+            let_('x', number(12)),
+            let_('y', number(120))]));
+});
