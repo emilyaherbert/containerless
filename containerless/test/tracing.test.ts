@@ -178,16 +178,16 @@ test('exit fun from within if', () => {
     let t = newTrace();
 
     function F(x: any) {
-        t.traceLabel('return_');
+        t.traceLabel('$return');
         t.traceLet('x', t.popArg());
 
         if(x > 10) {
             t.traceIfTrue(binop('>', identifier('x'), number(10)));
-            t.traceBreak('return_', number(42));
+            t.traceBreak('$return', number(42));
             return 42;
         } else {
             t.traceIfFalse(binop('>', identifier('x'), number(10)));
-            t.traceBreak('return_', number(24));
+            t.traceBreak('$return', number(24));
             return 24;
         }
         t.exitBlock();
@@ -213,21 +213,21 @@ test('exit fun from within if', () => {
     expect(t.getTrace()).toMatchObject(block([
         let_('a', number(11)),
         let_('w', block([
-             label('return_',
+             label('$return',
                 [ let_('x', identifier('a')),
                   if_(binop('>', identifier('x'), number(10)),
-                    [ break_('return_', number(42)) ],
+                    [ break_('$return', number(42)) ],
                     [ unknown() ]),
                   unknown()
                 ])
             ])),
         let_('b', number(9)),
         let_('v', block([
-             label('return_',
+             label('$return',
                 [ let_('x', identifier('b')),
                   if_(binop('>', identifier('x'), number(10)),
                     [ unknown() ],
-                    [ break_('return_', number(24)) ]),
+                    [ break_('$return', number(24)) ]),
                   unknown()
                 ])
             ])),
@@ -630,3 +630,58 @@ test('sometimes break', () => {
                 ])
         ]));
 });
+
+test('make adder', () => {
+    let t = newTrace();
+ 
+    t.traceLet('first', number(1));
+    let first = 1;
+ 
+    let $c0 = t.traceClos('make_adder');
+    function make_adder(a: any) {
+        t.traceFunctionBody('make_adder', ['a'], $c0); // creates '$return' label
+ 
+            t.traceLet('second', number(2));
+            let second = 2;
+ 
+            let $c1 = t.traceClos('add');
+            function add(b: any) {
+                t.traceFunctionBody('add', ['b'], $c1);
+
+                    t.traceBreak('$return', binop('+', t.traceIdentifier('a'), t.traceIdentifier('b')));
+                    return a + b;
+ 
+                t.exitBlock();
+            };
+           
+            t.traceBreak('$return', t.traceIdentifier('add'));
+            return add;
+        t.exitBlock();
+    };
+ 
+    t.traceNamed('F');
+    t.pushArg(number(9));
+    let F = make_adder(9);
+    t.exitBlock();
+ 
+    t.traceNamed('res1');
+    t.pushArg(number(5));
+    let res1 = F(5);
+    t.exitBlock();
+ 
+    t.traceNamed('res2');
+    t.pushArg(number(2));
+    let res2 = F(2);
+    t.exitBlock();
+ 
+    t.traceLet('res', binop('+', t.traceIdentifier('res1'), t.traceIdentifier('res2')));
+    let res = res1 + res2;   
+   
+    t.exitBlock();
+    t.prettyPrint();
+ 
+    expect(t.getTrace()).toMatchObject(
+        undefined_
+    );
+ });
+ 

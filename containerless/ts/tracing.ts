@@ -39,6 +39,12 @@ type CallbackExp = {
 type LabelExp = { kind: 'label', name: string, body: Exp[] };
 type BreakExp = { kind: 'break', name: string, value: Exp };
 
+type IdPath = string[];
+type TEnv = Map<string, IdPath>;
+type ClosExp = { kind: 'clos', tenv: TEnv };
+
+type FromExp = { kind: 'from', idPath: IdPath };
+
 /**
  * NOTE(arjun): We do not make a distinction between statements and expressions.
  * However, we do use blocks instead of deeply nesting let expressions. We do
@@ -57,6 +63,7 @@ export type Exp
     =  { kind: 'unknown' }
     | { kind: 'number', value: number }
     | { kind: 'identifier', name: string }
+    | FromExp
     | { kind: 'string', value: string }
     | { kind: 'undefined' }
     | { kind: 'binop', op: BinOp, e1: Exp, e2: Exp }
@@ -67,7 +74,8 @@ export type Exp
     | BlockExp
     | CallbackExp
     | LabelExp
-    | BreakExp;
+    | BreakExp
+    | ClosExp;
 
 export const undefined_ : Exp = { kind: 'undefined' };
 
@@ -123,6 +131,22 @@ export function break_(name: string, value: Exp): BreakExp {
     return { kind: 'break', name: name, value };
 }
 
+export function clos(tenv: TEnv): ClosExp {
+    return { kind: 'clos', tenv: tenv };
+}
+
+export function from(idPath: IdPath): FromExp {
+    return { kind: 'from', idPath: idPath };
+}
+
+let nextId = 0;
+function* freshId(): IterableIterator<string> {
+    while(true) {
+        let ret = '$w' + nextId;
+        nextId++;
+        yield ret;
+    }
+}
 
 type Cursor = { body: Exp[], index: number };
 
@@ -131,6 +155,8 @@ export class Trace {
     private cursorStack: Cursor[];
     private cursor: Cursor | undefined;
     private traceStack: Exp[];
+    private env: TEnv;
+    private envStack: TEnv[];
 
 
     constructor(body: Exp[]) {
@@ -139,6 +165,8 @@ export class Trace {
         this.cursor = { body: exp.body, index: 0 };
         this.cursorStack = [];
         this.traceStack = [];
+        this.env = new Map();
+        this.envStack = [];
     }
 
     private getValidCursor(): Cursor {
@@ -198,6 +226,8 @@ export class Trace {
             this.cursorStack.push(this.cursor);
         }
         this.cursor = cursor;
+
+        this.envStack.push(new Map(this.env));
     }
 
     pushArg(e: Exp) {
@@ -230,6 +260,7 @@ export class Trace {
             this.cursor.body.pop();
         }
         this.cursor = this.cursorStack.pop();
+        this.env = new Map(this.envStack.pop()!);
     }
 
     private quietExitBlock() {
@@ -237,9 +268,22 @@ export class Trace {
             throw new Error(`called exitBlock on a complete trace`);
         }
         this.cursor = this.cursorStack.pop();
+        this.env = new Map(this.envStack.pop()!);
+    }
+
+    traceIdentifier(name: string): Exp  {
+        if(!this.env.has(name)) {
+            //console.log(name);
+            //return identifier(name)
+            throw new Error("Name not found!");
+        } else {
+            return from((this.env.get(name)!).slice(0));
+        };
     }
 
     traceNamed(name: string): void {
+        this.env.set(name, [name]);
+
         let exp = this.getCurrentExp();
         if (exp.kind === 'unknown') {
             let namedBlock = block([unknown()]);
@@ -263,18 +307,9 @@ export class Trace {
         }
     }
 
-    traceReturn(e1: Exp): void {
-        let e2 = this.getCurrentExp();
-        if (e2.kind === 'unknown') {
-            // This may need to be some { kind: 'return', body: exp };
-            this.setExp(e1);
-        }
-        else {
-            mergeExp(e2, e1);
-        }
-    }
-
     traceLet(name: string, named: Exp): void {
+        this.env.set(name, [name]);
+
         let exp = this.getCurrentExp();
         if (exp.kind === 'unknown') {
             this.setExp(let_(name, named));
@@ -290,6 +325,55 @@ export class Trace {
         else {
             throw new Error(`expected let, got ${exp.kind}`);
         }
+    }
+
+    /*
+
+        This is a special t.traceLet that constructs a closure for 'named'.
+        It adds that closure as an Exp to the trace and returns it to be used
+        in the JS code.
+
+    */
+    traceClos(name: string): ClosExp {
+        let named = clos(new Map(this.env));
+        console.log(named);
+        this.traceLet(name, named);
+        return named;
+    }
+
+    /*
+
+        1. wrap the body of the function in a label $return
+        2. bind the function name to [ TODO ]
+        3. create fresh trace environment, bind y -> w.y and x -> x
+        4. bind arguments to elems off of argument stack
+
+    */
+    traceFunctionBody(name: string, theArgs: string[], clos: ClosExp): void {
+        this.traceLabel('$return');
+        
+        let w = freshId().next().value;
+        // TODO: There is a bug here. Somehow we are supposed to know here
+        // that add -> F
+        this.traceLet(w, identifier(name));
+
+        const tenv = new Map(clos.tenv);
+        tenv.forEach(value => {
+            // NOTE: may have to do deep copy here rather than in t.traceIdentifier
+            if(value.length > 1) {
+                value.shift();
+            }
+            value.unshift(w);
+        })
+        this.env = new Map(tenv);
+
+        theArgs.forEach(theArg => {
+            const tmp = this.popArg();
+            if(tmp === undefined) {
+                throw new Error("Found undefined argument!");
+            }
+            this.traceLet(theArg, tmp)
+        })
     }
 
     traceSet(name: string, named: Exp): void {
@@ -440,6 +524,18 @@ export class Trace {
         // prev.kind === 'label' && prev.name === name
 
     }
+
+    traceReturn(e1: Exp): void {
+        let e2 = this.getCurrentExp();
+        if (e2.kind === 'unknown') {
+            // This may need to be some { kind: 'return', body: exp };
+            this.setExp(e1);
+        }
+        else {
+            mergeExp(e2, e1);
+        }
+    }
+
 
     prettyPrint(): void {
         console.log(JSON.stringify(this.getTrace() , null, 2));
