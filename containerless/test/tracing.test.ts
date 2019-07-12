@@ -639,14 +639,14 @@ test('make adder', () => {
  
     let $c0 = t.traceClos('make_adder');
     function make_adder(a: any) {
-        t.traceFunctionBody('make_adder', ['a'], $c0); // creates '$return' label
+        t.traceFunctionBody(['a'], $c0); // creates '$return' label
  
             t.traceLet('second', number(2));
             let second = 2;
  
             let $c1 = t.traceClos('add');
             function add(b: any) {
-                t.traceFunctionBody('add', ['b'], $c1);
+                t.traceFunctionBody(['b'], $c1);
 
                     t.traceBreak('$return', binop('+', t.traceIdentifier('a'), t.traceIdentifier('b')));
                     return a + b;
@@ -659,18 +659,15 @@ test('make adder', () => {
         t.exitBlock();
     };
  
-    t.traceNamed('F');
-    t.pushArg(number(9));
+    t.traceFunctionCall('F', 'make_adder', [number(9)]);
     let F = make_adder(9);
     t.exitBlock();
- 
-    t.traceNamed('res1');
-    t.pushArg(number(5));
+
+    t.traceFunctionCall('res1', 'F', [number(5)]);
     let res1 = F(5);
     t.exitBlock();
  
-    t.traceNamed('res2');
-    t.pushArg(number(2));
+    t.traceFunctionCall('res2', 'F', [number(2)]);
     let res2 = F(2);
     t.exitBlock();
  

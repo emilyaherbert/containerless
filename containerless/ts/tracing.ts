@@ -341,6 +341,20 @@ export class Trace {
         return named;
     }
 
+    traceFunctionCall(name: string, call: string, theArgs: Exp[]): void {
+        this.traceNamed(name);
+        
+        // NOTE: this may be backwards.
+        for(let i=0; i<theArgs.length; i++) {
+            this.pushArg(theArgs[i]);
+        }
+
+        // TODO: tricky tricky, think about if this will work every time.
+        let w = freshId().next().value;
+        this.pushArg(identifier(w));
+        this.traceLet(w, identifier(call));
+    }
+
     /*
 
         1. wrap the body of the function in a label $return
@@ -349,13 +363,13 @@ export class Trace {
         4. bind arguments to elems off of argument stack
 
     */
-    traceFunctionBody(name: string, theArgs: string[], clos: ClosExp): void {
+    traceFunctionBody(theArgs: string[], clos: ClosExp): void {
         this.traceLabel('$return');
         
-        let w = freshId().next().value;
-        // TODO: There is a bug here. Somehow we are supposed to know here
-        // that add -> F
-        this.traceLet(w, identifier(name));
+        const w = this.popArg();
+        if(w.kind !== 'identifier') {
+            throw new Error("Expected identifier w!");
+        }
 
         const tenv = new Map(clos.tenv);
         tenv.forEach(value => {
@@ -363,7 +377,7 @@ export class Trace {
             if(value.length > 1) {
                 value.shift();
             }
-            value.unshift(w);
+            value.unshift(w.name);
         })
         this.env = new Map(tenv);
 
