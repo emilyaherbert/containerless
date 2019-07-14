@@ -1,6 +1,6 @@
 import {
     while_, break_, label, block, let_, set_, number, if_, newTrace, callback,
-    identifier, string, binop, unknown, undefined_
+    identifier, string, binop, unknown, undefined_, clos, from
 } from '../ts/tracing';
 import { Callbacks } from '../ts/callbacks';
 
@@ -631,6 +631,7 @@ test('sometimes break', () => {
         ]));
 });
 
+
 test('make adder', () => {
     let t = newTrace();
 
@@ -681,3 +682,45 @@ test('make adder', () => {
         undefined_
     );
  });
+
+ test('make adder 2', () => {
+    let t = newTrace();
+
+    let $make_adder = t.traceLet('make_adder', clos({ } as any));
+    function make_adder(a: any) {
+        t.traceLabel('$return');
+        let $clos = t.popArg();
+        let $a = t.popArg();
+        let $add = t.traceLet('add', clos({ 'a':  $a } as any));
+        function add(b: any) {
+            t.traceLabel('$return');
+            let $clos = t.popArg();
+            let $b = t.popArg();
+            let $a = from([ $clos as any, 'a']);
+            t.traceBreak('$return', binop('+', $a, $b));
+        }
+        t.traceBreak('$return', identifier('$add'));
+        return add;
+
+    };
+
+    t.pushArg(number(9));
+    t.pushArg(identifier('make_adder'));
+    t.traceNamed('F');
+    let F = make_adder(9);
+    t.exitBlock();
+
+    t.pushArg(number(9));
+    t.pushArg(identifier('F'));
+    t.traceNamed('res1');
+    let res1 = F(5);
+    t.exitBlock();
+
+    t.exitBlock(); // end the turn
+    t.prettyPrint();
+
+    expect(t.getTrace()).toMatchObject(
+        undefined_
+    );
+ });
+

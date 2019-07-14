@@ -282,6 +282,10 @@ export class Trace {
         };
     }
 
+    /**
+     * Creates the trace expression 'let name = { unknown };' and enters the
+     * block containing the 'unknown'.
+     */
     traceNamed(name: string): void {
         this.env.set(name, [name]);
 
