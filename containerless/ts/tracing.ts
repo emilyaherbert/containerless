@@ -1,7 +1,7 @@
 /**
  * This module is a runtime system for generating execution traces. The entry
  * point of this module is the 'newTrace' function, which creates an empty
- * trace. That function returns object with several methods -- all prefixed
+ * trace. That function returns an object with several methods -- all prefixed
  * with the token 'trace' -- for incrementally building execution traces.
  *
  * A few things to note:
@@ -18,6 +18,9 @@
  *   of a callback, since it is a block as well.
  */
 export type BinOp = '+' | '-' | '>';
+
+type IdPath = string[];
+type TEnv = Map<string, IdPath>;
 
 type BlockExp = { kind: 'block', body: Exp[] };
 
@@ -39,8 +42,6 @@ type CallbackExp = {
 type LabelExp = { kind: 'label', name: string, body: Exp[] };
 type BreakExp = { kind: 'break', name: string, value: Exp };
 
-type IdPath = string[];
-type TEnv = Map<string, IdPath>;
 type ClosExp = { kind: 'clos', tenv: TEnv };
 
 type FromExp = { kind: 'from', idPath: IdPath };

@@ -633,10 +633,10 @@ test('sometimes break', () => {
 
 test('make adder', () => {
     let t = newTrace();
- 
+
     t.traceLet('first', number(1));
     let first = 1;
- 
+
     let $c0 = t.traceClos('make_adder');
     function make_adder(a: any) {
         t.traceFunctionBody(['a'], $c0); // creates '$return' label
