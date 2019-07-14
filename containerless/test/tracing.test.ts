@@ -691,7 +691,7 @@ test('make adder', () => {
         t.traceLabel('$return');
         let $clos = t.popArg();
         let $a = t.popArg();
-        let $add = t.traceLet('add', clos({ 'a':  $a } as any));
+        t.traceLet('add', clos({ 'a':  $a } as any));
         function add(b: any) {
             t.traceLabel('$return');
             let $clos = t.popArg();
@@ -699,7 +699,7 @@ test('make adder', () => {
             let $a = from([ $clos as any, 'a']);
             t.traceBreak('$return', binop('+', $a, $b));
         }
-        t.traceBreak('$return', identifier('$add'));
+        t.traceBreak('$return', identifier('add'));
         return add;
 
     };
@@ -710,7 +710,7 @@ test('make adder', () => {
     let F = make_adder(9);
     t.exitBlock();
 
-    t.pushArg(number(9));
+    t.pushArg(number(5));
     t.pushArg(identifier('F'));
     t.traceNamed('res1');
     let res1 = F(5);
