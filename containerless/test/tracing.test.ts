@@ -730,7 +730,7 @@ test('make adder', () => {
     t.traceLet('make_adder', clos({ } as any));
     function make_adder(a: any) {
         let [$clos, $a] = t.traceFunctionBody2('$return');
-        
+
         t.traceLet('add', clos({ 'a':  $a } as any));
         function add(b: any) {
             let [$clos, $b] = t.traceFunctionBody2('$return');
@@ -749,6 +749,74 @@ test('make adder', () => {
 
     t.traceFunctionCall2('res1', [identifier('F'), number(5)]);
     let res1 = F(5);
+    t.exitBlock();
+
+    t.exitBlock(); // end the turn
+    t.prettyPrint();
+
+    expect(t.getTrace()).toMatchObject(
+        undefined_
+    );
+ });
+
+ test('crazy closures', () => {
+    let t = newTrace();
+
+    t.traceLet('zero', clos({ } as any));
+    function zero() {
+        let [$clos] = t.traceFunctionBody2('$return');
+        t.traceLet('foo', number(0));
+        let foo = 0;
+        
+        t.traceLet('one', clos({ 'foo': foo } as any));
+        function one(b: any) {
+            let [$clos, $b] = t.traceFunctionBody2('$return');
+            t.traceSetPath([ $clos as any, 'foo'], binop('+', identifier('foo'), $b));
+            foo = foo + b;
+        
+            t.traceLet('two', clos({ 'foo': foo } as any));
+            function two(c: any) {
+                let [$clos, $c] = t.traceFunctionBody2('$return');
+                t.traceSetPath([ $clos as any, 'foo'], binop('-', identifier('foo'), $c));
+                foo = foo - c;
+            
+                t.traceLet('three', clos({ 'foo': foo } as any));
+                function three() {
+                    let [$clos] = t.traceFunctionBody2('$return');
+                    t.traceBreak('$return', identifier('foo'));
+                    return foo;
+                    t.exitBlock();
+                }
+
+                t.traceBreak('$return', identifier('three'));
+                return three;
+                t.exitBlock();
+            }
+        
+            t.traceBreak('$return', identifier('two'));
+            return two;
+            t.exitBlock();
+        }
+      
+        t.traceBreak('$return', identifier('one'));
+        return one;
+        t.exitBlock();
+    };
+    
+    t.traceFunctionCall2('add', [identifier('zero')]);
+    let add = zero();
+    t.exitBlock();
+
+    t.traceFunctionCall2('sub', [identifier('add'), number(15)]);
+    let sub = add(15);
+    t.exitBlock();
+
+    t.traceFunctionCall2('toss', [identifier('add'), number(1)]);
+    let toss = add(1);
+    t.exitBlock();
+
+    t.traceFunctionCall2('ret', [identifier('sub'), number(4)]);
+    let ret = sub(4);
     t.exitBlock();
 
     t.exitBlock(); // end the turn

@@ -22,7 +22,7 @@ export type BinOp = '+' | '-' | '>';
 type BlockExp = { kind: 'block', body: Exp[] };
 
 type LetExp = { kind: 'let', name: string, named: Exp };
-type SetExp = { kind: 'set', name: string, named: Exp };
+type SetExp = { kind: 'set', name: IdPath, named: Exp };
 type IfExp = { kind: 'if', cond: Exp, truePart: Exp[], falsePart: Exp[] };
 type WhileExp = { kind: 'while', cond: Exp, body: Exp[] };
 
@@ -114,7 +114,11 @@ export function let_(name: string, named: Exp): LetExp {
 }
 
 export function set_(name: string, named: Exp): SetExp {
-    return { kind: 'set', name, named };
+    return { kind: 'set', name: [name], named: named };
+}
+
+export function setPath(name: IdPath, named: Exp): SetExp {
+    return { kind: 'set', name: name, named: named };
 }
 
 export function block(body: Exp[]): BlockExp {
@@ -413,8 +417,8 @@ export class Trace {
         })
     }
 
-    traceFunctionBody2(theArgs: string[]): Exp[] {
-        this.traceLabel('$return');
+    traceFunctionBody2(labelName: string): Exp[] {
+        this.traceLabel(labelName);
         return this.popArgs();
     }
 
@@ -422,6 +426,24 @@ export class Trace {
         let exp = this.getCurrentExp();
         if (exp.kind === 'unknown') {
             this.setExp(set_(name, named));
+        }
+        else if (exp.kind === 'set') {
+            if (exp.name !== [name]) {
+                throw new Error(`Cannot merge set with name ${name} into set with
+                    name ${exp.name}`);
+            }
+            exp.named = mergeExp(exp.named, named);
+            this.mayIncrementCursor();
+        }
+        else {
+            throw new Error(`expected set, got ${exp.kind}`);
+        }
+    }
+
+    traceSetPath(name: IdPath, named: Exp): void {
+        let exp = this.getCurrentExp();
+        if (exp.kind === 'unknown') {
+            this.setExp(setPath(name, named));
         }
         else if (exp.kind === 'set') {
             if (exp.name !== name) {
