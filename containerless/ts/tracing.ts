@@ -373,6 +373,11 @@ export class Trace {
         this.traceLet(w, identifier(call));
     }
 
+    traceFunctionCall2(name: string, theArgs: Exp[]): void {
+        this.pushArgs(theArgs);
+        this.traceNamed(name);
+    }
+
     /*
 
         1. wrap the body of the function in a label $return
@@ -406,6 +411,11 @@ export class Trace {
             }
             this.traceLet(theArg, tmp)
         })
+    }
+
+    traceFunctionBody2(theArgs: string[]): Exp[] {
+        this.traceLabel('$return');
+        return this.popArgs();
     }
 
     traceSet(name: string, named: Exp): void {
