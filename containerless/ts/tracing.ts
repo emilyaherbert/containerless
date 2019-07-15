@@ -214,58 +214,9 @@ export class Trace {
         return named;
     }
 
-    traceFunctionCall(name: string, call: string, theArgs: Exp[]): void {
-        this.traceNamed(name);
-        
-        // NOTE: this may be backwards.
-        for(let i=0; i<theArgs.length; i++) {
-            this.pushArg(theArgs[i]);
-        }
-
-        // TODO: tricky tricky, think about if this will work every time.
-        let w = freshId().next().value;
-        this.pushArg(identifier(w));
-        this.traceLet(w, identifier(call));
-    }
-
     traceFunctionCall2(name: string, theArgs: Exp[]): void {
         this.pushArgs(theArgs);
         this.traceNamed(name);
-    }
-
-    /*
-
-        1. wrap the body of the function in a label $return
-        2. bind the function name to [ TODO ]
-        3. create fresh trace environment, bind y -> w.y and x -> x
-        4. bind arguments to elems off of argument stack
-
-    */
-    traceFunctionBody(theArgs: string[], clos: ClosExp): void {
-        this.traceLabel('$return');
-        
-        const w = this.popArg();
-        if(w.kind !== 'identifier') {
-            throw new Error("Expected identifier w!");
-        }
-
-        const tenv = new Map(clos.tenv);
-        tenv.forEach(value => {
-            // NOTE: may have to do deep copy here rather than in t.traceIdentifier
-            if(value.length > 1) {
-                value.shift();
-            }
-            value.unshift(w.name);
-        })
-        this.env = new Map(tenv);
-
-        theArgs.forEach(theArg => {
-            const tmp = this.popArg();
-            if(tmp === undefined) {
-                throw new Error("Found undefined argument!");
-            }
-            this.traceLet(theArg, tmp)
-        })
     }
 
     traceFunctionBody2(labelName: string): Exp[] {
@@ -273,33 +224,21 @@ export class Trace {
         return this.popArgs();
     }
 
-    traceSet(name: string, named: Exp): void {
-        let exp = this.getCurrentExp();
-        if (exp.kind === 'unknown') {
-            this.setExp(set_(name, named));
-        }
-        else if (exp.kind === 'set') {
-            if (exp.name !== [name]) {
-                throw new Error(`Cannot merge set with name ${name} into set with
-                    name ${exp.name}`);
-            }
-            exp.named = mergeExp(exp.named, named);
-            this.mayIncrementCursor();
-        }
-        else {
-            throw new Error(`expected set, got ${exp.kind}`);
-        }
-    }
-
-    traceSetPath(name: IdPath, named: Exp): void {
+    traceSet(name: IdPath, named: Exp): void {
         let exp = this.getCurrentExp();
         if (exp.kind === 'unknown') {
             this.setExp(setPath(name, named));
         }
         else if (exp.kind === 'set') {
-            if (exp.name !== name) {
+            if(exp.name.length !== name.length) {
                 throw new Error(`Cannot merge set with name ${name} into set with
                     name ${exp.name}`);
+            }
+            for(let i=0; i<exp.name.length; i++) {
+                if (exp.name[i] !== name[i]) {
+                    throw new Error(`Cannot merge set with name ${name[i]} into set with
+                        name ${exp.name[i]}`);
+                }
             }
             exp.named = mergeExp(exp.named, named);
             this.mayIncrementCursor();
