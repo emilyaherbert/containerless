@@ -19,9 +19,6 @@
  */
 export type BinOp = '+' | '-' | '>';
 
-type IdPath = string[];
-type TEnv = Map<string, IdPath>;
-
 type BlockExp = { kind: 'block', body: Exp[] };
 
 type LetExp = { kind: 'let', name: string, named: Exp };
@@ -42,9 +39,12 @@ type CallbackExp = {
 type LabelExp = { kind: 'label', name: string, body: Exp[] };
 type BreakExp = { kind: 'break', name: string, value: Exp };
 
+type IdPath = string[];
+type TEnv = Map<string, IdPath>;
 type ClosExp = { kind: 'clos', tenv: TEnv };
-
 type FromExp = { kind: 'from', idPath: IdPath };
+
+type ArrayExp = { kind: 'array', exps: Exp[] };
 
 /**
  * NOTE(arjun): We do not make a distinction between statements and expressions.
@@ -76,7 +76,8 @@ export type Exp
     | CallbackExp
     | LabelExp
     | BreakExp
-    | ClosExp;
+    | ClosExp
+    | ArrayExp;
 
 export const undefined_ : Exp = { kind: 'undefined' };
 
@@ -237,6 +238,18 @@ export class Trace {
 
     popArg(): Exp {
         return this.traceStack.pop()!;
+    }
+
+    pushArgs(exps: Exp[]) {
+        this.traceStack.push({ kind : 'array', exps : exps });
+    }
+
+    popArgs(): Exp[] {
+        const a = this.traceStack.pop()!;
+        if(a.kind !== 'array') {
+            throw new Error("Expected array kind.");
+        }
+        return a.exps;
     }
 
     getTrace(): Exp {
