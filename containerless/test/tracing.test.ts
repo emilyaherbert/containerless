@@ -1,6 +1,6 @@
 import {
     while_, break_, label, block, let_, set_, number, if_, callback,
-    identifier, string, binop, unknown, undefined_, clos, from
+    identifier, string, binop, unknown, undefined_, clos, from, froms
 } from '../ts/exp';
 import {
     newTrace
@@ -685,7 +685,7 @@ test('sometimes break', () => {
         t.traceLet('add', clos({ 'a':  $a } as any));
         function add(b: any) {
             let [$clos, $b] = t.traceFunctionBody2('$return');
-            let $a = from([ $clos as any, 'a']);
+            let [$a] = froms($clos as any, ['a']);
             t.traceBreak('$return', binop('+', $a, $b));
         };
 
@@ -703,7 +703,7 @@ test('sometimes break', () => {
     t.exitBlock();
 
     t.exitBlock(); // end the turn
-    t.prettyPrint();
+    //t.prettyPrint();
 
     expect(t.getTrace()).toMatchObject(
         undefined_
@@ -716,25 +716,32 @@ test('sometimes break', () => {
     t.traceLet('zero', clos({ } as any));
     function zero() {
         let [$clos] = t.traceFunctionBody2('$return');
+
         t.traceLet('foo', number(0));
         let foo = 0;
         
-        t.traceLet('one', clos({ 'foo': foo } as any));
+        t.traceLet('one', clos({ 'foo': 'foo' } as any));
         function one(b: any) {
             let [$clos, $b] = t.traceFunctionBody2('$return');
-            t.traceSet([ $clos as any, 'foo'], binop('+', identifier('foo'), $b));
+            let [$foo] = froms($clos as any, ['foo']);
+
+            t.traceSet([ $clos as any, 'foo'], binop('+', $foo, $b));
             foo = foo + b;
         
-            t.traceLet('two', clos({ 'foo': foo } as any));
+            t.traceLet('two', clos({ 'foo': $foo } as any));
             function two(c: any) {
                 let [$clos, $c] = t.traceFunctionBody2('$return');
-                t.traceSet([ $clos as any, 'foo'], binop('-', identifier('foo'), $c));
+                let [$foo] = froms($clos as any, ['foo']);
+
+                t.traceSet([ $clos as any, 'foo'], binop('-', $foo, $c));
                 foo = foo - c;
             
-                t.traceLet('three', clos({ 'foo': foo } as any));
+                t.traceLet('three', clos({ 'foo': $foo } as any));
                 function three() {
                     let [$clos] = t.traceFunctionBody2('$return');
-                    t.traceBreak('$return', identifier('foo'));
+                    let [$foo] = froms($clos as any, ['foo']);
+
+                    t.traceBreak('$return', $foo);
                     return foo;
                     t.exitBlock();
                 }
@@ -768,6 +775,10 @@ test('sometimes break', () => {
 
     t.traceFunctionCall2('ret', [identifier('sub'), number(4)]);
     let ret = sub(4);
+    t.exitBlock();
+
+    t.traceFunctionCall2('foo', [identifier('ret')]);
+    let foo = ret();
     t.exitBlock();
 
     t.exitBlock(); // end the turn

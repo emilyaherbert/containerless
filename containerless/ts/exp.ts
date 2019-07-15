@@ -145,6 +145,14 @@ export function from(idPath: IdPath): FromExp {
     return { kind: 'from', idPath: idPath };
 }
 
+export function froms(clos: string, ids: string[]): FromExp[] {
+    let ret: FromExp[] = [];
+    for(let i=0; i<ids.length; i++) {
+        ret.push(from([clos, ids[i]]));
+    }
+    return ret;
+}
+
 let nextId = 0;
 export function* freshId(): IterableIterator<string> {
     while(true) {
