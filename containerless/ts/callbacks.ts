@@ -1,7 +1,8 @@
 import * as request from 'request';
 import * as express from 'express';
 import * as state from './state';
-import { Trace, newTrace, string, number, identifier } from './tracing';
+import { Trace, newTrace } from './tracing';
+import { string, number, identifier } from './exp';
 
 export type Request = {
     path: string

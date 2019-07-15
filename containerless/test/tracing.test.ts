@@ -1,7 +1,10 @@
 import {
-    while_, break_, label, block, let_, set_, number, if_, newTrace, callback,
+    while_, break_, label, block, let_, set_, number, if_, callback,
     identifier, string, binop, unknown, undefined_, clos, from
-} from '../ts/tracing';
+} from '../ts/exp';
+import {
+    newTrace
+} from '../ts/tracing'
 import { Callbacks } from '../ts/callbacks';
 
 test('trivial trace', () => {
