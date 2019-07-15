@@ -686,7 +686,7 @@ test('make adder', () => {
  test('make adder 2', () => {
     let t = newTrace();
 
-    let $make_adder = t.traceLet('make_adder', clos({ } as any));
+    t.traceLet('make_adder', clos({ } as any));
     function make_adder(a: any) {
         t.traceLabel('$return');
         let $clos = t.popArg();
