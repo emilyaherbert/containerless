@@ -125,7 +125,7 @@ function reifyWhileStatement(s: t.WhileStatement): t.Statement[] {
     body.unshift(traceLoop());
     const tWhile = traceWhile(test);
     const theWhile = t.whileStatement(s.test, t.blockStatement(body));
-    return [ tWhile, theWhile ];
+    return [ tWhile, theWhile, exitBlock() ];
 }
 
 function reifyIfStatement(s: t.IfStatement): t.Statement[] {
