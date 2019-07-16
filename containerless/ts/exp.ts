@@ -113,11 +113,7 @@ export function let_(name: string, named: Exp): LetExp {
     return { kind: 'let', name, named };
 }
 
-export function set_(name: string, named: Exp): SetExp {
-    return { kind: 'set', name: [name], named: named };
-}
-
-export function setPath(name: IdPath, named: Exp): SetExp {
+export function set(name: IdPath, named: Exp): SetExp {
     return { kind: 'set', name: name, named: named };
 }
 

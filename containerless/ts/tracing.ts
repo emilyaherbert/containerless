@@ -1,5 +1,5 @@
 import {
-    while_, break_, label, block, let_, set_, setPath, number, if_, callback,
+    while_, break_, label, block, let_, set, number, if_, callback,
     identifier, string, binop, unknown, undefined_, clos, from,
     Exp, BlockExp, TEnv, IdPath, ClosExp,
     freshId
@@ -214,12 +214,12 @@ export class Trace {
         return named;
     }
 
-    traceFunctionCall2(name: string, theArgs: Exp[]): void {
+    traceFunctionCall(name: string, theArgs: Exp[]): void {
         this.pushArgs(theArgs);
         this.traceNamed(name);
     }
 
-    traceFunctionBody2(labelName: string): Exp[] {
+    traceFunctionBody(labelName: string): Exp[] {
         this.traceLabel(labelName);
         return this.popArgs();
     }
@@ -227,7 +227,7 @@ export class Trace {
     traceSet(name: IdPath, named: Exp): void {
         let exp = this.getCurrentExp();
         if (exp.kind === 'unknown') {
-            this.setExp(setPath(name, named));
+            this.setExp(set(name, named));
         }
         else if (exp.kind === 'set') {
             if(exp.name.length !== name.length) {
