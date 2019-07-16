@@ -32,6 +32,7 @@
   },
   "dependencies": {
     "@babel/generator": "^7.5.0",
-    "@babel/parser": "^7.5.0"
+    "@babel/parser": "^7.5.0",
+    "@stopify/normalize-js" : "*"
   }
 }
