@@ -1,8 +1,27 @@
-import {
+/**
+ * This module is a runtime system for generating execution traces. The entry
+ * point of this module is the 'newTrace' function, which creates an empty
+ * trace. That function returns an object with several methods -- all prefixed
+ * with the token 'trace' -- for incrementally building execution traces.
+ *
+ * A few things to note:
+ *
+ * - The 'traceIfTrue' and 'traceIfFalse' methods both trace an 'if' expression,
+ *   and automatically enter the block for the true part and false part
+ *   respectively.
+ * - When control reaches the end of a block, the program must invoke the
+ *   'exitBlock' method. The top-level of the program is also a block, therefore
+ *   the program must invoke 'exitBlock' after tracing the last expression of
+ *   the program.
+ * - The 'traceCallback' method returns a new 'Trace' class to trace within the
+ *   body of a callback function. The program must call 'exitBlock' at the end
+ *   of a callback, since it is a block as well.
+ */
+
+ import {
     while_, break_, label, block, let_, set, number, if_, callback,
     identifier, string, binop, unknown, undefined_, clos, from,
-    Exp, BlockExp, TEnv, IdPath, ClosExp,
-    freshId
+    Exp, BlockExp, TEnv, IdPath, ClosExp, LVal, freshId
 } from './exp';
 
 type Cursor = { body: Exp[], index: number };
@@ -12,9 +31,6 @@ export class Trace {
     private cursorStack: Cursor[];
     private cursor: Cursor | undefined;
     private traceStack: Exp[];
-    private env: TEnv;
-    private envStack: TEnv[];
-
 
     constructor(body: Exp[]) {
         let exp = block(body);
@@ -22,8 +38,6 @@ export class Trace {
         this.cursor = { body: exp.body, index: 0 };
         this.cursorStack = [];
         this.traceStack = [];
-        this.env = new Map();
-        this.envStack = [];
     }
 
     private getValidCursor(): Cursor {
@@ -60,12 +74,6 @@ export class Trace {
         cursor.index = cursor.index + 1;
     }
 
-    private resetCursor() {
-        // loops over current block
-        let cursor = this.getValidCursor();
-        cursor.index = 0;
-    }
-
     private setExp(exp: Exp) {
         let cursor = this.getValidCursor();
         let kind = cursor.body[cursor.index].kind;
@@ -83,8 +91,6 @@ export class Trace {
             this.cursorStack.push(this.cursor);
         }
         this.cursor = cursor;
-
-        this.envStack.push(new Map(this.env));
     }
 
     pushArg(e: Exp) {
@@ -122,14 +128,12 @@ export class Trace {
         }
         let cursor = this.cursor;
         if (cursor.index !== cursor.body.length - 1) {
-            console.log(cursor);
             throw new Error('Exiting block too early');
         }
         if (this.cursor.body[cursor.index].kind === 'unknown') {
             this.cursor.body.pop();
         }
         this.cursor = this.cursorStack.pop();
-        this.env = new Map(this.envStack.pop()!);
     }
 
     private quietExitBlock() {
@@ -137,17 +141,6 @@ export class Trace {
             throw new Error(`called exitBlock on a complete trace`);
         }
         this.cursor = this.cursorStack.pop();
-        this.env = new Map(this.envStack.pop()!);
-    }
-
-    traceIdentifier(name: string): Exp  {
-        if(!this.env.has(name)) {
-            //console.log(name);
-            //return identifier(name)
-            throw new Error("Name not found!");
-        } else {
-            return from((this.env.get(name)!).slice(0));
-        };
     }
 
     /**
@@ -155,7 +148,6 @@ export class Trace {
      * block containing the 'unknown'.
      */
     traceNamed(name: string): void {
-        this.env.set(name, [name]);
 
         let exp = this.getCurrentExp();
         if (exp.kind === 'unknown') {
@@ -181,8 +173,6 @@ export class Trace {
     }
 
     traceLet(name: string, named: Exp): void {
-        this.env.set(name, [name]);
-
         let exp = this.getCurrentExp();
         if (exp.kind === 'unknown') {
             this.setExp(let_(name, named));
@@ -200,20 +190,6 @@ export class Trace {
         }
     }
 
-    /*
-
-        This is a special t.traceLet that constructs a closure for 'named'.
-        It adds that closure as an Exp to the trace and returns it to be used
-        in the JS code.
-
-    */
-    traceClos(name: string): ClosExp {
-        let named = clos(new Map(this.env));
-        console.log(named);
-        this.traceLet(name, named);
-        return named;
-    }
-
     traceFunctionCall(name: string, theArgs: Exp[]): void {
         this.pushArgs(theArgs);
         this.traceNamed(name);
@@ -224,22 +200,12 @@ export class Trace {
         return this.popArgs();
     }
 
-    traceSet(name: IdPath, named: Exp): void {
+    traceSet(name: LVal, named: Exp): void {
         let exp = this.getCurrentExp();
         if (exp.kind === 'unknown') {
             this.setExp(set(name, named));
         }
         else if (exp.kind === 'set') {
-            if(exp.name.length !== name.length) {
-                throw new Error(`Cannot merge set with name ${name} into set with
-                    name ${exp.name}`);
-            }
-            for(let i=0; i<exp.name.length; i++) {
-                if (exp.name[i] !== name[i]) {
-                    throw new Error(`Cannot merge set with name ${name[i]} into set with
-                        name ${exp.name[i]}`);
-                }
-            }
             exp.named = mergeExp(exp.named, named);
             this.mayIncrementCursor();
         }
@@ -300,7 +266,8 @@ export class Trace {
     }
 
     traceLoop() {
-        this.resetCursor();
+        let cursor = this.getValidCursor();
+        cursor.index = 0;
     }
 
     traceCallback(event: string, eventArg: Exp, callbackArg: string): Trace {

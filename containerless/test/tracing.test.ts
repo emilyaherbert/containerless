@@ -7,7 +7,7 @@ import {
 } from '../ts/tracing'
 import { Callbacks } from '../ts/callbacks';
 
-test('trivial trace', () => {
+test('trivial, hand-constructed trace', () => {
     let t = newTrace();
     t.traceLet('x', number(12));
     t.traceLet('y', number(120));
@@ -18,11 +18,12 @@ test('trivial trace', () => {
             let_('y', number(120))]));
 });
 
-test('trivial retrace', () => {
+test('trivial, hand-constructed re-tracing', () => {
     let t = newTrace();
     t.traceLet('x', number(12));
     t.traceLet('y', number(120));
     t.exitBlock();
+    // pretend we ran the program again
     t.newTrace();
     t.traceLet('x', number(12));
     t.traceLet('y', number(120));
@@ -33,14 +34,14 @@ test('trivial retrace', () => {
             let_('y', number(120))]));
 });
 
-test('tracing both branches of a conditional', () => {
+test('re-tracing: both sides of a conditional', () => {
     let t = newTrace();
     t.traceIfTrue(number(0));
     t.traceLet('x', number(100));
     t.exitBlock();
     t.traceLet('z', number(300));
     t.exitBlock();
-
+    // pretend we ran the program again
     t.newTrace();
     t.traceIfFalse(number(0));
     t.traceLet('y', number(200));
@@ -75,10 +76,10 @@ test('callback in trace', () => {
             let_('y', number(20))]));
 });
 
-test('same fun, different control flow', () => {
+test('re-tracing: apply function twice with different control flow', () => {
     let t = newTrace();
 
-    t.traceLet('F', clos({ } as any));
+    t.traceLet('F', clos({}));
     function F(x: any) {
         let [$clos, $x] = t.traceFunctionBody('$return');
 
@@ -87,11 +88,11 @@ test('same fun, different control flow', () => {
         let $cond = binop('>', $x, number(10));
         if(x > 10) {
             t.traceIfTrue($cond);
-            t.traceSet([ 'ret' ], number(42));
+            t.traceSet(identifier('ret'), number(42));
             ret = 42;
         } else {
             t.traceIfFalse($cond);
-            t.traceSet([ 'ret' ], number(24));
+            t.traceSet(identifier('ret'), number(24));
             ret = 24;
         }
         t.exitBlock();
@@ -109,39 +110,31 @@ test('same fun, different control flow', () => {
     t.exitBlock();
 
     t.exitBlock();
-    //t.prettyPrint();
 
     expect(t.getTrace()).toMatchObject(block([
-        let_('F', clos({ } as any)),
-        let_('w', block(
-            [
-                label('$return', 
-                    [
-                        let_('ret', number(0)),
-                        if_(binop('>', number(11), number(10)),
-                            [ set(['ret'], number(42)) ],
-                            [ unknown() ]),
-                        break_('$return', identifier('ret'))
-                    ])
-            ])),
-        let_('v', block(
-            [
-                label('$return', 
-                    [
-                        let_('ret', number(0)),
-                        if_(binop('>', number(9), number(10)),
-                            [ unknown() ],
-                            [ set(['ret'], number(24)) ]),
-                        break_('$return', identifier('ret'))
-                    ])
-            ])),
-        ]));
+        let_('F', clos({ })),
+        let_('w', block([
+            label('$return', [
+                let_('ret', number(0)),
+                if_(binop('>', number(11), number(10)),
+                    [ set(identifier('ret'), number(42)) ],
+                    [ unknown() ]),
+                break_('$return', identifier('ret'))
+            ])])),
+        let_('v', block([
+            label('$return', [
+                let_('ret', number(0)),
+                    if_(binop('>', number(9), number(10)),
+                        [ unknown() ],
+                        [ set(identifier('ret'), number(24)) ]),
+                    break_('$return', identifier('ret'))])]))]));
+
 });
 
 test('exit fun from within if', () => {
     let t = newTrace();
 
-    t.traceLet('F', clos({ } as any));
+    t.traceLet('F', clos({ }));
     function F(x: any) {
         let [$clos, $x] = t.traceFunctionBody('$return');
 
@@ -171,31 +164,22 @@ test('exit fun from within if', () => {
     t.exitBlock();
 
     expect(t.getTrace()).toMatchObject(block([
-        let_('F', clos({ } as any)),
-        let_('w', block(
-            [
-                label('$return', 
-                    [
-                        if_(binop('>', number(11), number(10)),
-                            [ break_('$return', number(42)) ],
-                            [ unknown() ]),
-                        unknown()
-                    ])
-            ])),
-        let_('v', block(
-            [
-                label('$return', 
-                    [
-                        if_(binop('>', number(9), number(10)),
-                            [ unknown() ],
-                            [ break_('$return', number(24)) ]),
-                        unknown()
-                    ])
-            ]))
-        ]));
+        let_('F', clos({ })),
+        let_('w', block([
+            label('$return', [
+                if_(binop('>', number(11), number(10)),
+                    [ break_('$return', number(42)) ],
+                    [ unknown() ]),
+                unknown() ])])),
+        let_('v', block([
+            label('$return', [
+                if_(binop('>', number(9), number(10)),
+                    [ unknown() ],
+                    [ break_('$return', number(24)) ]),
+                    unknown() ])]))]));
 });
 
-test('tracing with callback library', (done) => {
+test('fixme: tracing with callback library', (done) => {
     let cb = new Callbacks();
     cb.immediate('hello', (str) => {
         cb.trace.traceLet('x', number(100));
@@ -217,7 +201,7 @@ test('tracing with callback library', (done) => {
 
 });
 
-test('while', () => {
+test('while loop', () => {
     let t = newTrace();
 
     t.traceLet("x", number(2));
@@ -231,16 +215,16 @@ test('while', () => {
 
         if(x > 1) {
             t.traceIfTrue(binop('>', identifier('x'), number(1)));
-            t.traceSet([ 'y' ], binop('+', identifier('y'), number(2)));
+            t.traceSet(identifier('y'), binop('+', identifier('y'), number(2)));
             y = y + 2;
         } else {
             t.traceIfFalse(binop('>', identifier('x'), number(1)));
-            t.traceSet([ 'y' ], binop('+', identifier('y'), number(3)));
+            t.traceSet(identifier('y'), binop('+', identifier('y'), number(3)));
             y = y + 3;
         }
         t.exitBlock();
 
-        t.traceSet([ 'x' ], binop("-", identifier("x"), number(1)));
+        t.traceSet(identifier('x'), binop("-", identifier("x"), number(1)));
         x = x - 1;
     };
     t.exitBlock();
@@ -249,18 +233,20 @@ test('while', () => {
     expect(t.getTrace()).toMatchObject(block([
         let_('x', number(2)),
         let_('y', number(0)),
-        while_(binop('>', identifier('x'), number(0)),
-            [ if_(binop('>', identifier('x'), number(1)),
-                  [ set([ 'y' ], binop('+', identifier('y'), number(2))) ],
-                  [ set([ 'y' ], binop('+', identifier('y'), number(3))) ]),
-              set([ 'x' ], binop('-', identifier('x'), number(1)))
-            ])
-        ]));
+        while_(binop('>', identifier('x'), number(0)), [
+            if_(binop('>', identifier('x'), number(1)),
+                [ set(identifier('y'), binop('+', identifier('y'), number(2))) ],
+                [ set(identifier('y'), binop('+', identifier('y'), number(3))) ]),
+            set(identifier('x'), binop('-', identifier('x'), number(1)))
+        ])]));
 });
 
-test('callback that receives multiple events', () => {
+test('fixme: callback that receives multiple events', () => {
     let cb = new Callbacks();
     let sender = cb.mockCallback((value) => {
+        // TODO(arjun): This function doesn't follow the pattern that other
+        // functions do (i.e., starting with traceFunctionBody). We will need
+        // to hack the implmeentation of mockCallback too.
         let $value = cb.trace.popArg();
         cb.trace.traceLet('value', $value);
         cb.trace.traceLet('ret', number(0));
@@ -268,12 +254,12 @@ test('callback that receives multiple events', () => {
         let $cond = binop('>', identifier('value'), number(0));
         if (value > 0) {
             cb.trace.traceIfTrue($cond);
-            cb.trace.traceSet([ 'ret' ], number(200));
+            cb.trace.traceSet(identifier('ret'), number(200));
             ret = 200;
         }
         else {
             cb.trace.traceIfFalse($cond);
-            cb.trace.traceSet([ 'ret' ], number(-200));
+            cb.trace.traceSet(identifier('ret'), number(-200));
             ret = -200;
         }
         // exit the true/false parts, not the function
@@ -288,15 +274,15 @@ test('callback that receives multiple events', () => {
                 let_('value', identifier('$response')),
                 let_('ret', number(0)),
                 if_(binop('>', identifier('value'), number(0)), [
-                    set([ 'ret' ], number(200))
+                    set(identifier('ret'), number(200))
                 ], [
-                    set([ 'ret' ], number(-200))
+                    set(identifier('ret'), number(-200))
                 ])
             ])
         ]));
 });
 
-test('label and break', () => {
+test('label with an immediate break', () => {
     let t = newTrace();
 
     t.traceLabel('things');
@@ -305,11 +291,13 @@ test('label and break', () => {
         let x = 77;
         t.traceBreak('things', undefined_);
         break things;
+        // NOTE(arjun): The code below will never run, so it is almost pointless
+        // that we have written it out by hand. But, this is the kind of code
+        // the compiler will generate.
         t.traceLet('oops', number(666));
         let oops = 666;
         t.exitBlock();
     }
-
 
     t.traceLet('keyboard', number(11));
     let keyboard = 11;
@@ -317,20 +305,17 @@ test('label and break', () => {
     t.exitBlock();
 
     expect(t.getTrace()).toMatchObject(block([
-        label('things',
-            [ let_('x', number(77)),
-              break_('things', undefined_)
-            ]),
-        let_('keyboard', number(11))
-        ]));
-
+        label('things', [
+            let_('x', number(77)),
+            break_('things', undefined_)]),
+        let_('keyboard', number(11))]));
 });
 
-test('label no break', () => {
+test('label without a break', () => {
     let t = newTrace();
 
     t.traceLabel('things');
-    things : {
+    things: {
         t.traceLet('x', number(77));
         let x = 77;
         t.traceLet('oops', number(666));
@@ -344,30 +329,27 @@ test('label no break', () => {
     t.exitBlock();
 
     expect(t.getTrace()).toMatchObject(block([
-        label('things',
-            [ let_('x', number(77)),
-              let_('oops', number(666))
-            ]),
-        let_('keyboard', number(11))
-        ]));
-
+        label('things', [
+            let_('x', number(77)),
+            let_('oops', number(666))]),
+        let_('keyboard', number(11))]));
 });
 
 test('nested labels', () => {
     let t = newTrace();
-    
+
     t.traceLabel('things');
-    things : {
+    things: {
         t.traceLet('x', number(1));
         let x = 1;
 
         t.traceLabel('betwixt');
-        betwixt : {
+        betwixt: {
             t.traceLet('y', number(2));
             let y = 2;
 
             t.traceLabel('stuff');
-            stuff : {
+            stuff: {
                 t.traceLet('z', number(3));
                 let z = 3;
                 t.traceBreak('betwixt', undefined_);
@@ -375,6 +357,7 @@ test('nested labels', () => {
                 t.exitBlock();
             }
 
+            // NOTE(arjun): Dead code, but the kind that we will generate
             t.traceLet('there', number(50));
             let there = 50;
             t.exitBlock();
@@ -384,35 +367,29 @@ test('nested labels', () => {
         let here = 51;
         t.exitBlock();
     }
-
-
     t.traceLet('after', number(80));
     let after = 80;
 
     t.exitBlock();
 
     expect(t.getTrace()).toMatchObject(block([
-        label('things',
-            [ let_('x', number(1)),
-              label('betwixt',
-                [ let_('y', number(2)),
-                  label('stuff',
-                    [ let_('z', number(3)),
-                      break_('betwixt', undefined_)
-                    ]),
-                  unknown()
-                ]),
-              let_('here', number(51))
-            ]),
-        let_('after', number(80))
-        ]));
-
+        label('things', [
+            let_('x', number(1)),
+            label('betwixt', [
+                let_('y', number(2)),
+                label('stuff', [
+                    let_('z', number(3)),
+                    break_('betwixt', undefined_)]),
+                unknown()]),
+            let_('here', number(51))]),
+        let_('after', number(80))]));
 });
 
 test('label and if and break', () => {
     let t = newTrace();
+
     t.traceLabel('things');
-    things : {
+    things: {
         t.traceLet('x', number(77));
         let x = 77;
         if(x > 10) {
@@ -438,10 +415,13 @@ test('label and if and break', () => {
     let keyboard = 11;
     t.exitBlock();
 
-    t.newTrace();
+    t.newTrace(); // new run
     t.traceLabel('things');
-    things : {
-        t.traceLet('x', number(77)); // kept at 77 for testing
+    things: {
+        // NOTE(arjun): To avoid entangling this test case with function calls,
+        // this is a bit of a fudge where we trace let x = 77, but run let x = 8
+        // to exercise the other branch.
+        t.traceLet('x', number(77));
         let x = 8;
         if(x > 10) {
             t.traceIfTrue(binop('>', identifier('x'), number(10)));
@@ -465,20 +445,15 @@ test('label and if and break', () => {
     t.exitBlock();
 
     expect(t.getTrace()).toMatchObject(block([
-        label('things',
-            [ let_('x', number(77)),
-              if_(binop('>', identifier('x'), number(10)),
-                 [ let_('y', number(333)),
-                   break_('things', undefined_)
-                 ],
-                 [ let_('y', number(444)),
-                   break_('things', undefined_)
-                 ]),
-              unknown()
-            ]),
-        let_('keyboard', number(11))
-        ]));
-
+        label('things', [
+            let_('x', number(77)),
+            if_(binop('>', identifier('x'), number(10)),
+                [ let_('y', number(333)),
+                  break_('things', undefined_) ],
+                [ let_('y', number(444)),
+                  break_('things', undefined_) ]),
+              unknown()]),
+        let_('keyboard', number(11))]));
 });
 
 test('if no else', () => {
@@ -500,13 +475,14 @@ test('if no else', () => {
     */
 
     let t = newTrace();
+
     t.traceLet('x', number(0));
     let x = 0;
     t.traceLet('y', number(0));
     let y = 0;
     if(x > 1) {
         t.traceIfTrue(binop('>', identifier('x'), number(1)));
-        t.traceSet([ 'y' ], number(10));
+        t.traceSet(identifier('y'), number(10));
         y = 10;
     } else {
         t.traceIfFalse(binop('>', identifier('x'), number(1)));
@@ -521,7 +497,7 @@ test('if no else', () => {
     t.traceLet('y', number(0));
     if(x > 1) {
         t.traceIfTrue(binop('>', identifier('x'), number(1)));
-        t.traceSet([ 'y' ], number(10));
+        t.traceSet(identifier('y'), number(10));
         y = 10;
     } else {
         t.traceIfFalse(binop('>', identifier('x'), number(1)));
@@ -530,19 +506,19 @@ test('if no else', () => {
     t.traceLet('z', number(5));
 
     t.exitBlock();
-    
+
     expect(t.getTrace()).toMatchObject(block([
         let_('x', number(0)),
         let_('y', number(0)),
         if_(binop('>', identifier('x'), number(1)),
-            [ set([ 'y' ], number(10)) ],
+            [ set(identifier('y'), number(10)) ],
             [ ]),
-        let_('z', number(5))
-        ]));
+        let_('z', number(5))]));
 });
 
 test('sometimes break', () => {
     let t = newTrace();
+
     t.traceLet('x', number(1));
     let x = 1;
     t.traceLabel('myLabel');
@@ -555,12 +531,14 @@ test('sometimes break', () => {
             t.traceIfFalse(binop('>', identifier('x'), number(0)));
         }
         t.exitBlock();
-        t.traceSet([ 'x' ], number(200));
+        t.traceSet(identifier('x'), number(200));
         x = 200;
         t.exitBlock();
     }
 
     t.newTrace();
+    // NOTE(arjun): testing fudge, similar to those above, where we trace x = 1
+    // but execute x = 0.
     t.traceLet('x', number(1));
     x = 0;
     t.traceLabel('myLabel');
@@ -573,87 +551,46 @@ test('sometimes break', () => {
             t.traceIfFalse(binop('>', identifier('x'), number(0)));
         }
         t.exitBlock();
-        t.traceSet([ 'x' ], number(200));
+        t.traceSet(identifier('x'), number(200));
         x = 200;
         t.exitBlock();
-    }    
-
+    }
     t.exitBlock();
-    expect(t.getTrace()).toMatchObject(
-        block([
-            let_('x', number(1)),
-            label('myLabel',
-                [
-                    if_(binop('>', identifier('x'), number(0)),
-                        [ break_('myLabel', undefined_) ],
-                        []),
-                    set([ 'x' ], number(200))
-                ])
-        ]));
+
+    expect(t.getTrace()).toMatchObject(block([
+        let_('x', number(1)),
+        label('myLabel', [
+            if_(binop('>', identifier('x'), number(0)),
+                [ break_('myLabel', undefined_) ],
+                [ ]),
+            set(identifier('x'), number(200))])]));
 });
 
- test('make adder 2', () => {
+
+ test('canonical makeAdder higher-order function', () => {
     let t = newTrace();
 
-    t.traceLet('make_adder', clos({ } as any));
-    function make_adder(a: any) {
-        t.traceLabel('$return');
-        let $clos = t.popArg();
-        let $a = t.popArg();
-        t.traceLet('add', clos({ 'a':  $a } as any));
-        function add(b: any) {
-            t.traceLabel('$return');
-            let $clos = t.popArg();
-            let $b = t.popArg();
-            let $a = from([ $clos as any, 'a']);
-            t.traceBreak('$return', binop('+', $a, $b));
-        }
-        t.traceBreak('$return', identifier('add'));
-        return add;
-
-    };
-
-    t.pushArg(number(9));
-    t.pushArg(identifier('make_adder'));
-    t.traceNamed('F');
-    let F = make_adder(9);
-    t.exitBlock();
-
-    t.pushArg(number(5));
-    t.pushArg(identifier('F'));
-    t.traceNamed('res1');
-    let res1 = F(5);
-    t.exitBlock();
-
-    t.exitBlock(); // end the turn
-    //t.prettyPrint();
-
-    expect(t.getTrace()).toMatchObject(
-        undefined_
-    );
- });
-
- test('make adder 3', () => {
-    let t = newTrace();
-
-    t.traceLet('make_adder', clos({ } as any));
-    function make_adder(a: any) {
+    t.traceLet('makeAdder', clos({ }));
+    function makeAdder(a: any) {
         let [$clos, $a] = t.traceFunctionBody('$return')
 
-        t.traceLet('add', clos({ 'a':  $a } as any));
+        t.traceLet('add', clos({ 'a':  $a }));
         function add(b: any) {
             let [$clos, $b] = t.traceFunctionBody('$return')
-            let [$a] = froms($clos as any, ['a']);
+            let [$a] = froms($clos, ['a']);
             t.traceBreak('$return', binop('+', $a, $b));
+            return a + b;
+            t.exitBlock(); // NOTE(arjun): dead
         };
 
         t.traceBreak('$return', identifier('add'));
         return add;
+        t.exitBlock(); // NOTE(arjun): dead
 
     };
 
-    t.traceFunctionCall('F', [identifier('make_adder'), number(9)]);
-    let F = make_adder(9);
+    t.traceFunctionCall('F', [identifier('makeAdder'), number(9)]);
+    let F = makeAdder(9);
     t.exitBlock();
 
     t.traceFunctionCall('res1', [identifier('F'), number(5)]);
@@ -661,14 +598,23 @@ test('sometimes break', () => {
     t.exitBlock();
 
     t.exitBlock(); // end the turn
-    //t.prettyPrint();
 
-    expect(t.getTrace()).toMatchObject(
-        undefined_
-    );
+    expect(t.getTrace()).toMatchObject(block([
+        let_('makeAdder', clos({ })),
+        let_('F', block([
+            label('$return', [
+                let_('add', clos({ 'a': number(9) })),
+                break_('$return', identifier('add'))])])),
+        let_('res1', block([
+            label('$return', [
+                break_('$return', binop('+', from(identifier('F'), 'a'), number(5)))
+            ])]))]));
  });
 
- test('crazy closures', () => {
+ test('fixme: test should pass: crazy closures', () => {
+
+    // NOTE(arjun): Might want to simplify the test case to write the expected
+    // output
     let t = newTrace();
 
     t.traceLet('zero', clos({ } as any));
@@ -681,17 +627,17 @@ test('sometimes break', () => {
         t.traceLet('one', clos({ 'foo': 'foo' } as any));
         function one(b: any) {
             let [$clos, $b] = t.traceFunctionBody('$return')
-            let [$foo] = froms($clos as any, ['foo']);
+            let [$foo] = froms($clos, ['foo']);
 
-            t.traceSet([ $clos as any, 'foo'], binop('+', $foo, $b));
+            t.traceSet(from($clos, 'foo'), binop('+', $foo, $b));
             foo = foo + b;
         
             t.traceLet('two', clos({ 'foo': $foo } as any));
             function two(c: any) {
                 let [$clos, $c] = t.traceFunctionBody('$return')
-                let [$foo] = froms($clos as any, ['foo']);
+                let [$foo] = froms($clos, ['foo']);
 
-                t.traceSet([ $clos as any, 'foo'], binop('-', $foo, $c));
+                t.traceSet(from($clos, 'foo'), binop('-', $foo, $c));
                 foo = foo - c;
             
                 t.traceLet('three', clos({ 'foo': $foo } as any));
@@ -740,7 +686,6 @@ test('sometimes break', () => {
     t.exitBlock();
 
     t.exitBlock(); // end the turn
-    t.prettyPrint();
 
     expect(t.getTrace()).toMatchObject(
         undefined_

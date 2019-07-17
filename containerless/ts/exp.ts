@@ -1,28 +1,9 @@
-/**
- * This module is a runtime system for generating execution traces. The entry
- * point of this module is the 'newTrace' function, which creates an empty
- * trace. That function returns an object with several methods -- all prefixed
- * with the token 'trace' -- for incrementally building execution traces.
- *
- * A few things to note:
- *
- * - The 'traceIfTrue' and 'traceIfFalse' methods both trace an 'if' expression,
- *   and automatically enter the block for the true part and false part
- *   respectively.
- * - When control reaches the end of a block, the program must invoke the
- *   'exitBlock' method. The top-level of the program is also a block, therefore
- *   the program must invoke 'exitBlock' after tracing the last expression of
- *   the program.
- * - The 'traceCallback' method returns a new 'Trace' class to trace within the
- *   body of a callback function. The program must call 'exitBlock' at the end
- *   of a callback, since it is a block as well.
- */
 export type BinOp = '+' | '-' | '>';
 
 export type BlockExp = { kind: 'block', body: Exp[] };
 
 export type LetExp = { kind: 'let', name: string, named: Exp };
-export type SetExp = { kind: 'set', name: IdPath, named: Exp };
+export type SetExp = { kind: 'set', name: LVal, named: Exp };
 export type IfExp = { kind: 'if', cond: Exp, truePart: Exp[], falsePart: Exp[] };
 export type WhileExp = { kind: 'while', cond: Exp, body: Exp[] };
 
@@ -40,9 +21,10 @@ export type LabelExp = { kind: 'label', name: string, body: Exp[] };
 export type BreakExp = { kind: 'break', name: string, value: Exp };
 
 export type IdPath = string[];
-export type TEnv = Map<string, IdPath>;
+export type TEnv = { [key: string]: Exp };
 export type ClosExp = { kind: 'clos', tenv: TEnv };
-export type FromExp = { kind: 'from', idPath: IdPath };
+export type IdExp = { kind: 'identifier', name: string };
+export type FromExp = { kind: 'from', exp: Exp, field: string };
 
 export type ArrayExp = { kind: 'array', exps: Exp[] };
 
@@ -63,7 +45,7 @@ export type ArrayExp = { kind: 'array', exps: Exp[] };
 export type Exp
     =  { kind: 'unknown' }
     | { kind: 'number', value: number }
-    | { kind: 'identifier', name: string }
+    | IdExp
     | FromExp
     | { kind: 'string', value: string }
     | { kind: 'undefined' }
@@ -79,9 +61,11 @@ export type Exp
     | ClosExp
     | ArrayExp;
 
+export type LVal = IdExp | FromExp
+
 export const undefined_ : Exp = { kind: 'undefined' };
 
-export function identifier(name: string): Exp {
+export function identifier(name: string): IdExp {
     return { kind: 'identifier', name };
 }
 
@@ -113,8 +97,8 @@ export function let_(name: string, named: Exp): LetExp {
     return { kind: 'let', name, named };
 }
 
-export function set(name: IdPath, named: Exp): SetExp {
-    return { kind: 'set', name: name, named: named };
+export function set(name: LVal, named: Exp): SetExp {
+    return { kind: 'set', name, named };
 }
 
 export function block(body: Exp[]): BlockExp {
@@ -137,14 +121,14 @@ export function clos(tenv: TEnv): ClosExp {
     return { kind: 'clos', tenv: tenv };
 }
 
-export function from(idPath: IdPath): FromExp {
-    return { kind: 'from', idPath: idPath };
+export function from(exp: Exp, field: string): FromExp {
+    return { kind: 'from', exp, field };
 }
 
-export function froms(clos: string, ids: string[]): FromExp[] {
+export function froms(clos: Exp, ids: string[]): FromExp[] {
     let ret: FromExp[] = [];
-    for(let i=0; i<ids.length; i++) {
-        ret.push(from([clos, ids[i]]));
+    for(let i = 0; i < ids.length; i++) {
+        ret.push(from(clos, ids[i]));
     }
     return ret;
 }
