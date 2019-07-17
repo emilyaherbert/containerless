@@ -280,6 +280,8 @@ test('fixme: callback that receives multiple events', () => {
                 ])
             ])
         ]));
+
+        
 });
 
 test('label with an immediate break', () => {
@@ -611,7 +613,7 @@ test('sometimes break', () => {
             ])]))]));
  });
 
- test('fixme: test should pass: crazy closures', () => {
+ test('crazy closures', () => {
 
     // NOTE(arjun): Might want to simplify the test case to write the expected
     // output
@@ -687,7 +689,40 @@ test('sometimes break', () => {
 
     t.exitBlock(); // end the turn
 
-    expect(t.getTrace()).toMatchObject(
-        undefined_
-    );
+    expect(t.getTrace()).toMatchObject(block([
+        let_('zero', clos({ })),
+        let_('add', block([
+            label('$return', [
+                let_('foo', number(0)),
+                let_('one', clos({ 'foo': 'foo' } as any)),
+                break_('$return', identifier('one'))
+            ])
+        ])),
+        let_('sub', block([
+            label('$return', [
+                set(from(identifier('add'), 'foo'), binop('+', from(identifier('add'), 'foo'), number(15))),
+                let_('two', clos({ 'foo': from(identifier('add'), 'foo')})),
+                break_('$return', identifier('two'))
+            ])
+        ])),
+        let_('toss', block([
+            label('$return', [
+                set(from(identifier('add'), 'foo'), binop('+', from(identifier('add'), 'foo'), number(1))),
+                let_('two', clos({ 'foo': from(identifier('add'), 'foo')})),
+                break_('$return', identifier('two'))
+            ])
+        ])),
+        let_('ret', block([
+            label('$return', [
+                set(from(identifier('sub'), 'foo'), binop('-', from(identifier('sub'), 'foo'), number(4))),
+                let_('three', clos({ 'foo': from(identifier('sub'), 'foo')})),
+                break_('$return', identifier('three'))
+            ])
+        ])),
+        let_('foo', block([
+            label('$return', [
+                break_('$return', from(identifier('ret'), 'foo'))
+            ])
+        ]))
+    ]));
  });
