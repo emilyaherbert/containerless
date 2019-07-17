@@ -1,4 +1,5 @@
 import * as t from '@babel/types';
+import { assertNormalized } from './assertNormalized';
 
 function identifier(s: string): t.CallExpression {
     const callee = t.identifier('identifier');
@@ -85,36 +86,24 @@ function reifyExpression(e: t.Expression): t.Expression {
 }
 
 function reifyVariableDeclaration(s: t.VariableDeclaration): t.Statement[] {
-    const id = s.declarations[0].id;
-    const init = s.declarations[0].init;
-    if(init === null) {
-        throw new Error("Found null init.");
-    } else {
-        switch(init.type) {
-            case 'CallExpression': {
-                if(!t.isIdentifier(init.callee)) {
-                    throw new Error("Expected id callee.");
-                }
-                const callee = init.callee.name;
-                let theArgs: t.Expression[] = [identifier(callee)];
-                init.arguments.forEach(a => {
-                    if(t.isSpreadElement(a)) {
-                        throw new Error("Found spread element.");
-                    } else if(t.isJSXNamespacedName(a)) {
-                        throw new Error("Found JSXNamespacedName.");
-                    } else if(t.isArgumentPlaceholder(a)) {
-                        throw new Error("Found argument placeholder.");
-                    }
-                    theArgs.push(reifyExpression(a));
-                })
-                const tCall = traceFunctionCall(lvaltoName(id), theArgs);
-                const tExit = exitBlock();
-                return [tCall, s, tExit];
-            }
-            default: {
-                const tLet = traceLet([t.identifier(lvaltoName(id)), reifyExpression(init)]);
-                return [tLet, s];
-            }
+    let s1 = assertNormalized(s);
+    const id = s1.declarations[0].id;
+    const init = s1.declarations[0].init;
+    switch(init.type) {
+        case 'CallExpression': {
+            let init1 = assertNormalized(init);
+            const callee = init1.callee.name;
+            let theArgs: t.Expression[] = [identifier(callee)];
+            init1.arguments.forEach(a => {
+                theArgs.push(reifyExpression(a));
+            });
+            const tCall = traceFunctionCall(lvaltoName(id), theArgs);
+            const tExit = exitBlock();
+            return [tCall, s, tExit];
+        }
+        default: {
+            const tLet = traceLet([t.identifier(lvaltoName(id)), reifyExpression(init)]);
+            return [tLet, s];
         }
     }
 }
