@@ -1,6 +1,8 @@
 import * as t from '@babel/types';
 import { assertNormalized } from './assertNormalized';
 
+const functionBreakName = '$return';
+
 function identifier(s: string): t.CallExpression {
     const callee = t.identifier('identifier');
     const theArgs = [t.stringLiteral(s)];
@@ -19,6 +21,13 @@ function boolean(b: boolean): t.CallExpression {
     return t.callExpression(callee, theArgs);
 }
 
+// TODO(emily): Make this so that it is not always empty.
+function clos(): t.CallExpression {
+    const callee = t.identifier('clos');
+    const theArgs = [t.objectExpression([])];
+    return t.callExpression(callee, theArgs);
+}
+
 const undefined_: t.Identifier = t.identifier('undefined_');
 
 function binop(op: string, e1: t.Expression, e2: t.Expression): t.CallExpression {
@@ -27,14 +36,14 @@ function binop(op: string, e1: t.Expression, e2: t.Expression): t.CallExpression
     return t.callExpression(callee, theArgs);
 }
 
-function traceLet(theArgs: t.Expression[]): t.ExpressionStatement {
+function traceLet(lhs: string, rhs: t.Expression): t.ExpressionStatement {
     const memberExpression = t.memberExpression(t.identifier('t'), t.identifier('traceLet'));
-    const callExpression = t.callExpression(memberExpression, theArgs);
+    const callExpression = t.callExpression(memberExpression, [t.stringLiteral(lhs), rhs]);
     return t.expressionStatement(callExpression);
 }
 
-function jsLet(id: string, rhs: t.Expression): t.VariableDeclaration {
-    const variableDeclarator = t.variableDeclarator(t.identifier(id), rhs);
+function jsLet(lhs: t.LVal, rhs: t.Expression): t.VariableDeclaration {
+    const variableDeclarator = t.variableDeclarator(lhs, rhs);
     return t.variableDeclaration('let', [ variableDeclarator ]);
 }
 
@@ -76,13 +85,18 @@ function traceFunctionCall(id: string, theArgs: t.Expression[]): t.ExpressionSta
     return t.expressionStatement(callExpression);
 }
 
+function traceFunctionBody(): t.Expression {
+    const memberExpression = t.memberExpression(t.identifier('t'), t.identifier('traceFunctionBody'));
+    return t.callExpression(memberExpression, [t.stringLiteral(functionBreakName)]);
+}
+
 function traceLabel(name: string): t.ExpressionStatement {
     const memberExpression = t.memberExpression(t.identifier('t'), t.identifier('traceLabel'));
     const callExpression = t.callExpression(memberExpression, [t.stringLiteral(name)]);
     return t.expressionStatement(callExpression);
 }
 
-function traceBreak(name: string, value = undefined_): t.ExpressionStatement {
+function traceBreak(name: string, value : t.Expression = undefined_): t.ExpressionStatement {
     const memberExpression = t.memberExpression(t.identifier('t'), t.identifier('traceBreak'));
     const callExpression = t.callExpression(memberExpression, [t.stringLiteral(name), value]);
     return t.expressionStatement(callExpression);
@@ -121,7 +135,7 @@ function reifyVariableDeclaration(s: t.VariableDeclaration): t.Statement[] {
             return [tCall, s, exitBlock()];
         }
         default: {
-            const tLet = traceLet([t.identifier(lvaltoName(id)), reifyExpression(init)]);
+            const tLet = traceLet(lvaltoName(id), reifyExpression(init));
             return [tLet, s];
         }
     }
@@ -146,7 +160,7 @@ function reifyIfStatement(s: t.IfStatement): t.Statement[] {
     const id = '$test';
     ifTrue.unshift(traceIfTrue(id));
     ifFalse.unshift(traceIfFalse(id));
-    const tTest = jsLet(id, test);
+    const tTest = jsLet(t.identifier(id), test);
     const theIf = t.ifStatement(s.test, t.blockStatement(ifTrue), t.blockStatement(ifFalse));
     return [tTest, theIf, exitBlock()];
 }
@@ -175,6 +189,38 @@ function reifyBreakStatement(s: t.BreakStatement): t.Statement[] {
     }
 }
 
+function reifyFunctionDeclaration(s: t.FunctionDeclaration): t.Statement[] {
+    const id = s.id;
+    if(id === null) {
+        throw new Error("Null id!!");
+    }
+    const params = s.params;
+    let funBodyLHS = [t.identifier('$clos')];
+    for(let i=0; i<params.length; i++) {
+        const p = params[i];
+        if(!t.isIdentifier(p)) {
+            throw new Error("Expected identitifier!");
+        } else {
+            funBodyLHS.push(t.identifier('$' + lvaltoName(p)));
+        }
+    }
+    let body = reifyStatement(s.body);
+    body.unshift(jsLet(t.arrayPattern(funBodyLHS), traceFunctionBody()));
+    body.push(exitBlock()); // exit the label
+    const tClos = traceLet(lvaltoName(id), clos());
+    const theFunction = t.functionDeclaration(id, params, t.blockStatement(body));
+    return [tClos, theFunction];
+}
+
+function reifyReturnStatement(s: t.ReturnStatement): t.Statement[] {
+    if(s.argument === null) {
+        throw new Error("Found null argument!");
+    }
+    const argument = reifyExpression(s.argument);
+    const tBreak = traceBreak(functionBreakName, argument);
+    return [tBreak, s];
+}
+
 function reifyStatement(s: t.Statement): t.Statement[] {
     switch(s.type) {
         case 'VariableDeclaration': return reifyVariableDeclaration(s);
@@ -184,6 +230,8 @@ function reifyStatement(s: t.Statement): t.Statement[] {
         case 'ExpressionStatement': return reifyExpressionStatement(s);
         case 'LabeledStatement': return reifyLabeledStatement(s);
         case 'BreakStatement': return reifyBreakStatement(s);
+        case 'FunctionDeclaration': return reifyFunctionDeclaration(s);
+        case 'ReturnStatement': return reifyReturnStatement(s);
         default: return [t.expressionStatement(t.stringLiteral('TODO: ' + s.type))]
     }
 }
