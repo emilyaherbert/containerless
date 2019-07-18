@@ -2,7 +2,7 @@ import * as request from 'request';
 import * as express from 'express';
 import * as state from './state';
 import { Trace, newTrace } from './tracing';
-import { string, number, identifier } from './exp';
+import { string, number, identifier, unknown, clos } from './exp';
 
 export type Request = {
     path: string
@@ -21,6 +21,12 @@ export class Callbacks {
         this.trace = newTrace();
     }
 
+    /**
+     * Executes a callback body in the context of its callback trace.
+     * 
+     * @param trace Callback trace.
+     * @param body Callback body.
+     */
     private withTrace(trace: Trace, body: () => void) {
         let outerTrace = this.trace;
         this.trace = trace;
@@ -37,23 +43,43 @@ export class Callbacks {
         }
     }
 
-    mockCallback(
-        callback: (value: any) => void): (value: any) => void {
-        let innerTrace = this.trace.traceCallback('mock', number(0), '$response');
+    /**
+     * Mock callback function used for testing.
+     * 
+     * 1. Creates a callback trace.
+     * 2. Wraps the callback trace with the callback body.
+     * 3. Returns 2 as a function.
+     * 
+     * @param callback
+     */
+    mockCallback(callback: (value: any) => void): ((value: any) => void) {
+        const callbackArgStr = '$response';
+        let innerTrace = this.trace.traceCallback('mock', number(0), callbackArgStr);
         return (value: any) => {
             this.withTrace(innerTrace, () => {
-                innerTrace.pushArg(identifier('$response'));
+                innerTrace.pushArgs([clos({ }), identifier(callbackArgStr)]);
                 callback(value);
             });
         };
     }
 
-    immediate(arg: string, callback: (arg: string) => void) {
-        let innerTrace = this.trace.traceCallback('immediate', string(arg), '$x');
+    /**
+     * Passes a callback to setImmediate().
+     * 
+     * 1. Creates a callback trace.
+     * 2. Wraps the callback trace with the callback body.
+     * 3. Passes 2 as a callback to setImmediate().
+     * 
+     * @param eventArgStr
+     * @param callback
+     */
+    immediate(eventArgStr: string, callback: (callbackArg: string) => void) {
+        const callbackArgStr = '$x';
+        let innerTrace = this.trace.traceCallback('immediate', string(eventArgStr), callbackArgStr);
         setImmediate(() => {
             this.withTrace(innerTrace, () => {
-                innerTrace.pushArg(identifier('$x'));
-                callback(arg);
+                innerTrace.pushArg(identifier(callbackArgStr));
+                callback(eventArgStr);
             });
         });
     }

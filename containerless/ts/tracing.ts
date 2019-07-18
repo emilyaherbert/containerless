@@ -270,6 +270,17 @@ export class Trace {
         cursor.index = 0;
     }
 
+    /**
+     * Traces a callback.
+     * 
+     * 1. Creates a new callback trace.
+     * 2. Sets a CallbackExp in that trace.
+     * 3. Returns the trace.
+     * 
+     * @param event
+     * @param eventArg argument for the event, e.g. the URL to get
+     * @param callbackArg name of the argument passed to the callback
+     */
     traceCallback(event: string, eventArg: Exp, callbackArg: string): Trace {
         let exp = this.getCurrentExp();
         if (exp.kind === 'unknown') {

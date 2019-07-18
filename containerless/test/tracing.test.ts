@@ -99,6 +99,8 @@ test('re-tracing: apply function twice with different control flow', () => {
 
         t.traceBreak('$return', identifier('ret'));
         return ret;
+
+        t.exitBlock();
     }
 
     t.traceFunctionCall('w', [identifier('F'), number(11)]);
@@ -179,19 +181,48 @@ test('exit fun from within if', () => {
                     unknown() ])]))]));
 });
 
-test('fixme: tracing with callback library', (done) => {
+test('tracing with callback library', (done) => {
     let cb = new Callbacks();
     cb.immediate('hello', (str) => {
+        let $str = cb.trace.popArg();
+
         cb.trace.traceLet('x', number(100));
-        // Why is this in here? If we put it after the last line
-        // (cb.trace.exitBlock), we will get the trace before this callback
-        // is called. If we don't wrap it in setImmediate, we will get it
-        // when cb.trace refers to the inner trace.
+        let x = 100;
+        cb.trace.traceLet('z', $str);
+        let z = str;
+
         setImmediate(() => {
             expect(cb.trace.getTrace()).toMatchObject(
                 block([
                     callback('immediate', string('hello'), '$x', [
-                        let_('x', number(100))]),
+                        let_('x', number(100)),
+                        let_('z', identifier('$x'))]),
+                    let_('y', number(200))]));
+            done();
+        });
+    });
+    cb.trace.traceLet('y', number(200));
+    cb.trace.exitBlock();
+});
+
+test('tracing with callback library alt', (done) => {
+    let cb = new Callbacks();
+    cb.immediate('hello', (str) => {
+        let $str = cb.trace.popArg();
+        cb.trace.traceLet('str', $str);
+
+        cb.trace.traceLet('x', number(100));
+        let x = 100;
+        cb.trace.traceLet('z', identifier('str'));
+        let z = str;
+        
+        setImmediate(() => {
+            expect(cb.trace.getTrace()).toMatchObject(
+                block([
+                    callback('immediate', string('hello'), '$x', [
+                        let_('str', identifier('$x')),
+                        let_('x', number(100)),
+                        let_('z', identifier('str'))]),
                     let_('y', number(200))]));
             done();
         });
@@ -199,6 +230,55 @@ test('fixme: tracing with callback library', (done) => {
     cb.trace.traceLet('y', number(200));
     cb.trace.exitBlock();
 
+});
+
+test('callback that receives multiple events', () => {
+    let cb = new Callbacks();
+
+    function F(value: any) {
+        let [$clos, $value] = cb.trace.traceFunctionBody('$return')
+        let [$foo] = froms($clos, ['foo']);
+
+        cb.trace.traceLet('ret', number(0));
+        let ret = 0;
+        let $cond = binop('>', $value, number(0));
+        if (value > 0) {
+            cb.trace.traceIfTrue($cond);
+            cb.trace.traceSet(identifier('ret'), number(200));
+            ret = 200;
+        }
+        else {
+            cb.trace.traceIfFalse($cond);
+            cb.trace.traceSet(identifier('ret'), number(-200));
+            ret = -200;
+        }
+        cb.trace.exitBlock(); // exitBlock() for if statement.
+
+        cb.trace.exitBlock(); // exitBlock() for label '$return'.
+    }
+
+    let sender = cb.mockCallback(F);
+
+    cb.trace.exitBlock(); // end of the first turn
+    
+    sender(-100); // callback invoked
+    sender(100); // callback invoked
+
+    expect(cb.trace.getTrace()).toMatchObject(
+        block([
+            callback('mock', number(0), '$response', [
+                label('$return', [
+                    let_('ret', number(0)),
+                    if_(binop('>', identifier('$response'), number(0)), [
+                        set(identifier('ret'), number(200))
+                    ], [
+                        set(identifier('ret'), number(-200))
+                    ])
+                ])
+            ])
+        ]));
+
+        
 });
 
 test('while loop', () => {
@@ -239,49 +319,6 @@ test('while loop', () => {
                 [ set(identifier('y'), binop('+', identifier('y'), number(3))) ]),
             set(identifier('x'), binop('-', identifier('x'), number(1)))
         ])]));
-});
-
-test('fixme: callback that receives multiple events', () => {
-    let cb = new Callbacks();
-    let sender = cb.mockCallback((value) => {
-        // TODO(arjun): This function doesn't follow the pattern that other
-        // functions do (i.e., starting with traceFunctionBody). We will need
-        // to hack the implmeentation of mockCallback too.
-        let $value = cb.trace.popArg();
-        cb.trace.traceLet('value', $value);
-        cb.trace.traceLet('ret', number(0));
-        let ret = 0;
-        let $cond = binop('>', identifier('value'), number(0));
-        if (value > 0) {
-            cb.trace.traceIfTrue($cond);
-            cb.trace.traceSet(identifier('ret'), number(200));
-            ret = 200;
-        }
-        else {
-            cb.trace.traceIfFalse($cond);
-            cb.trace.traceSet(identifier('ret'), number(-200));
-            ret = -200;
-        }
-        // exit the true/false parts, not the function
-        cb.trace.exitBlock();
-    });
-    cb.trace.exitBlock(); // end of the first turn
-    sender(-100); // callback invoked
-    sender(100); // callback invoked
-    expect(cb.trace.getTrace()).toMatchObject(
-        block([
-            callback('mock', number(0), '$response', [
-                let_('value', identifier('$response')),
-                let_('ret', number(0)),
-                if_(binop('>', identifier('value'), number(0)), [
-                    set(identifier('ret'), number(200))
-                ], [
-                    set(identifier('ret'), number(-200))
-                ])
-            ])
-        ]));
-
-        
 });
 
 test('label with an immediate break', () => {
@@ -726,3 +763,61 @@ test('sometimes break', () => {
         ]))
     ]));
  });
+
+ test('function with no return', () => {
+    let t = newTrace();
+
+    t.traceLet('foo', number(0));
+    let foo = 0;
+
+    t.traceLet('F', clos({ 'foo': 'foo' } as any));
+    function F(x: any) {
+        let [$clos, $x] = t.traceFunctionBody('$return');
+        let [$foo] = froms($clos, ['foo']);
+
+        let $cond = binop('>', $x, number(10));
+        if(x > 10) {
+            t.traceIfTrue($cond);
+            t.traceSet($foo, number(42));
+            foo = 42;
+        } else {
+            t.traceIfFalse($cond);
+            t.traceSet($foo, number(24));
+            foo = 24;
+        }
+        t.exitBlock();
+
+
+        t.exitBlock();
+    }
+
+    t.traceFunctionCall('w', [identifier('F'), number(11)]);
+    let w = F(11);
+    t.exitBlock();
+
+    t.traceFunctionCall('v', [identifier('F'), number(9)]);
+    let v = F(9);
+    t.exitBlock();
+
+    t.exitBlock();
+
+    expect(t.getTrace()).toMatchObject(block([
+        let_('foo', number(0)),
+        let_('F', clos({ 'foo': 'foo' } as any)),
+        let_('w', block([
+            label('$return', [
+                if_(binop('>', number(11), number(10)),
+                    [ set(from(identifier('F'), 'foo'), number(42)) ],
+                    [ unknown() ])
+            ])
+        ])),
+        let_('v', block([
+            label('$return', [
+                if_(binop('>', number(9), number(10)),
+                    [ unknown() ],
+                    [ set(from(identifier('F'), 'foo'), number(24)) ])
+            ])
+        ])),
+    ]));
+
+});
