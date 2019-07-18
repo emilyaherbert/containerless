@@ -19,6 +19,8 @@ function boolean(b: boolean): t.CallExpression {
     return t.callExpression(callee, theArgs);
 }
 
+const undefined_: t.Identifier = t.identifier('undefined_');
+
 function binop(op: string, e1: t.Expression, e2: t.Expression): t.CallExpression {
     const callee = t.identifier('binop');
     const theArgs = [t.stringLiteral(op), e1, e2];
@@ -71,6 +73,18 @@ function traceFunctionCall(id: string, theArgs: t.Expression[]): t.ExpressionSta
     const memberExpression = t.memberExpression(t.identifier('t'), t.identifier('traceFunctionCall'));
     const memberArgs = [t.stringLiteral(id), t.arrayExpression(theArgs)];
     const callExpression = t.callExpression(memberExpression, memberArgs);
+    return t.expressionStatement(callExpression);
+}
+
+function traceLabel(name: string): t.ExpressionStatement {
+    const memberExpression = t.memberExpression(t.identifier('t'), t.identifier('traceLabel'));
+    const callExpression = t.callExpression(memberExpression, [t.stringLiteral(name)]);
+    return t.expressionStatement(callExpression);
+}
+
+function traceBreak(name: string, value = undefined_): t.ExpressionStatement {
+    const memberExpression = t.memberExpression(t.identifier('t'), t.identifier('traceBreak'));
+    const callExpression = t.callExpression(memberExpression, [t.stringLiteral(name), value]);
     return t.expressionStatement(callExpression);
 }
 
@@ -142,6 +156,25 @@ function reifyExpressionStatement(s: t.ExpressionStatement): t.Statement[] {
     return [above, s];
 }
 
+function reifyLabeledStatement(s: t.LabeledStatement): t.Statement[] {
+    const name = s.label;
+    let body = reifyStatement(s.body);
+    body.push(exitBlock());
+    const tLabel = traceLabel(lvaltoName(name));
+    const theLabel = t.labeledStatement(name, t.blockStatement(body));
+    return [tLabel, theLabel];
+}
+
+function reifyBreakStatement(s: t.BreakStatement): t.Statement[] {
+    const name = s.label;
+    if(name === null) {
+        throw new Error("Found null label in break.");
+    } else {
+        const tBreak = traceBreak(lvaltoName(name));
+        return [tBreak, s];
+    }
+}
+
 function reifyStatement(s: t.Statement): t.Statement[] {
     switch(s.type) {
         case 'VariableDeclaration': return reifyVariableDeclaration(s);
@@ -149,6 +182,8 @@ function reifyStatement(s: t.Statement): t.Statement[] {
         case 'BlockStatement': return reifyStatements(s.body); // NOTE: this unwraps block statements.
         case 'IfStatement': return reifyIfStatement(s);
         case 'ExpressionStatement': return reifyExpressionStatement(s);
+        case 'LabeledStatement': return reifyLabeledStatement(s);
+        case 'BreakStatement': return reifyBreakStatement(s);
         default: return [t.expressionStatement(t.stringLiteral('TODO: ' + s.type))]
     }
 }
