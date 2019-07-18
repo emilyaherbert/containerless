@@ -125,7 +125,7 @@ function reifyExpression(e: t.Expression): t.Expression {
         case 'BooleanLiteral': return boolean(e.value);
         case 'BinaryExpression': return binop(e.operator, reifyExpression(e.left), reifyExpression(e.right));
         case 'AssignmentExpression': return traceSet(lvaltoName(e.left), reifyExpression(e.right));
-        default: throw new Error(e.type + ' not implemented.');
+        default: return t.stringLiteral('TODO: ' + e.type);
     }
 }
 
