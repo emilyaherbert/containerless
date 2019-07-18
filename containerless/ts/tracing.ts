@@ -128,6 +128,8 @@ export class Trace {
         }
         let cursor = this.cursor;
         if (cursor.index !== cursor.body.length - 1) {
+            console.log(cursor.index);
+            console.log(this.getCurrentExp());
             throw new Error('Exiting block too early');
         }
         if (this.cursor.body[cursor.index].kind === 'unknown') {

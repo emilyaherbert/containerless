@@ -183,24 +183,31 @@ test('exit fun from within if', () => {
 
 test('tracing with callback library', (done) => {
     let cb = new Callbacks();
-    cb.immediate('hello', (str) => {
-        let $str = cb.trace.popArg();
+
+    function F(str: any) {
+        let [$clos, $str] = cb.trace.traceFunctionBody('$return');
 
         cb.trace.traceLet('x', number(100));
         let x = 100;
         cb.trace.traceLet('z', $str);
         let z = str;
 
+        cb.trace.exitBlock();
+
         setImmediate(() => {
             expect(cb.trace.getTrace()).toMatchObject(
                 block([
                     callback('immediate', string('hello'), '$x', [
-                        let_('x', number(100)),
-                        let_('z', identifier('$x'))]),
+                        label('$return', [
+                            let_('x', number(100)),
+                            let_('z', identifier('$x'))])
+                        ]),
                     let_('y', number(200))]));
             done();
         });
-    });
+    }
+
+    cb.immediate('hello', F);
     cb.trace.traceLet('y', number(200));
     cb.trace.exitBlock();
 });
@@ -208,7 +215,7 @@ test('tracing with callback library', (done) => {
 test('tracing with callback library alt', (done) => {
     let cb = new Callbacks();
     cb.immediate('hello', (str) => {
-        let $str = cb.trace.popArg();
+        let [$clos, $str] = cb.trace.traceFunctionBody('$return');
         cb.trace.traceLet('str', $str);
 
         cb.trace.traceLet('x', number(100));
@@ -216,13 +223,17 @@ test('tracing with callback library alt', (done) => {
         cb.trace.traceLet('z', identifier('str'));
         let z = str;
         
+        cb.trace.exitBlock();
+
         setImmediate(() => {
             expect(cb.trace.getTrace()).toMatchObject(
                 block([
                     callback('immediate', string('hello'), '$x', [
-                        let_('str', identifier('$x')),
-                        let_('x', number(100)),
-                        let_('z', identifier('str'))]),
+                        label('$return', [
+                            let_('str', identifier('$x')),
+                            let_('x', number(100)),
+                            let_('z', identifier('str'))])
+                        ]),
                     let_('y', number(200))]));
             done();
         });
@@ -235,11 +246,19 @@ test('tracing with callback library alt', (done) => {
 test('callback that receives multiple events', () => {
     let cb = new Callbacks();
 
-    function F(value: any) {
-        let [$clos, $value] = cb.trace.traceFunctionBody('$return')
+    cb.trace.traceLet('foo', number(10));
+    let foo = 10;
 
-        cb.trace.traceLet('ret', number(0));
-        let ret = 0;
+    cb.trace.traceLet('F', clos({ 'foo': 'foo' } as any));
+    function F(value: any) {
+        let [$clos, $value] = cb.trace.traceFunctionBody('$return');
+        let [$foo] = froms($clos, ['foo']);
+
+        console.log(1);
+        cb.trace.traceLet('ret', $foo);
+        console.log(2);
+        let ret = foo;
+
         let $cond = binop('>', $value, number(0));
         if (value > 0) {
             cb.trace.traceIfTrue($cond);
@@ -256,12 +275,16 @@ test('callback that receives multiple events', () => {
         cb.trace.exitBlock(); // exitBlock() for label '$return'.
     }
 
+    cb.trace.traceFunctionCall('sender', [identifier('cb.mockCallback'), identifier('F')]);
     let sender = cb.mockCallback(F);
+    cb.trace.exitBlock();
 
     cb.trace.exitBlock(); // end of the first turn
     
     sender(-100); // callback invoked
     sender(100); // callback invoked
+
+    //cb.trace.prettyPrint();
 
     expect(cb.trace.getTrace()).toMatchObject(
         block([
@@ -276,8 +299,6 @@ test('callback that receives multiple events', () => {
                 ])
             ])
         ]));
-
-        
 });
 
 test('while loop', () => {

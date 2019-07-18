@@ -35,6 +35,7 @@ export class Callbacks {
             return body();
         }
         finally {
+            trace.prettyPrint();
             trace.exitBlock();
             // If this callback is called again, which occurs with listen,
             // then we need to reset the cursor to start from the top.
@@ -53,11 +54,12 @@ export class Callbacks {
      * @param callback
      */
     mockCallback(callback: (value: any) => void): ((value: any) => void) {
+        const [_, callbackClos] = this.trace.popArgs();
         const callbackArgStr = '$response';
         let innerTrace = this.trace.traceCallback('mock', number(0), callbackArgStr);
         return (value: any) => {
             this.withTrace(innerTrace, () => {
-                innerTrace.pushArgs([clos({ }), identifier(callbackArgStr)]);
+                innerTrace.pushArgs([callbackClos, identifier(callbackArgStr)]);
                 callback(value);
             });
         };
@@ -78,7 +80,7 @@ export class Callbacks {
         let innerTrace = this.trace.traceCallback('immediate', string(eventArgStr), callbackArgStr);
         setImmediate(() => {
             this.withTrace(innerTrace, () => {
-                innerTrace.pushArg(identifier(callbackArgStr));
+                innerTrace.pushArgs([clos({ }), identifier(callbackArgStr)]);
                 callback(eventArgStr);
             });
         });
