@@ -30,18 +30,14 @@ export class Callbacks {
     private withTrace(trace: Trace, body: () => void) {
         let outerTrace = this.trace;
         this.trace = trace;
-        try {
-            trace.newTrace();
-            return body();
-        }
-        finally {
-            trace.prettyPrint();
-            trace.exitBlock();
-            // If this callback is called again, which occurs with listen,
-            // then we need to reset the cursor to start from the top.
-            trace.newTrace();
-            this.trace = outerTrace;
-        }
+        trace.newTrace();
+        let result = body();
+        trace.exitBlock();
+        // If this callback is called again, which occurs with listen,
+        // then we need to reset the cursor to start from the top.
+        trace.newTrace();
+        this.trace = outerTrace;
+        return result;
     }
 
     /**
