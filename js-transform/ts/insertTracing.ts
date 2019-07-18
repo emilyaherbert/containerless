@@ -102,11 +102,16 @@ function traceBreak(name: string, value : t.Expression = undefined_): t.Expressi
     return t.expressionStatement(callExpression);
 }
 
-function exitBlock(): t.ExpressionStatement {
-    const memberExpression = t.memberExpression(t.identifier('t'), t.identifier('exitBlock'));
-    const callExpression = t.callExpression(memberExpression, []);
-    return t.expressionStatement(callExpression);
-}
+const exitBlock: t.ExpressionStatement =
+    t.expressionStatement(
+        t.callExpression(
+            t.memberExpression(
+                t.identifier('t'),
+                t.identifier('exitBlock')
+            ),
+            []
+        )
+    );
 
 function reifyExpression(e: t.Expression): t.Expression {
     switch(e.type) {
@@ -132,7 +137,7 @@ function reifyVariableDeclaration(s: t.VariableDeclaration): t.Statement[] {
                 theArgs.push(reifyExpression(a));
             });
             const tCall = traceFunctionCall(lvaltoName(id), theArgs);
-            return [tCall, s, exitBlock()];
+            return [tCall, s, exitBlock];
         }
         default: {
             const tLet = traceLet(lvaltoName(id), reifyExpression(init));
@@ -147,7 +152,7 @@ function reifyWhileStatement(s: t.WhileStatement): t.Statement[] {
     body.unshift(traceLoop());
     const tWhile = traceWhile(test);
     const theWhile = t.whileStatement(s.test, t.blockStatement(body));
-    return [tWhile, theWhile, exitBlock()];
+    return [tWhile, theWhile, exitBlock];
 }
 
 function reifyIfStatement(s: t.IfStatement): t.Statement[] {
@@ -162,7 +167,7 @@ function reifyIfStatement(s: t.IfStatement): t.Statement[] {
     ifFalse.unshift(traceIfFalse(id));
     const tTest = jsLet(t.identifier(id), test);
     const theIf = t.ifStatement(s.test, t.blockStatement(ifTrue), t.blockStatement(ifFalse));
-    return [tTest, theIf, exitBlock()];
+    return [tTest, theIf, exitBlock];
 }
 
 function reifyExpressionStatement(s: t.ExpressionStatement): t.Statement[] {
@@ -173,7 +178,7 @@ function reifyExpressionStatement(s: t.ExpressionStatement): t.Statement[] {
 function reifyLabeledStatement(s: t.LabeledStatement): t.Statement[] {
     const name = s.label;
     let body = reifyStatement(s.body);
-    body.push(exitBlock());
+    body.push(exitBlock);
     const tLabel = traceLabel(lvaltoName(name));
     const theLabel = t.labeledStatement(name, t.blockStatement(body));
     return [tLabel, theLabel];
@@ -206,7 +211,7 @@ function reifyFunctionDeclaration(s: t.FunctionDeclaration): t.Statement[] {
     }
     let body = reifyStatement(s.body);
     body.unshift(jsLet(t.arrayPattern(funBodyLHS), traceFunctionBody()));
-    body.push(exitBlock()); // exit the label
+    body.push(exitBlock); // exit the label
     const tClos = traceLet(lvaltoName(id), clos());
     const theFunction = t.functionDeclaration(id, params, t.blockStatement(body));
     return [tClos, theFunction];
