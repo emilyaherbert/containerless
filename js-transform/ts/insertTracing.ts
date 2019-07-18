@@ -31,9 +31,15 @@ function traceLet(theArgs: t.Expression[]): t.ExpressionStatement {
     return t.expressionStatement(callExpression);
 }
 
-function universeLet(id: string, rhs: t.Expression): t.VariableDeclaration {
+function jsLet(id: string, rhs: t.Expression): t.VariableDeclaration {
     const variableDeclarator = t.variableDeclarator(t.identifier(id), rhs);
     return t.variableDeclaration('let', [ variableDeclarator ]);
+}
+
+// TODO(emily): LVal?
+function traceSet(id: string, rhs: t.Expression): t.CallExpression {
+    const memberExpression = t.memberExpression(t.identifier('t'), t.identifier('traceSet'));
+    return t.callExpression(memberExpression, [identifier(id), rhs]);
 }
 
 function traceWhile(test: t.Expression): t.ExpressionStatement {
@@ -80,7 +86,7 @@ function reifyExpression(e: t.Expression): t.Expression {
         case 'NumericLiteral': return number(e.value);
         case 'BooleanLiteral': return boolean(e.value);
         case 'BinaryExpression': return binop(e.operator, reifyExpression(e.left), reifyExpression(e.right));
-        //case 'AssignmentExpression': return trace
+        case 'AssignmentExpression': return traceSet(lvaltoName(e.left), reifyExpression(e.right));
         default: throw new Error(e.type + ' not implemented.');
     }
 }
@@ -98,8 +104,7 @@ function reifyVariableDeclaration(s: t.VariableDeclaration): t.Statement[] {
                 theArgs.push(reifyExpression(a));
             });
             const tCall = traceFunctionCall(lvaltoName(id), theArgs);
-            const tExit = exitBlock();
-            return [tCall, s, tExit];
+            return [tCall, s, exitBlock()];
         }
         default: {
             const tLet = traceLet([t.identifier(lvaltoName(id)), reifyExpression(init)]);
@@ -114,7 +119,7 @@ function reifyWhileStatement(s: t.WhileStatement): t.Statement[] {
     body.unshift(traceLoop());
     const tWhile = traceWhile(test);
     const theWhile = t.whileStatement(s.test, t.blockStatement(body));
-    return [ tWhile, theWhile, exitBlock() ];
+    return [tWhile, theWhile, exitBlock()];
 }
 
 function reifyIfStatement(s: t.IfStatement): t.Statement[] {
@@ -127,9 +132,14 @@ function reifyIfStatement(s: t.IfStatement): t.Statement[] {
     const id = '$test';
     ifTrue.unshift(traceIfTrue(id));
     ifFalse.unshift(traceIfFalse(id));
-    const tTest = universeLet(id, test);
+    const tTest = jsLet(id, test);
     const theIf = t.ifStatement(s.test, t.blockStatement(ifTrue), t.blockStatement(ifFalse));
-    return [ tTest, theIf, exitBlock()];
+    return [tTest, theIf, exitBlock()];
+}
+
+function reifyExpressionStatement(s: t.ExpressionStatement): t.Statement[] {
+    const above = t.expressionStatement(reifyExpression(s.expression));
+    return [above, s];
 }
 
 function reifyStatement(s: t.Statement): t.Statement[] {
@@ -138,7 +148,7 @@ function reifyStatement(s: t.Statement): t.Statement[] {
         case 'WhileStatement': return reifyWhileStatement(s);
         case 'BlockStatement': return reifyStatements(s.body); // NOTE: this unwraps block statements.
         case 'IfStatement': return reifyIfStatement(s);
-        //case 'ExpressionStatement': return [ t.expressionStatement(reifyExpression(s.expression)) ];
+        case 'ExpressionStatement': return reifyExpressionStatement(s);
         default: return [t.expressionStatement(t.stringLiteral('TODO: ' + s.type))]
     }
 }
