@@ -237,7 +237,6 @@ test('callback that receives multiple events', () => {
 
     function F(value: any) {
         let [$clos, $value] = cb.trace.traceFunctionBody('$return')
-        let [$foo] = froms($clos, ['foo']);
 
         cb.trace.traceLet('ret', number(0));
         let ret = 0;
