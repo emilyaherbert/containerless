@@ -44,7 +44,7 @@ function traceLet(lhs: string, rhs: t.Expression): t.ExpressionStatement {
 
 function jsLet(lhs: t.LVal, rhs: t.Expression): t.VariableDeclaration {
     const variableDeclarator = t.variableDeclarator(lhs, rhs);
-    return t.variableDeclaration('let', [ variableDeclarator ]);
+    return t.variableDeclaration('let', [variableDeclarator]);
 }
 
 // TODO(emily): LVal?
@@ -59,11 +59,16 @@ function traceWhile(test: t.Expression): t.ExpressionStatement {
     return t.expressionStatement(callExpression);
 }
 
-function traceLoop(): t.ExpressionStatement {
-    const memberExpression = t.memberExpression(t.identifier('t'), t.identifier('traceLoop'));
-    const callExpression = t.callExpression(memberExpression, []);
-    return t.expressionStatement(callExpression);
-}
+const traceLoop: t.ExpressionStatement =
+    t.expressionStatement(
+        t.callExpression(
+            t.memberExpression(
+                t.identifier('t'),
+                t.identifier('traceLoop')
+            ),
+            []
+        )
+    );
 
 function traceIfTrue(id: string): t.ExpressionStatement {
     const memberExpression = t.memberExpression(t.identifier('t'), t.identifier('traceIfTrue'));
@@ -149,7 +154,7 @@ function reifyVariableDeclaration(s: t.VariableDeclaration): t.Statement[] {
 function reifyWhileStatement(s: t.WhileStatement): t.Statement[] {
     const test = reifyExpression(s.test);
     let body = reifyStatement(s.body);
-    body.unshift(traceLoop());
+    body.unshift(traceLoop);
     const tWhile = traceWhile(test);
     const theWhile = t.whileStatement(s.test, t.blockStatement(body));
     return [tWhile, theWhile, exitBlock];
