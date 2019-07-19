@@ -50,10 +50,18 @@ export class Callbacks {
      * @param callback
      */
     mockCallback(callback: (value: any) => void): ((value: any) => void) {
+        // #1 <-
+
         const [_, callbackClos] = this.trace.popArgs();
         const callbackArgStr = '$response';
         let innerTrace = this.trace.traceCallback('mock', number(0), callbackArgStr);
         return (value: any) => {
+            // #2 <-
+
+            // TODO(emily): Need some way to say you are invoking callback?
+            let [callbackName, callbackArg] = this.trace.popArgs();
+
+            // #3 ->
             this.withTrace(innerTrace, () => {
                 innerTrace.pushArgs([callbackClos, identifier(callbackArgStr)]);
                 callback(value);

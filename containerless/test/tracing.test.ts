@@ -251,12 +251,12 @@ test('callback that receives multiple events', () => {
 
     cb.trace.traceLet('F', clos({ 'foo': 'foo' } as any));
     function F(value: any) {
+        // #3 <-
+
         let [$clos, $value] = cb.trace.traceFunctionBody('$return');
         let [$foo] = froms($clos, ['foo']);
 
-        console.log(1);
         cb.trace.traceLet('ret', $foo);
-        console.log(2);
         let ret = foo;
 
         let $cond = binop('>', $value, number(0));
@@ -275,30 +275,27 @@ test('callback that receives multiple events', () => {
         cb.trace.exitBlock(); // exitBlock() for label '$return'.
     }
 
-    cb.trace.traceFunctionCall('sender', [identifier('cb.mockCallback'), identifier('F')]);
+    cb.trace.traceFunctionCall('sender', [from(identifier('cb'), 'mockCallback'), identifier('F')]);
+    // #1 ->
     let sender = cb.mockCallback(F);
     cb.trace.exitBlock();
-
-    cb.trace.exitBlock(); // end of the first turn
     
-    sender(-100); // callback invoked
-    sender(100); // callback invoked
+    cb.trace.traceFunctionCall('r1', [identifier('sender'), number(-100)]);
+    // #2 ->
+    let r1 = sender(-100); // callback invoked
+    cb.trace.exitBlock();
 
-    //cb.trace.prettyPrint();
+    cb.trace.traceFunctionCall('r2', [identifier('sender'), number(100)]);
+    // #2 ->
+    let r2 = sender(100); // callback invoked
+    cb.trace.exitBlock();
+
+    cb.trace.exitBlock();
+    cb.trace.prettyPrint();
 
     expect(cb.trace.getTrace()).toMatchObject(
-        block([
-            callback('mock', number(0), '$response', [
-                label('$return', [
-                    let_('ret', number(0)),
-                    if_(binop('>', identifier('$response'), number(0)), [
-                        set(identifier('ret'), number(200))
-                    ], [
-                        set(identifier('ret'), number(-200))
-                    ])
-                ])
-            ])
-        ]));
+        undefined_
+    );
 });
 
 test('while loop', () => {
