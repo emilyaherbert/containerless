@@ -253,10 +253,11 @@ test('callback that receives multiple events', () => {
         // #3 <-
 
         let [$clos, $value] = cb.trace.traceFunctionBody('$return');
+        cb.trace.traceLet('value', $value);
         cb.trace.traceLet('ret', from($clos, 'captured'));
         let ret = captured;
 
-        let $cond = binop('>', $value, number(0));
+        let $cond = binop('>', identifier('value'), number(0));
         if (value > 0) {
             cb.trace.traceIfTrue($cond);
             cb.trace.traceSet(identifier('ret'), number(200));
@@ -287,8 +288,9 @@ test('callback that receives multiple events', () => {
             let_('sender', block([
                 callback('mock', number(200), '$response', [
                     label('$return', [
+                        let_('value', identifier('$response')),
                         let_('ret', from(identifier('F'), 'captured')),
-                        if_(binop('>', identifier('$response'), number(0)), [
+                        if_(binop('>', identifier('value'), number(0)), [
                             set(identifier('ret'), number(200))], [
                             set(identifier('ret'), number(-200))])])])]))]));
 });
