@@ -246,18 +246,20 @@ test('tracing with callback library alt', (done) => {
 test('callback that receives multiple events', () => {
     let cb = new Callbacks();
 
-    cb.trace.traceLet('foo', number(10));
-    let foo = 10;
-
-    cb.trace.traceLet('F', clos({ 'foo': 'foo' } as any));
+    cb.trace.traceLet('F', clos({ }));
     function F(value: any) {
         // #3 <-
 
         let [$clos, $value] = cb.trace.traceFunctionBody('$return');
+<<<<<<< HEAD
         let [$foo] = froms($clos, ['foo']);
 
         cb.trace.traceLet('ret', $foo);
         let ret = foo;
+=======
+        cb.trace.traceLet('ret', number(0));
+        let ret = 0;
+>>>>>>> 6866e1b8839df8125a1b758b71f1ce2873240a00
 
         let $cond = binop('>', $value, number(0));
         if (value > 0) {

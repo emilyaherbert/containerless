@@ -462,10 +462,11 @@ function mergeExp(e1: Exp, e2: Exp): Exp {
         return e1;
     }
     else if (e1.kind === 'from' && e2.kind === 'from') {
-        e1.exp = mergeExp(e1.exp, e2.exp);
-        if(e1.field !== e2.field) {
-            throw new Error(`Mismatched fields ${e1.field} and ${e2.field}.`);
+        if (e1.field !== e2.field) {
+            throw new Error(`Mismatched field names ${e1.field} and ${e2.field}
+                in from(...) expressions`);
         }
+        e1.exp = mergeExp(e1.exp, e2.exp);
         return e1;
     }
     else {
