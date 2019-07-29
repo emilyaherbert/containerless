@@ -246,22 +246,18 @@ test('tracing with callback library alt', (done) => {
 test('callback that receives multiple events', () => {
     let cb = new Callbacks();
 
-    cb.trace.traceLet('F', clos({ }));
+    let captured = 42;
+    cb.trace.traceLet('captured', number(42));
+    cb.trace.traceLet('F', clos({ captured: identifier('captured') }));
     function F(value: any) {
         // #3 <-
 
         let [$clos, $value] = cb.trace.traceFunctionBody('$return');
-<<<<<<< HEAD
-        let [$foo] = froms($clos, ['foo']);
+        cb.trace.traceLet('value', $value);
+        cb.trace.traceLet('ret', from($clos, 'captured'));
+        let ret = captured;
 
-        cb.trace.traceLet('ret', $foo);
-        let ret = foo;
-=======
-        cb.trace.traceLet('ret', number(0));
-        let ret = 0;
->>>>>>> 6866e1b8839df8125a1b758b71f1ce2873240a00
-
-        let $cond = binop('>', $value, number(0));
+        let $cond = binop('>', identifier('value'), number(0));
         if (value > 0) {
             cb.trace.traceIfTrue($cond);
             cb.trace.traceSet(identifier('ret'), number(200));
@@ -277,27 +273,26 @@ test('callback that receives multiple events', () => {
         cb.trace.exitBlock(); // exitBlock() for label '$return'.
     }
 
-    cb.trace.traceFunctionCall('sender', [from(identifier('cb'), 'mockCallback'), identifier('F')]);
-    // #1 ->
-    let sender = cb.mockCallback(F);
+    cb.trace.traceFunctionCall('sender', [from(identifier('cb'), 'mockCallback'), identifier('F'), number(200)]);
+    let sender = cb.mockCallback(F, 200);
     cb.trace.exitBlock();
-    
-    cb.trace.traceFunctionCall('r1', [identifier('sender'), number(-100)]);
-    // #2 ->
-    let r1 = sender(-100); // callback invoked
-    cb.trace.exitBlock();
+    cb.trace.exitBlock(); // end turn
 
-    cb.trace.traceFunctionCall('r2', [identifier('sender'), number(100)]);
-    // #2 ->
-    let r2 = sender(100); // callback invoked
-    cb.trace.exitBlock();
-
-    cb.trace.exitBlock();
-    cb.trace.prettyPrint();
+    sender(-100);
+    sender(100);
 
     expect(cb.trace.getTrace()).toMatchObject(
-        undefined_
-    );
+        block([
+            let_('captured', number(42)),
+            let_('F', clos({ captured: identifier('captured') })),
+            let_('sender', block([
+                callback('mock', number(200), '$response', [
+                    label('$return', [
+                        let_('value', identifier('$response')),
+                        let_('ret', from(identifier('F'), 'captured')),
+                        if_(binop('>', identifier('value'), number(0)), [
+                            set(identifier('ret'), number(200))], [
+                            set(identifier('ret'), number(-200))])])])]))]));
 });
 
 test('while loop', () => {
