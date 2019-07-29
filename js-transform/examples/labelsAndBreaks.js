@@ -1,6 +1,6 @@
 things : {
     let x = 77;
-    break things;
+    break;
     let oops = 666;
 }
 

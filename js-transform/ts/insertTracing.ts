@@ -205,16 +205,19 @@ function reifyFunctionDeclaration(s: t.FunctionDeclaration): t.Statement[] {
         throw new Error("Null id!!");
     }
     const params = s.params;
+    let body = reifyStatement(s.body);
     let funBodyLHS = [t.identifier('$clos')];
     for(let i=0; i<params.length; i++) {
         const p = params[i];
         if(!t.isIdentifier(p)) {
             throw new Error("Expected identitifier!");
         } else {
-            funBodyLHS.push(t.identifier('$' + lvaltoName(p)));
+            const oldName = lvaltoName(p);
+            const newName = t.identifier('$' + oldName);
+            funBodyLHS.push(newName);
+            body.unshift(traceLet(oldName, newName));
         }
     }
-    let body = reifyStatement(s.body);
     body.unshift(jsLet(t.arrayPattern(funBodyLHS), traceFunctionBody()));
     body.push(exitBlock); // exit the label
     const tClos = traceLet(lvaltoName(id), clos());
