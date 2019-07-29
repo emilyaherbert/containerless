@@ -654,7 +654,7 @@ test('sometimes break', () => {
         t.traceLet('foo', number(0));
         let foo = 0;
         
-        t.traceLet('one', clos({ 'foo': 'foo' } as any));
+        t.traceLet('one', clos({ 'foo': identifier('foo') } as any));
         function one(b: any) {
             let [$clos, $b] = t.traceFunctionBody('$return')
             t.traceLet('b', $b);
@@ -724,7 +724,7 @@ test('sometimes break', () => {
         let_('add', block([
             label('$return', [
                 let_('foo', number(0)),
-                let_('one', clos({ 'foo': 'foo' } as any)),
+                let_('one', clos({ 'foo': identifier('foo') } as any)),
                 break_('$return', identifier('one'))
             ])
         ])),
@@ -766,7 +766,7 @@ test('sometimes break', () => {
     t.traceLet('foo', number(0));
     let foo = 0;
 
-    t.traceLet('F', clos({ 'foo': 'foo' } as any));
+    t.traceLet('F', clos({ 'foo': identifier('foo') } as any));
     function F(x: any) {
         let [$clos, $x] = t.traceFunctionBody('$return');
         t.traceLet('x', $x);
@@ -800,7 +800,7 @@ test('sometimes break', () => {
 
     expect(t.getTrace()).toMatchObject(block([
         let_('foo', number(0)),
-        let_('F', clos({ 'foo': 'foo' } as any)),
+        let_('F', clos({ 'foo': identifier('foo') } as any)),
         let_('w', block([
             label('$return', [
                 let_('x', number(11)),
