@@ -44,7 +44,6 @@ function boolean(b: boolean): t.CallExpression {
     return t.callExpression(callee, theArgs);
 }
 
-// TODO(emily): Make this so that it is not always empty.
 function clos(fvs: t.ObjectProperty[]): t.CallExpression {
     const callee = t.identifier('clos');
     const theArgs = [t.objectExpression(fvs)];
@@ -65,6 +64,11 @@ function traceLet(lhs: string, rhs: t.Expression): t.ExpressionStatement {
     return t.expressionStatement(callExpression);
 }
 
+/**
+ * ```
+ * let [$clos] = t.traceFunctionBody('$return');
+ * ```
+ */
 function jsLet(lhs: t.LVal, rhs: t.Expression): t.VariableDeclaration {
     const variableDeclarator = t.variableDeclarator(lhs, rhs);
     return t.variableDeclaration('let', [variableDeclarator]);
@@ -141,6 +145,37 @@ const exitBlock: t.ExpressionStatement =
         )
     );
 
+/**
+ * ```
+ * x
+ * ```
+ * 
+ * ```
+ * identifier(x)
+ * ```
+ * 
+ * ```
+ * number(1)
+ * ```
+ * 
+ * ```
+ * boolean(true)
+ * ```
+ * 
+ * ```
+ * binop('+', number(1), number(2))
+ * ```
+ * ---
+ * 
+ * ```
+ * foo = 12;
+ * ```
+ * 
+ * ```
+ * t.traceSet('foo', number(12));
+ * foo = 12;
+ * ```
+ */
 function reifyExpression(e: t.Expression, st: State): [t.Expression, State] {
     switch(e.type) {
         case 'Identifier': {
@@ -169,6 +204,16 @@ function reifyExpression(e: t.Expression, st: State): [t.Expression, State] {
     }
 }
 
+/**
+ * ```
+ * let foo = 1;
+ * ```
+ * 
+ * ```
+ * t.traceLet('foo', number(1));
+ * let foo = 1;
+ * ```
+ */
 function reifyVariableDeclaration(s: t.VariableDeclaration, st: State): [t.Statement[], State] {
     let s1 = assertNormalized(s);
     const name = lvaltoName(s1.declarations[0].id);
@@ -195,6 +240,22 @@ function reifyVariableDeclaration(s: t.VariableDeclaration, st: State): [t.State
     }
 }
 
+/**
+ * ```
+ * while(c) {
+ *  ...
+ * }
+ * ```
+ * 
+ * ```
+ * t.traceWhile(identifier('c'));
+ * while(c) {
+ *  t.traceLoop();
+ *  ...
+ * }
+ * t.exitBlock();
+ * ```
+ */
 function reifyWhileStatement(s: t.WhileStatement, st: State): [t.Statement[], State] {
     const [test, st1] = reifyExpression(s.test, st);
     let [body, st2] = reifyStatement(s.body, st);
@@ -204,6 +265,25 @@ function reifyWhileStatement(s: t.WhileStatement, st: State): [t.Statement[], St
     return [[tWhile, theWhile, exitBlock], merge(st1, st2)];
 }
 
+/**
+ * ```
+ * if(c) {
+ *  ...
+ * }
+ * ```
+ * 
+ * ```
+ * let $test = identifier(c);
+ * if(c) {
+ *  t.traceIfTrue($test);
+ *  ...
+ * } else {
+ *  t.traceIfFalse($test);
+ * }
+ * t.exitBlock();
+ * ```
+ * 
+ */
 function reifyIfStatement(s: t.IfStatement, st: State): [t.Statement[], State] {
     const [test, st1] = reifyExpression(s.test, st);
     let [ifTrue, st2] = reifyStatement(s.consequent, st);
@@ -225,6 +305,24 @@ function reifyExpressionStatement(s: t.ExpressionStatement, st: State): [t.State
     return [[above, s], st1];
 }
 
+/**
+ * ```
+ * l: {
+ *  ...
+ *  break l;
+ * }
+ * ```
+ * 
+ * ```
+ * t.traceLabel('l');
+ * l: {
+ *  ...
+ *  t.traceBreak('l');
+ *  break l;
+ *  t.exitBlock();
+ * }
+ * ```
+ */
 function reifyLabeledStatement(s: t.LabeledStatement, st: State): [t.Statement[], State] {
     const name = s.label;
     let [body, st1] = reifyStatement(s.body, st);
@@ -245,6 +343,26 @@ function reifyBreakStatement(s: t.BreakStatement, st: State): [t.Statement[], St
     }
 }
 
+/**
+ * ```
+ * let a = 1;
+ * function F(x) {
+ *  return a + x;
+ * }
+ * ```
+ * 
+ * ```
+ * t.traceLet('a', number(1));
+ * let a = 1;
+ * t.traceLet('F', clos({ a: identifier('a') }));
+ * function F(x) {
+ *  let [$clos, $x] = t.traceFunctionBody('$return');
+ *  t.traceLet('x', $x);
+ *  t.traceBreak('$return', binop('+', from($clos, 'a'), identifier('x')));
+ *  return a + x; * 
+ * }
+ * ```
+ */
 function reifyFunctionDeclaration(s: t.FunctionDeclaration, st: State): [t.Statement[], State] {
     const id = s.id;
     if(id === null) {
