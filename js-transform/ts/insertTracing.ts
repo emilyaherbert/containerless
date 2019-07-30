@@ -2,17 +2,13 @@ import * as t from '@babel/types';
 import { assertNormalized } from './assertNormalized';
 import { Map } from 'immutable';
 
-type Variable =
-    | { kind: 'var' }
-    | { kind: 'param' }
-    | { kind: 'free' }
+type State = Map<string, boolean>;
 
-type State = Map<string, Variable>;
-
+// true is free
 function merge(x: State, y: State): State {
     return x.mergeWith(
         (oldVal, newVal) => {
-            if(oldVal.kind !== newVal.kind) {
+            if(oldVal !== newVal) {
                 throw new Error("Mismatched kinds!");
             } else {
                 return oldVal;
@@ -149,13 +145,13 @@ function reifyExpression(e: t.Expression, st: State): [t.Expression, State] {
     switch(e.type) {
         case 'Identifier': {
             if(st.has(e.name)) {
-                if(st.get(e.name)!.kind === 'free') {
+                if(st.get(e.name)) {
                     return [from(t.identifier('$clos'), e.name), st];
                 } else {
                     return [identifier(e.name), st];
                 }
             } else {
-                return [from(t.identifier('$clos'), e.name), st.set(e.name, { kind: 'free' })];
+                return [from(t.identifier('$clos'), e.name), st.set(e.name, true)];
             }
         }
         case 'NumericLiteral': return [number(e.value), st];
@@ -189,12 +185,12 @@ function reifyVariableDeclaration(s: t.VariableDeclaration, st: State): [t.State
                 nextSt = merge(st1, nextSt);
             });
             const tCall = traceFunctionCall(name, theArgs);
-            return [[tCall, s, exitBlock], nextSt.set(name, { kind: 'var' })];
+            return [[tCall, s, exitBlock], nextSt.set(name, false)];
         }
         default: {
             const [init2, st1] = reifyExpression(init, st);
             const tLet = traceLet(name, init);
-            return [[tLet, s], st1.set(name, { kind: 'var' })];
+            return [[tLet, s], st1.set(name, false)];
         }
     }
 }
@@ -267,22 +263,22 @@ function reifyFunctionDeclaration(s: t.FunctionDeclaration, st: State): [t.State
             const newName = t.identifier('$' + oldName);
             funBodyLHS.push(newName);
             paramsBody.unshift(traceLet(oldName, newName));
-            nextSt = nextSt.set(oldName, { kind: 'param' });
+            nextSt = nextSt.set(oldName, false);
         }
     }
     let [body, myState] = reifyStatement(s.body, nextSt);
     body.concat(paramsBody);
     body.unshift(jsLet(t.arrayPattern(funBodyLHS), traceFunctionBody()));
     body.push(exitBlock); // exit the label
-    const retSt = st.set(lvaltoName(id), { kind: 'var' });
+    const retSt = st.set(lvaltoName(id), false);
     let fvs: t.ObjectProperty[] = [];
-    myState.filter(v => v.kind === 'free')
+    myState.filter(v => v)
         .keySeq().forEach(k => {
             if(retSt.has(k)) {
-                if(retSt.get(k)!.kind === 'var') {
-                    fvs.push(t.objectProperty(t.identifier(k), identifier(k)));
-                } else {
+                if(retSt.get(k)!) {
                     fvs.push(t.objectProperty(t.identifier(k), from(t.identifier('$clos'), k)));
+                } else {
+                    fvs.push(t.objectProperty(t.identifier(k), identifier(k)));
                 }
             } else {
                 throw new Error("Not found!");
@@ -355,11 +351,7 @@ function lvaltoName(lval: t.LVal): string {
 
     Variables conditions:
 
-    1. If declared in this scope, use `identifier('foo')`
-    2. If from $clos, use
-        let $foo = from($clos, 'foo');
-        $foo
-    3. If from param, use `identifier('foo')`
-
+    1. If free, use `from($clos, 'foo')`
+    2. Else, use `identifier('foo')`
 
 */
