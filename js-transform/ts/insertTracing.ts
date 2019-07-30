@@ -20,6 +20,15 @@ function merge(x: State, y: State): State {
 
 const functionBreakName = '$return';
 
+const newTrace: t.Expression =
+    t.callExpression(
+        t.memberExpression(
+            t.identifier('t'),
+            t.identifier('newTrace')
+        ),
+        []
+    );
+
 function identifier(s: string): t.CallExpression {
     const callee = t.identifier('identifier');
     const theArgs = [t.stringLiteral(s)];
@@ -431,7 +440,7 @@ function reifyStatement(s: t.Statement, st: State): [t.Statement[], State] {
     }
 }
 
-export function reifyStatements(s: t.Statement[], st: State): [t.Statement[], State] {
+function reifyStatements(s: t.Statement[], st: State): [t.Statement[], State] {
     let ret: t.Statement[] = [];
     let nextSt = st;
 
@@ -444,6 +453,12 @@ export function reifyStatements(s: t.Statement[], st: State): [t.Statement[], St
     }
 
     return [ret, nextSt];
+}
+
+export function reify(s: t.Statement[]): t.Statement[] {
+    const [ret, _] = reifyStatements(s, Map());
+    ret.unshift(jsLet(t.identifier('t'), newTrace));
+    return ret;
 }
 
 /**
