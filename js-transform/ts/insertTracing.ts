@@ -1,11 +1,38 @@
 import * as t from '@babel/types';
 import { assertNormalized } from './assertNormalized';
+import { Map } from 'immutable';
+
+type Variable =
+    | { kind: 'var' }
+    | { kind: 'param' }
+    | { kind: 'free' }
+
+type State = Map<string, Variable>;
+
+function merge(x: State, y: State): State {
+    return x.mergeWith(
+        (oldVal, newVal) => {
+            if(oldVal.kind !== newVal.kind) {
+                throw new Error("Mismatched kinds!");
+            } else {
+                return oldVal;
+            }
+        },
+        y
+    )
+}
 
 const functionBreakName = '$return';
 
 function identifier(s: string): t.CallExpression {
     const callee = t.identifier('identifier');
     const theArgs = [t.stringLiteral(s)];
+    return t.callExpression(callee, theArgs);
+}
+
+function from(lhs: t.Identifier, rhs: string): t.CallExpression {
+    const callee = t.identifier('identifier');
+    const theArgs = [lhs, t.stringLiteral(rhs)];
     return t.callExpression(callee, theArgs);
 }
 
@@ -22,9 +49,9 @@ function boolean(b: boolean): t.CallExpression {
 }
 
 // TODO(emily): Make this so that it is not always empty.
-function clos(): t.CallExpression {
+function clos(fvs: t.ObjectProperty[]): t.CallExpression {
     const callee = t.identifier('clos');
-    const theArgs = [t.objectExpression([])];
+    const theArgs = [t.objectExpression(fvs)];
     return t.callExpression(callee, theArgs);
 }
 
@@ -118,95 +145,119 @@ const exitBlock: t.ExpressionStatement =
         )
     );
 
-function reifyExpression(e: t.Expression): t.Expression {
+function reifyExpression(e: t.Expression, st: State): [t.Expression, State] {
     switch(e.type) {
-        case 'Identifier': return identifier(e.name);
-        case 'NumericLiteral': return number(e.value);
-        case 'BooleanLiteral': return boolean(e.value);
-        case 'BinaryExpression': return binop(e.operator, reifyExpression(e.left), reifyExpression(e.right));
-        case 'AssignmentExpression': return traceSet(lvaltoName(e.left), reifyExpression(e.right));
-        default: return t.stringLiteral('TODO: ' + e.type);
+        case 'Identifier': {
+            if(st.has(e.name)) {
+                if(st.get(e.name)!.kind === 'free') {
+                    return [from(t.identifier('$clos'), e.name), st];
+                } else {
+                    return [identifier(e.name), st];
+                }
+            } else {
+                return [from(t.identifier('$clos'), e.name), st.set(e.name, { kind: 'free' })];
+            }
+        }
+        case 'NumericLiteral': return [number(e.value), st];
+        case 'BooleanLiteral': return [boolean(e.value), st];
+        case 'BinaryExpression': {
+            const [left, st1] = reifyExpression(e.left, st);
+            const [right, st2] = reifyExpression(e.right, st);
+            return [binop(e.operator, left, right), merge(st1, st2)];
+        }
+        case 'AssignmentExpression': {
+            const [right, st1] = reifyExpression(e.right, st);
+            return [traceSet(lvaltoName(e.left), right), st1];
+        }
+        default: return [t.stringLiteral('TODO: ' + e.type), st];
     }
 }
 
-function reifyVariableDeclaration(s: t.VariableDeclaration): t.Statement[] {
+function reifyVariableDeclaration(s: t.VariableDeclaration, st: State): [t.Statement[], State] {
     let s1 = assertNormalized(s);
-    const id = s1.declarations[0].id;
+    const name = lvaltoName(s1.declarations[0].id);
     const init = s1.declarations[0].init;
     switch(init.type) {
         case 'CallExpression': {
             let init1 = assertNormalized(init);
             const callee = init1.callee.name;
             let theArgs: t.Expression[] = [identifier(callee)];
+            let nextSt = st;
             init1.arguments.forEach(a => {
-                theArgs.push(reifyExpression(a));
+                const [a1, st1] = reifyExpression(a, st);
+                theArgs.push(a1);
+                nextSt = merge(st1, nextSt);
             });
-            const tCall = traceFunctionCall(lvaltoName(id), theArgs);
-            return [tCall, s, exitBlock];
+            const tCall = traceFunctionCall(name, theArgs);
+            return [[tCall, s, exitBlock], nextSt.set(name, { kind: 'var' })];
         }
         default: {
-            const tLet = traceLet(lvaltoName(id), reifyExpression(init));
-            return [tLet, s];
+            const [init2, st1] = reifyExpression(init, st);
+            const tLet = traceLet(name, init);
+            return [[tLet, s], st1.set(name, { kind: 'var' })];
         }
     }
 }
 
-function reifyWhileStatement(s: t.WhileStatement): t.Statement[] {
-    const test = reifyExpression(s.test);
-    let body = reifyStatement(s.body);
+function reifyWhileStatement(s: t.WhileStatement, st: State): [t.Statement[], State] {
+    const [test, st1] = reifyExpression(s.test, st);
+    let [body, st2] = reifyStatement(s.body, st);
     body.unshift(traceLoop);
     const tWhile = traceWhile(test);
     const theWhile = t.whileStatement(s.test, t.blockStatement(body));
-    return [tWhile, theWhile, exitBlock];
+    return [[tWhile, theWhile, exitBlock], merge(st1, st2)];
 }
 
-function reifyIfStatement(s: t.IfStatement): t.Statement[] {
-    const test = reifyExpression(s.test);
-    let ifTrue = reifyStatement(s.consequent);
-    let ifFalse: t.Statement[] = [];
+function reifyIfStatement(s: t.IfStatement, st: State): [t.Statement[], State] {
+    const [test, st1] = reifyExpression(s.test, st);
+    let [ifTrue, st2] = reifyStatement(s.consequent, st);
+    let [ifFalse, st3]: [t.Statement[], State] = [[], st];
     if(s.alternate !== null) {
-        ifFalse = reifyStatement(s.alternate);
+        [ifFalse, st3] = reifyStatement(s.alternate, st);
     }
     const id = '$test';
     ifTrue.unshift(traceIfTrue(id));
     ifFalse.unshift(traceIfFalse(id));
     const tTest = jsLet(t.identifier(id), test);
     const theIf = t.ifStatement(s.test, t.blockStatement(ifTrue), t.blockStatement(ifFalse));
-    return [tTest, theIf, exitBlock];
+    return [[tTest, theIf, exitBlock], merge(merge(st1, st2), st3)];
 }
 
-function reifyExpressionStatement(s: t.ExpressionStatement): t.Statement[] {
-    const above = t.expressionStatement(reifyExpression(s.expression));
-    return [above, s];
+function reifyExpressionStatement(s: t.ExpressionStatement, st: State): [t.Statement[], State] {
+    const [expression, st1] = reifyExpression(s.expression, st);
+    const above = t.expressionStatement(expression);
+    return [[above, s], st1];
 }
 
-function reifyLabeledStatement(s: t.LabeledStatement): t.Statement[] {
+function reifyLabeledStatement(s: t.LabeledStatement, st: State): [t.Statement[], State] {
     const name = s.label;
-    let body = reifyStatement(s.body);
+    let [body, st1] = reifyStatement(s.body, st);
     body.push(exitBlock);
     const tLabel = traceLabel(lvaltoName(name));
     const theLabel = t.labeledStatement(name, t.blockStatement(body));
-    return [tLabel, theLabel];
+    return [[tLabel, theLabel], st1];
 }
 
-function reifyBreakStatement(s: t.BreakStatement): t.Statement[] {
+function reifyBreakStatement(s: t.BreakStatement, st: State): [t.Statement[], State] {
     const name = s.label;
     if(name === null) {
         throw new Error("Found null label in break.");
     } else {
         const tBreak = traceBreak(lvaltoName(name));
-        return [tBreak, s];
+        return [[tBreak, s], st];
+        // TODO(emily): wrong ?
     }
 }
 
-function reifyFunctionDeclaration(s: t.FunctionDeclaration): t.Statement[] {
+function reifyFunctionDeclaration(s: t.FunctionDeclaration, st: State): [t.Statement[], State] {
     const id = s.id;
     if(id === null) {
         throw new Error("Null id!!");
     }
     const params = s.params;
-    let body = reifyStatement(s.body);
     let funBodyLHS = [t.identifier('$clos')];
+    let paramsBody: t.ExpressionStatement[] = [];
+    let nextSt: State = Map();
     for(let i=0; i<params.length; i++) {
         const p = params[i];
         if(!t.isIdentifier(p)) {
@@ -215,51 +266,70 @@ function reifyFunctionDeclaration(s: t.FunctionDeclaration): t.Statement[] {
             const oldName = lvaltoName(p);
             const newName = t.identifier('$' + oldName);
             funBodyLHS.push(newName);
-            body.unshift(traceLet(oldName, newName));
+            paramsBody.unshift(traceLet(oldName, newName));
+            nextSt = nextSt.set(oldName, { kind: 'param' });
         }
     }
+    let [body, myState] = reifyStatement(s.body, nextSt);
+    body.concat(paramsBody);
     body.unshift(jsLet(t.arrayPattern(funBodyLHS), traceFunctionBody()));
     body.push(exitBlock); // exit the label
-    const tClos = traceLet(lvaltoName(id), clos());
+    const retSt = st.set(lvaltoName(id), { kind: 'var' });
+    let fvs: t.ObjectProperty[] = [];
+    myState.filter(v => v.kind === 'free')
+        .keySeq().forEach(k => {
+            if(retSt.has(k)) {
+                if(retSt.get(k)!.kind === 'var') {
+                    fvs.push(t.objectProperty(t.identifier(k), identifier(k)));
+                } else {
+                    fvs.push(t.objectProperty(t.identifier(k), from(t.identifier('$clos'), k)));
+                }
+            } else {
+                throw new Error("Not found!");
+            }
+        });
+    const tClos = traceLet(lvaltoName(id), clos(fvs));
     const theFunction = t.functionDeclaration(id, params, t.blockStatement(body));
-    return [tClos, theFunction];
+    return [[tClos, theFunction], retSt];
 }
 
-function reifyReturnStatement(s: t.ReturnStatement): t.Statement[] {
+function reifyReturnStatement(s: t.ReturnStatement, st: State): [t.Statement[], State] {
     if(s.argument === null) {
         throw new Error("Found null argument!");
     }
-    const argument = reifyExpression(s.argument);
+    const [argument, st1] = reifyExpression(s.argument, st);
     const tBreak = traceBreak(functionBreakName, argument);
-    return [tBreak, s];
+    return [[tBreak, s], st1];
 }
 
-function reifyStatement(s: t.Statement): t.Statement[] {
+function reifyStatement(s: t.Statement, st: State): [t.Statement[], State] {
     switch(s.type) {
-        case 'VariableDeclaration': return reifyVariableDeclaration(s);
-        case 'WhileStatement': return reifyWhileStatement(s);
-        case 'BlockStatement': return reifyStatements(s.body); // NOTE: this unwraps block statements.
-        case 'IfStatement': return reifyIfStatement(s);
-        case 'ExpressionStatement': return reifyExpressionStatement(s);
-        case 'LabeledStatement': return reifyLabeledStatement(s);
-        case 'BreakStatement': return reifyBreakStatement(s);
-        case 'FunctionDeclaration': return reifyFunctionDeclaration(s);
-        case 'ReturnStatement': return reifyReturnStatement(s);
-        default: return [t.expressionStatement(t.stringLiteral('TODO: ' + s.type))]
+        case 'VariableDeclaration': return reifyVariableDeclaration(s, st);
+        case 'WhileStatement': return reifyWhileStatement(s, st);
+        case 'BlockStatement': return reifyStatements(s.body, st); // NOTE: this unwraps block statements.
+        case 'IfStatement': return reifyIfStatement(s, st);
+        case 'ExpressionStatement': return reifyExpressionStatement(s, st);
+        case 'LabeledStatement': return reifyLabeledStatement(s, st);
+        case 'BreakStatement': return reifyBreakStatement(s, st);
+        case 'FunctionDeclaration': return reifyFunctionDeclaration(s, st);
+        case 'ReturnStatement': return reifyReturnStatement(s, st);
+        default: return [[t.expressionStatement(t.stringLiteral('TODO: ' + s.type))], st];
     }
 }
 
-export function reifyStatements(s: t.Statement[]): t.Statement[] {
+export function reifyStatements(s: t.Statement[], st: State): [t.Statement[], State] {
     let ret: t.Statement[] = [];
+    let nextSt = st;
 
     for(let i=0; i<s.length; i++) {
-        let r = reifyStatement(s[i]);
+        let [r, st1] = reifyStatement(s[i], nextSt);
         for(let j=0; j<r.length; j++) {
             ret.push(r[j]);
         }
+        nextSt = merge(nextSt, st1);
     }
 
-    return ret;
+    return [ret, nextSt];
 }
 
 /**
@@ -278,3 +348,18 @@ function lvaltoName(lval: t.LVal): string {
         throw new Error(`Expected Identifier, received ${lval.type}`);
     }
 }
+
+
+
+/*
+
+    Variables conditions:
+
+    1. If declared in this scope, use `identifier('foo')`
+    2. If from $clos, use
+        let $foo = from($clos, 'foo');
+        $foo
+    3. If from param, use `identifier('foo')`
+
+
+*/
