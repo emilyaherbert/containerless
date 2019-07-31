@@ -4,7 +4,7 @@ import { Map } from 'immutable';
 
 type State = Map<string, boolean>;
 
-// true is free
+// NOTE(emily): This may not be right. I have not yet hit a case where the error is triggered.
 function merge(x: State, y: State): State {
     return x.mergeWith(
         (oldVal, newVal) => {
@@ -214,13 +214,16 @@ function reifyExpression(e: t.Expression, st: State): [t.Expression, State] {
 }
 
 /**
- * ```
- * let foo = 1;
- * ```
  * 
  * ```
  * t.traceLet('foo', number(1));
  * let foo = 1;
+ * ```
+ * 
+ * ```
+ * t.traceFunctionCall('foo', [identifier('F'), number(1)]);
+ * let foo = F(1);
+ * t.exitBlock();
  * ```
  */
 function reifyVariableDeclaration(s: t.VariableDeclaration, st: State): [t.Statement[], State] {
@@ -251,12 +254,6 @@ function reifyVariableDeclaration(s: t.VariableDeclaration, st: State): [t.State
 
 /**
  * ```
- * while(c) {
- *  ...
- * }
- * ```
- * 
- * ```
  * t.traceWhile(identifier('c'));
  * while(c) {
  *  t.traceLoop();
@@ -275,11 +272,6 @@ function reifyWhileStatement(s: t.WhileStatement, st: State): [t.Statement[], St
 }
 
 /**
- * ```
- * if(c) {
- *  ...
- * }
- * ```
  * 
  * ```
  * let $test = identifier(c);
@@ -315,12 +307,6 @@ function reifyExpressionStatement(s: t.ExpressionStatement, st: State): [t.State
 }
 
 /**
- * ```
- * l: {
- *  ...
- *  break l;
- * }
- * ```
  * 
  * ```
  * t.traceLabel('l');
@@ -341,6 +327,12 @@ function reifyLabeledStatement(s: t.LabeledStatement, st: State): [t.Statement[]
     return [[tLabel, theLabel], st1];
 }
 
+/**
+ * ```
+ * t.traceBreak('l');
+ * break l;
+ * ```
+ */
 function reifyBreakStatement(s: t.BreakStatement, st: State): [t.Statement[], State] {
     const name = s.label;
     if(name === null) {
@@ -353,12 +345,6 @@ function reifyBreakStatement(s: t.BreakStatement, st: State): [t.Statement[], St
 }
 
 /**
- * ```
- * let a = 1;
- * function F(x) {
- *  return a + x;
- * }
- * ```
  * 
  * ```
  * t.traceLet('a', number(1));
@@ -369,6 +355,7 @@ function reifyBreakStatement(s: t.BreakStatement, st: State): [t.Statement[], St
  *  t.traceLet('x', $x);
  *  t.traceBreak('$return', binop('+', from($clos, 'a'), identifier('x')));
  *  return a + x; * 
+ *  t.exitBlock();
  * }
  * ```
  */
@@ -416,6 +403,12 @@ function reifyFunctionDeclaration(s: t.FunctionDeclaration, st: State): [t.State
     return [[tClos, theFunction], retSt];
 }
 
+/**
+ * ```
+ * t.traceBreak('$return', number(42));
+ * return 42;
+ * ```
+ */
 function reifyReturnStatement(s: t.ReturnStatement, st: State): [t.Statement[], State] {
     if(s.argument === null) {
         throw new Error("Found null argument!");
