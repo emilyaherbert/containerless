@@ -1,17 +1,20 @@
 import * as t from '@babel/types';
 import { assertNormalized } from './assertNormalized';
 import { Map } from 'immutable';
+import * as parser from '@babel/parser';
+import generator from '@babel/generator';
+import * as n from '@stopify/normalize-js';
 
 type State = Map<string, boolean>;
 
 // NOTE(emily): This may not be right. I have not yet hit a case where the error is triggered.
 function merge(x: State, y: State): State {
     return x.mergeWith(
-        (oldVal, newVal) => {
-            if(oldVal !== newVal) {
+        (v1, v2) => {
+            if(v1! !== v2!) {
                 throw new Error("Mismatched kinds!");
             } else {
-                return oldVal;
+                return v1!;
             }
         },
         y
@@ -386,13 +389,13 @@ function reifyFunctionDeclaration(s: t.FunctionDeclaration, st: State): [t.State
     body.push(exitBlock); // exit the label
     const retSt = st.set(lvaltoName(id), false);
     let fvs: t.ObjectProperty[] = [];
-    myState.filter(v => v)
+    myState.filter(v => v!)
         .keySeq().forEach(k => {
-            if(retSt.has(k)) {
-                if(retSt.get(k)!) {
-                    fvs.push(t.objectProperty(t.identifier(k), from(t.identifier('$clos'), k)));
+            if(retSt.has(k!)) {
+                if(retSt.get(k!)!) {
+                    fvs.push(t.objectProperty(t.identifier(k!), from(t.identifier('$clos'), k!)));
                 } else {
-                    fvs.push(t.objectProperty(t.identifier(k), identifier(k)));
+                    fvs.push(t.objectProperty(t.identifier(k!), identifier(k!)));
                 }
             } else {
                 throw new Error("Not found!");
@@ -448,10 +451,19 @@ function reifyStatements(s: t.Statement[], st: State): [t.Statement[], State] {
     return [ret, nextSt];
 }
 
-export function reify(s: t.Statement[]): t.Statement[] {
+function reify(s: t.Statement[]): t.Statement[] {
     const [ret, _] = reifyStatements(s, Map());
     ret.unshift(jsLet(t.identifier('t'), newTrace));
+    ret.push(exitBlock);
     return ret;
+}
+
+export function transform(inputCode: string) {
+    let normalized = n.normalize(inputCode);
+    let ast = parser.parse(normalized);
+
+    ast.program.body = reify(ast.program.body);
+    console.log(generator(ast.program).code);
 }
 
 /**

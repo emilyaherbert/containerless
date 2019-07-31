@@ -6,7 +6,15 @@ import {
     newTrace
 } from '../ts/tracing'
 import { Callbacks } from '../ts/callbacks';
-import { numericLiteral } from '@babel/types';
+import * as r from 'js-transform/ts/insertTracing';
+
+test('link', () => {
+    let code = `
+        let x = 1;
+    `;
+
+    r.transform(code);
+})
 
 test('trivial, hand-constructed trace', () => {
     let t = newTrace();
