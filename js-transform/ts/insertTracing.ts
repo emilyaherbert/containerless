@@ -44,31 +44,46 @@ const getTrace: t.ExpressionStatement =
     );
 
 function identifier(s: string): t.CallExpression {
-    const callee = t.identifier('identifier');
+    const callee = t.memberExpression(
+        t.identifier('exp'),
+        t.identifier('identifier')
+    );
     const theArgs = [t.stringLiteral(s)];
     return t.callExpression(callee, theArgs);
 }
 
 function from(lhs: t.Identifier, rhs: string): t.CallExpression {
-    const callee = t.identifier('identifier');
+    const callee = t.memberExpression(
+        t.identifier('exp'),
+        t.identifier('from')
+    );
     const theArgs = [lhs, t.stringLiteral(rhs)];
     return t.callExpression(callee, theArgs);
 }
 
 function number(n: number): t.CallExpression {
-    const callee = t.identifier('number');
+    const callee = t.memberExpression(
+        t.identifier('exp'),
+        t.identifier('number')
+    );
     const theArgs = [t.numericLiteral(n)];
     return t.callExpression(callee, theArgs);
 }
 
 function boolean(b: boolean): t.CallExpression {
-    const callee = t.identifier('boolean');
+    const callee = t.memberExpression(
+        t.identifier('exp'),
+        t.identifier('boolean')
+    );
     const theArgs = [t.booleanLiteral(b)];
     return t.callExpression(callee, theArgs);
 }
 
 function clos(fvs: t.ObjectProperty[]): t.CallExpression {
-    const callee = t.identifier('clos');
+    const callee = t.memberExpression(
+        t.identifier('exp'),
+        t.identifier('clos')
+    );
     const theArgs = [t.objectExpression(fvs)];
     return t.callExpression(callee, theArgs);
 }
@@ -76,7 +91,10 @@ function clos(fvs: t.ObjectProperty[]): t.CallExpression {
 const undefined_: t.Identifier = t.identifier('undefined_');
 
 function binop(op: string, e1: t.Expression, e2: t.Expression): t.CallExpression {
-    const callee = t.identifier('binop');
+    const callee = t.memberExpression(
+        t.identifier('exp'),
+        t.identifier('binop')
+    );
     const theArgs = [t.stringLiteral(op), e1, e2];
     return t.callExpression(callee, theArgs);
 }
@@ -97,10 +115,9 @@ function jsLet(lhs: t.LVal, rhs: t.Expression): t.VariableDeclaration {
     return t.variableDeclaration('let', [variableDeclarator]);
 }
 
-// TODO(emily): LVal?
-function traceSet(id: string, rhs: t.Expression): t.CallExpression {
+function traceSet(lhs: t.Expression, rhs: t.Expression): t.CallExpression {
     const memberExpression = t.memberExpression(t.identifier('t'), t.identifier('traceSet'));
-    return t.callExpression(memberExpression, [identifier(id), rhs]);
+    return t.callExpression(memberExpression, [lhs, rhs]);
 }
 
 function traceWhile(test: t.Expression): t.ExpressionStatement {
@@ -221,7 +238,9 @@ function reifyExpression(e: t.Expression, st: State): [t.Expression, State] {
         }
         case 'AssignmentExpression': {
             const [right, st1] = reifyExpression(e.right, st);
-            return [traceSet(lvaltoName(e.left), right), st1];
+            // TODO(emily): This will need to be changed.
+            const [left, st2] = reifyExpression(t.identifier(lvaltoName(e.left)), st);
+            return [traceSet(left, right), merge(st1, st2)];
         }
         default: return [t.stringLiteral('TODO: ' + e.type), st];
     }
@@ -264,7 +283,7 @@ function reifyVariableDeclaration(s: t.VariableDeclaration, st: State): [t.State
         }
         default: {
             const [init2, st1] = reifyExpression(init, st);
-            const tLet = traceLet(name, init);
+            const tLet = traceLet(name, init2);
             return [[tLet, s], st1.set(name, false)];
         }
     }
@@ -384,7 +403,7 @@ function reifyFunctionDeclaration(s: t.FunctionDeclaration, st: State): [t.State
     }
     const params = s.params;
     let funBodyLHS = [t.identifier('$clos')];
-    let paramsBody: t.ExpressionStatement[] = [];
+    let paramsBody: t.Statement[] = [];
     let nextSt: State = Map();
     for(let i=0; i<params.length; i++) {
         const p = params[i];
@@ -399,7 +418,7 @@ function reifyFunctionDeclaration(s: t.FunctionDeclaration, st: State): [t.State
         }
     }
     let [body, myState] = reifyStatement(s.body, nextSt);
-    body.concat(paramsBody);
+    body = paramsBody.concat(body);
     body.unshift(jsLet(t.arrayPattern(funBodyLHS), traceFunctionBody()));
     body.push(exitBlock); // exit the label
     const retSt = st.set(lvaltoName(id), false);
@@ -484,8 +503,8 @@ export function transform(inputCode: string): any {
 }
 
 export function testTransform(inputCode: string): any {
-    let normalized = n.normalize(inputCode);
-    let ast = parser.parse(normalized);
+    //let normalized = n.normalize(inputCode);
+    let ast = parser.parse(inputCode);
 
     ast.program.body = reify(ast.program.body);
     ast.program.body.push(getTrace);

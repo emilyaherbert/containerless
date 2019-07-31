@@ -372,7 +372,7 @@ export class Trace {
 
 
     prettyPrint(): void {
-        console.log(JSON.stringify(this.getTrace() , null, 2));
+        console.log(JSON.stringify(this.getTrace(), null, 2));
     }
 
 }
