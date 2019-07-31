@@ -26,10 +26,21 @@ const functionBreakName = '$return';
 const newTrace: t.Expression =
     t.callExpression(
         t.memberExpression(
-            t.identifier('t'),
+            t.identifier('tracing'),
             t.identifier('newTrace')
         ),
         []
+    );
+
+const getTrace: t.ExpressionStatement =
+    t.expressionStatement(
+        t.callExpression(
+            t.memberExpression(
+                t.identifier('t'),
+                t.identifier('getTrace')
+            ),
+            []
+        )
     );
 
 function identifier(s: string): t.CallExpression {
@@ -237,15 +248,19 @@ function reifyVariableDeclaration(s: t.VariableDeclaration, st: State): [t.State
         case 'CallExpression': {
             let init1 = assertNormalized(init);
             const callee = init1.callee.name;
-            let theArgs: t.Expression[] = [identifier(callee)];
-            let nextSt = st;
-            init1.arguments.forEach(a => {
-                const [a1, st1] = reifyExpression(a, st);
-                theArgs.push(a1);
-                nextSt = merge(st1, nextSt);
-            });
-            const tCall = traceFunctionCall(name, theArgs);
-            return [[tCall, s, exitBlock], nextSt.set(name, false)];
+            if(callee === 'require') {
+                return [[s], st];
+            } else {
+                let theArgs: t.Expression[] = [identifier(callee)];
+                let nextSt = st;
+                init1.arguments.forEach(a => {
+                    const [a1, st1] = reifyExpression(a, st);
+                    theArgs.push(a1);
+                    nextSt = merge(st1, nextSt);
+                });
+                const tCall = traceFunctionCall(name, theArgs);
+                return [[tCall, s, exitBlock], nextSt.set(name, false)];
+            }
         }
         default: {
             const [init2, st1] = reifyExpression(init, st);
@@ -453,17 +468,28 @@ function reifyStatements(s: t.Statement[], st: State): [t.Statement[], State] {
 
 function reify(s: t.Statement[]): t.Statement[] {
     const [ret, _] = reifyStatements(s, Map());
-    ret.unshift(jsLet(t.identifier('t'), newTrace));
+    //ret.unshift(jsLet(t.identifier('t'), newTrace));
+    // TODO(emily): Fix. Need to detect require statements or something.
+    ret.splice(1, 0, jsLet(t.identifier('t'), newTrace))
     ret.push(exitBlock);
     return ret;
 }
 
-export function transform(inputCode: string) {
+export function transform(inputCode: string): any {
     let normalized = n.normalize(inputCode);
     let ast = parser.parse(normalized);
 
     ast.program.body = reify(ast.program.body);
-    console.log(generator(ast.program).code);
+    return generator(ast.program).code;
+}
+
+export function testTransform(inputCode: string): any {
+    let normalized = n.normalize(inputCode);
+    let ast = parser.parse(normalized);
+
+    ast.program.body = reify(ast.program.body);
+    ast.program.body.push(getTrace);
+    return generator(ast.program).code;
 }
 
 /**

@@ -10,10 +10,12 @@ import * as r from 'js-transform/ts/insertTracing';
 
 test('link', () => {
     let code = `
+        var tracing = require('../dist/tracing');
         let x = 1;
     `;
 
-    r.transform(code);
+    let res = r.testTransform(code);
+    console.log(eval(res));
 })
 
 test('trivial, hand-constructed trace', () => {
