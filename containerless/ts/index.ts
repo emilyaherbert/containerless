@@ -1,7 +1,7 @@
 import * as state from './state';
 import * as callbacks from './callbacks';
-import { from, clos, identifier, number } from './exp';
-export { from, clos, identifier, number };
+import { from, clos, identifier, number, binop, string } from './exp';
+export { from, clos, identifier, number, binop, string };
 
 export let cb = new callbacks.Callbacks();
 

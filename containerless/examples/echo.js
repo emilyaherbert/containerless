@@ -5,6 +5,8 @@ var identifier = decontainerizable.identifier;
 var number = decontainerizable.number;
 var from = decontainerizable.from;
 var clos = decontainerizable.clos;
+var binop = decontainerizable.binop;
+var string = decontainerizable.string;
 
 cb.trace.newTrace();
 

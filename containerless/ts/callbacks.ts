@@ -129,6 +129,11 @@ export class Callbacks {
             resp.send('Hello world!');
         });
 
+        this.app.get('/clear', (req, resp) => {
+            this.trace.newTrace();
+            resp.send('Cleared!');
+        })
+
         this.app.get('/trace', (req, resp) => {
             resp.send(JSON.stringify(this.trace.getTrace()));
         });
