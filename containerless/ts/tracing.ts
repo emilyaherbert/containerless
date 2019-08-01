@@ -291,10 +291,17 @@ export class Trace {
             return new Trace(callbackBody);
         }
         else if (exp.kind === 'callback') {
-            if (exp.event !== event || exp.callbackArgs !== callbackArgs) {
+            if (exp.event !== event || exp.callbackArgs.length !== callbackArgs.length) {
                 throw new Error(`called traceCallback(${event}), but
                    hole contains traceCallback(${exp.event})`);
             }
+            for(let i=0; i<exp.callbackArgs.length; i++) {
+                if(exp.callbackArgs[i] !== callbackArgs[i]) {
+                    throw new Error(`called traceCallback(${event}), but
+                        hole contains traceCallback(${exp.event})`);
+                }
+            }
+
             exp.eventArg = mergeExp(exp.eventArg, eventArg);
 
             this.mayIncrementCursor();

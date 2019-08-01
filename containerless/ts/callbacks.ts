@@ -51,11 +51,10 @@ export class Callbacks {
      */
     mockCallback(callback: (value: any) => void, arg: any): ((value: any) => void) {
         const [_, callbackClos, argRep] = this.trace.popArgs();
-        const callbackArgStr = '$response';
-        let innerTrace = this.trace.traceCallback('mock', argRep, [callbackArgStr]);
+        let innerTrace = this.trace.traceCallback('mock', argRep, ['$response']);
         return (value: any) => {
             this.withTrace(innerTrace, () => {
-                innerTrace.pushArgs([callbackClos, identifier(callbackArgStr)]);
+                innerTrace.pushArgs([callbackClos, identifier('$response')]);
                 callback(value);
             });
         };
@@ -113,8 +112,8 @@ export class Callbacks {
         callback: (request: Request, responseCallback: ResponseCallback) => void) {
         // #1 <-
         
-        const [_, callbackClos] = this.trace.popArgs();
-        let innerTrace = this.trace.traceCallback('listen', undefined_, ['$request', '$responseCallback']);
+        let [_, $callbackClos] = this.trace.popArgs();
+        let innerTrace = this.trace.traceCallback('listen', unknown(), ['$request', '$responseCallback']);
 
         this.app = express();
 
@@ -131,30 +130,30 @@ export class Callbacks {
         });
 
         this.app.get('/trace', (req, resp) => {
-            console.log('trace');
             resp.send(JSON.stringify(this.trace.getTrace()));
         });
 
-        this.app.get('/:path*', (req, resp) => {
-            this.trace.prettyPrint();
+        const tmp = this;
 
-            console.log('path');
+        this.app.get('/:path*', (req, resp) => {
             this.withTrace(innerTrace, () => {
-                
-                innerTrace.traceLet('$responseCallback', clos({ }));
+
+                innerTrace.traceLet('responseCallback', clos({ }));
                 function responseCallback(response: any) {
                     // #3 <-
+                    let [_, $response] = innerTrace.popArgs();
+                    let responseCallbackTrace = tmp.trace.traceCallback('responseCallback', unknown(), ['$response']);
 
-                    let [$clos, $response] = innerTrace.traceFunctionBody('$return');
-                    innerTrace.traceLet('response', $response);
+                    tmp.withTrace(responseCallbackTrace, () => {
+                        responseCallbackTrace.traceLet('baz', identifier('$response'));
+                        let baz = response;
 
-                    // I don't think that we need to put this one in the trace ?
-                    resp.send(response);
-
-                    innerTrace.exitBlock();
+                        // TODO(emily): Not sure what to do here ?
+                        resp.send(response);
+                    })
                 }
 
-                innerTrace.pushArgs([callbackClos, identifier('$request'), identifier('$responseCallback')]);
+                innerTrace.pushArgs([$callbackClos, identifier('$request'), identifier('$responseCallback')]);
                 // #2 ->
                 callback({ path: req.path }, responseCallback);
             });

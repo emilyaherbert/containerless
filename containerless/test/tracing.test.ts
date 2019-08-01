@@ -61,7 +61,7 @@ test('re-tracing: both sides of a conditional', () => {
 test('callback in trace', () => {
     let t = newTrace();
     t.traceLet('x', number(10));
-    let innerTrace = t.traceCallback('dummy-event', identifier('x'), 'x');
+    let innerTrace = t.traceCallback('dummy-event', identifier('x'), ['x']);
     t.traceLet('y', number(20));
     t.exitBlock();
 
@@ -72,7 +72,7 @@ test('callback in trace', () => {
     expect(t.getTrace()).toMatchObject(
         block([
             let_('x', number(10)),
-            callback('dummy-event', identifier('x'), 'x', [
+            callback('dummy-event', identifier('x'), ['x'], [
                 let_('z', number(30))]),
             let_('y', number(20))]));
 });
@@ -242,7 +242,7 @@ test('tracing with callback library', (done) => {
         setImmediate(() => {
             expect(cb.trace.getTrace()).toMatchObject(
                 block([
-                    callback('immediate', string('hello'), '$x', [
+                    callback('immediate', string('hello'), ['$x'], [
                         label('$return', [
                             let_('str', identifier('$x')),
                             let_('x', number(100)),
@@ -301,7 +301,7 @@ test('callback that receives multiple events', () => {
             let_('captured', number(42)),
             let_('F', clos({ captured: identifier('captured') })),
             let_('sender', block([
-                callback('mock', number(200), '$response', [
+                callback('mock', number(200), ['$response'], [
                     label('$return', [
                         let_('value', identifier('$response')),
                         let_('ret', from(identifier('F'), 'captured')),
