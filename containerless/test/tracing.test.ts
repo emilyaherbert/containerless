@@ -294,6 +294,8 @@ test('callback that receives multiple events', () => {
     sender(-100);
     sender(100);
 
+    cb.trace.prettyPrint();
+
     expect(cb.trace.getTrace()).toMatchObject(
         block([
             let_('captured', number(42)),

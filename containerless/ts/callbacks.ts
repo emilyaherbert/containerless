@@ -2,7 +2,7 @@ import * as request from 'request';
 import * as express from 'express';
 import * as state from './state';
 import { Trace, newTrace } from './tracing';
-import { string, number, identifier, unknown, clos } from './exp';
+import { string, number, identifier, unknown, clos, from, undefined_ } from './exp';
 
 export type Request = {
     path: string
@@ -52,7 +52,7 @@ export class Callbacks {
     mockCallback(callback: (value: any) => void, arg: any): ((value: any) => void) {
         const [_, callbackClos, argRep] = this.trace.popArgs();
         const callbackArgStr = '$response';
-        let innerTrace = this.trace.traceCallback('mock', argRep, callbackArgStr);
+        let innerTrace = this.trace.traceCallback('mock', argRep, [callbackArgStr]);
         return (value: any) => {
             this.withTrace(innerTrace, () => {
                 innerTrace.pushArgs([callbackClos, identifier(callbackArgStr)]);
@@ -73,7 +73,7 @@ export class Callbacks {
      */
     immediate(eventArgStr: string, callback: (callbackArg: string) => void) {
         const callbackArgStr = '$x';
-        let innerTrace = this.trace.traceCallback('immediate', string(eventArgStr), callbackArgStr);
+        let innerTrace = this.trace.traceCallback('immediate', string(eventArgStr), [callbackArgStr]);
         setImmediate(() => {
             this.withTrace(innerTrace, () => {
                 innerTrace.pushArgs([clos({ }), identifier(callbackArgStr)]);
@@ -92,7 +92,7 @@ export class Callbacks {
         callback: (response: undefined | string) => void) {
         // TODO(arjun): string(uri) is not right. This needs to be the expression
         // passed to the function.
-        let innerTrace = this.trace.traceCallback('get', this.trace.popArg(), '$response');
+        let innerTrace = this.trace.traceCallback('get', this.trace.popArg(), ['$response']);
         request.get(uri, undefined, (error, resp) => {
             this.withTrace(innerTrace, () => {
                 if (error !== null) {
@@ -111,6 +111,11 @@ export class Callbacks {
 
     public listen(
         callback: (request: Request, responseCallback: ResponseCallback) => void) {
+        // #1 <-
+        
+        const [_, callbackClos] = this.trace.popArgs();
+        let innerTrace = this.trace.traceCallback('listen', undefined_, ['$request', '$responseCallback']);
+
         this.app = express();
 
         // There isn't anything inherently wrong with this, but calling listen
@@ -121,17 +126,39 @@ export class Callbacks {
         }
         state.setListening();
 
+        this.app.get('/', (req, resp) => {
+            resp.send('Hello world!');
+        });
+
         this.app.get('/trace', (req, resp) => {
+            console.log('trace');
             resp.send(JSON.stringify(this.trace.getTrace()));
         });
 
         this.app.get('/:path*', (req, resp) => {
-            callback({ path: req.path }, (response) => {
-                resp.send(response);
+            this.trace.prettyPrint();
+
+            console.log('path');
+            this.withTrace(innerTrace, () => {
+                
+                innerTrace.traceLet('$responseCallback', clos({ }));
+                function responseCallback(response: any) {
+                    // #3 <-
+
+                    let [$clos, $response] = innerTrace.traceFunctionBody('$return');
+                    innerTrace.traceLet('response', $response);
+
+                    // I don't think that we need to put this one in the trace ?
+                    resp.send(response);
+
+                    innerTrace.exitBlock();
+                }
+
+                innerTrace.pushArgs([callbackClos, identifier('$request'), identifier('$responseCallback')]);
+                // #2 ->
+                callback({ path: req.path }, responseCallback);
             });
         });
-
-
 
         const port = state.getListenPort();
         this.app.listen(port);

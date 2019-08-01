@@ -5,7 +5,8 @@
   "license": "BSD-3-Clause",
   "scripts": {
     "build": "./node_modules/.bin/tsc",
-    "test": "./node_modules/.bin/jest"
+    "test": "./node_modules/.bin/jest",
+    "run": "node ./dist/index.js"
   },
   "jest": {
     "transform": {

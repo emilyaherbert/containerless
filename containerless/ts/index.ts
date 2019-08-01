@@ -1,7 +1,9 @@
 import * as state from './state';
 import * as callbacks from './callbacks';
+import { from, clos, identifier } from './exp';
+export { from, clos, identifier };
 
-let cb = new callbacks.Callbacks();
+export let cb = new callbacks.Callbacks();
 
 export function getTrace() {
     return cb.trace;

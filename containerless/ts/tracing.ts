@@ -283,15 +283,15 @@ export class Trace {
      * @param eventArg argument for the event, e.g. the URL to get
      * @param callbackArg name of the argument passed to the callback
      */
-    traceCallback(event: string, eventArg: Exp, callbackArg: string): Trace {
+    traceCallback(event: string, eventArg: Exp, callbackArgs: string[]): Trace {
         let exp = this.getCurrentExp();
         if (exp.kind === 'unknown') {
             let callbackBody: Exp[] = [ unknown() ];
-            this.setExp(callback(event, eventArg, callbackArg, callbackBody));
+            this.setExp(callback(event, eventArg, callbackArgs, callbackBody));
             return new Trace(callbackBody);
         }
         else if (exp.kind === 'callback') {
-            if (exp.event !== event || exp.callbackArg !== callbackArg) {
+            if (exp.event !== event || exp.callbackArgs !== callbackArgs) {
                 throw new Error(`called traceCallback(${event}), but
                    hole contains traceCallback(${exp.event})`);
             }
@@ -407,6 +407,12 @@ function mergeExp(e1: Exp, e2: Exp): Exp {
         }
         return e1;
     }
+    else if (e1.kind === 'string' && e2.kind === 'string') {
+        if (e1.value !== e2.value) {
+            throw new Error(`Cannot merge numbers ${e1.value} and ${e2.value}`);
+        }
+        return e1;
+    }
     else if (e1.kind === 'identifier' && e2.kind === 'identifier') {
         if (e1.name !== e2.name) {
             throw new Error(`Cannot merge identifiers ${e1.name} and
@@ -467,6 +473,10 @@ function mergeExp(e1: Exp, e2: Exp): Exp {
                 in from(...) expressions`);
         }
         e1.exp = mergeExp(e1.exp, e2.exp);
+        return e1;
+    }
+    else if (e1.kind === 'clos' && e2.kind === 'clos') {
+        // TODO(emily): fix
         return e1;
     }
     else {
