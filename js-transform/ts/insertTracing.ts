@@ -495,10 +495,8 @@ function reifyFunctionDeclaration(s: b.FunctionDeclaration, st: State): [b.State
  * return 42;
  * ```
  */
-function reifyReturnStatement(s: b.ReturnStatement, st: State): [b.Statement[], State] {
-    if(s.argument === null) {
-        throw new Error("Found null argument!");
-    }
+function reifyReturnStatement(s_: b.ReturnStatement, st: State): [b.Statement[], State] {
+    let s = assertNormalized(s_);
     const [argument, st1] = reifyExpression(s.argument, st);
     const tBreak = traceBreak(functionBreakName, argument);
     return [[tBreak, s], st1];
@@ -515,6 +513,7 @@ function reifyStatement(s: b.Statement, st: State): [b.Statement[], State] {
         case 'BreakStatement': return reifyBreakStatement(s, st);
         case 'FunctionDeclaration': return reifyFunctionDeclaration(s, st);
         case 'ReturnStatement': return reifyReturnStatement(s, st);
+        // TODO(arjun): Dangerous! Remove before any experiments.
         default: return [[b.expressionStatement(b.stringLiteral('TODO: ' + s.type))], st];
     }
 }
@@ -546,7 +545,7 @@ function reify(s: b.Statement[]): b.Statement[] {
     return ret;
 }
 
-export function transform(inputCode: string): any {
+export function transform(inputCode: string): string {
     let normalized = n.normalize(inputCode);
     let ast = parser.parse(normalized);
 

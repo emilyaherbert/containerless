@@ -113,6 +113,7 @@ export class Callbacks {
         // #1 <-
         
         let [_, $callbackClos] = this.trace.popArgs();
+        // TODO(arjun): the unknown() should be some dummy expression, say 0.
         let innerTrace = this.trace.traceCallback('listen', unknown(), ['$request', '$responseCallback']);
 
         this.app = express();
@@ -147,6 +148,11 @@ export class Callbacks {
                 function responseCallback(response: any) {
                     // #3 <-
                     let [_, $response] = innerTrace.popArgs();
+                    /*
+                      TODO(arjun)
+                      innerTrace.trace.tracePrimApp('response', [ $response ]);
+                      resp.send(response)
+                     */
                     let responseCallbackTrace = tmp.trace.traceCallback('responseCallback', unknown(), ['$response']);
 
                     tmp.withTrace(responseCallbackTrace, () => {

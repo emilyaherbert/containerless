@@ -18,6 +18,10 @@ export type NormalizedMemberExpression = {
     property: t.Identifier
 } & t.MemberExpression;
 
+export type NormalizedReturnStatement = {
+    argument: t.Expression
+} & t.ReturnStatement;
+
 /**
  * When the type of 'node' is statically known, we use a conditional type to
  * narrow it to what Stopify ensures. In addition, at runtime, we check to see
@@ -27,8 +31,9 @@ export type NormalizedMemberExpression = {
  */
 export function assertNormalized<T extends t.Node>(node: T):
   T extends t.VariableDeclaration ? NormalizedVariableDeclaration :
-  T extends t.CallExpression ? NormalizedCallExpression : 
-  T extends t.MemberExpression ? NormalizedMemberExpression : unknown {
+  T extends t.CallExpression ? NormalizedCallExpression :
+  T extends t.MemberExpression ? NormalizedMemberExpression :
+  T extends t.ReturnStatement ? NormalizedReturnStatement : unknown {
     if (t.isVariableDeclaration(node)) {
         if (node.declarations.length !== 1) {
             throw new Error('expected exactly one declaration');
@@ -56,6 +61,13 @@ export function assertNormalized<T extends t.Node>(node: T):
             throw new Error("Cannot chain member expressions!");
         }
         return node as any;
+    }
+    else if (t.isReturnStatement(node)) {
+        if(node.argument === null) {
+            throw new Error('return without a return value');
+        }
+        return node as any;
+    
     }
     else {
         throw new Error(`Cannot normalize ${node.type}`);
