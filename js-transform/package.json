@@ -3,9 +3,12 @@
   "version": "1.0.0",
   "main": "dist/index.js",
   "license": "BSD-3-Clause",
+  "bin": {
+    "js-transform": "./dist/main.js"
+  },
   "scripts": {
     "run": "node ./dist/index.js",
-    "build": "./node_modules/.bin/tsc",
+    "build": "./node_modules/.bin/tsc -b && chmod a+x ./dist/main.js",
     "test": "./node_modules/.bin/jest"
   },
   "jest": {

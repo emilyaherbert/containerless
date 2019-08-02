@@ -9,9 +9,14 @@ export type NormalizedVariableDeclaration = {
 } & t.VariableDeclaration;
 
 export type NormalizedCallExpression = {
-    callee: t.Identifier,
+    callee: t.Identifier | t.MemberExpression,
     arguments: Array<t.Expression>
 } & t.CallExpression;
+
+export type NormalizedMemberExpression = {
+    object: t.Identifier,
+    property: t.Identifier
+} & t.MemberExpression;
 
 /**
  * When the type of 'node' is statically known, we use a conditional type to
@@ -22,7 +27,8 @@ export type NormalizedCallExpression = {
  */
 export function assertNormalized<T extends t.Node>(node: T):
   T extends t.VariableDeclaration ? NormalizedVariableDeclaration :
-  T extends t.CallExpression ? NormalizedCallExpression : unknown {
+  T extends t.CallExpression ? NormalizedCallExpression : 
+  T extends t.MemberExpression ? NormalizedMemberExpression : unknown {
     if (t.isVariableDeclaration(node)) {
         if (node.declarations.length !== 1) {
             throw new Error('expected exactly one declaration');
@@ -35,11 +41,19 @@ export function assertNormalized<T extends t.Node>(node: T):
         return node as any;
     }
     else if (t.isCallExpression(node)) {
-        if (!t.isIdentifier(node.callee)) {
-            throw new Error('expected identifier in function position');
+        if (!t.isIdentifier(node.callee) && !t.isMemberExpression(node.callee)) {
+            throw new Error('expected identifier or member expression in function position');
         }
         if (!node.arguments.every(arg => t.isExpression(arg))) {
             throw new Error('all arguments must be expressions');
+        }
+        return node as any;
+    } else if(t.isMemberExpression(node)) {
+        if(!t.isIdentifier(node.property)) {
+            throw new Error("Cannot chain member expressions!");
+        }
+        if(!t.isIdentifier(node.object)) {
+            throw new Error("Cannot chain member expressions!");
         }
         return node as any;
     }
