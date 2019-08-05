@@ -52,6 +52,7 @@ type ArrayExp = { kind: 'array', exps: Exp[] };
 export type Exp
     =  { kind: 'unknown' }
     | { kind: 'number', value: number }
+    | { kind: 'boolean', value: boolean }
     | IdExp
     | FromExp
     | { kind: 'string', value: string }
@@ -79,6 +80,10 @@ export function identifier(name: string): IdExp {
 
 export function number(value: number): Exp {
     return { kind: 'number', value };
+}
+
+export function boolean(value: boolean): Exp {
+    return { kind: 'boolean', value: value };
 }
 
 export function string(value: string): Exp {

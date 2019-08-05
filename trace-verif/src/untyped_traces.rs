@@ -85,6 +85,7 @@ mod tests {
 
         let mut decontainerized_js = Command::new("node")
             .arg(filename)
+            .arg("8080")
             .stdin(Stdio::null())
             .spawn()
             .expect("starting decontainerized function");
@@ -105,5 +106,15 @@ mod tests {
         "#);
     }
 
+    #[test]
+    pub fn try_test2() {
+        let handle = test_harness("try_test.js", r#"
+            let containerless = require("../containerless");
+            containerless.listen(function(req, resp) {
+                //console.log('Got a response');
+                resp(req);
+            });
+        "#);
+    }
 
 }

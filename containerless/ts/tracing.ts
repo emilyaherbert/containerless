@@ -436,6 +436,12 @@ function mergeExp(e1: Exp, e2: Exp): Exp {
         }
         return e1;
     }
+    else if (e1.kind === 'boolean' && e2.kind === 'boolean') {
+        if (e1.value !== e2.value) {
+            throw new Error(`Cannot merge booleans ${e1.value} and ${e2.value}`);
+        }
+        return e1;
+    }
     else if (e1.kind === 'string' && e2.kind === 'string') {
         if (e1.value !== e2.value) {
             throw new Error(`Cannot merge numbers ${e1.value} and ${e2.value}`);
