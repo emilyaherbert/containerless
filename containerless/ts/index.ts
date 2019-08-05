@@ -1,6 +1,7 @@
 import * as state from './state';
 import * as callbacks from './callbacks';
 import * as exp from './exp';
+import * as fs from 'fs';
 export { exp };
 
 export let cb = new callbacks.Callbacks();
@@ -18,7 +19,17 @@ export function get(
 export function listen(
     callback: (request: callbacks.Request,
                responseCallback: callbacks.ResponseCallback) => void) {
-    return cb.listen(callback);
+    if (state.getListenPort() !== 'test') {
+        return cb.listen(callback);
+    }
+
+    state.setListening();
+    let tracedCallback = cb.tracedListenCallback(callback);
+    let lines = fs.readFileSync(0, { encoding: 'utf-8' }).split('\n');
+    for (let line of lines) {
+        tracedCallback(line as any, { send: function(resp: any) {  } } as any);
+    }
+    console.log(JSON.stringify(cb.trace.getTrace()));
 }
 
 
@@ -27,12 +38,17 @@ if (process.argv.length !== 3) {
     process.exit(1);
 }
 
-const listenPort = Number(process.argv[2]) | 0;
-if (listenPort <= 1024) {
-    console.error(`Expected port argument to be > 1024`);
-    process.exit(1);
+if (process.argv[2] === 'test') {
+    state.setListenPort('test');
 }
-state.setListenPort(listenPort);
+else {
+    const listenPort = Number(process.argv[2]) | 0;
+    if (listenPort <= 1024) {
+        console.error(`Expected port argument to be > 1024 or the word 'test'`);
+        process.exit(1);
+    }
+    state.setListenPort(listenPort);
+}
 
 // Check if the application called listening. If not, blow up.
 setImmediate(() => {

@@ -53,10 +53,10 @@ export class Callbacks {
      */
     mockCallback(callback: (value: any) => void, arg: any): ((value: any) => void) {
         const [_, callbackClos, argRep] = this.trace.popArgs();
-        let innerTrace = this.trace.traceCallback('mock', argRep, ['$response']);
+        let innerTrace = this.trace.traceCallback('mock', argRep, ['$clos', '$response'], callbackClos);
         return (value: any) => {
             this.withTrace(innerTrace, () => {
-                innerTrace.pushArgs([callbackClos, identifier('$response')]);
+                innerTrace.pushArgs([identifier('$clos'), identifier('$response')]);
                 callback(value);
             });
         };
@@ -72,13 +72,13 @@ export class Callbacks {
      * @param eventArgStr
      * @param callback
      */
-    immediate(eventArgStr: string, callback: (callbackArg: string) => void) {
-        const callbackArgStr = '$x';
-        let innerTrace = this.trace.traceCallback('immediate', string(eventArgStr), [callbackArgStr]);
+    immediate(callbackArgStr: string, callback: (callbackArg: string) => void) {
+        const [_, argRep, callbackClos] = this.trace.popArgs();
+        let innerTrace = this.trace.traceCallback('immediate', argRep, ['$clos', '$x'], callbackClos);
         setImmediate(() => {
             this.withTrace(innerTrace, () => {
-                innerTrace.pushArgs([clos({ }), identifier(callbackArgStr)]);
-                callback(eventArgStr);
+                innerTrace.pushArgs([identifier('$clos'), identifier('$x')]);
+                callback(callbackArgStr);
             });
         });
     }
@@ -93,7 +93,7 @@ export class Callbacks {
         callback: (response: undefined | string) => void) {
         // TODO(arjun): string(uri) is not right. This needs to be the expression
         // passed to the function.
-        let innerTrace = this.trace.traceCallback('get', this.trace.popArg(), ['$response']);
+        let innerTrace = this.trace.traceCallback('get', this.trace.popArg(), ['$response'], unknown());
         request.get(uri, undefined, (error, resp) => {
             this.withTrace(innerTrace, () => {
                 if (error !== null) {
@@ -110,12 +110,39 @@ export class Callbacks {
         this.trace.traceReturn(number(0));
     }
 
+    public tracedListenCallback(
+        callback: (request: Request, responseCallback: ResponseCallback) => void) {
+        let [_, $callbackClos] = this.trace.popArgs();
+        let innerTrace = this.trace.traceCallback('listen', defaultEventArg, ['$clos', '$request', '$responseCallback'], $callbackClos);
+
+        return (req: Request, resp: express.Response) => {
+            this.withTrace(innerTrace, () => {
+
+                innerTrace.traceLet('responseCallback', clos({ }));
+                function responseCallback(response: any) {
+                    // #3 <-
+                    let [_, $response] = innerTrace.traceFunctionBody('$return');
+                    innerTrace.traceLet('response', $response);
+
+                    // NOTE(emily): Some of this info may be irrelevant.
+                    innerTrace.tracePrimApp('send', [from(identifier('resp'), 'send'), identifier('response')]);
+                    resp.send(response);
+
+                    innerTrace.exitBlock();
+                }
+
+                innerTrace.pushArgs([identifier('$clos'), identifier('$request'), identifier('$responseCallback')]);
+                // #2 ->
+                callback({ path: req.path }, responseCallback);
+            });
+        };
+    }
+
     public listen(
         callback: (request: Request, responseCallback: ResponseCallback) => void) {
         // #1 <-
-        
-        let [_, $callbackClos] = this.trace.popArgs();
-        let innerTrace = this.trace.traceCallback('listen', defaultEventArg, ['$request', '$responseCallback']);
+
+        let tracedCallback = this.tracedListenCallback(callback);
 
         this.app = express();
 
@@ -141,28 +168,11 @@ export class Callbacks {
         });
 
         this.app.get('/:path*', (req, resp) => {
-            this.withTrace(innerTrace, () => {
-
-                innerTrace.traceLet('responseCallback', clos({ }));
-                function responseCallback(response: any) {
-                    // #3 <-
-                    let [_, $response] = innerTrace.traceFunctionBody('$return');
-                    innerTrace.traceLet('response', $response);
-
-                    // NOTE(emily): Some of this info may be irrelevant.
-                    innerTrace.tracePrimApp('send', [from(identifier('resp'), 'send'), identifier('response')]);
-                    resp.send(response);
-
-                    innerTrace.exitBlock();
-                }
-
-                innerTrace.pushArgs([$callbackClos, identifier('$request'), identifier('$responseCallback')]);
-                // #2 ->
-                callback({ path: req.path }, responseCallback);
-            });
+            tracedCallback(req, resp);
         });
 
         const port = state.getListenPort();
+
         this.app.listen(port);
         console.error(`Serverless function has started listening on port ${port}`);
     }

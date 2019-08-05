@@ -286,11 +286,11 @@ export class Trace {
      * @param eventArg argument for the event, e.g. the URL to get
      * @param callbackArg name of the argument passed to the callback
      */
-    traceCallback(event: string, eventArg: Exp, callbackArgs: string[]): Trace {
+    traceCallback(event: string, eventArg: Exp, callbackArgs: string[], clos: Exp): Trace {
         let exp = this.getCurrentExp();
         if (exp.kind === 'unknown') {
             let callbackBody: Exp[] = [ unknown() ];
-            this.setExp(callback(event, eventArg, callbackArgs, callbackBody));
+            this.setExp(callback(event, eventArg, callbackArgs, clos, callbackBody));
             return new Trace(callbackBody);
         }
         else if (exp.kind === 'callback') {
@@ -304,7 +304,7 @@ export class Trace {
                         hole contains traceCallback(${exp.event})`);
                 }
             }
-
+            exp.clos = mergeExp(exp.clos, clos);
             exp.eventArg = mergeExp(exp.eventArg, eventArg);
 
             this.mayIncrementCursor();

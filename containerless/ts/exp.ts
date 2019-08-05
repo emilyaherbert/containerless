@@ -15,6 +15,7 @@ type CallbackExp = {
     event: string,
     eventArg: Exp, // argument for the event, e.g. the URL to get
     callbackArgs: string[], // name of the arguments passed to the callback
+    clos: Exp,
     body: Exp[] // body of the callback
 };
 
@@ -102,8 +103,8 @@ export function while_(cond: Exp, body: Exp[]): WhileExp {
     return { kind: 'while', cond: cond, body: body };
 }
 
-export function callback(event: string, eventArg: Exp, callbackArgs: string[], body: Exp[]): CallbackExp {
-    return { kind: 'callback', event, eventArg, callbackArgs, body };
+export function callback(event: string, eventArg: Exp, callbackArgs: string[], clos: Exp, body: Exp[]): CallbackExp {
+    return { kind: 'callback', event, eventArg, callbackArgs, clos, body };
 }
 
 export function let_(name: string, named: Exp): LetExp {

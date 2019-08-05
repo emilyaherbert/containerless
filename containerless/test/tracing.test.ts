@@ -60,7 +60,7 @@ test('re-tracing: both sides of a conditional', () => {
 test('callback in trace', () => {
     let t = newTrace();
     t.traceLet('x', number(10));
-    let innerTrace = t.traceCallback('dummy-event', identifier('x'), ['x']);
+    let innerTrace = t.traceCallback('dummy-event', identifier('x'), ['x'], clos({}));
     t.traceLet('y', number(20));
     t.exitBlock();
 
@@ -71,7 +71,7 @@ test('callback in trace', () => {
     expect(t.getTrace()).toMatchObject(
         block([
             let_('x', number(10)),
-            callback('dummy-event', identifier('x'), ['x'], [
+            callback('dummy-event', identifier('x'), ['x'], clos({}), [
                 let_('z', number(30))]),
             let_('y', number(20))]));
 });
@@ -189,6 +189,7 @@ test('exit fun from within if', () => {
 
 test('tracing with callback library', (done) => {
     let cb = new Callbacks();
+    cb.trace.pushArgs([clos({}), string('hello'), clos({})]);
     cb.immediate('hello', (str) => {
         let [$clos, $str] = cb.trace.traceFunctionBody('$return');
         cb.trace.traceLet('str', $str);
@@ -203,7 +204,7 @@ test('tracing with callback library', (done) => {
         setImmediate(() => {
             expect(cb.trace.getTrace()).toMatchObject(
                 block([
-                    callback('immediate', string('hello'), ['$x'], [
+                    callback('immediate', string('hello'), ['$clos', '$x'], clos({}), [
                         label('$return', [
                             let_('str', identifier('$x')),
                             let_('x', number(100)),
@@ -255,17 +256,15 @@ test('callback that receives multiple events', () => {
     sender(-100);
     sender(100);
 
-    cb.trace.prettyPrint();
-
     expect(cb.trace.getTrace()).toMatchObject(
         block([
             let_('captured', number(42)),
             let_('F', clos({ captured: identifier('captured') })),
             let_('sender', block([
-                callback('mock', number(200), ['$response'], [
+                callback('mock', number(200), ['$clos', '$response'], identifier('F'), [
                     label('$return', [
                         let_('value', identifier('$response')),
-                        let_('ret', from(identifier('F'), 'captured')),
+                        let_('ret', from(identifier('$clos'), 'captured')),
                         if_(binop('>', identifier('value'), number(0)), [
                             set(identifier('ret'), number(200))], [
                             set(identifier('ret'), number(-200))])])])]))]));
