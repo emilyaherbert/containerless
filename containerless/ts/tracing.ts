@@ -208,10 +208,9 @@ export class Trace {
             this.setExp(set(name, named));
         }
         else if (exp.kind === 'set') {
-            if (exp.name !== name) {
-                throw new Error(`Cannot merge set with name ${name} into let with
-                    name ${exp.name}`);
-            }
+            // NOTE(arjun): The cast is safe, since mergeExp does not change
+            // the kind of the expression.
+            exp.name = mergeExp(exp.name, name) as LVal;
             exp.named = mergeExp(exp.named, named);
             this.mayIncrementCursor();
         }
