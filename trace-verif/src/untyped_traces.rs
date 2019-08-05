@@ -35,7 +35,7 @@ pub enum BinOp {
 pub enum Exp {
     Unknown { },
     Number { value: f64 },
-    Identifier { name: usize },
+    Identifier { name: String },
     From { exp: Box<Exp>, field: String },
     String { value: String },
     Undefined {},
@@ -46,12 +46,13 @@ pub enum Exp {
     Let { name: String, named: Box<Exp> },
     Set { name: LVal, named: Box<Exp> },
     Block { body: Vec<Exp> },
-    Callback { event: String, event_arg: Box<Exp>, callback_args: Vec<String>,
+    Callback { event: String, eventArg: Box<Exp>, callbackArgs: Vec<String>,
         body: Vec<Exp> },
     Label { name: String, body: Vec<Exp> },
     Break { name: String, value: Box<Exp> },
     Clos { tenv: HashMap<String,Exp> },
-    Array { exps: Vec<Exp> }
+    Array { exps: Vec<Exp> },
+    PrimApp { event: String, eventArgs: Vec<Exp> }
 }
 
 #[derive(PartialEq, Debug, Deserialize)]
@@ -70,7 +71,7 @@ mod tests {
     use std::process::Command;
     use std::fs;
 
-    fn test_harness(filename: &str, code: &str) {
+    fn test_harness(filename: &str, code: &str, requests: &str) -> Exp {
         let f = File::create(filename).expect("creating file");
         let mut js_transform = Command::new("node")
             .arg("../js-transform")
@@ -86,14 +87,26 @@ mod tests {
 
         let mut decontainerized_js = Command::new("node")
             .arg(filename)
-            .arg("8080")
-            .stdin(Stdio::null())
+            .arg("test")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
             .spawn()
             .expect("starting decontainerized function");
+        decontainerized_js.stdin.as_mut().expect("opening stdin")
+            .write_all(requests.as_bytes())
+            .expect("failed to write requests");
         let exit = decontainerized_js.wait()
             .expect("running decontainerized function");
         assert!(exit.success());
+        let mut stdout = String::new();
+        decontainerized_js.stdout.unwrap().read_to_string(&mut stdout)
+            .expect("reading stdout");
         fs::remove_file(filename).expect("removing file");
+        let exp = serde_json::from_str::<Exp>(&stdout);
+        if exp.is_err() {
+            panic!("{:?} in {}", exp, &stdout);
+        }
+        return exp.unwrap();
     }
 
 
@@ -104,7 +117,7 @@ mod tests {
             containerless.listen(function(req, resp) {
                 resp('Hello, world!');
             });
-        "#);
+        "#, "");
     }
 
     #[test]
@@ -115,7 +128,7 @@ mod tests {
                 //console.log('Got a response');
                 resp(req);
             });
-        "#);
+        "#, "request1");
     }
 
 }
