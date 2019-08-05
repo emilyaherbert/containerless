@@ -19,10 +19,10 @@
  */
 
  import {
-    while_, break_, label, block, let_, set, number, if_, callback,
-    identifier, string, binop, unknown, undefined_, clos, from,
-    Exp, BlockExp, TEnv, IdPath, ClosExp, LVal, freshId
+    while_, break_, label, block, let_, set, if_, callback,
+    Exp, BlockExp, LVal, primApp, unknown
 } from './exp';
+import { RSA_X931_PADDING } from 'constants';
 
 type Cursor = { body: Exp[], index: number };
 
@@ -208,6 +208,10 @@ export class Trace {
             this.setExp(set(name, named));
         }
         else if (exp.kind === 'set') {
+            if (exp.name !== name) {
+                throw new Error(`Cannot merge set with name ${name} into let with
+                    name ${exp.name}`);
+            }
             exp.named = mergeExp(exp.named, named);
             this.mayIncrementCursor();
         }
@@ -309,6 +313,24 @@ export class Trace {
         }
         else {
             throw new Error(`hole contains ${exp.kind}`);
+        }
+    }
+
+    tracePrimApp(event: string, eventArgs: Exp[]) {
+        let exp = this.getCurrentExp();
+        if (exp.kind === 'unknown') {
+            this.setExp(primApp(event, eventArgs));
+        }
+        else if (exp.kind === 'primApp') {
+            if (exp.event !== event) {
+                throw new Error(`Cannot merge event with name ${event} into let with
+                    name ${exp.event}`);
+            }
+            exp.eventArgs = mergeExpArray(exp.eventArgs, eventArgs);
+            this.mayIncrementCursor();
+        }
+        else {
+            throw new Error(`expected primApp, got ${exp.kind}`);
         }
     }
 

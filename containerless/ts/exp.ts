@@ -2,10 +2,10 @@ export type BinOp = '+' | '-' | '>';
 
 export type BlockExp = { kind: 'block', body: Exp[] };
 
-export type LetExp = { kind: 'let', name: string, named: Exp };
-export type SetExp = { kind: 'set', name: LVal, named: Exp };
-export type IfExp = { kind: 'if', cond: Exp, truePart: Exp[], falsePart: Exp[] };
-export type WhileExp = { kind: 'while', cond: Exp, body: Exp[] };
+type LetExp = { kind: 'let', name: string, named: Exp };
+type SetExp = { kind: 'set', name: LVal, named: Exp };
+type IfExp = { kind: 'if', cond: Exp, truePart: Exp[], falsePart: Exp[] };
+type WhileExp = { kind: 'while', cond: Exp, body: Exp[] };
 
 /**
  * event(eventArg, function(callbackArg) { body ... });
@@ -17,16 +17,23 @@ type CallbackExp = {
     callbackArgs: string[], // name of the arguments passed to the callback
     body: Exp[] // body of the callback
 };
-export type LabelExp = { kind: 'label', name: string, body: Exp[] };
-export type BreakExp = { kind: 'break', name: string, value: Exp };
 
-export type IdPath = string[];
-export type TEnv = { [key: string]: Exp };
-export type ClosExp = { kind: 'clos', tenv: TEnv };
-export type IdExp = { kind: 'identifier', name: string };
-export type FromExp = { kind: 'from', exp: Exp, field: string };
+type PrimAppExp = {
+    kind: 'primApp',
+    event: string,
+    eventArgs: Exp[]
+}
 
-export type ArrayExp = { kind: 'array', exps: Exp[] };
+type LabelExp = { kind: 'label', name: string, body: Exp[] };
+type BreakExp = { kind: 'break', name: string, value: Exp };
+
+type IdPath = string[];
+type TEnv = { [key: string]: Exp };
+type ClosExp = { kind: 'clos', tenv: TEnv };
+type IdExp = { kind: 'identifier', name: string };
+type FromExp = { kind: 'from', exp: Exp, field: string };
+
+type ArrayExp = { kind: 'array', exps: Exp[] };
 
 /**
  * NOTE(arjun): We do not make a distinction between statements and expressions.
@@ -59,7 +66,8 @@ export type Exp
     | LabelExp
     | BreakExp
     | ClosExp
-    | ArrayExp;
+    | ArrayExp
+    | PrimAppExp;
 
 export type LVal = IdExp | FromExp
 
@@ -131,6 +139,10 @@ export function froms(clos: Exp, ids: string[]): FromExp[] {
         ret.push(from(clos, ids[i]));
     }
     return ret;
+}
+
+export function primApp(event: string, eventArgs: Exp[]): PrimAppExp {
+    return { kind: 'primApp', event: event, eventArgs: eventArgs };
 }
 
 let nextId = 0;

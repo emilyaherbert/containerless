@@ -4,6 +4,8 @@ import * as state from './state';
 import { Trace, newTrace } from './tracing';
 import { string, number, identifier, unknown, clos, from, undefined_ } from './exp';
 
+const defaultEventArg = number(0);
+
 export type Request = {
     path: string
 };
@@ -113,8 +115,7 @@ export class Callbacks {
         // #1 <-
         
         let [_, $callbackClos] = this.trace.popArgs();
-        // TODO(arjun): the unknown() should be some dummy expression, say 0.
-        let innerTrace = this.trace.traceCallback('listen', unknown(), ['$request', '$responseCallback']);
+        let innerTrace = this.trace.traceCallback('listen', defaultEventArg, ['$request', '$responseCallback']);
 
         this.app = express();
 
@@ -139,29 +140,20 @@ export class Callbacks {
             resp.send(JSON.stringify(this.trace.getTrace()));
         });
 
-        const tmp = this;
-
         this.app.get('/:path*', (req, resp) => {
             this.withTrace(innerTrace, () => {
 
                 innerTrace.traceLet('responseCallback', clos({ }));
                 function responseCallback(response: any) {
                     // #3 <-
-                    let [_, $response] = innerTrace.popArgs();
-                    /*
-                      TODO(arjun)
-                      innerTrace.trace.tracePrimApp('response', [ $response ]);
-                      resp.send(response)
-                     */
-                    let responseCallbackTrace = tmp.trace.traceCallback('responseCallback', unknown(), ['$response']);
+                    let [_, $response] = innerTrace.traceFunctionBody('$return');
+                    innerTrace.traceLet('response', $response);
 
-                    tmp.withTrace(responseCallbackTrace, () => {
-                        responseCallbackTrace.traceLet('baz', identifier('$response'));
-                        let baz = response;
+                    // NOTE(emily): Some of this info may be irrelevant.
+                    innerTrace.tracePrimApp('send', [from(identifier('resp'), 'send'), identifier('response')]);
+                    resp.send(response);
 
-                        // TODO(emily): Not sure what to do here ?
-                        resp.send(response);
-                    })
+                    innerTrace.exitBlock();
                 }
 
                 innerTrace.pushArgs([$callbackClos, identifier('$request'), identifier('$responseCallback')]);
