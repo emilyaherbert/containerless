@@ -6,7 +6,6 @@ import {
     newTrace
 } from '../ts/tracing'
 import { Callbacks } from '../ts/callbacks';
-import * as r from 'js-transform/ts/insertTracing';
 
 test('trivial, hand-constructed trace', () => {
     let t = newTrace();

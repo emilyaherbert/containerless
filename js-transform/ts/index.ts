@@ -1,5 +1,7 @@
+#!/usr/bin/env node
 import * as fs from 'fs';
 import * as r from './insertTracing';
+import * as n from '@stopify/normalize-js';
 
 function inputFile(): string | number {
     if (process.argv.length === 2) {
@@ -17,4 +19,5 @@ function inputFile(): string | number {
 }
 
 let inputCode = fs.readFileSync(inputFile(), { encoding: 'utf-8' });
-console.log(r.transform(inputCode));
+let normalized = n.normalize(inputCode);
+console.log(r.transform(normalized));

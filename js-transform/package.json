@@ -4,11 +4,11 @@
   "main": "dist/index.js",
   "license": "BSD-3-Clause",
   "bin": {
-    "js-transform": "./dist/main.js"
+    "js-transform": "./dist/index.js"
   },
   "scripts": {
     "run": "node ./dist/index.js",
-    "build": "./node_modules/.bin/tsc -b && chmod a+x ./dist/main.js",
+    "build": "./node_modules/.bin/tsc -b && chmod a+x ./dist/index.js",
     "test": "./node_modules/.bin/jest"
   },
   "jest": {
