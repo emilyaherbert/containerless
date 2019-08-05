@@ -68,6 +68,7 @@ mod tests {
     use std::io::prelude::*;
     use std::process::Stdio;
     use std::process::Command;
+    use std::fs;
 
     fn test_harness(filename: &str, code: &str) {
         let f = File::create(filename).expect("creating file");
@@ -92,13 +93,13 @@ mod tests {
         let exit = decontainerized_js.wait()
             .expect("running decontainerized function");
         assert!(exit.success());
+        fs::remove_file(filename).expect("removing file");
     }
 
 
     #[test]
     pub fn try_test() {
         let handle = test_harness("try_test.js", r#"
-            for (let x = 0; ; ) { }
             let containerless = require("../containerless");
             containerless.listen(function(req, resp) {
                 resp('Hello, world!');
@@ -108,7 +109,7 @@ mod tests {
 
     #[test]
     pub fn try_test2() {
-        let handle = test_harness("try_test.js", r#"
+        let handle = test_harness("try_test2.js", r#"
             let containerless = require("../containerless");
             containerless.listen(function(req, resp) {
                 //console.log('Got a response');

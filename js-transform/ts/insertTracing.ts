@@ -7,8 +7,6 @@ import * as n from '@stopify/normalize-js';
 
 type State = Map<string, boolean>;
 
-let requireStatements: b.Statement[] = [];
-
 // NOTE(emily): This may not be righb. I have not yet hit a case where the error is triggered.
 function merge(x: State, y: State): State {
     return x.mergeWith(
@@ -308,8 +306,7 @@ function reifyVariableDeclaration(s: b.VariableDeclaration, st: State): [b.State
             let theArgs: b.Expression[] = [];
             if(b.isIdentifier(init1.callee)) {
                 if(init1.callee.name === 'require') {
-                    requireStatements.push(s);
-                    return [[ ], st];
+                    return [[ s ], st];
                 }
                 theArgs.push(identifier(init1.callee.name));
             } else {
@@ -537,17 +534,15 @@ function reifyStatements(s: b.Statement[], st: State): [b.Statement[], State] {
 }
 
 function reify(s: b.Statement[]): b.Statement[] {
-    const [s2, _] = reifyStatements(s, Map());
-    
-    // TODO(emily): capture 'containerless00'
-    return requireStatements.concat([
-        jsLet(b.identifier('cb'), b.memberExpression(b.identifier('containerless00'), b.identifier('cb'))),
-        jsLet(b.identifier('exp'), b.memberExpression(b.identifier('containerless00'), b.identifier('exp'))),
-        newTrace
-    ]).concat(s2).concat([
-        exitBlock,
-        getTrace
-    ]);
+    const [ret, _] = reifyStatements(s, Map());
+    //ret.unshift(jsLet(b.identifier('t'), newTrace));
+    // TODO(emily): Fix. Need to detect require statements or something.
+    ret.splice(1, 0, newTrace);
+    ret.splice(1, 0, jsLet(b.identifier('exp'), b.memberExpression(b.identifier('containerless00'), b.identifier('exp'))));
+    ret.splice(1, 0, jsLet(b.identifier('cb'), b.memberExpression(b.identifier('containerless00'), b.identifier('cb'))));
+    ret.push(exitBlock);
+    ret.push(getTrace);
+    return ret;
 }
 
 export function transform(inputCode: string): string {
