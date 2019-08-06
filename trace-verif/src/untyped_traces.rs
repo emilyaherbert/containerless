@@ -27,7 +27,9 @@ pub enum BinOp {
     #[serde(rename = "-")]
     Sub,
     #[serde(rename = ">")]
-    GT
+    GT,
+    #[serde(rename = "===")]
+    StrictEq
 }
 
 #[derive(PartialEq, Debug, Deserialize)]
@@ -41,7 +43,11 @@ pub enum Exp {
     Undefined {},
     #[serde(rename = "binop")]
     BinOp { op: BinOp, e1: Box<Exp>, e2: Box<Exp> },
-    If { cond: Box<Exp>, true_part: Box<Exp>, false_part: Box<Exp> },
+    If {
+        cond: Box<Exp>,
+        #[serde(rename = "truePart")] true_part: Vec<Exp>,
+        #[serde(rename = "falsePart")] false_part: Vec<Exp>
+    },
     While { cond: Box<Exp>, body: Box<Exp> },
     Let { name: String, named: Box<Exp> },
     Set { name: LVal, named: Box<Exp> },
@@ -65,7 +71,7 @@ pub enum Exp {
 #[derive(PartialEq, Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum LVal {
-    Identifier { name: usize },
+    Identifier { name: String },
     From { exp: Box<Exp>, field: String }
 }
 
@@ -86,7 +92,8 @@ mod tests {
             .stdout(f)
             .spawn()
             .expect("starting js-transform");
-        js_transform.stdin.as_mut().expect("opening stdin")
+        js_transform.stdin.as_mut()
+            .expect("opening stdin")
             .write_all(code.as_bytes())
             .expect("failed to write to JS file");
         let exit = js_transform.wait().expect("running js-transform");
@@ -99,17 +106,24 @@ mod tests {
             .stdout(Stdio::piped())
             .spawn()
             .expect("starting decontainerized function");
-        decontainerized_js.stdin.as_mut().expect("opening stdin")
+
+        decontainerized_js.stdin.as_mut()
+            .expect("opening stdin")
             .write_all(requests.as_bytes())
             .expect("failed to write requests");
+
         let exit = decontainerized_js.wait()
             .expect("running decontainerized function");
-        assert!(exit.success());
+        assert!(exit.success(), "non-zero exit code from function");
+
         let mut stdout = String::new();
         decontainerized_js.stdout.unwrap().read_to_string(&mut stdout)
             .expect("reading stdout");
+        // TODO(arjun): We should only remove the file after the calling test
+        // case succeeds. How can we do this neatly? Destructors?
         fs::remove_file(filename).expect("removing file");
         let exp = serde_json::from_str::<Exp>(&stdout);
+
         if exp.is_err() {
             panic!("{:?} in {}", exp, &stdout);
         }
@@ -136,6 +150,22 @@ mod tests {
                 resp(req);
             });
         "#, "request1");
+    }
+
+    #[test]
+    pub fn trace_with_unknown() {
+        let handle = test_harness("trace_with_unknown.js", r#"
+            let containerless = require("../containerless");
+            containerless.listen(function(req, resp) {
+                if (req === 'hello') {
+                    resp('goodbye');
+                }
+                else {
+                    resp('bad');
+                }
+            });
+        "#, "hello");
+        assert!(false);
     }
 
 }

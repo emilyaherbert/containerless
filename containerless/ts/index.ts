@@ -27,6 +27,10 @@ export function listen(
     let tracedCallback = cb.tracedListenCallback(callback);
     let lines = fs.readFileSync(0, { encoding: 'utf-8' }).split('\n');
     for (let line of lines) {
+        if (line.length === 0) {
+            // Skips the blank line at the end of input.
+            continue;
+        }
         tracedCallback(line as any, { send: function(resp: any) {  } } as any);
     }
     console.log(JSON.stringify(cb.trace.getTrace()));

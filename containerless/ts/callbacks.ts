@@ -133,7 +133,16 @@ export class Callbacks {
 
                 innerTrace.pushArgs([identifier('$clos'), identifier('$request'), identifier('$responseCallback')]);
                 // #2 ->
-                callback({ path: req.path }, responseCallback);
+                if (typeof req === 'string') {
+                    // TODO(arjun): This is a bit of a hack to allow us to
+                    // test tracing by sending raw strings as input. We should
+                    // instead put in the effort to construct mock request
+                    // objects.
+                    callback(req, responseCallback);
+                }
+                else {
+                    callback({ path: req.path }, responseCallback);
+                }
             });
         };
     }
