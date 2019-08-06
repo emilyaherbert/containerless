@@ -187,6 +187,13 @@ function traceBreak(name: string, value : b.Expression = undefined_): b.Expressi
     return b.expressionStatement(callExpression);
 }
 
+function tracePrimApp(event: string, eventArgs: b.Expression[]): b.ExpressionStatement {
+    const memberExpression = b.memberExpression(t, b.identifier('tracePrimApp'));
+    eventArgs.unshift(b.stringLiteral(event));
+    const callExpression = b.callExpression(memberExpression, eventArgs);
+    return b.expressionStatement(callExpression);
+}
+
 const exitBlock: b.ExpressionStatement =
     b.expressionStatement(
         b.callExpression(
@@ -304,25 +311,42 @@ function reifyVariableDeclaration(s: b.VariableDeclaration, st: State): [b.State
         case 'CallExpression': {
             let init1 = assertNormalized(init);
             let theArgs: b.Expression[] = [];
-            if(b.isIdentifier(init1.callee)) {
-                if(init1.callee.name === 'require') {
-                    return [[ s ], st];
-                }
-                theArgs.push(identifier(init1.callee.name));
-            } else {
-                const obj = init1.callee.object;
-                const prop = init1.callee.property;
-                if(!b.isIdentifier(obj) || !b.isIdentifier(prop)) {
-                    throw new Error("Cannot chain member expressions!");
-                }
-                theArgs.push(from(identifier(obj.name), prop.name));
-            }
             let nextSt = st;
             init1.arguments.forEach(a => {
                 const [a1, st1] = reifyExpression(a, st);
                 theArgs.push(a1);
                 nextSt = merge(st1, nextSt);
             });
+
+            // NOTE: Push special case functions here.
+            if(b.isIdentifier(init1.callee)) {
+                switch(init1.callee.name) {
+                    case 'require': {
+                        return [[ s ], st];
+                    }
+                    default: {
+                        theArgs.unshift(identifier(init1.callee.name));
+                        break;
+                    }
+                }
+            } else {
+                const obj = init1.callee.object;
+                const prop = init1.callee.property;
+                if(!b.isIdentifier(obj) || !b.isIdentifier(prop)) {
+                    throw new Error("Cannot chain member expressions!");
+                }
+                theArgs.unshift(from(identifier(obj.name), prop.name));
+                switch(obj.name) {
+                    case 'console': {
+                        const tPrimApp = tracePrimApp('console.log', theArgs);
+                        return [[ tPrimApp, s ], st];
+                    }
+                    default: {
+                        break;
+                    }
+                }
+            }
+
             const tCall = traceFunctionCall(name, theArgs);
             return [[tCall, s, exitBlock], nextSt.set(name, false)];
         }
