@@ -79,6 +79,76 @@ pub enum Exp {
     }
 }
 
+pub mod constructors {
+
+    // NOTE(arjun): I wish we could use this macro to avoid writing all these
+    // constructors:
+    //
+    // https://docs.rs/derive-new/0.5.7/derive_new/
+    //
+    // But, I really don't want the new prefix on all names, and I want the
+    // constructors to take care of allocating strings and boxes.
+
+    use super::Exp::*;
+    use super::{Exp, Op2};
+
+    pub fn unknown() -> Exp {
+        return Unknown { };
+    }
+
+    pub fn number(value: f64) -> Exp {
+        return Number { value };
+    }
+
+    pub fn id(name: &str) -> Exp {
+        return Identifier { name: name.to_string() };
+    }
+
+    pub fn from(exp: Exp, field: &str) -> Exp {
+        return From { exp: Box::new(exp), field: field.to_string() };
+    }
+
+    pub fn string(value: &str) -> Exp {
+        return Stringg { value: value.to_string() };
+    }
+
+    pub fn undefined() -> Exp {
+        return Undefined { };
+    }
+
+    pub fn binop(op: Op2, e1: Exp, e2: Exp) -> Exp {
+        return BinOp { op: op, e1: Box::new(e1), e2: Box::new(e2) }
+    }
+
+    pub fn if_(cond: Exp, true_part: Vec<Exp>, false_part: Vec<Exp>) -> Exp {
+        return If { cond: Box::new(cond), true_part, false_part };
+    }
+
+    pub fn while_(cond: Exp, body: Exp) -> Exp {
+        return While { cond: Box::new(cond), body: Box::new(body) };
+    }
+
+    // Let { name: String, named: Box<Exp> },
+    // Set { name: LVal, named: Box<Exp> },
+    // Block { body: Vec<Exp> },
+    // Callback {
+    //     event: String,
+    //     #[serde(rename = "eventArg")] event_arg: Box<Exp>,
+    //     #[serde(rename = "callbackArgs")] callback_args: Vec<String>,
+    //     body: Vec<Exp>
+    // },
+    // Label { name: String, body: Vec<Exp> },
+    // Break { name: String, value: Box<Exp> },
+    // Clos { tenv: HashMap<String,Exp> },
+    // Array { exps: Vec<Exp> },
+    // PrimApp {
+    //     event: String,
+    //     #[serde(rename = "eventArgs")] event_args: Vec<Exp>
+    // }
+
+
+}
+
 #[derive(PartialEq, Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum LVal {
@@ -90,6 +160,7 @@ pub enum LVal {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::constructors::*;
     use std::fs::File;
     use std::io::prelude::*;
     use std::process::Stdio;
