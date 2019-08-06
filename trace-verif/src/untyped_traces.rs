@@ -46,13 +46,20 @@ pub enum Exp {
     Let { name: String, named: Box<Exp> },
     Set { name: LVal, named: Box<Exp> },
     Block { body: Vec<Exp> },
-    Callback { event: String, eventArg: Box<Exp>, callbackArgs: Vec<String>,
-        body: Vec<Exp> },
+    Callback {
+        event: String,
+        #[serde(rename = "eventArg")] event_arg: Box<Exp>,
+        #[serde(rename = "callbackArgs")] callback_args: Vec<String>,
+        body: Vec<Exp>
+    },
     Label { name: String, body: Vec<Exp> },
     Break { name: String, value: Box<Exp> },
     Clos { tenv: HashMap<String,Exp> },
     Array { exps: Vec<Exp> },
-    PrimApp { event: String, eventArgs: Vec<Exp> }
+    PrimApp {
+        event: String,
+        #[serde(rename = "eventArgs")] event_args: Vec<Exp>
+    }
 }
 
 #[derive(PartialEq, Debug, Deserialize)]
