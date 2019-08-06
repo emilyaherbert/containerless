@@ -189,8 +189,8 @@ function traceBreak(name: string, value : b.Expression = undefined_): b.Expressi
 
 function tracePrimApp(event: string, eventArgs: b.Expression[]): b.ExpressionStatement {
     const memberExpression = b.memberExpression(t, b.identifier('tracePrimApp'));
-    eventArgs.unshift(b.stringLiteral(event));
-    const callExpression = b.callExpression(memberExpression, eventArgs);
+    const memberArgs = [b.stringLiteral(event), b.arrayExpression(eventArgs)];
+    const callExpression = b.callExpression(memberExpression, memberArgs);
     return b.expressionStatement(callExpression);
 }
 
