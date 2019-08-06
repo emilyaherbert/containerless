@@ -1,5 +1,5 @@
 [package]
-name = "decontainerization-trace-runtime"
+name = "trace-runtime"
 version = "0.1.0"
 authors = ["Arjun Guha <arjun@cs.umass.edu>"]
 edition = "2018"

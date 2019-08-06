@@ -20,8 +20,12 @@
 use serde::Deserialize;
 use std::collections::HashMap;
 
-#[derive(PartialEq, Debug, Deserialize)]
-pub enum BinOp {
+use crate::verif::{
+    lift_callbacks
+};
+
+#[derive(PartialEq, Debug, Deserialize, Clone)]
+pub enum Op2 {
     #[serde(rename = "+")]
     Add,
     #[serde(rename = "-")]
@@ -39,10 +43,11 @@ pub enum Exp {
     Number { value: f64 },
     Identifier { name: String },
     From { exp: Box<Exp>, field: String },
-    String { value: String },
+    #[serde(rename = "string")]
+    Stringg { value: String },
     Undefined {},
     #[serde(rename = "binop")]
-    BinOp { op: BinOp, e1: Box<Exp>, e2: Box<Exp> },
+    BinOp { op: Op2, e1: Box<Exp>, e2: Box<Exp> },
     If {
         cond: Box<Exp>,
         #[serde(rename = "truePart")] true_part: Vec<Exp>,
@@ -56,7 +61,13 @@ pub enum Exp {
         event: String,
         #[serde(rename = "eventArg")] event_arg: Box<Exp>,
         #[serde(rename = "callbackArgs")] callback_args: Vec<String>,
+        #[serde(rename = "clos")] callback_clos: Box<Exp>,
         body: Vec<Exp>
+    },
+    Loopback {
+        event: String,
+        event_arg: Box<Exp>,
+        id: f64
     },
     Label { name: String, body: Vec<Exp> },
     Break { name: String, value: Box<Exp> },
@@ -72,7 +83,8 @@ pub enum Exp {
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum LVal {
     Identifier { name: String },
-    From { exp: Box<Exp>, field: String }
+    From { exp: Box<Exp>, field: String },
+    //Tuple { elems: Vec<String> }
 }
 
 #[cfg(test)]
@@ -125,9 +137,16 @@ mod tests {
         let exp = serde_json::from_str::<Exp>(&stdout);
 
         if exp.is_err() {
-            panic!("{:?} in {}", exp, &stdout);
+            panic!("\n{:?} \nin \n{}", exp, &stdout);
         }
-        return exp.unwrap();
+
+        println!("\n{:?}", exp);
+
+        //return exp.unwrap();
+
+        let lifted = lift_callbacks::transform_exp(&(exp.unwrap()));
+        //println!("\n{:?}", lifted);
+        return lifted;
     }
 
 
@@ -146,10 +165,12 @@ mod tests {
         let handle = test_harness("try_test2.js", r#"
             let containerless = require("../containerless");
             containerless.listen(function(req, resp) {
-                //console.log('Got a response');
+                // console.log('Got a response');
+                console.error('Got a response');
                 resp(req);
             });
-        "#, "request1");
+        "#, "request1
+        request2");
     }
 
     #[test]

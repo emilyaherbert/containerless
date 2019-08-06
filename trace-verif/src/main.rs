@@ -1,4 +1,10 @@
-pub mod untyped_traces;
+#![allow(unused_variables)]
+#![allow(unused_imports)]
+#![allow(dead_code)]
+#![allow(unused_parens)]
 
-pub fn main() {
+mod verif;
+
+fn main() {
+
 }
