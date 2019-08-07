@@ -37,6 +37,13 @@ pub enum Op2 {
 }
 
 #[derive(PartialEq, Debug, Deserialize)]
+pub enum Typ {
+    I32,
+    F64,
+    Bool,
+}
+
+#[derive(PartialEq, Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum Exp {
     Unknown { },
@@ -54,7 +61,12 @@ pub enum Exp {
         #[serde(rename = "falsePart")] false_part: Vec<Exp>
     },
     While { cond: Box<Exp>, body: Box<Exp> },
-    Let { name: String, named: Box<Exp> },
+    Let {
+        name: String,
+        #[serde(default)]
+        typ: Option<Typ>,
+        named: Box<Exp>
+    },
     Set { name: LVal, named: Box<Exp> },
     Block { body: Vec<Exp> },
     Callback {
@@ -136,7 +148,7 @@ pub mod constructors {
     }
 
     pub fn let_(name: &str, named: Exp) -> Exp {
-        return Let { name: name.to_string(), named: Box::new(named) };
+        return Let { name: name.to_string(), typ: None, named: Box::new(named) };
     }
 
     pub fn set(name: LVal, named: Exp) -> Exp {
@@ -295,7 +307,7 @@ mod tests {
                 }
             });
         "#, "hello");
-        assert!(false);
+        // assert!(false);
     }
 
 }

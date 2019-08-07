@@ -89,7 +89,7 @@ impl Transformer {
             BinOp { op, e1, e2 } => return binop(op, self.transform_exp(e1), self.transform_exp(e2)),
             If { cond, true_part, false_part } => return if_(self.transform_exp(cond), self.transform_exps(true_part), self.transform_exps(false_part)),
             While { cond, body } => return while_(self.transform_exp(cond), self.transform_exp(body)),
-            Let { name, named } => return let_(name, self.transform_exp(named)),
+            Let { name, typ, named } => return let_(name, self.transform_exp(named)),
             Set { name, named } => return set(self.transform_lval(name), self.transform_exp(named)),
             Block { body } => return block(self.transform_exps(body)),
             Callback { event, event_arg, callback_args, callback_clos, body } => {
