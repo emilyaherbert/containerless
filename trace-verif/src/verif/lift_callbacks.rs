@@ -3,31 +3,9 @@ use std::collections::HashMap;
 
 use crate::verif::{
     untyped_traces::{
-        Op2::{
-            StrictEq
-        },
+        Op2::*,
         Exp,
-        Exp::{
-            Unknown,
-            Number,
-            Identifier,
-            From,
-            Stringg,
-            Undefined,
-            BinOp,
-            If,
-            While,
-            Let,
-            Set,
-            Block,
-            Callback,
-            Loopback,
-            Label,
-            Break,
-            Clos,
-            Array,
-            PrimApp
-        },
+        Exp::*,
         LVal
     }
 };
