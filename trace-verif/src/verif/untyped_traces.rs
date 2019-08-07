@@ -90,7 +90,7 @@ pub mod constructors {
     // constructors to take care of allocating strings and boxes.
 
     use super::Exp::*;
-    use super::{Exp, Op2};
+    use super::{Exp, Op2, LVal};
 
     pub fn unknown() -> Exp {
         return Unknown { };
@@ -116,8 +116,8 @@ pub mod constructors {
         return Undefined { };
     }
 
-    pub fn binop(op: Op2, e1: Exp, e2: Exp) -> Exp {
-        return BinOp { op: op, e1: Box::new(e1), e2: Box::new(e2) }
+    pub fn binop(op: &Op2, e1: Exp, e2: Exp) -> Exp {
+        return BinOp { op: op.clone(), e1: Box::new(e1), e2: Box::new(e2) }
     }
 
     pub fn if_(cond: Exp, true_part: Vec<Exp>, false_part: Vec<Exp>) -> Exp {
@@ -128,23 +128,50 @@ pub mod constructors {
         return While { cond: Box::new(cond), body: Box::new(body) };
     }
 
-    // Let { name: String, named: Box<Exp> },
-    // Set { name: LVal, named: Box<Exp> },
-    // Block { body: Vec<Exp> },
-    // Callback {
-    //     event: String,
-    //     #[serde(rename = "eventArg")] event_arg: Box<Exp>,
-    //     #[serde(rename = "callbackArgs")] callback_args: Vec<String>,
-    //     body: Vec<Exp>
-    // },
-    // Label { name: String, body: Vec<Exp> },
-    // Break { name: String, value: Box<Exp> },
-    // Clos { tenv: HashMap<String,Exp> },
-    // Array { exps: Vec<Exp> },
-    // PrimApp {
-    //     event: String,
-    //     #[serde(rename = "eventArgs")] event_args: Vec<Exp>
-    // }
+    pub fn let_(name: &str, named: Exp) -> Exp {
+        return Let { name: name.to_string(), named: Box::new(named) };
+    }
+
+    pub fn set(name: LVal, named: Exp) -> Exp {
+        return Set { name: name, named: Box::new(named) };
+    }
+
+    // Apparently its bad Rust to receive a Vec<T>
+    pub fn block(body: Vec<Exp>) -> Exp {
+        return Block { body: body };
+    }
+
+    pub fn callback(event: &str, event_arg: Exp, callback_args: Vec<String>, callback_clos: Exp, body: Vec<Exp>) -> Exp {
+        return Callback {
+            event: event.to_string(),
+            event_arg: Box::new(event_arg),
+            callback_args: callback_args,
+            callback_clos: Box::new(callback_clos),
+            body: body
+        };
+    }
+
+    pub fn loopback(event: &str, event_arg: Exp, id: f64) -> Exp {
+        return Loopback { event: event.to_string(), event_arg: Box::new(event_arg), id: id };
+    }
+
+    pub fn label(name: &str, body: Vec<Exp>) -> Exp {
+        return Label { name: name.to_string(), body: body };
+    }
+
+    pub fn break_(name: &str, value: Exp) -> Exp {
+        return Break { name: name.to_string(), value: Box::new(value) };
+    }
+
+    pub fn array(exps: Vec<Exp>) -> Exp {
+        return Array { exps: exps };
+    }
+
+    pub fn prim_app(event: &str, event_args: Vec<Exp>) -> Exp {
+        return PrimApp { event: event.to_string(), event_args: event_args };
+    }
+
+    // Clos { tenv: HashMap<String,Exp> }
 
 
 }
