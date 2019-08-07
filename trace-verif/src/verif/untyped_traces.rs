@@ -242,7 +242,9 @@ mod tests {
 
         //return exp.unwrap();
 
-        let lifted = lift_callbacks::transform_exp(&(exp.unwrap()));
+        // TODO(emily): Make this return a Result so that we can chain all transformations
+        let mut transformer = lift_callbacks::Transformer::new();
+        let lifted = transformer.transform_exp(&(exp.unwrap()));
         //println!("\n{:?}", lifted);
         return lifted;
     }
