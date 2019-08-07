@@ -64,15 +64,22 @@ pub enum Exp {
         #[serde(rename = "clos")] callback_clos: Box<Exp>,
         body: Vec<Exp>
     },
+    #[serde(skip)]
     Loopback {
         event: String,
         event_arg: Box<Exp>,
+        callback_clos: Box<Exp>,
         id: f64
     },
     Label { name: String, body: Vec<Exp> },
     Break { name: String, value: Box<Exp> },
     Clos { tenv: HashMap<String,Exp> },
     Array { exps: Vec<Exp> },
+    Index { e1: Box<Exp>, e2: Box<Exp> },
+    #[serde(skip)]
+    Ref { e: Box<Exp> },
+    #[serde(skip)]
+    Deref { e: Box<Exp> },
     PrimApp {
         event: String,
         #[serde(rename = "eventArgs")] event_args: Vec<Exp>
@@ -151,8 +158,10 @@ pub mod constructors {
         };
     }
 
-    pub fn loopback(event: &str, event_arg: Exp, id: f64) -> Exp {
-        return Loopback { event: event.to_string(), event_arg: Box::new(event_arg), id: id };
+    pub fn loopback(event: &str, event_arg: Exp, callback_clos: Exp, id: f64) -> Exp {
+        return Loopback { event: event.to_string(),
+            callback_clos: Box::new(callback_clos),
+            event_arg: Box::new(event_arg), id: id };
     }
 
     pub fn label(name: &str, body: Vec<Exp>) -> Exp {

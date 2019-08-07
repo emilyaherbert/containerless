@@ -51,7 +51,7 @@ impl Transformer {
                     let x = self.fresh_id();
                     let cond = binop(&StrictEq, string(&self.cbid), number(x));
                     let true_part = self.transform_exps(body); // TODO(emily): fix
-                    let mut false_part = vec!(loopback(event, self.transform_exp(event_arg), x));
+                    let mut false_part = vec!(loopback(event, self.transform_exp(event_arg), self.transform_exp(callback_clos), x));
                     if(i < exps.len()-1) {
                         let (prev, rest) = exps.split_at(i+1);
                         false_part.append(&mut self.transform_exps(rest));
