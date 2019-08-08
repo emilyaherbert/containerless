@@ -21,7 +21,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 
 use crate::verif::{
-    lift_callbacks
+    transformer::Transformer
 };
 
 #[derive(PartialEq, Debug, Deserialize, Clone)]
@@ -344,7 +344,7 @@ mod tests {
         //return exp.unwrap();
 
         // TODO(emily): Make this return a Result so that we can chain all transformations
-        let mut transformer = lift_callbacks::Transformer::new();
+        let mut transformer = Transformer::new();
         let lifted = transformer.transform_exp(&(exp.unwrap()));
         //println!("\n{:?}", lifted);
         return lifted;
