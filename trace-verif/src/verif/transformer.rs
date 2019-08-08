@@ -78,12 +78,16 @@ impl Transformer {
         return ret;
     }
 
-    fn transform_hashmap(&mut self, exps: &HashMap<String,Exp>) -> HashMap<String,Exp> {
+    fn transform_clos(&mut self, exps: &HashMap<String,Exp>) -> HashMap<String,Exp> {
         let mut ret: HashMap<String,Exp> = HashMap::new();
         for (key, value) in exps {
+            let new_value = match(value) {
+                Identifier { name } => id(name),
+                _ => self.transform(value)
+            };
             ret.insert(
                 key.to_string(),
-                self.transform(value)
+                new_value
             );
         }
         return ret;
@@ -113,9 +117,13 @@ impl Transformer {
             Callback { event, event_arg, callback_args, callback_clos, body } => return self.transform_callback(event, event_arg, callback_args, callback_clos, body, &mut vec!()),
             Label { name, body } => return label(name, self.transform_exps(body)),
             Break { name, value } => return break_(name, self.transform(value)),
-            Clos { tenv } => return clos(self.transform_hashmap(tenv)),
+            Clos { tenv } => return clos(self.transform_clos(tenv)),
             Array { exps } => return array(self.transform_exps(exps)),
             PrimApp { event, event_args } => return prim_app(event, self.transform_exps(event_args)),
+            Loopback { event, event_arg, callback_clos, id }  => panic!("Did not expect to find this here."),
+            Ref { e }  => panic!("Did not expect to find this here."),
+            Deref { e }  => panic!("Did not expect to find this here."),
+            SetRef { e1, e2 }  => panic!("Did not expect to find this here."),
             _ => {
                 panic!("Not implemented.");
             }

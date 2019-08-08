@@ -268,7 +268,6 @@ function reifyExpression(e: b.Expression, st: State): [b.Expression, State] {
             const obj = e.object;
             const prop = e.property;
             if(!b.isIdentifier(obj) || !b.isIdentifier(prop)) {
-                console.log(e);
                 throw new Error("Cannot chain member expressions!");
             }
             return [from(identifier(obj.name), prop.name), st];
@@ -322,7 +321,7 @@ function reifyVariableDeclaration(s: b.VariableDeclaration, st: State): [b.State
             if(b.isIdentifier(init1.callee)) {
                 switch(init1.callee.name) {
                     case 'require': {
-                        return [[ s ], st];
+                        return [[ s ], nextSt];
                     }
                     default: {
                         theArgs.unshift(identifier(init1.callee.name));
@@ -339,7 +338,7 @@ function reifyVariableDeclaration(s: b.VariableDeclaration, st: State): [b.State
                 switch(obj.name) {
                     case 'console': {
                         const tPrimApp = tracePrimApp('console.log', theArgs);
-                        return [[ tPrimApp, s ], st];
+                        return [[ tPrimApp, s ], nextSt];
                     }
                     default: {
                         break;

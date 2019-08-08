@@ -381,9 +381,10 @@ mod tests {
     pub fn try_test2() {
         let handle = test_harness("try_test2.js", r#"
             let containerless = require("../containerless");
+            let str = 'Got a response!';
             containerless.listen(function(req, resp) {
-                // console.log('Got a response');
-                console.error('Got a response');
+                // console.log(str);
+                console.error(str);
                 resp(req);
             });
         "#, "request1
