@@ -36,11 +36,71 @@ pub enum Op2 {
     StrictEq
 }
 
-#[derive(PartialEq, Debug, Deserialize)]
+#[derive(PartialEq, Debug, Deserialize, Clone)]
 pub enum Typ {
     I32,
     F64,
     Bool,
+    String,
+    Unknown,
+    Undefined,
+    Metavar(usize),
+    Ref(Box<Typ>),
+    Union(Box<Typ>, Box<Typ>)
+}
+
+impl Typ {
+
+    pub fn has_metavars(&self) -> bool {
+        match self {
+            Typ::Metavar(_) => true,
+            Typ::Ref(t) => t.has_metavars(),
+            Typ::Union(t1, t2) => t1.has_metavars() || t2.has_metavars(),
+            Typ::I32 => false,
+            Typ::F64 => false,
+            Typ::Bool => false,
+            Typ::String => false,
+            Typ::Unknown => false,
+            Typ::Undefined => false
+        }
+    }
+
+    pub fn occurs_in(&self, x: usize) -> bool {
+        match self {
+            Typ::Metavar(y) => x == *y,
+            Typ::Ref(t) => t.occurs_in(x),
+            Typ::Union(t1, t2) => t1.occurs_in(x) || t2.occurs_in(x),
+            Typ::I32 => false,
+            Typ::F64 => false,
+            Typ::Bool => false,
+            Typ::String => false,
+            Typ::Unknown => false,
+            Typ::Undefined => false
+        }
+    }
+
+    pub fn apply_subst(&mut self,
+        subst: &std::collections::HashMap<usize, Typ>) -> () {
+        match self {
+            Typ::Metavar(x) => match subst.get(x) {
+                None => (),
+                Some(t) => *self = t.clone()
+            },
+            Typ::Ref(t) => t.apply_subst(subst),
+            Typ::Union(t1, t2) => {
+                t1.apply_subst(subst);
+                t2.apply_subst(subst)
+            },
+            Typ::I32 => (),
+            Typ::F64 => (),
+            Typ::Bool => (),
+            Typ::String => (),
+            Typ::Unknown => (),
+            Typ::Undefined => ()
+        }
+    }
+
+
 }
 
 #[derive(PartialEq, Debug, Deserialize)]
@@ -92,6 +152,8 @@ pub enum Exp {
     Ref { e: Box<Exp> },
     #[serde(skip)]
     Deref { e: Box<Exp> },
+    #[serde(skip)]
+    SetRef { e1: Box<Exp>, e2: Box<Exp> },
     PrimApp {
         event: String,
         #[serde(rename = "eventArgs")] event_args: Vec<Exp>
@@ -109,7 +171,16 @@ pub mod constructors {
     // constructors to take care of allocating strings and boxes.
 
     use super::Exp::*;
+    use super::Typ;
     use super::{Exp, Op2, LVal};
+
+    pub fn t_union(t1: Typ, t2: Typ) -> Typ {
+        Typ::Union(Box::new(t1), Box::new(t2))
+    }
+
+    pub fn t_ref(t: Typ) -> Typ {
+        Typ::Ref(Box::new(t))
+    }
 
     pub fn unknown() -> Exp {
         return Unknown { };
@@ -155,7 +226,16 @@ pub mod constructors {
         return Set { name: name, named: Box::new(named) };
     }
 
-    // Apparently its bad Rust to receive a Vec<T>
+    pub fn ref_(e: Exp) -> Exp {
+        Ref { e: Box::new(e) }
+    }
+
+    pub fn setref(e1: Exp, e2: Exp) -> Exp {
+        SetRef { e1: Box::new(e1), e2: Box::new(e2) }
+    }
+
+    // NOTE(emily): Apparently its bad Rust to receive a Vec<T>
+    // NOTE(arjun): What is the alternative?
     pub fn block(body: Vec<Exp>) -> Exp {
         return Block { body: body };
     }
