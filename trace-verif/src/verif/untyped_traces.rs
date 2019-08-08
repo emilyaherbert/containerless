@@ -107,6 +107,7 @@ impl Typ {
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum Exp {
     Unknown { },
+    Integer { value: i32 },
     Number { value: f64 },
     Identifier { name: String },
     From { exp: Box<Exp>, field: String },
@@ -141,7 +142,7 @@ pub enum Exp {
         event: String,
         event_arg: Box<Exp>,
         callback_clos: Box<Exp>,
-        id: f64
+        id: i32
     },
     Label { name: String, body: Vec<Exp> },
     Break { name: String, value: Box<Exp> },
@@ -174,6 +175,8 @@ pub mod constructors {
     use super::Typ;
     use super::{Exp, Op2, LVal};
 
+    use std::collections::HashMap;
+
     pub fn t_union(t1: Typ, t2: Typ) -> Typ {
         Typ::Union(Box::new(t1), Box::new(t2))
     }
@@ -184,6 +187,10 @@ pub mod constructors {
 
     pub fn unknown() -> Exp {
         return Unknown { };
+    }
+
+    pub fn integer(value: i32) -> Exp {
+        return Integer { value: value };
     }
 
     pub fn number(value: f64) -> Exp {
@@ -230,6 +237,10 @@ pub mod constructors {
         Ref { e: Box::new(e) }
     }
 
+    pub fn deref(e: Exp) -> Exp {
+        Deref { e: Box::new(e) }
+    }
+
     pub fn setref(e1: Exp, e2: Exp) -> Exp {
         SetRef { e1: Box::new(e1), e2: Box::new(e2) }
     }
@@ -250,7 +261,7 @@ pub mod constructors {
         };
     }
 
-    pub fn loopback(event: &str, event_arg: Exp, callback_clos: Exp, id: f64) -> Exp {
+    pub fn loopback(event: &str, event_arg: Exp, callback_clos: Exp, id: i32) -> Exp {
         return Loopback { event: event.to_string(),
             callback_clos: Box::new(callback_clos),
             event_arg: Box::new(event_arg), id: id };
@@ -268,12 +279,17 @@ pub mod constructors {
         return Array { exps: exps };
     }
 
+    pub fn index(e1: Exp, e2: Exp) -> Exp {
+        return Index { e1: Box::new(e1), e2: Box::new(e2) };
+    }
+
     pub fn prim_app(event: &str, event_args: Vec<Exp>) -> Exp {
         return PrimApp { event: event.to_string(), event_args: event_args };
     }
 
-    // Clos { tenv: HashMap<String,Exp> }
-
+    pub fn clos(tenv: HashMap<String, Exp>) -> Exp {
+        return Clos { tenv: tenv };
+    }
 
 }
 
@@ -339,14 +355,14 @@ mod tests {
             panic!("\n{:?} \nin \n{}", exp, &stdout);
         }
 
-        println!("\n{:?}", exp);
+        //println!("\n{:?}", exp);
 
         //return exp.unwrap();
 
         // TODO(emily): Make this return a Result so that we can chain all transformations
         let mut transformer = Transformer::new();
-        let lifted = transformer.transform_exp(&(exp.unwrap()));
-        //println!("\n{:?}", lifted);
+        let lifted = transformer.transform(&(exp.unwrap()));
+        println!("\n{:?}", lifted);
         return lifted;
     }
 
