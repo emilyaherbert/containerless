@@ -18,9 +18,10 @@ pub struct Transformer {
 }
 
 impl Transformer {
+
     pub fn new() -> Transformer {
         return Transformer {
-            cbid: "$self.cbid".to_string(),
+            cbid: "$cbid".to_string(),
             cbargs: "$CBARGS".to_string(),
             next_id: 0
         };
@@ -111,14 +112,16 @@ impl Transformer {
             BinOp { op, e1, e2 } => return binop(op, self.transform(e1), self.transform(e2)),
             If { cond, true_part, false_part } => return if_(self.transform(cond), self.transform_exps(true_part), self.transform_exps(false_part)),
             While { cond, body } => return while_(self.transform(cond), self.transform(body)),
-            Let { name, typ, named } => return let_(name, alloc(self.transform(named))),
-            Set { name, named } => return set(self.transform_lval(name), self.transform(named)),
+            Let { name, typ, named } => return let_(name, ref_(self.transform(named))),
+            Set { name: LVal::Identifier { name }, named } =>
+                return setref(id(name), self.transform(named)),
+            Set { name, named } => unimplemented!(), // return set(self.transform_lval(name), self.transform(named)),
             Block { body } => return block(self.transform_exps(body)),
             Callback { event, event_arg, callback_args, callback_clos, body } => return self.transform_callback(event, event_arg, callback_args, callback_clos, body, &mut vec!()),
             Label { name, body } => return label(name, self.transform_exps(body)),
             Break { name, value } => return break_(name, self.transform(value)),
             Clos { tenv } => return clos(self.transform_clos(tenv)),
-            Array { exps } => return alloc(alloc(array(self.transform_exps(exps)))),
+            Array { exps } => return ref_(ref_(array(self.transform_exps(exps)))),
             PrimApp { event, event_args } => return prim_app(event, self.transform_exps(event_args)),
             Loopback { event, event_arg, callback_clos, id }  => panic!("Did not expect to find this here."),
             Ref { e }  => panic!("Did not expect to find this here."),

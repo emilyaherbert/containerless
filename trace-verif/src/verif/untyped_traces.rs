@@ -46,7 +46,8 @@ pub enum Typ {
     Undefined,
     Metavar(usize),
     Ref(Box<Typ>),
-    Union(Box<Typ>, Box<Typ>)
+    Union(Box<Typ>, Box<Typ>),
+    Object(Vec<(String, Typ)>)
 }
 
 impl Typ {
@@ -61,7 +62,9 @@ impl Typ {
             Typ::Bool => false,
             Typ::String => false,
             Typ::Unknown => false,
-            Typ::Undefined => false
+            Typ::Undefined => false,
+            Typ::Object(ts) => ts.iter()
+                .fold(false, |b, (_, t)| b || t.has_metavars())
         }
     }
 
@@ -75,7 +78,8 @@ impl Typ {
             Typ::Bool => false,
             Typ::String => false,
             Typ::Unknown => false,
-            Typ::Undefined => false
+            Typ::Undefined => false,
+            Typ::Object(ts) => unimplemented!()
         }
     }
 
@@ -96,7 +100,12 @@ impl Typ {
             Typ::Bool => (),
             Typ::String => (),
             Typ::Unknown => (),
-            Typ::Undefined => ()
+            Typ::Undefined => (),
+            Typ::Object(ts) => {
+                for (_, t) in ts.iter_mut() {
+                    t.apply_subst(subst)
+                }
+            }
         }
     }
 
@@ -149,8 +158,6 @@ pub enum Exp {
     Clos { tenv: HashMap<String,Exp> },
     Array { exps: Vec<Exp> },
     Index { e1: Box<Exp>, e2: Box<Exp> },
-    #[serde(skip)]
-    Alloc { e: Box<Exp> }, // bump.alloc
     #[serde(skip)]
     Ref { e: Box<Exp> },
     #[serde(skip)]
@@ -233,10 +240,6 @@ pub mod constructors {
 
     pub fn set(name: LVal, named: Exp) -> Exp {
         return Set { name: name, named: Box::new(named) };
-    }
-
-    pub fn alloc(e: Exp) -> Exp {
-        return Alloc { e: Box::new(e) };
     }
 
     pub fn ref_(e: Exp) -> Exp {
@@ -367,7 +370,8 @@ mod tests {
 
         // TODO(emily): Make this return a Result so that we can chain all transformations
         let mut transformer = Transformer::new();
-        let lifted = transformer.transform(&(exp.unwrap()));
+        let mut lifted = transformer.transform(&(exp.unwrap()));
+        crate::verif::typeinf::typeinf(&mut lifted).unwrap();
         println!("\n{:?}", lifted);
         return lifted;
     }

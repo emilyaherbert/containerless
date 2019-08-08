@@ -1,4 +1,4 @@
-use crate::verif::untyped_traces::{Exp, Typ};
+use crate::verif::untyped_traces::{Exp, Typ, Op2};
 use Exp::*;
 use im_rc::{HashMap as ImHashMap};
 
@@ -72,6 +72,7 @@ impl Typeinf {
         match exp {
             Exp::Unknown { } => Ok(Typ::Unknown),
             Exp::Number { value } => Ok(Typ::F64),
+            Exp::Integer { value } => Ok(Typ::I32),
             Exp::Identifier { name } => env.get(name)
                 .cloned()
                 .ok_or_else(|| err(format!("free variable: {}", &name))),
@@ -101,7 +102,43 @@ impl Typeinf {
             Exp::Let { name, named, typ } =>
                 Err(err("bare let expression outside a block")),
             Exp::Block { body } => self.exp_list(env, body),
-            _ => panic!("")
+            Exp::BinOp { op, e1, e2 } => {
+                let t1 = self.exp(env, e1)?;
+                let t2 = self.exp(env, e2)?;
+                match op {
+                   Op2::Add => {
+                       let x = self.fresh_var();
+                       self.constraints.push(Constraint::UnionMem(t1, x.clone()));
+                       self.constraints.push(Constraint::UnionMem(t2, x.clone()));
+                       Ok(x)
+                   },
+                   Op2::StrictEq => Ok(Typ::Bool),
+                   _ => panic!(format!("not implemented: {:?}", op))
+                }
+            },
+            Exp::Clos { tenv } => {
+                let mut ts = Vec::new();
+                for (x, e) in tenv.iter_mut() {
+                    let t = self.exp(env, e)?;
+                    ts.push((x.to_string(), t));
+                }
+                Ok(Typ::Object(ts))
+            },
+            Exp::If { cond, true_part, false_part } => {
+                let t1 = self.exp(env, cond)?;
+                let t2 = self.exp_list(env, true_part)?;
+                let t3 = self.exp_list(env, false_part)?;
+                let x = self.fresh_var();
+                self.constraints.push(Constraint::UnionMem(t2, x.clone()));
+                self.constraints.push(Constraint::UnionMem(t3, x.clone()));
+                Ok(x)
+            },
+            // Exp::Index { e1, e2 } => {
+            //     let t1 = self.exp(env, e1)?;
+            //     let t2 = self.exp(env, e2)?;
+
+            // },
+            _ => panic!(format!("{:?}", exp))
         }
     }
 
