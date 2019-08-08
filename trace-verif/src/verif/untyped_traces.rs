@@ -150,6 +150,8 @@ pub enum Exp {
     Array { exps: Vec<Exp> },
     Index { e1: Box<Exp>, e2: Box<Exp> },
     #[serde(skip)]
+    Alloc { e: Box<Exp> }, // bump.alloc
+    #[serde(skip)]
     Ref { e: Box<Exp> },
     #[serde(skip)]
     Deref { e: Box<Exp> },
@@ -231,6 +233,10 @@ pub mod constructors {
 
     pub fn set(name: LVal, named: Exp) -> Exp {
         return Set { name: name, named: Box::new(named) };
+    }
+
+    pub fn alloc(e: Exp) -> Exp {
+        return Alloc { e: Box::new(e) };
     }
 
     pub fn ref_(e: Exp) -> Exp {
