@@ -2,7 +2,6 @@ import * as state from './state';
 import * as callbacks from './callbacks';
 import * as exp from './exp';
 import * as fs from 'fs';
-import { version } from 'punycode';
 export { exp };
 
 export let cb = new callbacks.Callbacks();
@@ -14,7 +13,6 @@ export function getTrace() {
 export function get(
     uri: string,
     callback: (response: undefined | string) => void) {
-    //cb.trace.prettyPrint();
     return cb.get(uri, callback);
 }
 

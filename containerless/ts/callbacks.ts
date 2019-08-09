@@ -96,18 +96,29 @@ export class Callbacks {
         let [_, $argRep, $callbackClos] = this.trace.popArgs();
         let innerTrace = this.trace.traceCallback('get', $argRep, ['$clos', '$response'], $callbackClos);
         
-        request.get(uri, undefined, (error, resp) => {
+        // TODO(emily): Bad. Fix.
+        if (state.getListenPort() === 'test') {
             this.withTrace(innerTrace, () => {
-                innerTrace.pushArgs([identifier('$clos'), identifier('$reponse')]);
-                if (error !== null) {
-                    callback(undefined);
-                }
-                else {
-                    // TODO(arjun): Test case with nested closures
-                    callback(String(resp.body));
-                }
+                innerTrace.pushArgs([identifier('$clos'), identifier('$response')]);
+                callback(String("GENERIC RESPONSE"));
             });
-        });
+        } else {
+
+            request.get(uri, undefined, (error, resp) => {
+                this.withTrace(innerTrace, () => {
+                    innerTrace.pushArgs([identifier('$clos'), identifier('$reponse')]);
+                    if (error !== null) {
+                        callback(undefined);
+                    }
+                    else {
+                        // TODO(arjun): Test case with nested closures
+                        callback(String(resp.body));
+                    }
+
+                    //innerTrace.traceReturn(number(0));
+                });
+            });
+        }
     }
 
     public tracedListenCallback(
@@ -144,6 +155,8 @@ export class Callbacks {
                 else {
                     callback({ path: req.path }, responseCallback);
                 }
+
+                //innerTrace.traceReturn(number(0));
             });
         };
     }

@@ -200,11 +200,11 @@ impl fmt::Display for Exp {
             Exp::Stringg { value } => write!(f, "Stringg({})", value),
             Exp::Undefined { } => write!(f, "Undefined"),
             Exp::BinOp { op, e1, e2 } => write!(f, "BinOp({:?}, {}, {})", op, e1, e2),
-            Exp::If { cond, true_part, false_part } => write!(f, "If({}) (\n{}\n) else (\n{}\n)", cond, vec_to_string(true_part), vec_to_string(false_part)),
+            Exp::If { cond, true_part, false_part } => write!(f, "If({} \n[{}]\n else \n[{}]\n)", cond, vec_to_string(true_part), vec_to_string(false_part)),
             Exp::While { cond, body } => write!(f, "While({}, {})", cond, body),
             Exp::Let { name, typ, named } => write!(f, "Let({} : {:?}, {})", name, typ, named),
             Exp::Set { name, named } => write!(f, "Set({:?}, {})", name, named),
-            Exp::Block { body } => write!(f, "Block(\n{})", vec_to_string(body)),
+            Exp::Block { body } => write!(f, "Block(\n[{}])", vec_to_string(body)),
             Exp::Callback { event, event_arg, callback_args, callback_clos, body } => write!(f, "Callback({}, {}, {}, {}, {})", event, event_arg, vec_to_string2(callback_args), callback_clos, vec_to_string(body)),
             Exp::Loopback { event, event_arg, callback_clos, id } => write!(f, "Loopback({}, {}, {}, {})", event, event_arg, callback_clos, id),
             Exp::Label { name, body } => write!(f, "Label({}, {})", name, vec_to_string(body)),
@@ -407,7 +407,7 @@ mod tests {
             panic!("\n{:?} \nin \n{}", exp, &stdout);
         }
 
-        println!("{:?}\n", exp);
+        //println!("{:?}\n", exp);
 
         let mut transformer = Transformer::new();
         let mut lifted = transformer.transform(&(exp.unwrap()));
@@ -493,9 +493,9 @@ mod tests {
                         ]))),
                         let_("fun100", ref_(clos(HashMap::new()))),
                         let_("app300", ref_(block(vec![
-                            loopback("get", string("http://people.cs.umass.edu/~emilyherbert/"), deref(id("fun100")), 2),
-                            prim_app("console.log", vec![from(deref(id("console")), "error"), string("All done!")]), // console.error is for testing
-                        ])))
+                            loopback("get", string("http://people.cs.umass.edu/~emilyherbert/"), deref(id("fun100")), 2)
+                        ]))),
+                        prim_app("console.log", vec![from(deref(id("console")), "error"), string("All done!")]) // console.error is for testing
                     ])
                 ],
                 vec![
@@ -503,24 +503,27 @@ mod tests {
                         binop(&Op2::StrictEq, id("$CBID"), integer(2)),
                         vec![
                             let_("$clos", index(id("$CBARGS"), integer(0))),
-                            let_("$response", index(id("$CBARGS"), integer(0))),
-                            let_("response", ref_(deref(id("$response")))),
-                            prim_app("console.log", vec![from(deref(id("console")), "error"), deref(id("response"))])
+                            let_("$response", index(id("$CBARGS"), integer(1))),
+                            label("$return", vec![
+                                let_("response", ref_(deref(id("$response")))),
+                                prim_app("console.log", vec![from(deref(id("console")), "error"), deref(id("response"))])
+                            ])
                         ],
                         vec![
                             block(vec![
                                 let_("fun000", ref_(clos(HashMap::new()))),
                                 let_("app000", ref_(block(vec![
-                                    loopback("listen", number(0.0), deref(id("fun000")), 1)
-                                ])))
+                                    loopback("listen", number(0.0), deref(id("fun000")), 1),
+                                    unknown()
+                                ]))),
+                                unknown()
                             ])
                         ]
                     )
                 ]
             );
 
-        println!("{:?}\n", handle);
-        println!("{:?}", target);
+        assert!(handle == target);
 
         /*
 
