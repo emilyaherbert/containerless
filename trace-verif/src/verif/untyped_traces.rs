@@ -23,7 +23,8 @@ use std::collections::HashMap;
 use std::fmt;
 
 use crate::verif::{
-    transformer::Transformer
+    transformer::Transformer,
+    assertions::Assertions
 };
 
 #[derive(PartialEq, Debug, Deserialize, Clone)]
@@ -407,10 +408,15 @@ mod tests {
             panic!("\n{:?} \nin \n{}", exp, &stdout);
         }
 
+        let exp2 = exp.unwrap();
+
+        let assertions = Assertions::new();
+        assertions.assert_supposed_grammar(&exp2);
+
         //println!("{:?}\n", exp);
 
         let mut transformer = Transformer::new();
-        let mut lifted = transformer.transform(&(exp.unwrap()));
+        let mut lifted = transformer.transform(&exp2);
         //crate::verif::typeinf::typeinf(&mut lifted).unwrap();
         return lifted;
     }
