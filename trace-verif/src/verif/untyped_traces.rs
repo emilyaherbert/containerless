@@ -474,7 +474,7 @@ mod tests {
         "#, "hello
         goodbye
         hello again");
-        
+
         let target = if_(
                 binop(&Op2::StrictEq, id("$CBID"), integer(1)),
                 vec![
@@ -504,18 +504,15 @@ mod tests {
                         vec![
                             let_("$clos", index(id("$CBARGS"), integer(0))),
                             let_("$response", index(id("$CBARGS"), integer(0))),
-                            unknown()
-                            //let_("response", ref_(deref(id("$response")))),
-                            //prim_app("console.log", vec![from(deref(id("console")), "error"), deref(id("response"))])
+                            let_("response", ref_(deref(id("$response")))),
+                            prim_app("console.log", vec![from(deref(id("console")), "error"), deref(id("response"))])
                         ],
                         vec![
                             block(vec![
                                 let_("fun000", ref_(clos(HashMap::new()))),
                                 let_("app000", ref_(block(vec![
-                                    loopback("listen", number(0.0), deref(id("fun000")), 1),
-                                    unknown()
-                                ]))),
-                                unknown()
+                                    loopback("listen", number(0.0), deref(id("fun000")), 1)
+                                ])))
                             ])
                         ]
                     )
