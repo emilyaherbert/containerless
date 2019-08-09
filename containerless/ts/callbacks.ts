@@ -93,21 +93,21 @@ export class Callbacks {
         callback: (response: undefined | string) => void) {
         // TODO(arjun): string(uri) is not right. This needs to be the expression
         // passed to the function.
-        let innerTrace = this.trace.traceCallback('get', this.trace.popArg(), ['$response'], unknown());
+        let [_, $argRep, $callbackClos] = this.trace.popArgs();
+        let innerTrace = this.trace.traceCallback('get', $argRep, ['$clos', '$response'], $callbackClos);
+        
         request.get(uri, undefined, (error, resp) => {
             this.withTrace(innerTrace, () => {
+                innerTrace.pushArgs([identifier('$clos'), identifier('$reponse')]);
                 if (error !== null) {
-                    innerTrace.pushArg(identifier('$response'));
                     callback(undefined);
                 }
                 else {
                     // TODO(arjun): Test case with nested closures
-                    innerTrace.pushArg(identifier('$response'));
                     callback(String(resp.body));
                 }
             });
         });
-        this.trace.traceReturn(number(0));
     }
 
     public tracedListenCallback(
@@ -118,7 +118,8 @@ export class Callbacks {
         return (req: Request, resp: express.Response) => {
             this.withTrace(innerTrace, () => {
 
-                innerTrace.traceLet('responseCallback', clos({ }));
+                // NOTE(emily): I don't think we need this now that we are lifting closures to be an argument to callbacks.
+                //innerTrace.traceLet('responseCallback', clos({ }));
                 function responseCallback(response: any) {
                     // #3 <-
                     let [_, $response] = innerTrace.traceFunctionBody('$return');

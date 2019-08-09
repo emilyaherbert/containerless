@@ -20,6 +20,8 @@
 use serde::Deserialize;
 use std::collections::HashMap;
 
+use std::fmt;
+
 use crate::verif::{
     transformer::Transformer
 };
@@ -112,7 +114,7 @@ impl Typ {
 
 }
 
-#[derive(PartialEq, Debug, Deserialize)]
+#[derive(PartialEq, Debug, Deserialize, Clone)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum Exp {
     Unknown { },
@@ -170,6 +172,55 @@ pub enum Exp {
     }
 }
 
+#[derive(PartialEq, Debug, Deserialize, Clone)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum LVal {
+    Identifier { name: String },
+    From { exp: Box<Exp>, field: String },
+    //Tuple { elems: Vec<String> }
+}
+
+// https://stackoverflow.com/a/42661287
+fn vec_to_string(v: &[Exp]) -> String {
+    return v.iter().fold(String::new(), |acc, num| acc + &num.to_string() + ",\n");
+}
+
+fn vec_to_string2(v: &[String]) -> String {
+    return v.iter().fold(String::new(), |acc, num| acc + &num.to_string() + ",\n");
+}
+
+impl fmt::Display for Exp {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+       match self {
+            Exp::Unknown { } => write!(f, "Unknown"),
+            Exp::Integer { value } => write!(f, "Integer({})", value),
+            Exp::Number { value } => write!(f, "Number({})", value),
+            Exp::Identifier { name } => write!(f, "Identifier({})", name),
+            Exp::From { exp, field } => write!(f, "From({},{})", exp, field),
+            Exp::Stringg { value } => write!(f, "Stringg({})", value),
+            Exp::Undefined { } => write!(f, "Undefined"),
+            Exp::BinOp { op, e1, e2 } => write!(f, "BinOp({:?}, {}, {})", op, e1, e2),
+            Exp::If { cond, true_part, false_part } => write!(f, "If({}) (\n{}\n) else (\n{}\n)", cond, vec_to_string(true_part), vec_to_string(false_part)),
+            Exp::While { cond, body } => write!(f, "While({}, {})", cond, body),
+            Exp::Let { name, typ, named } => write!(f, "Let({} : {:?}, {})", name, typ, named),
+            Exp::Set { name, named } => write!(f, "Set({:?}, {})", name, named),
+            Exp::Block { body } => write!(f, "Block(\n{})", vec_to_string(body)),
+            Exp::Callback { event, event_arg, callback_args, callback_clos, body } => write!(f, "Callback({}, {}, {}, {}, {})", event, event_arg, vec_to_string2(callback_args), callback_clos, vec_to_string(body)),
+            Exp::Loopback { event, event_arg, callback_clos, id } => write!(f, "Loopback({}, {}, {}, {})", event, event_arg, callback_clos, id),
+            Exp::Label { name, body } => write!(f, "Label({}, {})", name, vec_to_string(body)),
+            Exp::Break { name, value } => write!(f, "Break({}, {})", name, value),
+            Exp::Clos { tenv } => write!(f, "Clos({:?}", tenv),
+            Exp::Array { exps } => write!(f, "Array({})", vec_to_string(exps)),
+            Exp::Index { e1, e2 } => write!(f, "Index({}, {})", e1, e2),
+            Exp::Ref { e } => write!(f, "Ref({})", e),
+            Exp::Deref { e } => write!(f, "Deref({})", e),
+            Exp::SetRef { e1, e2 } => write!(f, "SetRef({}, {})", e1, e2),
+            Exp::PrimApp { event, event_args } => write!(f, "PrimApp({}, {})", event, vec_to_string(event_args)),
+            _ => write!(f, "TODO")
+       }
+    }
+}
+
 pub mod constructors {
 
     // NOTE(arjun): I wish we could use this macro to avoid writing all these
@@ -182,7 +233,7 @@ pub mod constructors {
 
     use super::Exp::*;
     use super::Typ;
-    use super::{Exp, Op2, LVal};
+    use crate::verif::untyped_traces::{Exp, Op2, LVal};
 
     use std::collections::HashMap;
 
@@ -302,14 +353,6 @@ pub mod constructors {
 
 }
 
-#[derive(PartialEq, Debug, Deserialize)]
-#[serde(tag = "kind", rename_all = "camelCase")]
-pub enum LVal {
-    Identifier { name: String },
-    From { exp: Box<Exp>, field: String },
-    //Tuple { elems: Vec<String> }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -364,15 +407,11 @@ mod tests {
             panic!("\n{:?} \nin \n{}", exp, &stdout);
         }
 
-        //println!("\n{:?}", exp);
+        println!("{:?}\n", exp);
 
-        //return exp.unwrap();
-
-        // TODO(emily): Make this return a Result so that we can chain all transformations
         let mut transformer = Transformer::new();
         let mut lifted = transformer.transform(&(exp.unwrap()));
-        crate::verif::typeinf::typeinf(&mut lifted).unwrap();
-        println!("\n{:?}", lifted);
+        //crate::verif::typeinf::typeinf(&mut lifted).unwrap();
         return lifted;
     }
 
@@ -415,6 +454,292 @@ mod tests {
             });
         "#, "hello");
         // assert!(false);
+    }
+
+    #[test]
+    pub fn multiple_callbacks() {
+        let handle = test_harness("multiple_callbacks.js", r#"
+            let containerless = require('../containerless');
+
+            containerless.listen(function(req, resp) {
+                console.error('Got a response');
+                resp(req);
+
+                containerless.get('http://people.cs.umass.edu/~emilyherbert/', function(response) {
+                    console.error(response);
+                });
+
+                console.error('All done!');
+            });
+        "#, "hello
+        goodbye
+        hello again");
+        
+        let target = if_(
+                binop(&Op2::StrictEq, id("$CBID"), integer(1)),
+                vec![
+                    let_("$clos", index(id("$CBARGS"), integer(0))),
+                    let_("$request", index(id("$CBARGS"), integer(1))),
+                    let_("$responseCallback", index(id("$CBARGS"), integer(2))),
+                    label("$return", vec![
+                        let_("req", ref_(deref(id("$request")))),
+                        let_("resp", ref_(deref(id("$responseCallback")))),
+                        prim_app("console.log", vec![from(deref(id("console")), "error"), string("Got a response")]), // console.error is for testing
+                        let_("app200", ref_(block(vec![
+                            label("$return", vec![
+                                let_("response", ref_(deref(id("req")))),
+                                prim_app("send", vec![from(deref(id("resp")), "send"), deref(id("response"))])
+                            ])
+                        ]))),
+                        let_("fun100", ref_(clos(HashMap::new()))),
+                        let_("app300", ref_(block(vec![
+                            loopback("get", string("http://people.cs.umass.edu/~emilyherbert/"), deref(id("fun100")), 2),
+                            prim_app("console.log", vec![from(deref(id("console")), "error"), string("All done!")]), // console.error is for testing
+                        ])))
+                    ])
+                ],
+                vec![
+                    if_(
+                        binop(&Op2::StrictEq, id("$CBID"), integer(2)),
+                        vec![
+                            let_("$clos", index(id("$CBARGS"), integer(0))),
+                            let_("$response", index(id("$CBARGS"), integer(0))),
+                            unknown()
+                            //let_("response", ref_(deref(id("$response")))),
+                            //prim_app("console.log", vec![from(deref(id("console")), "error"), deref(id("response"))])
+                        ],
+                        vec![
+                            block(vec![
+                                let_("fun000", ref_(clos(HashMap::new()))),
+                                let_("app000", ref_(block(vec![
+                                    loopback("listen", number(0.0), deref(id("fun000")), 1),
+                                    unknown()
+                                ]))),
+                                unknown()
+                            ])
+                        ]
+                    )
+                ]
+            );
+
+        println!("{:?}\n", handle);
+        println!("{:?}", target);
+
+        /*
+
+        {
+        "kind": "block",
+        "body": [
+            {
+            "kind": "let",
+            "name": "fun000",
+            "named": {
+                "kind": "clos",
+                "tenv": {
+                
+                }
+            }
+            },
+            {
+            "kind": "let",
+            "name": "app000",
+            "named": {
+                "kind": "block",
+                "body": [
+                {
+                    "kind": "callback",
+                    "event": "listen",
+                    "eventArg": {
+                    "kind": "number",
+                    "value": 0
+                    },
+                    "callbackArgs": [
+                    "$clos",
+                    "$request",
+                    "$responseCallback"
+                    ],
+                    "clos": {
+                    "kind": "identifier",
+                    "name": "fun000"
+                    },
+                    "body": [
+                    {
+                        "kind": "label",
+                        "name": "$return",
+                        "body": [
+                        {
+                            "kind": "let",
+                            "name": "req",
+                            "named": {
+                            "kind": "identifier",
+                            "name": "$request"
+                            }
+                        },
+                        {
+                            "kind": "let",
+                            "name": "resp",
+                            "named": {
+                            "kind": "identifier",
+                            "name": "$responseCallback"
+                            }
+                        },
+                        {
+                            "kind": "primApp",
+                            "event": "console.log",
+                            "eventArgs": [
+                            {
+                                "kind": "from",
+                                "exp": {
+                                "kind": "identifier",
+                                "name": "console"
+                                },
+                                "field": "log"
+                            },
+                            {
+                                "kind": "string",
+                                "value": "Got a response"
+                            }
+                            ]
+                        },
+                        {
+                            "kind": "let",
+                            "name": "app200",
+                            "named": {
+                            "kind": "block",
+                            "body": [
+                                {
+                                "kind": "label",
+                                "name": "$return",
+                                "body": [
+                                    {
+                                    "kind": "let",
+                                    "name": "response",
+                                    "named": {
+                                        "kind": "identifier",
+                                        "name": "req"
+                                    }
+                                    },
+                                    {
+                                    "kind": "primApp",
+                                    "event": "send",
+                                    "eventArgs": [
+                                        {
+                                        "kind": "from",
+                                        "exp": {
+                                            "kind": "identifier",
+                                            "name": "resp"
+                                        },
+                                        "field": "send"
+                                        },
+                                        {
+                                        "kind": "identifier",
+                                        "name": "response"
+                                        }
+                                    ]
+                                    }
+                                ]
+                                }
+                            ]
+                            }
+                        },
+                        {
+                            "kind": "let",
+                            "name": "fun100",
+                            "named": {
+                            "kind": "clos",
+                            "tenv": {
+                                
+                            }
+                            }
+                        },
+                        {
+                            "kind": "let",
+                            "name": "app300",
+                            "named": {
+                            "kind": "block",
+                            "body": [
+                                {
+                                "kind": "callback",
+                                "event": "get",
+                                "eventArg": {
+                                    "kind": "string",
+                                    "value": "http:\/\/google.com"
+                                },
+                                "callbackArgs": [
+                                    "$clos",
+                                    "$response"
+                                ],
+                                "clos": {
+                                    "kind": "identifier",
+                                    "name": "fun100"
+                                },
+                                "body": [
+                                    {
+                                    "kind": "label",
+                                    "name": "$return",
+                                    "body": [
+                                        {
+                                        "kind": "let",
+                                        "name": "response",
+                                        "named": {
+                                            "kind": "identifier",
+                                            "name": "$reponse"
+                                        }
+                                        },
+                                        {
+                                        "kind": "primApp",
+                                        "event": "console.log",
+                                        "eventArgs": [
+                                            {
+                                            "kind": "from",
+                                            "exp": {
+                                                "kind": "identifier",
+                                                "name": "console"
+                                            },
+                                            "field": "log"
+                                            },
+                                            {
+                                            "kind": "identifier",
+                                            "name": "response"
+                                            }
+                                        ]
+                                        }
+                                    ]
+                                    }
+                                ]
+                                }
+                            ]
+                            }
+                        },
+                        {
+                            "kind": "primApp",
+                            "event": "console.log",
+                            "eventArgs": [
+                            {
+                                "kind": "from",
+                                "exp": {
+                                "kind": "identifier",
+                                "name": "console"
+                                },
+                                "field": "log"
+                            },
+                            {
+                                "kind": "string",
+                                "value": "All done!"
+                            }
+                            ]
+                        }
+                        ]
+                    }
+                    ]
+                }
+                ]
+            }
+            }
+        ]
+        }
+
+        */
     }
 
 }
