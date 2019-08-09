@@ -13,6 +13,7 @@ export function getTrace() {
 export function get(
     uri: string,
     callback: (response: undefined | string) => void) {
+    //cb.trace.prettyPrint();
     return cb.get(uri, callback);
 }
 

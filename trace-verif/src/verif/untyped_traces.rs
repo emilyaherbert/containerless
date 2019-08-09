@@ -461,12 +461,16 @@ mod tests {
         let handle = test_harness("multiple_callbacks.js", r#"
             let containerless = require('../containerless');
 
+            let foo = 42;
+
             containerless.listen(function(req, resp) {
                 console.error('Got a response');
+                let bar = foo + 1;
                 resp(req);
 
                 containerless.get('http://people.cs.umass.edu/~emilyherbert/', function(response) {
                     console.error(response);
+                    let baz = foo + bar;
                 });
 
                 console.error('All done!');
@@ -474,6 +478,13 @@ mod tests {
         "#, "hello
         goodbye
         hello again");
+
+        let mut tenv1 = HashMap::new();
+        tenv1.insert("foo00".to_string(), id("foo00"));
+
+        let mut tenv2 = HashMap::new();
+        tenv2.insert("bar00".to_string(), id("bar00"));
+        tenv2.insert("foo00".to_string(), from(deref(id("$clos")), "foo00"));
 
         let target = if_(
                 binop(&Op2::StrictEq, id("$CBID"), integer(1)),
@@ -485,13 +496,14 @@ mod tests {
                         let_("req", ref_(deref(id("$request")))),
                         let_("resp", ref_(deref(id("$responseCallback")))),
                         prim_app("console.log", vec![from(deref(id("console")), "error"), string("Got a response")]), // console.error is for testing
+                        let_("bar00", ref_(binop(&Op2::Add, from(deref(id("$clos")), "foo00"), number(1.0)))),
                         let_("app200", ref_(block(vec![
                             label("$return", vec![
                                 let_("response", ref_(deref(id("req")))),
                                 prim_app("send", vec![from(deref(id("resp")), "send"), deref(id("response"))])
                             ])
                         ]))),
-                        let_("fun100", ref_(clos(HashMap::new()))),
+                        let_("fun100", ref_(clos(tenv2))),
                         let_("app300", ref_(block(vec![
                             loopback("get", string("http://people.cs.umass.edu/~emilyherbert/"), deref(id("fun100")), 2)
                         ]))),
@@ -506,12 +518,14 @@ mod tests {
                             let_("$response", index(id("$CBARGS"), integer(1))),
                             label("$return", vec![
                                 let_("response", ref_(deref(id("$response")))),
-                                prim_app("console.log", vec![from(deref(id("console")), "error"), deref(id("response"))])
+                                prim_app("console.log", vec![from(deref(id("console")), "error"), deref(id("response"))]),
+                                let_("baz00", ref_(binop(&Op2::Add, from(deref(id("$clos")), "foo00"), from(deref(id("$clos")), "bar00"))))
                             ])
                         ],
                         vec![
                             block(vec![
-                                let_("fun000", ref_(clos(HashMap::new()))),
+                                let_("foo00", ref_(number(42.0))),
+                                let_("fun000", ref_(clos(tenv1))),
                                 let_("app000", ref_(block(vec![
                                     loopback("listen", number(0.0), deref(id("fun000")), 1),
                                     unknown()
@@ -523,6 +537,9 @@ mod tests {
                 ]
             );
 
+        //println!("{}\n", handle);
+        //println!("{}", target);
+
         assert!(handle == target);
 
         /*
@@ -532,11 +549,22 @@ mod tests {
         "body": [
             {
             "kind": "let",
+            "name": "foo00",
+            "named": {
+                "kind": "number",
+                "value": 42
+            }
+            },
+            {
+            "kind": "let",
             "name": "fun000",
             "named": {
                 "kind": "clos",
                 "tenv": {
-                
+                "foo00": {
+                    "kind": "identifier",
+                    "name": "foo00"
+                }
                 }
             }
             },
@@ -593,13 +621,33 @@ mod tests {
                                 "kind": "identifier",
                                 "name": "console"
                                 },
-                                "field": "log"
+                                "field": "error"
                             },
                             {
                                 "kind": "string",
                                 "value": "Got a response"
                             }
                             ]
+                        },
+                        {
+                            "kind": "let",
+                            "name": "bar00",
+                            "named": {
+                            "kind": "binop",
+                            "op": "+",
+                            "e1": {
+                                "kind": "from",
+                                "exp": {
+                                "kind": "identifier",
+                                "name": "$clos"
+                                },
+                                "field": "foo00"
+                            },
+                            "e2": {
+                                "kind": "number",
+                                "value": 1
+                            }
+                            }
                         },
                         {
                             "kind": "let",
@@ -648,7 +696,18 @@ mod tests {
                             "named": {
                             "kind": "clos",
                             "tenv": {
-                                
+                                "foo00": {
+                                "kind": "from",
+                                "exp": {
+                                    "kind": "identifier",
+                                    "name": "$clos"
+                                },
+                                "field": "foo00"
+                                },
+                                "bar00": {
+                                "kind": "identifier",
+                                "name": "bar00"
+                                }
                             }
                             }
                         },
@@ -663,7 +722,7 @@ mod tests {
                                 "event": "get",
                                 "eventArg": {
                                     "kind": "string",
-                                    "value": "http:\/\/google.com"
+                                    "value": "http:\/\/people.cs.umass.edu\/~emilyherbert\/"
                                 },
                                 "callbackArgs": [
                                     "$clos",
@@ -696,13 +755,37 @@ mod tests {
                                                 "kind": "identifier",
                                                 "name": "console"
                                             },
-                                            "field": "log"
+                                            "field": "error"
                                             },
                                             {
                                             "kind": "identifier",
                                             "name": "response"
                                             }
                                         ]
+                                        },
+                                        {
+                                        "kind": "let",
+                                        "name": "baz00",
+                                        "named": {
+                                            "kind": "binop",
+                                            "op": "+",
+                                            "e1": {
+                                            "kind": "from",
+                                            "exp": {
+                                                "kind": "identifier",
+                                                "name": "$clos"
+                                            },
+                                            "field": "foo00"
+                                            },
+                                            "e2": {
+                                            "kind": "from",
+                                            "exp": {
+                                                "kind": "identifier",
+                                                "name": "$clos"
+                                            },
+                                            "field": "bar00"
+                                            }
+                                        }
                                         }
                                     ]
                                     }
@@ -721,7 +804,7 @@ mod tests {
                                 "kind": "identifier",
                                 "name": "console"
                                 },
-                                "field": "log"
+                                "field": "error"
                             },
                             {
                                 "kind": "string",
