@@ -410,8 +410,9 @@ mod tests {
 
         let exp2 = exp.unwrap();
 
-        let assertions = Assertions::new();
+        let mut assertions = Assertions::new();
         assertions.assert_supposed_grammar(&exp2);
+        assertions.assert_unique_names(&exp2);
 
         //println!("{:?}\n", exp);
 
