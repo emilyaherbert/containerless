@@ -409,16 +409,16 @@ mod tests {
 
         //println!("{:?}\n", exp);
 
-        let mut transformer = Transformer::new();
-        let mut lifted = transformer.transform(&(exp.unwrap()));
-        //crate::verif::typeinf::typeinf(&mut lifted).unwrap();
-        return lifted;
+        // let mut transformer = Transformer::new();
+        // let mut lifted = transformer.transform(&(exp.unwrap()));
+        let mut e = exp.unwrap();
+        crate::verif::typeinf::typeinf(&mut e).unwrap();
+        return e;
     }
-
 
     #[test]
     pub fn try_test() {
-        let handle = test_harness("try_test.js", r#"
+        let _handle = test_harness("try_test.js", r#"
             let containerless = require("../containerless");
             containerless.listen(function(req, resp) {
                 resp('Hello, world!');
@@ -426,7 +426,7 @@ mod tests {
         "#, "");
     }
 
-    #[test]
+    // #[test]
     pub fn try_test2() {
         let handle = test_harness("try_test2.js", r#"
             let containerless = require("../containerless");
@@ -440,7 +440,7 @@ mod tests {
         request2");
     }
 
-    #[test]
+    // #[test]
     pub fn trace_with_unknown() {
         let handle = test_harness("trace_with_unknown.js", r#"
             let containerless = require("../containerless");
@@ -456,7 +456,7 @@ mod tests {
         // assert!(false);
     }
 
-    #[test]
+    // #[test]
     pub fn multiple_callbacks() {
         let handle = test_harness("multiple_callbacks.js", r#"
             let containerless = require('../containerless');

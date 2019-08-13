@@ -133,6 +133,22 @@ impl Typeinf {
                 self.constraints.push(Constraint::UnionMem(t3, x.clone()));
                 Ok(x)
             },
+            Exp::From { exp, field } => {
+                let t = self.exp(env, exp)?;
+                // match t {
+                //     Typ::Object(typ_vec) => {
+                //     }
+                // }
+                unimplemented!()
+            },
+            Exp::Callback { event, event_arg, callback_args, callback_clos,
+                body } => {
+                // Type-check event_arg
+                // The type of event tells us what the types of callback_args
+                // will be.
+                // 
+                unimplemented!()
+            },
             // Exp::Index { e1, e2 } => {
             //     let t1 = self.exp(env, e1)?;
             //     let t2 = self.exp(env, e2)?;
