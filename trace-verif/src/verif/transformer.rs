@@ -12,27 +12,13 @@ use crate::verif::{
 };
 
 pub struct Transformer {
-    cbid: String,
-    cbargs: String,
-    next_id: i32,
-    callbacks: Vec<(i32, Vec<Exp>)>
-    //callback_control_flow: Exp
+
 }
 
 impl Transformer {
 
     pub fn new() -> Transformer {
-        return Transformer {
-            cbid: "$CBID".to_string(),
-            cbargs: "$CBARGS".to_string(),
-            next_id: 1,
-            callbacks: vec!()
-        };
-    }
-
-    fn fresh_id(&mut self) -> i32 {
-        self.next_id = self.next_id + 1;
-        return self.next_id - 1;
+        return Transformer { };
     }
 
     fn transform_lval(&mut self, lval: &LVal) -> LVal {
@@ -47,40 +33,10 @@ impl Transformer {
         }
     }
 
-    fn transform_callback(&mut self, event: &str, event_arg: &Exp, callback_args: &[String], callback_clos: &Exp, body: &[Exp]) -> Exp {
-        let x = self.fresh_id();
-        let mut lifted_body: Vec<Exp> = vec!();
-        for (i, e) in callback_args.iter().enumerate() {
-            lifted_body.push(let_(e, ref_(index(id(&self.cbargs), integer(i as i32)))));
-        }
-        lifted_body.append(&mut self.transform_exps(body));
-        self.callbacks.push((x, lifted_body));
-        let loopback_call = loopback(event, self.transform_exp(event_arg), self.transform_exp(callback_clos), x);
-        return loopback_call;
-    }
-
     fn transform_exps(&mut self, exps: &[Exp]) -> Vec<Exp> {
         let mut ret: Vec<Exp> = vec!();
-        for (i, e) in exps.iter().enumerate() {
-            match e {
-                /*
-                Callback { event, event_arg, callback_args, callback_clos, body } => {
-                    if(i < exps.len()-1) {
-                        let (p, r) = exps.split_at(i+1);
-                        let mut loopback = vec!(self.transform_callback(event, event_arg, callback_args, callback_clos, body));
-                        loopback.append(&mut self.transform_exps(r));
-                        return loopback;
-                    } else {
-                        let loopback = vec!(self.transform_callback(event, event_arg, callback_args, callback_clos, body));
-                        return loopback;
-                    }
-                },
-                */
-                _ => {
-                    let e = self.transform_exp(e);
-                    ret.push(e);
-                }
-            }
+        for e in exps.iter() {
+            ret.push(self.transform_exp(e));
         }
         return ret;
     }
@@ -109,9 +65,15 @@ impl Transformer {
             Stringg { value } => return string(value),
             Undefined { } => return undefined(),
             BinOp { op, e1, e2 } => return binop(op, self.transform_exp(e1), self.transform_exp(e2)),
-            If { cond, true_part, false_part } => return if_(self.transform_exp(cond), self.transform_exps(true_part), self.transform_exps(false_part)),
+            If { cond, true_part, false_part } => {
+                return if_(
+                    self.transform_exp(cond),
+                    self.transform_exps(true_part),
+                    self.transform_exps(false_part)
+                );
+            },
             While { cond, body } => return while_(self.transform_exp(cond), self.transform_exp(body)),
-            Let { name, typ, named } => return let_(name, ref_(self.transform_exp(named))),
+            Let { name, typ, named } => return let_(name, typ.clone(), ref_(self.transform_exp(named))),
             Set { name: LVal::Identifier { name }, named } =>
                 return setref(id(name), self.transform_exp(named)),
             Set { name: LVal::From { exp, field }, named } => {
@@ -122,7 +84,6 @@ impl Transformer {
             } 
             Block { body } => return block(self.transform_exps(body)),
             Callback { event, event_arg, callback_args, callback_clos, body } => {
-                //return self.transform_callback(event, event_arg, callback_args, callback_clos, body),
                 return callback(event,
                     self.transform_exp(event_arg),
                     callback_args.to_vec(),
@@ -146,24 +107,12 @@ impl Transformer {
 
     /*
 
-        2. Heap allocate all local variables (Alloc)
-           Dereference all their uses (Deref)
+        1. Heap allocate all local variables (Ref)
+        2. Dereference all their uses (Deref)
+        3. Transform Set to SetRef
 
     */
     pub fn transform(&mut self, exp: &Exp) -> Exp {
-        let base = self. transform_exp(exp);
-        /*
-        let t = self.callbacks.iter()
-            .fold(base, |acc, (k, v)| {
-                if_(
-                    binop(&StrictEq, id(&self.cbid), integer(*k)),
-                    // Not sure how to get around clone here.
-                    (*v).clone(),
-                    vec!(acc)
-                )
-            });
-        */
-        //println!("{:?}", self.callbacks);
-        return base;
+        return self.transform_exp(exp);
     }
 }

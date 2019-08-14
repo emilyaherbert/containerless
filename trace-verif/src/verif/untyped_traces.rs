@@ -17,14 +17,18 @@
 //
 // - I could not find documentation for the #[serde(rename = "+")] directive.
 //   Instead, I guessed that it existed and it worked!
-use serde::Deserialize;
 use std::collections::HashMap;
 
 use std::fmt;
 
+use serde::{Deserialize, Deserializer};
+use serde::de::{self, Visitor, MapAccess};
+use std::marker::PhantomData;
+
 use crate::verif::{
     transformer::Transformer,
-    assertions::Assertions
+    assertions::Assertions,
+    lift_callbacks::LiftCallbacks
 };
 
 #[derive(PartialEq, Debug, Deserialize, Clone)]
@@ -54,6 +58,57 @@ pub enum Typ {
     Request,
     ResponseCallback
 }
+
+#[derive(PartialEq, Debug, Clone)]
+pub struct Arg { pub name: String, pub typ: Option<Typ> }
+
+// https://users.rust-lang.org/t/need-help-with-serde-deserialize-with/18374
+// https://stackoverflow.com/questions/41151080/deserialize-a-json-string-or-array-of-strings-into-a-vec/43627388#43627388
+impl<'de> ::serde::Deserialize<'de> for Arg {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: ::serde::Deserializer<'de> {
+        struct Visitor;
+
+        impl<'de> ::serde::de::Visitor<'de> for Visitor {
+            type Value = Arg;
+
+            fn expecting(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+                write!(f, "a string")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E> where E: ::serde::de::Error {
+                Ok(Arg { name: v.to_string(), typ: None })
+            }
+        }
+
+        deserializer.deserialize_any(Visitor)
+    }
+}
+
+/// Deserializes a string or a sequence of strings into a vector of the target type.
+pub fn deserialize_args<'de, T, D>(deserializer: D) -> Result<Vec<T>, D::Error>
+    where T: ::serde::Deserialize<'de>, D: ::serde::Deserializer<'de> {
+
+    struct Visitor<T>(::std::marker::PhantomData<T>);
+
+    impl<'de, T> ::serde::de::Visitor<'de> for Visitor<T>
+        where T: ::serde::Deserialize<'de> {
+
+        type Value = Vec<T>;
+
+        fn expecting(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+            write!(f, "a string or sequence of strings")
+        }
+
+        fn visit_seq<A>(self, visitor: A) -> Result<Self::Value, A::Error>
+            where A: ::serde::de::SeqAccess<'de> {
+
+            ::serde::Deserialize::deserialize(::serde::de::value::SeqAccessDeserializer::new(visitor))
+        }
+    }
+
+    deserializer.deserialize_any(Visitor(::std::marker::PhantomData))
+}
+
 
 impl Typ {
 
@@ -150,7 +205,7 @@ pub enum Exp {
     Callback {
         event: String,
         #[serde(rename = "eventArg")] event_arg: Box<Exp>,
-        #[serde(rename = "callbackArgs")] callback_args: Vec<String>,
+        #[serde(rename = "callbackArgs", deserialize_with = "deserialize_args")] callback_args: Vec<Arg>,
         #[serde(rename = "clos")] callback_clos: Box<Exp>,
         body: Vec<Exp>
     },
@@ -210,7 +265,7 @@ impl fmt::Display for Exp {
             Exp::Let { name, typ, named } => write!(f, "Let({} : {:?}, {})", name, typ, named),
             Exp::Set { name, named } => write!(f, "Set({:?}, {})", name, named),
             Exp::Block { body } => write!(f, "Block(\n[{}])", vec_to_string(body)),
-            Exp::Callback { event, event_arg, callback_args, callback_clos, body } => write!(f, "Callback({}, {}, {}, {}, {})", event, event_arg, vec_to_string2(callback_args), callback_clos, vec_to_string(body)),
+            Exp::Callback { event, event_arg, callback_args, callback_clos, body } => write!(f, "Callback({}, {}, {:?}, {}, {})", event, event_arg, callback_args, callback_clos, vec_to_string(body)),
             Exp::Loopback { event, event_arg, callback_clos, id } => write!(f, "Loopback({}, {}, {}, {})", event, event_arg, callback_clos, id),
             Exp::Label { name, body } => write!(f, "Label({}, {})", name, vec_to_string(body)),
             Exp::Break { name, value } => write!(f, "Break({}, {})", name, value),
@@ -237,7 +292,7 @@ pub mod constructors {
 
     use super::Exp::*;
     use super::Typ;
-    use crate::verif::untyped_traces::{Exp, Op2, LVal};
+    use crate::verif::untyped_traces::{Exp, Op2, LVal, Arg};
 
     use std::collections::HashMap;
 
@@ -289,8 +344,8 @@ pub mod constructors {
         return While { cond: Box::new(cond), body: Box::new(body) };
     }
 
-    pub fn let_(name: &str, named: Exp) -> Exp {
-        return Let { name: name.to_string(), typ: None, named: Box::new(named) };
+    pub fn let_(name: &str, typ: Option<Typ>, named: Exp) -> Exp {
+        return Let { name: name.to_string(), typ: typ, named: Box::new(named) };
     }
 
     pub fn set(name: LVal, named: Exp) -> Exp {
@@ -315,7 +370,7 @@ pub mod constructors {
         return Block { body: body };
     }
 
-    pub fn callback(event: &str, event_arg: Exp, callback_args: Vec<String>, callback_clos: Exp, body: Vec<Exp>) -> Exp {
+    pub fn callback(event: &str, event_arg: Exp, callback_args: Vec<Arg>, callback_clos: Exp, body: Vec<Exp>) -> Exp {
         return Callback {
             event: event.to_string(),
             event_arg: Box::new(event_arg),
@@ -411,18 +466,22 @@ mod tests {
             panic!("\n{:?} \nin \n{}", exp, &stdout);
         }
 
-        let mut exp2 = exp.unwrap();
 
         let mut assertions = Assertions::new();
+        let mut transformer = Transformer::new();
+        let mut lift_callbacks = LiftCallbacks::new();
+
+        let exp2 = exp.unwrap();
+
         assertions.assert_supposed_grammar(&exp2);
         assertions.assert_unique_names(&exp2);
 
-        //println!("{:?}\n", exp2);
-
-        let mut transformer = Transformer::new();
         let mut exp3 = transformer.transform(&exp2);
         crate::verif::typeinf::typeinf(&mut exp3).unwrap();
-        return exp3;
+
+        let exp4 = lift_callbacks.lift(&exp3);
+
+        return exp4;
     }
 
     #[test]
@@ -500,22 +559,22 @@ mod tests {
         let target = if_(
                 binop(&Op2::StrictEq, id("$CBID"), integer(1)),
                 vec![
-                    let_("$clos", index(id("$CBARGS"), integer(0))),
-                    let_("$request", index(id("$CBARGS"), integer(1))),
-                    let_("$responseCallback", index(id("$CBARGS"), integer(2))),
+                    let_("$clos", None, index(id("$CBARGS"), integer(0))),
+                    let_("$request", None, index(id("$CBARGS"), integer(1))),
+                    let_("$responseCallback", None, index(id("$CBARGS"), integer(2))),
                     label("$return", vec![
-                        let_("req", ref_(deref(id("$request")))),
-                        let_("resp", ref_(deref(id("$responseCallback")))),
+                        let_("req", None, ref_(deref(id("$request")))),
+                        let_("resp", None, ref_(deref(id("$responseCallback")))),
                         prim_app("console.log", vec![from(deref(id("console")), "error"), string("Got a response")]), // console.error is for testing
-                        let_("bar00", ref_(binop(&Op2::Add, from(deref(id("$clos")), "foo00"), number(1.0)))),
-                        let_("app200", ref_(block(vec![
+                        let_("bar00", None, ref_(binop(&Op2::Add, from(deref(id("$clos")), "foo00"), number(1.0)))),
+                        let_("app200", None, ref_(block(vec![
                             label("$return", vec![
-                                let_("response", ref_(deref(id("req")))),
+                                let_("response", None, ref_(deref(id("req")))),
                                 prim_app("send", vec![from(deref(id("resp")), "send"), deref(id("response"))])
                             ])
                         ]))),
-                        let_("fun100", ref_(clos(tenv2))),
-                        let_("app300", ref_(block(vec![
+                        let_("fun100", None, ref_(clos(tenv2))),
+                        let_("app300", None, ref_(block(vec![
                             loopback("get", string("http://people.cs.umass.edu/~emilyherbert/"), deref(id("fun100")), 2)
                         ]))),
                         prim_app("console.log", vec![from(deref(id("console")), "error"), string("All done!")]) // console.error is for testing
@@ -525,19 +584,19 @@ mod tests {
                     if_(
                         binop(&Op2::StrictEq, id("$CBID"), integer(2)),
                         vec![
-                            let_("$clos", index(id("$CBARGS"), integer(0))),
-                            let_("$response", index(id("$CBARGS"), integer(1))),
+                            let_("$clos", None, index(id("$CBARGS"), integer(0))),
+                            let_("$response", None, index(id("$CBARGS"), integer(1))),
                             label("$return", vec![
-                                let_("response", ref_(deref(id("$response")))),
+                                let_("response", None, ref_(deref(id("$response")))),
                                 prim_app("console.log", vec![from(deref(id("console")), "error"), deref(id("response"))]),
-                                let_("baz00", ref_(binop(&Op2::Add, from(deref(id("$clos")), "foo00"), from(deref(id("$clos")), "bar00"))))
+                                let_("baz00", None, ref_(binop(&Op2::Add, from(deref(id("$clos")), "foo00"), from(deref(id("$clos")), "bar00"))))
                             ])
                         ],
                         vec![
                             block(vec![
-                                let_("foo00", ref_(number(42.0))),
-                                let_("fun000", ref_(clos(tenv1))),
-                                let_("app000", ref_(block(vec![
+                                let_("foo00", None, ref_(number(42.0))),
+                                let_("fun000", None, ref_(clos(tenv1))),
+                                let_("app000", None, ref_(block(vec![
                                     loopback("listen", number(0.0), deref(id("fun000")), 1),
                                     unknown()
                                 ]))),

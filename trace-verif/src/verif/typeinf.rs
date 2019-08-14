@@ -1,4 +1,4 @@
-use crate::verif::untyped_traces::{Exp, Typ, Op2, LVal};
+use crate::verif::untyped_traces::{Exp, Typ, Op2, LVal, Arg};
 use Exp::*;
 use im_rc::{HashMap as ImHashMap};
 
@@ -186,19 +186,22 @@ impl Typeinf {
                 let t1 = self.exp(env, event_arg)?;
                 let t2 = self.exp(env, callback_clos)?;
                 let mut env = env.clone();
-                env.insert("$clos".to_string(), t2);
-                match event.as_ref() {
-                    "listen" => {
-                        env.insert("$request".to_string(), Typ::Request);
-                        env.insert("$responseCallback".to_string(), Typ::ResponseCallback);
-                    },
-                    "get" => {
-                        let x = self.fresh_var();
-                        self.constraints.push(Constraint::UnionMem(Typ::String, x.clone()));
-                        self.constraints.push(Constraint::UnionMem(Typ::Undefined, x.clone()));
-                        env.insert("$response".to_string(), x);
+                for Arg { name, typ } in callback_args.iter_mut() {
+                    let mut t;
+                    match name.as_ref() {
+                        "$clos" => t = t2.clone(),
+                        "$request" => t = Typ::Request,
+                        "$responseCallback" => t = Typ::ResponseCallback,
+                        "$response" => {
+                            let x = self.fresh_var();
+                            self.constraints.push(Constraint::UnionMem(Typ::String, x.clone()));
+                            self.constraints.push(Constraint::UnionMem(Typ::Undefined, x.clone()));
+                            t = x;
+                        },
+                        _ => panic!("Unexpected argument!")
                     }
-                    _ => unimplemented!(),
+                    *typ = Some(t.clone());
+                    env.insert(name.to_string(), t);
                 }
                 let t3 = self.exp_list(&env, body)?;
                 Ok(t3)
@@ -243,6 +246,12 @@ impl Typeinf {
             Exp::Callback { event, event_arg, callback_args, callback_clos, body } => {
                 Typeinf::subst_metavars(subst, event_arg);
                 Typeinf::subst_metavars(subst, callback_clos);
+                for Arg { name, typ } in callback_args.iter_mut() {
+                    match typ {
+                        Some(t) => t.apply_subst(subst),
+                        None => ()
+                    }
+                }
                 for e in body.iter_mut() {
                     Typeinf::subst_metavars(subst, e);
                 }
@@ -368,7 +377,7 @@ mod tests {
     #[test]
     fn union1() {
         let mut e = block(vec![
-            let_("x", ref_(number(1.0))),
+            let_("x", None, ref_(number(1.0))),
             setref(id("x"), string("hi"))
         ]);
         typeinf(&mut e).unwrap();
