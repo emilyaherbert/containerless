@@ -50,7 +50,9 @@ pub enum Typ {
     Metavar(usize),
     Ref(Box<Typ>),
     Union(Box<Typ>, Box<Typ>),
-    Object(Vec<(String, Typ)>)
+    Object(Vec<(String, Typ)>),
+    Request,
+    ResponseCallback
 }
 
 impl Typ {
@@ -67,7 +69,10 @@ impl Typ {
             Typ::Unknown => false,
             Typ::Undefined => false,
             Typ::Object(ts) => ts.iter()
-                .fold(false, |b, (_, t)| b || t.has_metavars())
+                .fold(false, |b, (_, t)| b || t.has_metavars()),
+            Typ::Request => false,
+            Typ::ResponseCallback => false,
+            _ => unimplemented!("{:?}", self)
         }
     }
 
@@ -82,7 +87,7 @@ impl Typ {
             Typ::String => false,
             Typ::Unknown => false,
             Typ::Undefined => false,
-            Typ::Object(ts) => unimplemented!()
+            _ => unimplemented!()
         }
     }
 
@@ -108,11 +113,11 @@ impl Typ {
                 for (_, t) in ts.iter_mut() {
                     t.apply_subst(subst)
                 }
-            }
+            },
+            Typ::Request => (),
+            Typ::ResponseCallback => ()
         }
     }
-
-
 }
 
 #[derive(PartialEq, Debug, Deserialize, Clone)]
@@ -177,8 +182,7 @@ pub enum Exp {
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum LVal {
     Identifier { name: String },
-    From { exp: Box<Exp>, field: String },
-    //Tuple { elems: Vec<String> }
+    From { exp: Box<Exp>, field: String }
 }
 
 // https://stackoverflow.com/a/42661287
@@ -216,8 +220,7 @@ impl fmt::Display for Exp {
             Exp::Ref { e } => write!(f, "Ref({})", e),
             Exp::Deref { e } => write!(f, "Deref({})", e),
             Exp::SetRef { e1, e2 } => write!(f, "SetRef({}, {})", e1, e2),
-            Exp::PrimApp { event, event_args } => write!(f, "PrimApp({}, {})", event, vec_to_string(event_args)),
-            _ => write!(f, "TODO")
+            Exp::PrimApp { event, event_args } => write!(f, "PrimApp({}, {})", event, vec_to_string(event_args))
        }
     }
 }
@@ -408,19 +411,18 @@ mod tests {
             panic!("\n{:?} \nin \n{}", exp, &stdout);
         }
 
-        let exp2 = exp.unwrap();
+        let mut exp2 = exp.unwrap();
 
         let mut assertions = Assertions::new();
         assertions.assert_supposed_grammar(&exp2);
         assertions.assert_unique_names(&exp2);
 
-        //println!("{:?}\n", exp);
+        //println!("{:?}\n", exp2);
 
-        // let mut transformer = Transformer::new();
-        // let mut lifted = transformer.transform(&(exp.unwrap()));
-        let mut e = exp.unwrap();
-        crate::verif::typeinf::typeinf(&mut e).unwrap();
-        return e;
+        let mut transformer = Transformer::new();
+        let mut exp3 = transformer.transform(&exp2);
+        crate::verif::typeinf::typeinf(&mut exp3).unwrap();
+        return exp3;
     }
 
     #[test]
@@ -433,7 +435,7 @@ mod tests {
         "#, "");
     }
 
-    // #[test]
+    #[test]
     pub fn try_test2() {
         let handle = test_harness("try_test2.js", r#"
             let containerless = require("../containerless");
@@ -447,7 +449,7 @@ mod tests {
         request2");
     }
 
-    // #[test]
+    #[test]
     pub fn trace_with_unknown() {
         let handle = test_harness("trace_with_unknown.js", r#"
             let containerless = require("../containerless");
@@ -463,12 +465,14 @@ mod tests {
         // assert!(false);
     }
 
-    // #[test]
+    #[test]
     pub fn multiple_callbacks() {
         let handle = test_harness("multiple_callbacks.js", r#"
             let containerless = require('../containerless');
 
-            let foo = 42;
+            let foo = 'start';
+            foo = 42;
+            //let foo = 42;
 
             containerless.listen(function(req, resp) {
                 console.error('Got a response');
@@ -544,7 +548,7 @@ mod tests {
                 ]
             );
 
-        //println!("{}\n", handle);
+        println!("{}\n", handle);
         //println!("{}", target);
 
         assert!(handle == target);

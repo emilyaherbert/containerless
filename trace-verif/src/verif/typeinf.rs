@@ -1,4 +1,4 @@
-use crate::verif::untyped_traces::{Exp, Typ, Op2};
+use crate::verif::untyped_traces::{Exp, Typ, Op2, LVal};
 use Exp::*;
 use im_rc::{HashMap as ImHashMap};
 
@@ -10,7 +10,8 @@ enum Constraint {
      * In `UnionMem(t1, t2)`, the type `t2` must be a union and `t1` is an element
      * of the union.
      */
-    UnionMem(Typ, Typ)
+    UnionMem(Typ, Typ),
+    FromMem(Typ, String, Typ)
 }
 
 pub struct Typeinf {
@@ -49,6 +50,20 @@ impl Typeinf {
         Typ::Metavar(x)
     }
 
+    fn resolve_lval(&mut self, env: &TypEnv, lval: &LVal) -> Result<Typ, Error> {
+        match lval {
+            LVal::Identifier { name } => {
+                match env.get(name) {
+                    Some(t) => return Ok(t.clone()),
+                    None => panic!("Not found")
+                }
+            },
+            LVal::From { exp, field } => {
+                unimplemented!();
+            }
+        }
+    }
+
     pub fn exp_list(&mut self, env: &TypEnv, exps: &mut [Exp]) -> Result<Typ, Error> {
         let mut env = env.clone();
         let mut last_typ = Typ::Undefined;
@@ -58,6 +73,10 @@ impl Typeinf {
                     let t = self.exp(&env, named)?;
                     *typ = Some(t.clone());
                     env.insert(name.to_string(), t);
+                    last_typ = Typ::Undefined;
+                },
+                Exp::PrimApp { event, event_args } => {
+                    let t = self.exp_list(&env, event_args)?;
                     last_typ = Typ::Undefined;
                 },
                 _ => {
@@ -83,6 +102,9 @@ impl Typeinf {
                 self.constraints.push(Constraint::UnionMem(t, x.clone()));
                 Ok(Typ::Ref(Box::new(x)))
             },
+            Exp::Deref { e } => {
+                return self.exp(env, e);
+            }
             // Note that there *is a possibility of a type error below, if in
             // SetRef(e1, e2), the type of e1 is not a reference type. However,
             // reference-manipulation expressions do not appear in the original
@@ -107,10 +129,10 @@ impl Typeinf {
                 let t2 = self.exp(env, e2)?;
                 match op {
                    Op2::Add => {
-                       let x = self.fresh_var();
-                       self.constraints.push(Constraint::UnionMem(t1, x.clone()));
-                       self.constraints.push(Constraint::UnionMem(t2, x.clone()));
-                       Ok(x)
+                        let x = self.fresh_var();
+                        self.constraints.push(Constraint::UnionMem(t1, x.clone()));
+                        self.constraints.push(Constraint::UnionMem(t2, x.clone()));
+                        Ok(x)
                    },
                    Op2::StrictEq => Ok(Typ::Bool),
                    _ => panic!(format!("not implemented: {:?}", op))
@@ -129,33 +151,64 @@ impl Typeinf {
                 let t2 = self.exp_list(env, true_part)?;
                 let t3 = self.exp_list(env, false_part)?;
                 let x = self.fresh_var();
+                self.constraints.push(Constraint::UnionMem(t1, x.clone()));
                 self.constraints.push(Constraint::UnionMem(t2, x.clone()));
-                self.constraints.push(Constraint::UnionMem(t3, x.clone()));
                 Ok(x)
             },
             Exp::From { exp, field } => {
                 let t = self.exp(env, exp)?;
-                // match t {
-                //     Typ::Object(typ_vec) => {
-                //     }
-                // }
-                unimplemented!()
+                match t {
+                    // NOTE(emily): This case will go away when closures and objects are merged.
+                    Typ::Object(typ_vec) => {
+                        for (k, v) in typ_vec.iter() {
+                            if(k == field) {
+                                return Ok(v.clone());
+                            }
+                        }
+                        return Err(err("Not found!"));
+                    },
+                    Typ::Ref(t) => {
+                        match *t {
+                            Typ::Metavar(n) => {
+                                let x = self.fresh_var();
+                                self.constraints.push(Constraint::FromMem(*t, field.to_string(), x.clone()));
+                                return Ok(x);
+                            },
+                            _ => unimplemented!()
+                        };
+                    }
+                    _ => {
+                        unimplemented!("{:?} : {:?}", exp, t);
+                    }
+                }
             },
-            Exp::Callback { event, event_arg, callback_args, callback_clos,
-                body } => {
-                // Type-check event_arg
-                // The type of event tells us what the types of callback_args
-                // will be.
-                // 
-                unimplemented!()
+            Exp::Callback { event, event_arg, callback_args, callback_clos, body } => {
+                let t1 = self.exp(env, event_arg)?;
+                let t2 = self.exp(env, callback_clos)?;
+                let mut env = env.clone();
+                env.insert("$clos".to_string(), t2);
+                match event.as_ref() {
+                    "listen" => {
+                        env.insert("$request".to_string(), Typ::Request);
+                        env.insert("$responseCallback".to_string(), Typ::ResponseCallback);
+                    },
+                    "get" => {
+                        let x = self.fresh_var();
+                        self.constraints.push(Constraint::UnionMem(Typ::String, x.clone()));
+                        self.constraints.push(Constraint::UnionMem(Typ::Undefined, x.clone()));
+                        env.insert("$response".to_string(), x);
+                    }
+                    _ => unimplemented!(),
+                }
+                let t3 = self.exp_list(&env, body)?;
+                Ok(t3)
             },
-            // Exp::Index { e1, e2 } => {
-            //     let t1 = self.exp(env, e1)?;
-            //     let t2 = self.exp(env, e2)?;
-
-            // },
+            Exp::Label { name, body } => {
+                self.exp_list(env, body)
+            },
+            Exp::PrimApp { event, event_args } => Err(err("bare let expression outside a block")),
             _ => panic!(format!("{:?}", exp))
-        }
+        } 
     }
 
     fn subst_metavars(subst: &Subst, exp: &mut Exp) {
@@ -165,6 +218,7 @@ impl Typeinf {
             Exp::Identifier { name } => (),
             Exp::Stringg { value } => (),
             Exp::Ref { e } => Typeinf::subst_metavars(subst, e),
+            Exp::Deref { e } => Typeinf::subst_metavars(subst, e),
             Exp::SetRef { e1, e2 } => {
                 Typeinf::subst_metavars(subst, e1);
                 Typeinf::subst_metavars(subst, e2);
@@ -181,9 +235,46 @@ impl Typeinf {
                     Typeinf::subst_metavars(subst, e)
                 }
             },
-            _ => unimplemented!()
+            Exp::Clos { tenv } => {
+                for (name, e) in tenv.iter_mut() {
+                    Typeinf::subst_metavars(subst, e);
+                }
+            },
+            Exp::Callback { event, event_arg, callback_args, callback_clos, body } => {
+                Typeinf::subst_metavars(subst, event_arg);
+                Typeinf::subst_metavars(subst, callback_clos);
+                for e in body.iter_mut() {
+                    Typeinf::subst_metavars(subst, e);
+                }
+            },
+            Exp::Label { name, body } => {
+                for e in body.iter_mut() {
+                    Typeinf::subst_metavars(subst, e);
+                }
+            },
+            Exp::PrimApp { event, event_args } => {
+                for e in event_args.iter_mut() {
+                    Typeinf::subst_metavars(subst, e);
+                }
+            },
+            Exp::From { exp, field } => {
+                Typeinf::subst_metavars(subst, exp);
+            },
+            Exp::If { cond, true_part, false_part } => {
+                Typeinf::subst_metavars(subst, cond);
+                for e in true_part.iter_mut() {
+                    Typeinf::subst_metavars(subst, e);
+                }
+                for e in false_part.iter_mut() {
+                    Typeinf::subst_metavars(subst, e);
+                }
+            },
+            Exp::BinOp { op, e1, e2 } => {
+                Typeinf::subst_metavars(subst, e1);
+                Typeinf::subst_metavars(subst, e2);
+            }
+            _ => unimplemented!("{:?}", exp),
         }
-
     }
 
     fn solve(constraints: Vec<Constraint>) -> Subst {
@@ -194,15 +285,42 @@ impl Typeinf {
                 Constraint::UnionMem(t, Typ::Metavar(n)) => {
                     let mut t1 = t.clone();
                     t1.apply_subst(&subst);
-                    // Typeinf::apply_subst(&mut subst, &mut t);
-                    match subst.get_mut(&n)  {
+                    match subst.get_mut(&n) {
                         None => {
                             let _ = subst.insert(n, t1);
                         },
-                        Some(s) => *s = Typ::Union(Box::new(s.clone()), Box::new(t1))
+                        Some(s) => {
+                            *s = Typ::Union(Box::new(s.clone()), Box::new(t1));
+                        }
                     }
                 },
-                Constraint::UnionMem(_, _) => panic!("unionmem")
+                Constraint::UnionMem(_, _) => panic!("unionmem"),
+                Constraint::FromMem(t, field, Typ::Metavar(n)) => {
+                    let mut t1 = t.clone();
+                    t1.apply_subst(&subst);
+                    match t1 {
+                        Typ::Object(typ_vec) => {
+                            // https://www.reddit.com/r/rust/comments/7mqwjn/hashmapstringt_vs_vecstringt/
+                            match typ_vec.iter().find(|x|*x.0 == field) {
+                                Some((k, v)) => {
+                                    match subst.get_mut(&n) {
+                                        None => {
+                                            let _ = subst.insert(n, v.clone());
+                                        },
+                                        Some(s) => {
+                                            // TODO(emily): Something here ?
+                                        }
+                                    }
+                                }
+                                None => {
+                                    panic!("Not found {:?} ----> {:?}", typ_vec, field)
+                                }
+                            }
+                        },
+                        _ => panic!("Found something unexpected!")
+                    }
+                },
+                Constraint::FromMem(_, _, _) => panic!("frommem"),
             }
         }
         let mut at_fixed_point = true;

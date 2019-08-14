@@ -137,7 +137,7 @@ export class Callbacks {
                     innerTrace.traceLet('response', $response);
 
                     // NOTE(emily): Some of this info may be irrelevant.
-                    innerTrace.tracePrimApp('send', [from(identifier('resp'), 'send'), identifier('response')]);
+                    innerTrace.tracePrimApp('send', [identifier('response')]);
                     resp.send(response);
 
                     innerTrace.exitBlock();

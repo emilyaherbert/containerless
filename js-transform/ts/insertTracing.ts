@@ -334,13 +334,13 @@ function reifyVariableDeclaration(s: b.VariableDeclaration, st: State): [b.State
                 if(!b.isIdentifier(obj) || !b.isIdentifier(prop)) {
                     throw new Error("Cannot chain member expressions!");
                 }
-                theArgs.unshift(from(identifier(obj.name), prop.name));
                 switch(obj.name) {
                     case 'console': {
                         const tPrimApp = tracePrimApp('console.log', theArgs);
                         return [[ tPrimApp, s ], nextSt];
                     }
                     default: {
+                        theArgs.unshift(from(identifier(obj.name), prop.name));
                         break;
                     }
                 }

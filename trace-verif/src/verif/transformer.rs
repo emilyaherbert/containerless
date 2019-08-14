@@ -51,7 +51,7 @@ impl Transformer {
         let x = self.fresh_id();
         let mut lifted_body: Vec<Exp> = vec!();
         for (i, e) in callback_args.iter().enumerate() {
-            lifted_body.push(let_(e, index(id(&self.cbargs), integer(i as i32))));
+            lifted_body.push(let_(e, ref_(index(id(&self.cbargs), integer(i as i32)))));
         }
         lifted_body.append(&mut self.transform_exps(body));
         self.callbacks.push((x, lifted_body));
@@ -63,6 +63,7 @@ impl Transformer {
         let mut ret: Vec<Exp> = vec!();
         for (i, e) in exps.iter().enumerate() {
             match e {
+                /*
                 Callback { event, event_arg, callback_args, callback_clos, body } => {
                     if(i < exps.len()-1) {
                         let (p, r) = exps.split_at(i+1);
@@ -74,6 +75,7 @@ impl Transformer {
                         return loopback;
                     }
                 },
+                */
                 _ => {
                     let e = self.transform_exp(e);
                     ret.push(e);
@@ -112,9 +114,21 @@ impl Transformer {
             Let { name, typ, named } => return let_(name, ref_(self.transform_exp(named))),
             Set { name: LVal::Identifier { name }, named } =>
                 return setref(id(name), self.transform_exp(named)),
-            Set { name, named } => unimplemented!(), // return set(self.transform_lval(name), self.transform_exp(named)),
+            Set { name: LVal::From { exp, field }, named } => {
+                return setref(
+                    from(self.transform_exp(exp), field),
+                    self.transform_exp(named)
+                );
+            } 
             Block { body } => return block(self.transform_exps(body)),
-            Callback { event, event_arg, callback_args, callback_clos, body } => return self.transform_callback(event, event_arg, callback_args, callback_clos, body),
+            Callback { event, event_arg, callback_args, callback_clos, body } => {
+                //return self.transform_callback(event, event_arg, callback_args, callback_clos, body),
+                return callback(event,
+                    self.transform_exp(event_arg),
+                    callback_args.to_vec(),
+                    self.transform_exp(callback_clos),
+                    self.transform_exps(body));
+            }
             Label { name, body } => return label(name, self.transform_exps(body)),
             Break { name, value } => return break_(name, self.transform_exp(value)),
             Clos { tenv } => return clos(self.transform_clos(tenv)),
@@ -132,13 +146,13 @@ impl Transformer {
 
     /*
 
-        1. Lifts callbacks (Loopback)
         2. Heap allocate all local variables (Alloc)
            Dereference all their uses (Deref)
 
     */
     pub fn transform(&mut self, exp: &Exp) -> Exp {
         let base = self. transform_exp(exp);
+        /*
         let t = self.callbacks.iter()
             .fold(base, |acc, (k, v)| {
                 if_(
@@ -148,7 +162,8 @@ impl Transformer {
                     vec!(acc)
                 )
             });
+        */
         //println!("{:?}", self.callbacks);
-        return t;
+        return base;
     }
 }
