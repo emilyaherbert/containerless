@@ -151,8 +151,8 @@ impl Typeinf {
                 let t2 = self.exp_list(env, true_part)?;
                 let t3 = self.exp_list(env, false_part)?;
                 let x = self.fresh_var();
-                self.constraints.push(Constraint::UnionMem(t1, x.clone()));
                 self.constraints.push(Constraint::UnionMem(t2, x.clone()));
+                self.constraints.push(Constraint::UnionMem(t3, x.clone()));
                 Ok(x)
             },
             Exp::From { exp, field } => {
