@@ -17,48 +17,13 @@
 //
 // - I could not find documentation for the #[serde(rename = "+")] directive.
 //   Instead, I guessed that it existed and it worked!
-use std::{
-    collections::{HashMap, HashSet}
-};
+use std::collections::HashMap;
 
 use std::fmt;
 
 use serde::{Deserialize, Deserializer};
 use serde::de::{self, Visitor, MapAccess};
 use std::marker::PhantomData;
-
-use crate::verif::{
-    transformer::Transformer,
-    assertions::Assertions,
-    lift_callbacks::LiftCallbacks
-};
-
-#[derive(PartialEq, Debug, Deserialize, Clone)]
-pub enum Op2 {
-    #[serde(rename = "+")]
-    Add,
-    #[serde(rename = "-")]
-    Sub,
-    #[serde(rename = ">")]
-    GT,
-    #[serde(rename = "===")]
-    StrictEq
-}
-
-#[derive(PartialEq, Debug, Deserialize, Clone)]
-pub enum Typ {
-    I32,
-    F64,
-    Bool,
-    String,
-    Unknown,
-    Undefined,
-    Metavar(usize),
-    Ref(Box<Typ>),
-    Union(Vec<Typ>),
-    Object(Vec<(String, Typ)>),
-    ResponseCallback
-}
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Arg { pub name: String, pub typ: Option<Typ> }
@@ -110,6 +75,20 @@ pub fn deserialize_args<'de, T, D>(deserializer: D) -> Result<Vec<T>, D::Error>
     deserializer.deserialize_any(Visitor(::std::marker::PhantomData))
 }
 
+#[derive(PartialEq, Debug, Deserialize, Clone)]
+pub enum Typ {
+    I32,
+    F64,
+    Bool,
+    String,
+    Unknown,
+    Undefined,
+    Metavar(usize),
+    Ref(Box<Typ>),
+    Union(Vec<Typ>),
+    Object(Vec<(String, Typ)>),
+    ResponseCallback
+}
 
 impl Typ {
 
@@ -172,6 +151,18 @@ impl Typ {
             Typ::ResponseCallback => ()
         }
     }
+}
+
+#[derive(PartialEq, Debug, Deserialize, Clone)]
+pub enum Op2 {
+    #[serde(rename = "+")]
+    Add,
+    #[serde(rename = "-")]
+    Sub,
+    #[serde(rename = ">")]
+    GT,
+    #[serde(rename = "===")]
+    StrictEq
 }
 
 #[derive(PartialEq, Debug, Deserialize, Clone)]
@@ -425,6 +416,11 @@ mod tests {
     use std::process::Stdio;
     use std::process::Command;
     use std::fs;
+    use crate::verif::{
+        transformer::Transformer,
+        assertions::Assertions,
+        lift_callbacks::LiftCallbacks
+    };
 
     fn test_harness(filename: &str, code: &str, requests: &str) -> Exp {
         let f = File::create(filename).expect("creating file");

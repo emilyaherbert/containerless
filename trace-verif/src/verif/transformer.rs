@@ -3,7 +3,6 @@ use std::collections::HashMap;
 
 use crate::verif::{
     untyped_traces::{
-        Op2::*,
         Exp,
         Exp::*,
         LVal,
@@ -32,7 +31,7 @@ impl Transformer {
     fn transform_clos(&mut self, exps: &HashMap<String,Exp>) -> HashMap<String,Exp> {
         let mut ret: HashMap<String,Exp> = HashMap::new();
         for (key, value) in exps.iter() {
-            let new_value = match(value) {
+            let new_value = match value {
                 Identifier { name } => id(name),
                 From { exp, field } => from(self.transform_exp(exp), field),
                 _ => self.transform_exp(value)
@@ -84,10 +83,10 @@ impl Transformer {
             Clos { tenv } => return clos(self.transform_clos(tenv)),
             Array { exps } => return array(self.transform_exps(exps)),
             PrimApp { event, event_args } => return prim_app(event, self.transform_exps(event_args)),
-            Loopback { event, event_arg, callback_clos, id }  => panic!("Did not expect to find this here."),
-            Ref { e }  => panic!("Did not expect to find this here."),
-            Deref { e }  => panic!("Did not expect to find this here."),
-            SetRef { e1, e2 }  => panic!("Did not expect to find this here."),
+            Loopback { event: _, event_arg: _, callback_clos: _, id: _ }  => panic!("Did not expect to find this here."),
+            Ref { e: _ }  => panic!("Did not expect to find this here."),
+            Deref { e: _ }  => panic!("Did not expect to find this here."),
+            SetRef { e1: _, e2: _ }  => panic!("Did not expect to find this here."),
             _ => {
                 panic!("Not implemented.");
             }

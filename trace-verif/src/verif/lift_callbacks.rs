@@ -6,7 +6,6 @@ use crate::verif::{
         Op2::*,
         Exp,
         Exp::*,
-        LVal,
         constructors::*,
         Arg
     }
@@ -35,18 +34,6 @@ impl LiftCallbacks {
         return self.next_id - 1;
     }
 
-    fn lift_lval(&mut self, lval: &LVal) -> LVal {
-        match lval {
-            LVal::Identifier { name } => return LVal::Identifier { name: name.to_string() },
-            LVal::From { exp, field } => {
-                return LVal::From{
-                    exp: Box::new(self.lift_exp(exp)),
-                    field: field.to_string()
-                };
-            }
-        }
-    }
-
     fn lift_callback(&mut self, event: &str, event_arg: &Exp, callback_args: &[Arg], callback_clos: &Exp, body: &[Exp]) -> Exp {
         let x = self.fresh_id();
         let mut lifted_body: Vec<Exp> = vec!();
@@ -64,8 +51,8 @@ impl LiftCallbacks {
         for (i, e) in exps.iter().enumerate() {
             match e {
                 Callback { event, event_arg, callback_args, callback_clos, body } => {
-                    if(i < exps.len()-1) {
-                        let (p, r) = exps.split_at(i+1);
+                    if i < exps.len()-1 {
+                        let (_p, r) = exps.split_at(i+1);
                         let mut loopback = vec!(self.lift_callback(event, event_arg, callback_args, callback_clos, body));
                         loopback.append(&mut self.lift_exps(r));
                         return loopback;
@@ -116,8 +103,8 @@ impl LiftCallbacks {
             Ref { e }  => return ref_(self.lift_exp(e)),
             Deref { e } => return deref(self.lift_exp(e)),
             SetRef { e1, e2 } => return setref(self.lift_exp(e1), self.lift_exp(e2)),
-            Set { name, named } => panic!("Did not expect to find this here."),
-            Loopback { event, event_arg, callback_clos, id } => panic!("Did not expect to find this here."),
+            Set { name:_, named:_ } => panic!("Did not expect to find this here."),
+            Loopback { event:_, event_arg:_, callback_clos:_, id:_ } => panic!("Did not expect to find this here."),
             _ => {
                 panic!("Not implemented.");
             }
