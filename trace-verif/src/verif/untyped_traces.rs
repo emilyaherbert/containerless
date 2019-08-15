@@ -20,10 +20,7 @@
 use std::collections::HashMap;
 
 use std::fmt;
-
-use serde::{Deserialize, Deserializer};
-use serde::de::{self, Visitor, MapAccess};
-use std::marker::PhantomData;
+use serde::Deserialize;
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Arg { pub name: String, pub typ: Option<Typ> }
@@ -475,6 +472,7 @@ mod tests {
 
         assertions.assert_supposed_grammar(&exp2);
         assertions.assert_unique_names(&exp2);
+        assertions.assert_all_options_are_none(&exp2);
 
         let mut exp3 = transformer.transform(&exp2);
         //println!("{}", exp3);
@@ -631,7 +629,7 @@ mod tests {
                 ]
             );
 
-        println!("{}\n", handle);
+        //println!("{}\n", handle);
         //println!("{}", target);
 
         assert!(handle == target);
