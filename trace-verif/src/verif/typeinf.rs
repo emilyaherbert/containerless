@@ -1,6 +1,4 @@
 use crate::verif::untyped_traces::{Exp, Typ, Op2, LVal, Arg};
-use Exp::*;
-
 use im_rc::{HashMap as ImHashMap};
 
 type TypEnv = ImHashMap<String, Typ>;
@@ -56,20 +54,6 @@ impl Typeinf {
         let x = self.next_var;
         self.next_var = self.next_var + 1;
         Typ::Metavar(x)
-    }
-
-    fn resolve_lval(&mut self, env: &TypEnv, lval: &LVal) -> Result<Typ, Error> {
-        match lval {
-            LVal::Identifier { name } => {
-                match env.get(name) {
-                    Some(t) => return Ok(t.clone()),
-                    None => panic!("Not found")
-                }
-            },
-            LVal::From { exp, field } => {
-                unimplemented!();
-            }
-        }
     }
 
     pub fn exp_list(&mut self, env: &TypEnv, exps: &mut [Exp]) -> Result<Typ, Error> {
@@ -172,31 +156,6 @@ impl Typeinf {
                 let x = self.fresh_var();
                 self.constraints.push(Constraint::FromMem(t, field.to_string(), x.clone()));
                 return Ok(x);
-/*
-                match t {
-                    // NOTE(emily): This case will go away when closures and objects are merged.
-                    Typ::Object(typ_vec) => {
-                        for (k, v) in typ_vec.iter() {
-                            if(k == field) {
-                                return Ok(v.clone());
-                            }
-                        }
-                        return Err(err("Not found!"));
-                    },
-                    Typ::Ref(t) => {
-                        match *t {
-                            Typ::Metavar(n) => {
-                                let x = self.fresh_var();
-                                self.constraints.push(Constraint::FromMem(*t, field.to_string(), x.clone()));
-                                return Ok(x);
-                            },
-                            _ => unimplemented!()
-                        };
-                    }
-                    _ => {
-                        unimplemented!("{:?} : {:?}", exp, t);
-                    }
-                } */
             },
             Exp::Callback { event, event_arg, callback_args, callback_clos, body } => {
                 let t1 = self.exp(env, event_arg)?;
@@ -206,7 +165,7 @@ impl Typeinf {
                     let mut t;
                     match name.as_ref() {
                         "$clos" => t = tref(t2.clone()),
-                        "$request" => t = tref(Typ::Request),
+                        "$request" => t = tref(Typ::Object(vec![("path".to_string(), tref(Typ::String))])),
                         "$responseCallback" => t = tref(Typ::ResponseCallback),
                         "$response" => {
                             let x = self.fresh_var();

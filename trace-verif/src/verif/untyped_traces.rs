@@ -55,7 +55,6 @@ pub enum Typ {
     Ref(Box<Typ>),
     Union(Box<Typ>, Box<Typ>),
     Object(Vec<(String, Typ)>),
-    Request,
     ResponseCallback
 }
 
@@ -125,7 +124,6 @@ impl Typ {
             Typ::Undefined => false,
             Typ::Object(ts) => ts.iter()
                 .fold(false, |b, (_, t)| b || t.has_metavars()),
-            Typ::Request => false,
             Typ::ResponseCallback => false,
             _ => unimplemented!("{:?}", self)
         }
@@ -169,7 +167,6 @@ impl Typ {
                     t.apply_subst(subst)
                 }
             },
-            Typ::Request => (),
             Typ::ResponseCallback => ()
         }
     }
@@ -529,7 +526,7 @@ mod tests {
 
     #[test]
         pub fn multiple_callbacks_1() {
-        let handle = test_harness("multiple_callbacks.js", r#"
+        let handle = test_harness("multiple_callbacks_1.js", r#"
             let containerless = require('../containerless');
 
             let foo = 'start';
