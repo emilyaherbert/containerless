@@ -1,5 +1,6 @@
 use crate::verif::untyped_traces::{Exp, Typ, Op2, LVal, Arg};
 use im_rc::{HashMap as ImHashMap};
+use std::collections::HashSet;
 
 type TypEnv = ImHashMap<String, Typ>;
 type Subst = std::collections::HashMap<usize, Typ>;
@@ -298,8 +299,13 @@ impl Typeinf {
                         None => {
                             let _ = subst.insert(n, t1);
                         },
+                        Some(Typ::Union(ts)) => {
+                            if(!ts.contains(&t1)) {
+                                ts.push(t1);
+                            }
+                        }
                         Some(s) => {
-                            *s = Typ::Union(Box::new(s.clone()), Box::new(t1));
+                            *s = Typ::Union(vec![s.clone(), t1]);
                         }
                     }
                 },
@@ -317,8 +323,11 @@ impl Typeinf {
                                         None => {
                                             let _ = subst.insert(n, v.clone());
                                         },
+                                        Some(Typ::Union(ts)) => {
+                                            ts.push(v.clone());
+                                        }
                                         Some(s) => {
-                                            // TODO(emily): Something here ?
+                                            *s = Typ::Union(vec![s.clone(), v.clone()]);
                                         }
                                     }
                                 }

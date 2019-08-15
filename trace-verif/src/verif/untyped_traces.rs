@@ -17,7 +17,9 @@
 //
 // - I could not find documentation for the #[serde(rename = "+")] directive.
 //   Instead, I guessed that it existed and it worked!
-use std::collections::HashMap;
+use std::{
+    collections::{HashMap, HashSet}
+};
 
 use std::fmt;
 
@@ -53,7 +55,7 @@ pub enum Typ {
     Undefined,
     Metavar(usize),
     Ref(Box<Typ>),
-    Union(Box<Typ>, Box<Typ>),
+    Union(Vec<Typ>),
     Object(Vec<(String, Typ)>),
     ResponseCallback
 }
@@ -115,7 +117,7 @@ impl Typ {
         match self {
             Typ::Metavar(_) => true,
             Typ::Ref(t) => t.has_metavars(),
-            Typ::Union(t1, t2) => t1.has_metavars() || t2.has_metavars(),
+            Typ::Union(hs) => hs.iter().fold(false, |b, t| b || t.has_metavars()),
             Typ::I32 => false,
             Typ::F64 => false,
             Typ::Bool => false,
@@ -133,7 +135,7 @@ impl Typ {
         match self {
             Typ::Metavar(y) => x == *y,
             Typ::Ref(t) => t.occurs_in(x),
-            Typ::Union(t1, t2) => t1.occurs_in(x) || t2.occurs_in(x),
+            Typ::Union(hs) => hs.iter().fold(false, |b, t| b || t.occurs_in(x)),
             Typ::I32 => false,
             Typ::F64 => false,
             Typ::Bool => false,
@@ -152,9 +154,10 @@ impl Typ {
                 Some(t) => *self = t.clone()
             },
             Typ::Ref(t) => t.apply_subst(subst),
-            Typ::Union(t1, t2) => {
-                t1.apply_subst(subst);
-                t2.apply_subst(subst)
+            Typ::Union(hs) => {
+                for t in hs.iter_mut() {
+                    t.apply_subst(subst);
+                }
             },
             Typ::I32 => (),
             Typ::F64 => (),
@@ -294,7 +297,16 @@ pub mod constructors {
     use std::collections::HashMap;
 
     pub fn t_union(t1: Typ, t2: Typ) -> Typ {
-        Typ::Union(Box::new(t1), Box::new(t2))
+        match t1 {
+            Typ::Union(ts) => {
+                let mut ts2 = ts.clone();
+                ts2.push(t2);
+                return Typ::Union(ts2);
+            },
+            _ => {
+                return Typ::Union(vec![t1, t2]);
+            }
+        }
     }
 
     pub fn t_ref(t: Typ) -> Typ {
