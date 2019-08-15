@@ -21,18 +21,6 @@ impl Transformer {
         return Transformer { };
     }
 
-    fn transform_lval(&mut self, lval: &LVal) -> LVal {
-        match lval {
-            LVal::Identifier { name } => return LVal::Identifier { name: name.to_string() },
-            LVal::From { exp, field } => {
-                return LVal::From{
-                    exp: Box::new(self.transform_exp(exp)),
-                    field: field.to_string()
-                };
-            }
-        }
-    }
-
     fn transform_exps(&mut self, exps: &[Exp]) -> Vec<Exp> {
         let mut ret: Vec<Exp> = vec!();
         for e in exps.iter() {
@@ -46,6 +34,7 @@ impl Transformer {
         for (key, value) in exps.iter() {
             let new_value = match(value) {
                 Identifier { name } => id(name),
+                From { exp, field } => from(self.transform_exp(exp), field),
                 _ => self.transform_exp(value)
             };
             ret.insert(

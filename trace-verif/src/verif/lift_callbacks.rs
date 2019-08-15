@@ -115,7 +115,7 @@ impl LiftCallbacks {
             PrimApp { event, event_args } => return prim_app(event, self.lift_exps(event_args)),
             Ref { e }  => return ref_(self.lift_exp(e)),
             Deref { e } => return deref(self.lift_exp(e)),
-            SetRef { e1, e2 } => return setref(self.lift_exp(e1), self.lift_exp(e1)),
+            SetRef { e1, e2 } => return setref(self.lift_exp(e1), self.lift_exp(e2)),
             Set { name, named } => panic!("Did not expect to find this here."),
             Loopback { event, event_arg, callback_clos, id } => panic!("Did not expect to find this here."),
             _ => {

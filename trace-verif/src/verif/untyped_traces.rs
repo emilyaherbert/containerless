@@ -126,8 +126,7 @@ impl Typ {
             Typ::Undefined => false,
             Typ::Object(ts) => ts.iter()
                 .fold(false, |b, (_, t)| b || t.has_metavars()),
-            Typ::ResponseCallback => false,
-            _ => unimplemented!("{:?}", self)
+            Typ::ResponseCallback => false
         }
     }
 
@@ -242,10 +241,6 @@ pub enum LVal {
 
 // https://stackoverflow.com/a/42661287
 fn vec_to_string(v: &[Exp]) -> String {
-    return v.iter().fold(String::new(), |acc, num| acc + &num.to_string() + ",\n");
-}
-
-fn vec_to_string2(v: &[String]) -> String {
     return v.iter().fold(String::new(), |acc, num| acc + &num.to_string() + ",\n");
 }
 
@@ -486,9 +481,9 @@ mod tests {
         assertions.assert_unique_names(&exp2);
 
         let mut exp3 = transformer.transform(&exp2);
-        // println!("{}", exp3);
+        //println!("{}", exp3);
         crate::verif::typeinf::typeinf(&mut exp3).unwrap();
-        println!("{}", exp3);
+        //println!("{}", exp3);
 
 
         let exp4 = lift_callbacks.lift(&exp3);

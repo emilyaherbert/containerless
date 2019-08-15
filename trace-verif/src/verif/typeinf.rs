@@ -163,19 +163,13 @@ impl Typeinf {
                 let t2 = self.exp(env, callback_clos)?;
                 let mut env = env.clone();
                 for Arg { name, typ } in callback_args.iter_mut() {
-                    let mut t;
-                    match name.as_ref() {
-                        "$clos" => t = tref(t2.clone()),
-                        "$request" => t = tref(Typ::Object(vec![("path".to_string(), tref(Typ::String))])),
-                        "$responseCallback" => t = tref(Typ::ResponseCallback),
-                        "$response" => {
-                            let x = self.fresh_var();
-                            self.constraints.push(Constraint::UnionMem(Typ::String, x.clone()));
-                            self.constraints.push(Constraint::UnionMem(Typ::Undefined, x.clone()));
-                            t = x;
-                        },
+                    let t = match name.as_ref() {
+                        "$clos" => tref(t2.clone()),
+                        "$request" => tref(Typ::Object(vec![("path".to_string(), tref(Typ::String))])),
+                        "$responseCallback" => tref(Typ::ResponseCallback),
+                        "$response" => tref(Typ::Union(vec![Typ::String, Typ::Undefined])),
                         _ => panic!("Unexpected argument!")
-                    }
+                    };
                     *typ = Some(t.clone());
                     env.insert(name.to_string(), t);
                 }
@@ -299,9 +293,20 @@ impl Typeinf {
                         None => {
                             let _ = subst.insert(n, t1);
                         },
-                        Some(Typ::Union(ts)) => {
-                            if(!ts.contains(&t1)) {
-                                ts.push(t1);
+                        Some(Typ::Union(ts1)) => {
+                            match t1 {
+                                Typ::Union(ts2) => {
+                                    for ts3 in ts2.into_iter() {
+                                        if(!ts1.contains(&ts3)) {
+                                            ts1.push(ts3);
+                                        }
+                                    }
+                                },
+                                ts2 => {
+                                    if(!ts1.contains(&ts2)) {
+                                        ts1.push(ts2);
+                                    }
+                                }
                             }
                         }
                         Some(s) => {
