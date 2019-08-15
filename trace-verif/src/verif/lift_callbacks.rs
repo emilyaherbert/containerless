@@ -105,7 +105,7 @@ impl LiftCallbacks {
             BinOp { op, e1, e2 } => return binop(op, self.lift_exp(e1), self.lift_exp(e2)),
             If { cond, true_part, false_part } => return if_(self.lift_exp(cond), self.lift_exps(true_part), self.lift_exps(false_part)),
             While { cond, body } => return while_(self.lift_exp(cond), self.lift_exp(body)),
-            Let { name, typ, named } => return let_(name, typ.clone(), ref_(self.lift_exp(named))),
+            Let { name, typ, named } => return let_(name, typ.clone(), self.lift_exp(named)),
             Block { body } => return block(self.lift_exps(body)),
             Callback { event, event_arg, callback_args, callback_clos, body } => return self.lift_callback(event, event_arg, callback_args, callback_clos, body),
             Label { name, body } => return label(name, self.lift_exps(body)),

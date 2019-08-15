@@ -1,5 +1,6 @@
 use crate::verif::untyped_traces::{Exp, Typ, Op2, LVal, Arg};
 use Exp::*;
+
 use im_rc::{HashMap as ImHashMap};
 
 type TypEnv = ImHashMap<String, Typ>;
@@ -11,7 +12,11 @@ enum Constraint {
      * of the union.
      */
     UnionMem(Typ, Typ),
-    FromMem(Typ, String, Typ)
+    /**
+     * In `FromMem(t1, x, t2)` the type of `t1.x = t2`.
+     */
+    FromMem(Typ, String, Typ),
+    Eq(Typ, Typ)
 }
 
 pub struct Typeinf {
@@ -41,6 +46,9 @@ impl std::fmt::Display for Error {
 
 impl std::error::Error for Error { }
 
+fn tref(t: Typ) -> Typ {
+    return Typ::Ref(Box::new(t));
+}
 
 impl Typeinf {
 
@@ -87,6 +95,7 @@ impl Typeinf {
         Ok(last_typ)
     }
 
+
     pub fn exp(&mut self, env: &TypEnv, exp: &mut Exp) -> Result<Typ, Error> {
         match exp {
             Exp::Unknown { } => Ok(Typ::Unknown),
@@ -103,8 +112,11 @@ impl Typeinf {
                 Ok(Typ::Ref(Box::new(x)))
             },
             Exp::Deref { e } => {
-                return self.exp(env, e);
-            }
+                let t = self.exp(env, e)?;
+                let x = self.fresh_var();
+                self.constraints.push(Constraint::Eq(tref(x.clone()), t));
+                Ok(x)
+            },
             // Note that there *is a possibility of a type error below, if in
             // SetRef(e1, e2), the type of e1 is not a reference type. However,
             // reference-manipulation expressions do not appear in the original
@@ -118,7 +130,7 @@ impl Typeinf {
                     Ok(Typ::Ref(x))
                 },
                 t => Err(err(
-                    format!("in SetRef(e1, e2), type of e1 is {:?}", t)))
+                    format!("in SetRef(e1, e2), type of e1 ({:?}) is {:?}", e1, t)))
             },
             // This should never occur. If it does, we should think about why.
             Exp::Let { name, named, typ } =>
@@ -157,6 +169,10 @@ impl Typeinf {
             },
             Exp::From { exp, field } => {
                 let t = self.exp(env, exp)?;
+                let x = self.fresh_var();
+                self.constraints.push(Constraint::FromMem(t, field.to_string(), x.clone()));
+                return Ok(x);
+/*
                 match t {
                     // NOTE(emily): This case will go away when closures and objects are merged.
                     Typ::Object(typ_vec) => {
@@ -180,7 +196,7 @@ impl Typeinf {
                     _ => {
                         unimplemented!("{:?} : {:?}", exp, t);
                     }
-                }
+                } */
             },
             Exp::Callback { event, event_arg, callback_args, callback_clos, body } => {
                 let t1 = self.exp(env, event_arg)?;
@@ -189,9 +205,9 @@ impl Typeinf {
                 for Arg { name, typ } in callback_args.iter_mut() {
                     let mut t;
                     match name.as_ref() {
-                        "$clos" => t = t2.clone(),
-                        "$request" => t = Typ::Request,
-                        "$responseCallback" => t = Typ::ResponseCallback,
+                        "$clos" => t = tref(t2.clone()),
+                        "$request" => t = tref(Typ::Request),
+                        "$responseCallback" => t = tref(Typ::ResponseCallback),
                         "$response" => {
                             let x = self.fresh_var();
                             self.constraints.push(Constraint::UnionMem(Typ::String, x.clone()));
@@ -286,11 +302,36 @@ impl Typeinf {
         }
     }
 
+    fn unify(subst: &mut std::collections::HashMap::<usize, Typ>,
+        t1: &Typ, t2: &Typ) {
+        match (t1, t2) {
+            (Typ::Metavar(x), _) => {
+                subst.insert(*x, t2.clone());
+            },
+            (_, Typ::Metavar(y)) => {
+                subst.insert(*y, t1.clone());
+            },
+            (Typ::Bool, Typ::Bool) => (),
+            (Typ::F64, Typ::F64) => (),
+            (Typ::Ref(t1), Typ::Ref(t2)) => Typeinf::unify(subst, t1, t2),
+            _ => {
+                panic!(format!("Cannot unify {:?} with {:?}", t1, t2))
+            }
+        }
+    }
+
     fn solve(constraints: Vec<Constraint>) -> Subst {
         use std::collections::HashMap;
         let mut subst: HashMap::<usize, Typ> = HashMap::new();
         for constraint in constraints.into_iter() {
             match constraint {
+                Constraint::Eq(t1, t2) => {
+                    let mut t1 = t1.clone();
+                    t1.apply_subst(&subst);
+                    let mut t2 = t2.clone();
+                    t2.apply_subst(&subst);
+                    Typeinf::unify(&mut subst, &t1, &t2);
+                },
                 Constraint::UnionMem(t, Typ::Metavar(n)) => {
                     let mut t1 = t.clone();
                     t1.apply_subst(&subst);
@@ -307,6 +348,7 @@ impl Typeinf {
                 Constraint::FromMem(t, field, Typ::Metavar(n)) => {
                     let mut t1 = t.clone();
                     t1.apply_subst(&subst);
+
                     match t1 {
                         Typ::Object(typ_vec) => {
                             // https://www.reddit.com/r/rust/comments/7mqwjn/hashmapstringt_vs_vecstringt/
@@ -326,7 +368,8 @@ impl Typeinf {
                                 }
                             }
                         },
-                        _ => panic!("Found something unexpected!")
+                        _ =>
+                            panic!(format!("FromMem({:?}, {:?}, Metavar({:?}))", t1, field, n))
                     }
                 },
                 Constraint::FromMem(_, _, _) => panic!("frommem"),

@@ -477,7 +477,10 @@ mod tests {
         assertions.assert_unique_names(&exp2);
 
         let mut exp3 = transformer.transform(&exp2);
+        // println!("{}", exp3);
         crate::verif::typeinf::typeinf(&mut exp3).unwrap();
+        println!("{}", exp3);
+
 
         let exp4 = lift_callbacks.lift(&exp3);
 
@@ -523,6 +526,27 @@ mod tests {
         "#, "hello");
         // assert!(false);
     }
+
+    #[test]
+        pub fn multiple_callbacks_1() {
+        let handle = test_harness("multiple_callbacks.js", r#"
+            let containerless = require('../containerless');
+
+            let foo = 'start';
+            foo = 42;
+            //let foo = 42;
+
+            containerless.listen(function(req, resp) {
+                console.error('Got a response');
+                let bar = foo + 1;
+                resp(req);
+
+            });
+        "#, "hello
+        goodbye
+        hello again");
+
+        }
 
     #[test]
     pub fn multiple_callbacks() {
