@@ -22,6 +22,54 @@ use std::collections::HashMap;
 use std::fmt;
 use serde::Deserialize;
 
+use std::fs::File;
+use std::io::prelude::*;
+use std::process::Stdio;
+use std::process::Command;
+use std::fs;
+
+pub fn to_exp(filename: &str, code: &str, requests: &str) -> Exp {
+    let f = File::create(filename).expect("creating file");
+    let mut js_transform = Command::new("node")
+        .arg("../tracing/js-transform")
+        .stdin(Stdio::piped())
+        .stdout(f)
+        .spawn()
+        .expect("starting js-transform");
+    js_transform.stdin.as_mut()
+        .expect("opening stdin")
+        .write_all(code.as_bytes())
+        .expect("failed to write to JS file");
+    let exit = js_transform.wait().expect("running js-transform");
+    assert!(exit.success());
+
+    let mut decontainerized_js = Command::new("node")
+        .arg(filename)
+        .arg("test")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("starting decontainerized function");
+
+    decontainerized_js.stdin.as_mut()
+        .expect("opening stdin")
+        .write_all(requests.as_bytes())
+        .expect("failed to write requests");
+
+    let exit = decontainerized_js.wait()
+        .expect("running decontainerized function");
+    assert!(exit.success(), "non-zero exit code from function");
+
+    let mut stdout = String::new();
+    decontainerized_js.stdout.unwrap().read_to_string(&mut stdout)
+        .expect("reading stdout");
+    // TODO(arjun): We should only remove the file after the calling test
+    // case succeeds. How can we do this neatly? Destructors?
+    fs::remove_file(filename).expect("removing file");
+    return serde_json::from_str::<Exp>(&stdout)
+        .unwrap_or_else(|exp| panic!("\n{:?} \nin \n{}", exp, &stdout));
+}
+
 #[derive(PartialEq, Debug, Clone)]
 pub struct Arg { pub name: String, pub typ: Option<Typ> }
 
