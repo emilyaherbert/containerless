@@ -1,0 +1,12 @@
+[package]
+name = "compiler"
+version = "0.1.0"
+authors = ["Arjun Guha <arjun@cs.umass.edu>"]
+edition = "2018"
+
+[dependencies]
+im-rc = "*"
+quote = "*"
+serde = { version = "*", features = ["derive"] }
+serde_json = "*"
+trace-runtime = { path = "../trace-runtime" }

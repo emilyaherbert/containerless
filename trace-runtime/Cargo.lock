@@ -91,16 +91,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "decontainerization-trace-runtime"
-version = "0.1.0"
-dependencies = [
- "bumpalo 2.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "futures 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
- "hyper 0.12.30 (registry+https://github.com/rust-lang/crates.io-index)",
- "tokio 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "either"
 version = "1.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -719,6 +709,16 @@ dependencies = [
  "tokio-codec 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-io 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-reactor 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "trace-runtime"
+version = "0.1.0"
+dependencies = [
+ "bumpalo 2.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hyper 0.12.30 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
