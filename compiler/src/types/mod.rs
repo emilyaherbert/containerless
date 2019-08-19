@@ -120,6 +120,17 @@ pub fn deserialize_args<'de, T, D>(deserializer: D) -> Result<Vec<T>, D::Error>
     deserializer.deserialize_any(Visitor(::std::marker::PhantomData))
 }
 
+/*
+
+    What I really want to do is to use Union(HashSet<Typ>)
+    and to derive Hash, so that Typ's could be used as hash values.
+    HashSet itself can't be hashed though because its elements are ordered.
+    It might be possible to use + or XOR to create our own HashSet hashing,
+    but that would be slightly unsafe.
+
+    The other set implementation we could use is BTreeSet.
+
+*/
 #[derive(PartialEq, Debug, Deserialize, Clone)]
 pub enum Typ {
     I32,
@@ -131,8 +142,9 @@ pub enum Typ {
     Metavar(usize),
     Ref(Box<Typ>),
     Union(Vec<Typ>),
-    Object(Vec<(String, Typ)>),
-    ResponseCallback
+    Object(HashMap<String, Typ>),
+    ResponseCallback,
+    RustType(usize)
 }
 
 impl Typ {
@@ -150,7 +162,8 @@ impl Typ {
             Typ::Undefined => false,
             Typ::Object(ts) => ts.iter()
                 .fold(false, |b, (_, t)| b || t.has_metavars()),
-            Typ::ResponseCallback => false
+            Typ::ResponseCallback => false,
+            _ => unimplemented!()
         }
     }
 
@@ -193,7 +206,41 @@ impl Typ {
                     t.apply_subst(subst)
                 }
             },
-            Typ::ResponseCallback => ()
+            Typ::ResponseCallback => (),
+            _ => unimplemented!()
+        }
+    }
+
+    pub fn fake_hash_string(&self) -> String {
+        match self {
+            Typ::Metavar(y) => return "a".to_string() + (*y).to_string().as_str(),
+            Typ::Ref(t) => return "b".to_string() + t.fake_hash_string().as_str(),
+            Typ::Union(hs) => {
+                let mut ret = "c".to_string();
+                let mut hs2: Vec<String> = hs.iter().map(|t| t.fake_hash_string()).collect();
+                hs2.sort();
+                for t in hs2.iter() {
+                    ret += t;
+                }
+                return ret;
+            }
+            Typ::I32 => return "d".to_string(),
+            Typ::F64 => return "e".to_string(),
+            Typ::Bool => return "f".to_string(),
+            Typ::String => return "g".to_string(),
+            Typ::Unknown => return "h".to_string(),
+            Typ::Undefined => return "i".to_string(),
+            Typ::Object(ts) => {
+                let mut ret = "j".to_string();
+                let mut ts2: Vec<String> = ts.iter().map(|(k,v)| k.to_string() + v.fake_hash_string().as_str()).collect();
+                ts2.sort();
+                for t in ts2.iter() {
+                    ret += t;
+                }
+                return ret;
+            }
+            Typ::ResponseCallback => return "k".to_string(),
+            _ => unimplemented!()
         }
     }
 }

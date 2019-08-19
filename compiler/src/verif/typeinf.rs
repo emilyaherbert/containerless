@@ -1,5 +1,6 @@
 use crate::types::{Exp, Typ, Op2, Arg};
 use im_rc::{HashMap as ImHashMap};
+use std::collections::HashMap;
 
 type TypEnv = ImHashMap<String, Typ>;
 type Subst = std::collections::HashMap<usize, Typ>;
@@ -131,10 +132,10 @@ impl Typeinf {
                 }
             },
             Exp::Clos { tenv } => {
-                let mut ts = Vec::new();
+                let mut ts = HashMap::new();
                 for (x, e) in tenv.iter_mut() {
                     let t = self.exp(env, e)?;
-                    ts.push((x.to_string(), t));
+                    ts.insert(x.to_string(), t);
                 }
                 Ok(Typ::Object(ts))
             },
@@ -160,7 +161,11 @@ impl Typeinf {
                 for Arg { name, typ } in callback_args.iter_mut() {
                     let t = match name.as_ref() {
                         "$clos" => tref(t2.clone()),
-                        "$request" => tref(Typ::Object(vec![("path".to_string(), tref(Typ::String))])),
+                        "$request" => {
+                            let mut hm = HashMap::new();
+                            hm.insert("path".to_string(), tref(Typ::String));
+                            tref(Typ::Object(hm))
+                        },
                         "$responseCallback" => tref(Typ::ResponseCallback),
                         "$response" => tref(Typ::Union(vec![Typ::String, Typ::Undefined])),
                         _ => panic!("Unexpected argument!")
@@ -273,7 +278,6 @@ impl Typeinf {
     }
 
     fn solve(constraints: Vec<Constraint>) -> Subst {
-        use std::collections::HashMap;
         let mut subst: HashMap::<usize, Typ> = HashMap::new();
         for constraint in constraints.into_iter() {
             match constraint {
