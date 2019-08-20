@@ -34,13 +34,10 @@ pub fn verify(exp: &Exp) -> Exp {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
 
     use crate::{
         types::{
-            Op2,
             Exp,
-            constructors::*,
             to_exp
         },
         verif::verify

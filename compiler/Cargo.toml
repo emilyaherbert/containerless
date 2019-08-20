@@ -10,3 +10,4 @@ quote = "*"
 serde = { version = "*", features = ["derive"] }
 serde_json = "*"
 trace-runtime = { path = "../trace-runtime" }
+duct = "*"

@@ -172,6 +172,7 @@ impl RustTypes {
     }
 }
 
+// TODO(emily): Only put new type in type map if it is used 2+ times
 pub fn to_rust_types(exp: &mut Exp) -> HashMap<usize, Typ> {
     let mut rts = RustTypes::new();
     rts.exp(exp);

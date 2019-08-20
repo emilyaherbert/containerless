@@ -1,5 +1,8 @@
 #![allow(dead_code)]
 
+#[macro_use]
+extern crate duct;
+
 mod types;
 mod verif;
 mod gen;
@@ -11,12 +14,9 @@ fn main() {
 #[cfg(test)]
 mod tests {
 
-    use std::collections::HashMap;
-
     use crate::{
         types::{
             Exp,
-            Typ,
             to_exp
         },
         verif::verify,
