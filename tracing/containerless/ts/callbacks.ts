@@ -53,10 +53,10 @@ export class Callbacks {
      */
     mockCallback(callback: (value: any) => void, arg: any): ((value: any) => void) {
         const [_, callbackClos, argRep] = this.trace.popArgs();
-        let innerTrace = this.trace.traceCallback('mock', argRep, ['clos', '$response'], callbackClos);
+        let innerTrace = this.trace.traceCallback('mock', argRep, ['clos', 'response'], callbackClos);
         return (value: any) => {
             this.withTrace(innerTrace, () => {
-                innerTrace.pushArgs([identifier('clos'), identifier('$response')]);
+                innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                 callback(value);
             });
         };
@@ -74,10 +74,10 @@ export class Callbacks {
      */
     immediate(callbackArgStr: string, callback: (callbackArg: string) => void) {
         const [_, argRep, callbackClos] = this.trace.popArgs();
-        let innerTrace = this.trace.traceCallback('immediate', argRep, ['clos', '$x'], callbackClos);
+        let innerTrace = this.trace.traceCallback('immediate', argRep, ['clos', 'x'], callbackClos);
         setImmediate(() => {
             this.withTrace(innerTrace, () => {
-                innerTrace.pushArgs([identifier('clos'), identifier('$x')]);
+                innerTrace.pushArgs([identifier('clos'), identifier('x')]);
                 callback(callbackArgStr);
             });
         });
@@ -94,19 +94,19 @@ export class Callbacks {
         // TODO(arjun): string(uri) is not right. This needs to be the expression
         // passed to the function.
         let [_, $argRep, $callbackClos] = this.trace.popArgs();
-        let innerTrace = this.trace.traceCallback('get', $argRep, ['clos', '$response'], $callbackClos);
+        let innerTrace = this.trace.traceCallback('get', $argRep, ['clos', 'response'], $callbackClos);
         
         // TODO(emily): Bad. Fix.
         if (state.getListenPort() === 'test') {
             this.withTrace(innerTrace, () => {
-                innerTrace.pushArgs([identifier('clos'), identifier('$response')]);
+                innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                 callback(String("GENERIC RESPONSE"));
             });
         } else {
 
             request.get(uri, undefined, (error, resp) => {
                 this.withTrace(innerTrace, () => {
-                    innerTrace.pushArgs([identifier('clos'), identifier('$reponse')]);
+                    innerTrace.pushArgs([identifier('clos'), identifier('reponse')]);
                     if (error !== null) {
                         callback(undefined);
                     }
