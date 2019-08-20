@@ -19,6 +19,11 @@
 //   Instead, I guessed that it existed and it worked!
 use std::collections::HashMap;
 
+use im_rc::{
+    HashMap as ImHashMap,
+    HashSet as ImHashSet
+};
+
 use std::fmt;
 use serde::Deserialize;
 
@@ -131,7 +136,7 @@ pub fn deserialize_args<'de, T, D>(deserializer: D) -> Result<Vec<T>, D::Error>
     The other set implementation we could use is BTreeSet.
 
 */
-#[derive(PartialEq, Debug, Deserialize, Clone)]
+#[derive(PartialEq, Eq, Debug, Deserialize, Clone, Hash)]
 pub enum Typ {
     I32,
     F64,
@@ -141,8 +146,10 @@ pub enum Typ {
     Undefined,
     Metavar(usize),
     Ref(Box<Typ>),
-    Union(Vec<Typ>),
-    Object(HashMap<String, Typ>),
+    #[serde(skip)]
+    Union(ImHashSet<Typ>),
+    #[serde(skip)]
+    Object(ImHashMap<String, Typ>),
     ResponseCallback,
     RustType(usize)
 }
@@ -202,7 +209,7 @@ impl Typ {
             Typ::Unknown => (),
             Typ::Undefined => (),
             Typ::Object(ts) => {
-                for (_, t) in ts.iter_mut() {
+                for t in ts.iter_mut() {
                     t.apply_subst(subst)
                 }
             },
@@ -374,15 +381,22 @@ pub mod constructors {
 
     use std::collections::HashMap;
 
+    use im_rc::{
+        HashSet as ImHashSet
+    };
+
     pub fn t_union(t1: Typ, t2: Typ) -> Typ {
         match t1 {
             Typ::Union(ts) => {
                 let mut ts2 = ts.clone();
-                ts2.push(t2);
+                ts2.insert(t2);
                 return Typ::Union(ts2);
             },
             _ => {
-                return Typ::Union(vec![t1, t2]);
+                let mut ts2 = ImHashSet::new();
+                ts2.insert(t1);
+                ts2.insert(t2);
+                return Typ::Union(ts2);
             }
         }
     }

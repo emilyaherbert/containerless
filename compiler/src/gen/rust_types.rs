@@ -8,7 +8,7 @@ use crate::types::{
 };
 
 pub struct RustTypes {
-    types: HashMap<String, usize>,
+    types: HashMap<Typ, usize>,
     rust_types: HashMap<usize, Typ>,
     next_type_id: usize
 }
@@ -29,8 +29,6 @@ impl RustTypes {
     }
 
     fn register_type(&mut self, typ: &mut Typ) -> Typ {
-        let code = typ.fake_hash_string();
-
         // Don't add primitives to the type map
         match typ {
             Typ::I32 => return Typ::I32,
@@ -41,7 +39,7 @@ impl RustTypes {
             Typ::Undefined => return Typ::Undefined,
             Typ::ResponseCallback => return Typ::ResponseCallback,
             Typ::Object(hm) => {
-                for (_, v) in hm.iter_mut() {
+                for v in hm.iter_mut() {
                     *v = self.register_type(v);
                 }
             },
@@ -51,15 +49,15 @@ impl RustTypes {
                 }
             },
             Typ::Ref(t) => {
-                self.register_type(t);
+                return Typ::Ref(Box::new(self.register_type(t)));
             },
             _ => { }
         }
 
-        match self.types.get(&code) {
+        match self.types.get(typ) {
             None => {
                 let id = self.next_rust_type_id();
-                self.types.insert(code, id);
+                self.types.insert(typ.clone(), id);
                 self.rust_types.insert(id, typ.to_owned());
                 return Typ::RustType(id);
             },

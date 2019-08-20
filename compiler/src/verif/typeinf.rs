@@ -1,6 +1,11 @@
 use crate::types::{Exp, Typ, Op2, Arg};
-use im_rc::{HashMap as ImHashMap};
+
 use std::collections::HashMap;
+
+use im_rc::{
+    HashMap as ImHashMap,
+    HashSet as ImHashSet
+};
 
 type TypEnv = ImHashMap<String, Typ>;
 type Subst = std::collections::HashMap<usize, Typ>;
@@ -132,7 +137,7 @@ impl Typeinf {
                 }
             },
             Exp::Clos { tenv } => {
-                let mut ts = HashMap::new();
+                let mut ts = ImHashMap::new();
                 for (x, e) in tenv.iter_mut() {
                     let t = self.exp(env, e)?;
                     ts.insert(x.to_string(), t);
@@ -162,12 +167,17 @@ impl Typeinf {
                     let t = match name.as_ref() {
                         "$clos" => tref(t2.clone()),
                         "$request" => {
-                            let mut hm = HashMap::new();
+                            let mut hm = ImHashMap::new();
                             hm.insert("path".to_string(), tref(Typ::String));
                             tref(Typ::Object(hm))
                         },
                         "$responseCallback" => tref(Typ::ResponseCallback),
-                        "$response" => tref(Typ::Union(vec![Typ::String, Typ::Undefined])),
+                        "$response" => {
+                            let mut hs = ImHashSet::new();
+                            hs.insert(Typ::String);
+                            hs.insert(Typ::Undefined);
+                            tref(Typ::Union(hs))
+                        }
                         _ => panic!("Unexpected argument!")
                     };
                     *typ = Some(t.clone());
@@ -298,21 +308,18 @@ impl Typeinf {
                         Some(Typ::Union(ts1)) => {
                             match t1 {
                                 Typ::Union(ts2) => {
-                                    for ts3 in ts2.into_iter() {
-                                        if !ts1.contains(&ts3) {
-                                            ts1.push(ts3);
-                                        }
-                                    }
+                                    *ts1 = ts1.clone().union(ts2);
                                 },
                                 ts2 => {
-                                    if !ts1.contains(&ts2) {
-                                        ts1.push(ts2);
-                                    }
+                                    ts1.insert(ts2);
                                 }
                             }
                         }
                         Some(s) => {
-                            *s = Typ::Union(vec![s.clone(), t1]);
+                            let mut hs = ImHashSet::new();
+                            hs.insert(s.clone());
+                            hs.insert(t1);
+                            *s = Typ::Union(hs);
                         }
                     }
                 },
@@ -331,10 +338,13 @@ impl Typeinf {
                                             let _ = subst.insert(n, v.clone());
                                         },
                                         Some(Typ::Union(ts)) => {
-                                            ts.push(v.clone());
+                                            ts.insert(v.clone());
                                         }
                                         Some(s) => {
-                                            *s = Typ::Union(vec![s.clone(), v.clone()]);
+                                            let mut hs = ImHashSet::new();
+                                            hs.insert(s.clone());
+                                            hs.insert(v.clone());
+                                            *s = Typ::Union(hs);
                                         }
                                     }
                                 }
