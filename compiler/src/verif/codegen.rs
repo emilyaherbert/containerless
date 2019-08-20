@@ -16,7 +16,7 @@ fn codegen_op(op: &Op2) -> TokenStream {
 fn codegen_block(block: &[Exp]) -> TokenStream {
     let q_block = block.iter().map(|e| codegen_exp(e));
     quote! {
-        #(#q_block ;)*
+        #(#q_block)*
     }
 }
 
@@ -110,7 +110,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             let q_event_arg = codegen_exp(event_arg);
             let q_callback_clos = codegen_exp(callback_clos);
             quote! {
-                rts.loopback(#event, #q_event_arg, #q_callback_clos, #id)
+                rts.loopback(#event, #q_event_arg, #q_callback_clos, #id);
             }
         }
         Exp::Label { name, body } => {
@@ -171,6 +171,8 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
 pub fn codegen(e: &Exp) -> String {
     let q_e = codegen_exp(e);
     let tokens = quote! {
+        use trace_runtime::type_dynamic::Dyn;
+
         #[no_mangle]
         pub extern "C" fn containerless() {
             #q_e
