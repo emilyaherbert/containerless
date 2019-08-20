@@ -120,7 +120,7 @@ function traceLet(lhs: string, rhs: b.Expression): b.ExpressionStatement {
 
 /**
  * ```
- * let [$clos] = b.traceFunctionBody('$return');
+ * let [clos] = b.traceFunctionBody('$return');
  * ```
  */
 function jsLet(lhs: b.LVal, rhs: b.Expression): b.VariableDeclaration {
@@ -241,12 +241,12 @@ function reifyExpression(e: b.Expression, st: State): [b.Expression, State] {
         case 'Identifier': {
             if(st.has(e.name)) {
                 if(st.get(e.name)) {
-                    return [from(b.identifier('$clos'), e.name), st];
+                    return [from(b.identifier('clos'), e.name), st];
                 } else {
                     return [identifier(e.name), st];
                 }
             } else {
-                return [from(b.identifier('$clos'), e.name), st.set(e.name, true)];
+                return [from(b.identifier('clos'), e.name), st.set(e.name, true)];
             }
         }
         case 'NumericLiteral': return [number(e.value), st];
@@ -294,9 +294,9 @@ function reifyExpression(e: b.Expression, st: State): [b.Expression, State] {
  * let a = 1;
  * b.traceLet('F', clos({ a: identifier('a') }));
  * function F(x) { // let F = function(x) {
- *  let [$clos, $x] = b.traceFunctionBody('$return');
+ *  let [clos, $x] = b.traceFunctionBody('$return');
  *  b.traceLet('x', $x);
- *  b.traceBreak('$return', binop('+', from($clos, 'a'), identifier('x')));
+ *  b.traceBreak('$return', binop('+', from(clos, 'a'), identifier('x')));
  *  return a + x; * 
  *  b.exitBlock();
  * }
@@ -460,9 +460,9 @@ function reifyBreakStatement(s: b.BreakStatement, st: State): [b.Statement[], St
  * let a = 1;
  * b.traceLet('F', clos({ a: identifier('a') }));
  * function F(x) {
- *  let [$clos, $x] = b.traceFunctionBody('$return');
+ *  let [clos, $x] = b.traceFunctionBody('$return');
  *  b.traceLet('x', $x);
- *  b.traceBreak('$return', binop('+', from($clos, 'a'), identifier('x')));
+ *  b.traceBreak('$return', binop('+', from(clos, 'a'), identifier('x')));
  *  return a + x; * 
  *  b.exitBlock();
  * }
@@ -474,7 +474,7 @@ function reifyFunctionDeclaration(s: b.FunctionDeclaration, st: State): [b.State
         throw new Error("Null id!!");
     }
     const params = s.params;
-    let funBodyLHS = [b.identifier('$clos')];
+    let funBodyLHS = [b.identifier('clos')];
     let paramsBody: b.Statement[] = [];
     let nextSt: State = Map();
     for(let i=0; i<params.length; i++) {
@@ -499,7 +499,7 @@ function reifyFunctionDeclaration(s: b.FunctionDeclaration, st: State): [b.State
         .keySeq().forEach(k => {
             if(retSt.has(k!)) {
                 if(retSt.get(k!)!) {
-                    fvs.push(b.objectProperty(b.identifier(k!), from(b.identifier('$clos'), k!)));
+                    fvs.push(b.objectProperty(b.identifier(k!), from(b.identifier('clos'), k!)));
                 } else {
                     fvs.push(b.objectProperty(b.identifier(k!), identifier(k!)));
                 }
@@ -610,7 +610,7 @@ function lvaltoName(lval: b.LVal): string {
 
     Variables conditions:
 
-    1. If free, use `from($clos, 'foo')`
+    1. If free, use `from(clos, 'foo')`
     2. Else, use `identifier('foo')`
 
 */

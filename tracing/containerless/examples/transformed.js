@@ -10,27 +10,27 @@ cb.trace.traceLet("fun000", exp.clos({
 }));
 
 function fun000(req, resp) {
-  let [$clos, $req, $resp] = cb.trace.traceFunctionBody("$return");
+  let [clos, $req, $resp] = cb.trace.traceFunctionBody("$return");
   cb.trace.traceLet("req", $req);
   cb.trace.traceLet("resp", $resp);
   cb.trace.tracePrimApp("console.log", [exp.from(exp.identifier("console"), "error"), exp.string("Got a response")]);
   var app100 = console.error('Got a response');
-  cb.trace.traceLet("bar00", exp.binop("+", exp.from($clos, "foo00"), exp.number(1)));
+  cb.trace.traceLet("bar00", exp.binop("+", exp.from(clos, "foo00"), exp.number(1)));
   var bar00 = foo00 + 1;
   cb.trace.traceFunctionCall("app200", [exp.identifier("resp"), exp.identifier("req")]);
   var app200 = resp(req);
   cb.trace.exitBlock();
   cb.trace.traceLet("fun100", exp.clos({
-    foo00: exp.from($clos, "foo00"),
+    foo00: exp.from(clos, "foo00"),
     bar00: exp.identifier("bar00")
   }));
 
   function fun100(response) {
-    let [$clos, $response] = cb.trace.traceFunctionBody("$return");
+    let [clos, $response] = cb.trace.traceFunctionBody("$return");
     cb.trace.traceLet("response", $response);
     cb.trace.tracePrimApp("console.log", [exp.from(exp.identifier("console"), "error"), exp.identifier("response")]);
     var app500 = console.error(response);
-    cb.trace.traceLet("baz00", exp.binop("+", exp.from($clos, "foo00"), exp.from($clos, "bar00")));
+    cb.trace.traceLet("baz00", exp.binop("+", exp.from(clos, "foo00"), exp.from(clos, "bar00")));
     var baz00 = foo00 + bar00;
     cb.trace.exitBlock();
   }

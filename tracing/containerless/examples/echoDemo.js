@@ -10,7 +10,7 @@ function F(req, resp) {
     // or... t = decontainerizable.getTrace();
 
     // #2 <-
-    let [$clos, $req, $resp] = cb.trace.traceFunctionBody('$return');
+    let [clos, $req, $resp] = cb.trace.traceFunctionBody('$return');
     cb.trace.traceLet('req', $req);
     cb.trace.traceLet('resp', $resp);
 

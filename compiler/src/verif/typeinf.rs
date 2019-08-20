@@ -160,14 +160,14 @@ impl Typeinf {
                 let mut env = env.clone();
                 for Arg { name, typ } in callback_args.iter_mut() {
                     let t = match name.as_ref() {
-                        "$clos" => tref(t2.clone()),
-                        "$request" => {
+                        "clos" => tref(t2.clone()),
+                        "request" => {
                             let mut hm = HashMap::new();
                             hm.insert("path".to_string(), tref(Typ::String));
                             tref(Typ::Object(hm))
                         },
-                        "$responseCallback" => tref(Typ::ResponseCallback),
-                        "$response" => tref(Typ::Union(vec![Typ::String, Typ::Undefined])),
+                        "responseCallback" => tref(Typ::ResponseCallback),
+                        "response" => tref(Typ::Union(vec![Typ::String, Typ::Undefined])),
                         _ => panic!("Unexpected argument!")
                     };
                     *typ = Some(t.clone());
