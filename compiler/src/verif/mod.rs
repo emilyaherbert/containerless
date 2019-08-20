@@ -2,6 +2,7 @@ pub mod transformer;
 pub mod typeinf;
 pub mod assertions;
 pub mod lift_callbacks;
+pub mod codegen;
 
 use crate::{
     types::Exp,
@@ -48,6 +49,18 @@ mod tests {
         let verified = verify(&exp);
 
         return verified;
+    }
+
+    #[test]
+    pub fn codegen() {
+        let handle = test_harness("codegen.js", r#"
+            let containerless = require("../tracing/containerless");
+            containerless.listen(function(req, resp) {
+                resp('Hello, world!');
+            });
+        "#, "");
+
+        println!("{}", super::codegen::codegen(&handle));
     }
 
     #[test]

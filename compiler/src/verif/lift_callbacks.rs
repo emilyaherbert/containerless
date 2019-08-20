@@ -20,8 +20,8 @@ impl LiftCallbacks {
 
     pub fn new() -> LiftCallbacks {
         return LiftCallbacks {
-            cbid: "$CBID".to_string(),
-            cbargs: "$CBARGS".to_string(),
+            cbid: "arg_cbid".to_string(),
+            cbargs: "arg_cbargs".to_string(),
             next_id: 1,
             callbacks: vec!()
         };
