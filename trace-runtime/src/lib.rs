@@ -1,4 +1,6 @@
 pub mod types;
+pub mod type_dynamic;
+pub mod error;
 #[macro_use]
 
 #[cfg(test)]
