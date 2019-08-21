@@ -133,7 +133,7 @@ export class Callbacks {
                 //innerTrace.traceLet('responseCallback', clos({ }));
                 function responseCallback(response: any) {
                     // #3 <-
-                    let [_, $response] = innerTrace.traceFunctionBody('$return');
+                    let [_, $response] = innerTrace.traceFunctionBody('\'return');
                     innerTrace.traceLet('response', $response);
 
                     // NOTE(emily): Some of this info may be irrelevant.
