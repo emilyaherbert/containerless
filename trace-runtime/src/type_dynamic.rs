@@ -1,36 +1,50 @@
 
 use bumpalo::{Bump, collections::Vec};
-use std::cell::{RefCell};
-use std::convert::TryFrom;
+use std::cell::{RefCell, Cell};
+use std::convert::{From, TryFrom};
 use super::error::Error;
 
 /**
  * This is an implementation of "type dynamic" for traces.
  */
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum Dyn<'a> {
     Int(i32),
     Float(f64),
     Bool(bool),
     Str(&'a str),
     Undefined,
-    Unknown,
-    Vec(&'a RefCell<Vec<'a, Dyn<'a>>>)
-    // Object(Vec<String,Dyn>)
+    Ref(&'a Cell<Dyn<'a>>),
+    Vec(&'a RefCell<Vec<'a, Dyn<'a>>>),
+    Object(&'a RefCell<Vec<'a, (&'a str, Dyn<'a>)>> )
 }
 
 pub type DynResult<'a> = Result<Dyn<'a>,Error>;
 
 impl<'a> Dyn<'a> {
 
+    pub fn undefined() -> DynResult<'a> {
+        Ok(Dyn::Undefined)
+    }
+
     /** Wraps an integer in type `Dyn`. */
-    pub fn int(n: i32) -> Dyn<'a> {
-        Dyn::Int(n)
+    pub fn int(n: i32) -> DynResult<'a> {
+        Ok(Dyn::Int(n))
     }
 
     /** Wraps a floating-point number in type `Dyn`. */
-    pub fn float(x: f64) -> Dyn<'a> {
-        Dyn::Float(x)
+    pub fn float(x: f64) -> DynResult<'a> {
+        Ok(Dyn::Float(x))
+    }
+
+    pub fn ref_(arena: &'a Bump, value: Dyn<'a>) -> Dyn<'a> {
+        Dyn::Ref(arena.alloc(Cell::new(value)))
+    }
+
+    pub fn object(
+        arena: &'a Bump,
+        _fields: std::vec::Vec<(&'a str, Dyn<'a>)>) -> Dyn<'a> {
+        return Dyn::Object(arena.alloc(RefCell::new(Vec::new_in(arena))))
     }
 
     pub fn add(&self, other: &Dyn<'a>) -> DynResult<'a> {
@@ -43,9 +57,16 @@ impl<'a> Dyn<'a> {
         }
     }
 
+    pub fn strict_eq(&self, other: DynResult<'a>) -> DynResult<'a> {
+        match (*self, other?) {
+            (Dyn::Int(m), Dyn::Int(n)) => Ok(Dyn::Bool(m == n)),
+            _ => unimplemented!()
+        }
+    }
+
     /** Array indexing. */
-    pub fn index(&'a self, index: Dyn<'a>) -> DynResult<'a> {
-        match (self, index) {
+    pub fn index(&'a self, index: DynResult<'a>) -> DynResult<'a> {
+        match (self, index?) {
             (Dyn::Vec(vec_cell), Dyn::Int(index)) => {
                 match usize::try_from(index) {
                     Err(_) => Ok(Dyn::Undefined),
@@ -76,4 +97,36 @@ impl<'a> Dyn<'a> {
             _ => panic!("")
         }
     }
+
+    pub fn deref(&'a self) -> DynResult<'a> {
+        match self {
+            Dyn::Ref(cell) => Ok(cell.get()),
+            // This should never occur, since we insert refs and derefs in the
+            // right places.
+            _ => panic!("invoked deref on {:?}", self)
+        }
+    }
+
+}
+
+impl<'a> From<Dyn<'a>> for bool {
+
+    fn from(value: Dyn<'a>) -> Self {
+        match value {
+            Dyn::Bool(b) => b,
+            Dyn::Int(0) => false,
+            Dyn::Int(_) => true,
+            Dyn::Undefined => false,
+            _ => unimplemented!()
+        }
+    }
+
+}
+
+impl<'a> From<()> for Dyn<'a> {
+
+    fn from(_value: ()) -> Self {
+        Dyn::Undefined
+    }
+
 }

@@ -15,14 +15,24 @@ fn codegen_op(op: &Op2) -> TokenStream {
 
 fn codegen_block(block: &[Exp]) -> TokenStream {
     let q_block = block.iter().map(|e| codegen_exp(e));
-    quote! {
-        #(#q_block)*
+    match block.last() {
+        Some(Exp::Let { name: _, named: _, typ:_  }) => {
+            quote! {
+                #(#q_block)*
+                Dyn::undefined()
+            }
+        },
+        _ => {
+            quote! {
+                #(#q_block)*
+            }
+        }
     }
 }
 
 fn codegen_exp(exp: &Exp) -> TokenStream {
     match exp {
-        Exp::Unknown {} => quote! { Dyn::unknown },
+        Exp::Unknown {} => quote! { rt::unknown() },
         Exp::Integer { value } => quote! { Dyn::int(#value) },
         Exp::Number { value } => quote! { Dyn::float(#value) },
         Exp::Identifier { name } => {
@@ -43,7 +53,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             let q_op = codegen_op(op);
             let q_e1 = codegen_exp(e1);
             let q_e2 = codegen_exp(e2);
-            quote! { #q_e1.#q_op(#q_e2) }
+            quote! { #q_e1.#q_op(#q_e2)? }
         }
         Exp::If {
             cond,
@@ -54,7 +64,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             let q_then_part = codegen_block(true_part);
             let q_else_part = codegen_block(false_part);
             quote! {
-                if #q_test { #q_then_part } else { #q_else_part }
+                if #q_test.into() { #q_then_part } else { #q_else_part }
             }
         }
         Exp::While { cond, body } => {
@@ -86,7 +96,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             let q_body = codegen_block(body);
             quote! {
                 {
-                    #q_body;
+                    #q_body
                 }
             }
         }
@@ -110,7 +120,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             let q_event_arg = codegen_exp(event_arg);
             let q_callback_clos = codegen_exp(callback_clos);
             quote! {
-                rts.loopback(#event, #q_event_arg, #q_callback_clos, #id);
+                ec.loopback(#event, #q_event_arg, #q_callback_clos, #id)?
             }
         }
         Exp::Label { name, body } => {
@@ -134,7 +144,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
                 let q_v = codegen_exp(v);
                 quote! { (#k, #q_v) }
             });
-            quote! { Dyn::clos(#(#q_tenv),*) }
+            quote! { Dyn::object(arena, vec![#(#q_tenv),*]) }
         }
         Exp::Array { exps } => {
             let q_exps = exps.iter().map(|e| codegen_exp(e));
@@ -143,15 +153,15 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
         Exp::Index { e1, e2 } => {
             let q_e1 = codegen_exp(e1);
             let q_e2 = codegen_exp(e2);
-            quote! { #q_e1.index(#q_e2) }
+            quote! { #q_e1.index(#q_e2)? }
         }
         Exp::Ref { e } => {
             let q_e = codegen_exp(e);
-            quote! { Dyn::ref_(#q_e) }
+            quote! { Dyn::ref_(arena, #q_e) }
         }
         Exp::Deref { e } => {
             let q_e = codegen_exp(e);
-            quote! { Dyn::deref(#q_e) }
+            quote! { Dyn::deref(&#q_e) }
         }
         Exp::SetRef { e1, e2 } => {
             let q_e1 = codegen_exp(e1);
@@ -171,10 +181,15 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
 pub fn codegen(e: &Exp) -> String {
     let q_e = codegen_exp(e);
     let tokens = quote! {
-        use trace_runtime::type_dynamic::Dyn;
+        use trace_runtime::{Error, ExecutionContext, Dyn};
+        use trace_runtime as rt;
 
         #[no_mangle]
-        pub extern "C" fn containerless() {
+        pub extern "C" fn containerless<'a>(
+            ec: &mut ExecutionContext,
+            arena: &'a bumpalo::Bump,
+            arg_cbid: &'a Dyn<'a>,
+            arg_cbargs: &'a Dyn<'a>) -> Result<Dyn<'a>, Error> {
             #q_e
         }
     };
