@@ -31,8 +31,8 @@ mod tests {
         // Translates typ's to RustType's, creates a usize -> Typ
         let rust_types = gen(&mut exp2);
 
-        //println!("{:?}", rust_types);
-        //println!("{}", exp2);
+        println!("{:?}", rust_types);
+        //println!("{:#?}", exp2);
 
         return exp2;
     }

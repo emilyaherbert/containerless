@@ -1,5 +1,5 @@
 pub mod rust_types;
-pub mod structs;
+pub mod gen_types;
 
 use std::{
     io::Write,
@@ -13,13 +13,13 @@ use crate::{
     },
     gen::{
         rust_types::to_rust_types,
-        structs::compile_structs
+        gen_types::compile_typs
     }
 };
 
 pub fn gen(exp: &mut Exp) -> HashMap<usize, Typ> {
     let rust_types = to_rust_types(exp);
-    let q_types = compile_structs(&rust_types);
+    let q_types = compile_typs(&rust_types);
 
     let mut rs_file = std::fs::File::create("trace.rs")
         .expect("Could not create .rs file.");
