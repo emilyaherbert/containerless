@@ -1,7 +1,15 @@
 pub mod types;
 pub mod type_dynamic;
 pub mod error;
-#[macro_use]
+pub mod execution_context;
+
+pub use error::*;
+pub use type_dynamic::*;
+pub use execution_context::*;
+
+pub fn unknown<T>() -> Result<T, Error> {
+    Err(Error::Unknown)
+}
 
 #[cfg(test)]
 mod tests {

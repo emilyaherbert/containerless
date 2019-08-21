@@ -191,7 +191,7 @@ test('tracing with callback library', (done) => {
     let cb = new Callbacks();
     cb.trace.pushArgs([clos({}), string('hello'), clos({})]);
     cb.immediate('hello', (str) => {
-        let [clos, $str] = cb.trace.traceFunctionBody('$return');
+        let [$clos, $str] = cb.trace.traceFunctionBody('$return');
         cb.trace.traceLet('str', $str);
 
         cb.trace.traceLet('x', number(100));
@@ -204,9 +204,9 @@ test('tracing with callback library', (done) => {
         setImmediate(() => {
             expect(cb.trace.getTrace()).toMatchObject(
                 block([
-                    callback('immediate', string('hello'), ['clos', '$x'], clos({}), [
+                    callback('immediate', string('hello'), ['clos', 'x'], clos({}), [
                         label('$return', [
-                            let_('str', identifier('$x')),
+                            let_('str', identifier('x')),
                             let_('x', number(100)),
                             let_('z', identifier('str'))])
                         ]),
@@ -261,9 +261,9 @@ test('callback that receives multiple events', () => {
             let_('captured', number(42)),
             let_('F', clos({ captured: identifier('captured') })),
             let_('sender', block([
-                callback('mock', number(200), ['clos', '$response'], identifier('F'), [
+                callback('mock', number(200), ['clos', 'response'], identifier('F'), [
                     label('$return', [
-                        let_('value', identifier('$response')),
+                        let_('value', identifier('response')),
                         let_('ret', from(identifier('clos'), 'captured')),
                         if_(binop('>', identifier('value'), number(0)), [
                             set(identifier('ret'), number(200))], [
@@ -600,15 +600,15 @@ test('sometimes break', () => {
 
     t.traceLet('makeAdder', clos({ }));
     function makeAdder(a: any) {
-        let [clos, $a] = t.traceFunctionBody('$return')
+        let [$clos, $a] = t.traceFunctionBody('$return')
         t.traceLet('a', $a);
 
         t.traceLet('add', clos({ 'a':  identifier('a') }));
         function add(b: any) {
-            let [clos, $b] = t.traceFunctionBody('$return')
+            let [$clos, $b] = t.traceFunctionBody('$return')
             t.traceLet('b', $b);
 
-            t.traceBreak('$return', binop('+', from(clos, 'a'), identifier('b')));
+            t.traceBreak('$return', binop('+', from($clos, 'a'), identifier('b')));
             return a + b;
             t.exitBlock(); // NOTE(arjun): dead
         };
@@ -707,32 +707,32 @@ test('sometimes break', () => {
 
     t.traceLet('zero', clos({ } as any));
     function zero() {
-        let [clos] = t.traceFunctionBody('$return')
+        let [$clos] = t.traceFunctionBody('$return')
 
         t.traceLet('foo', number(0));
         let foo = 0;
         
         t.traceLet('one', clos({ 'foo': identifier('foo') }));
         function one(b: any) {
-            let [clos, $b] = t.traceFunctionBody('$return')
+            let [$clos, $b] = t.traceFunctionBody('$return')
             t.traceLet('b', $b);
 
-            t.traceSet(from(clos, 'foo'), binop('+', from(clos, 'foo'), identifier('b')));
+            t.traceSet(from($clos, 'foo'), binop('+', from($clos, 'foo'), identifier('b')));
             foo = foo + b;
         
-            t.traceLet('two', clos({ 'foo': from(clos, 'foo') } as any));
+            t.traceLet('two', clos({ 'foo': from($clos, 'foo') }));
             function two(c: any) {
-                let [clos, $c] = t.traceFunctionBody('$return')
+                let [$clos, $c] = t.traceFunctionBody('$return')
                 t.traceLet('c', $c);
 
-                t.traceSet(from(clos, 'foo'), binop('-', from(clos, 'foo'), identifier('c')));
+                t.traceSet(from($clos, 'foo'), binop('-', from($clos, 'foo'), identifier('c')));
                 foo = foo - c;
             
-                t.traceLet('three', clos({ 'foo': from(clos, 'foo') } as any));
+                t.traceLet('three', clos({ 'foo': from($clos, 'foo') }));
                 function three() {
                     let [clos] = t.traceFunctionBody('$return')
 
-                    t.traceBreak('$return', from(clos, 'foo'));
+                    t.traceBreak('$return', from($clos, 'foo'));
                     return foo;
                     t.exitBlock();
                 }
@@ -779,7 +779,7 @@ test('sometimes break', () => {
         let_('add', block([
             label('$return', [
                 let_('foo', number(0)),
-                let_('one', clos({ 'foo': identifier('foo') } as any)),
+                let_('one', clos({ 'foo': identifier('foo') })),
                 break_('$return', identifier('one'))
             ])
         ])),

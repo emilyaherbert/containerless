@@ -27,6 +27,8 @@ export function listen(
     state.setListening();
     let tracedCallback = cb.tracedListenCallback(callback);
     let lines = fs.readFileSync(0, { encoding: 'utf-8' }).split('\n');
+
+    // TODO(arjun): Perhaps the for loop should be in the setImmediate
     for (let line of lines) {
         if (line.length === 0) {
             // Skips the blank line at the end of input.
@@ -34,7 +36,14 @@ export function listen(
         }
         tracedCallback(line as any, { send: function(resp: any) {  } } as any);
     }
-    console.log(JSON.stringify(cb.trace.getTrace()));
+    // setImmediate is necessary so that execution reaches the end of the
+    // main body of the program. E.g., if the last function call in the program
+    // is the listen, the end of the main body calls exitBlock to exit the
+    // main body of the program. If we call getTrace immediately, then the
+    // trace for the main body will end with 'unknown'.
+    setImmediate(() => {
+        console.log(JSON.stringify(cb.trace.getTrace()))
+    });
 }
 
 
