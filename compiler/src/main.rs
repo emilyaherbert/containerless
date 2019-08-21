@@ -19,7 +19,10 @@ mod tests {
             Exp,
             to_exp
         },
-        verif::verify,
+        verif::{
+            verify,
+            codegen::codegen
+        },
         gen::gen
     };
 
@@ -38,30 +41,15 @@ mod tests {
     }
 
     #[test]
-    pub fn multiple_callbacks() {
-        let handle = test_harness("multiple_callbacks.js", r#"
-            let containerless = require('../tracing/containerless');
-
-            let foo = 'start';
-            foo = 42;
-            //let foo = 42;
-
+    pub fn codegen2() {
+        let handle = test_harness("codegen.js", r#"
+            let containerless = require("../tracing/containerless");
             containerless.listen(function(req, resp) {
-                console.error('Got a response');
-                let bar = foo + 1;
-                resp(req);
-
-                containerless.get('http://people.cs.umass.edu/~emilyherbert/', function(response) {
-                    console.error(response);
-                    let baz = foo + bar;
-                });
-
-                console.error('All done!');
+                resp('Hello, world!');
             });
-        "#, "hello
-        goodbye
-        hello again");
+        "#, "");
 
+        println!("{}", codegen(&handle));
     }
 
 }

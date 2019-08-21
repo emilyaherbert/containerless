@@ -52,18 +52,6 @@ mod tests {
     }
 
     #[test]
-    pub fn codegen() {
-        let handle = test_harness("codegen.js", r#"
-            let containerless = require("../tracing/containerless");
-            containerless.listen(function(req, resp) {
-                resp('Hello, world!');
-            });
-        "#, "");
-
-        println!("{}", super::codegen::codegen(&handle));
-    }
-
-    #[test]
     pub fn try_test() {
         let _handle = test_harness("try_test.js", r#"
             let containerless = require("../tracing/containerless");
