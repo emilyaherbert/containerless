@@ -35,6 +35,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
         Exp::Unknown {} => quote! { rt::unknown() },
         Exp::Integer { value } => quote! { Dyn::int(#value) },
         Exp::Number { value } => quote! { Dyn::float(#value) },
+        Exp::Bool { value } => quote! { Dyn::bool(#value) },
         Exp::Identifier { name } => {
             // NOTE(arjun): Writing quote! { #x } would treat x as a string and
             // generate the Rust code "x". This code is based on the following

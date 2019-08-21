@@ -46,6 +46,7 @@ impl Transformer {
         match exp {
             Unknown { } => return unknown(),
             Number { value } => return number(*value),
+            Bool { value } => return bool_(*value),
             Identifier { name } => return deref(id(name)),
             From { exp, field } => return deref(from(self.transform_exp(exp), field)),
             Stringg { value } => return string(value),

@@ -40,6 +40,7 @@ impl Assertions {
     fn assert_exp(&self, exp: &Exp) {
         match exp {
             Number { value:_ } => { },
+            Bool { value:_ } => { },
             Identifier { name:_ } => { },
             From { exp, field:_ } => {
                 self.assert_exp(exp);
@@ -140,6 +141,7 @@ impl Assertions {
         match exp {
             Unknown { } => { },
             Number { value:_ } => { },
+            Bool { value:_ } => { },
             Identifier { name:_ } => { },
             From { exp, field:_ } => {
                 self.assert_unique_names(exp);
@@ -229,6 +231,7 @@ impl Assertions {
         match exp {
             Unknown { } => { },
             Number { value:_ } => { },
+            Bool { value:_ } => { },
             Identifier { name:_ } => { },
             From { exp, field:_ } => {
                 self.assert_all_options_are_none(exp);

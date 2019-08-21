@@ -95,6 +95,7 @@ impl RustTypes {
             Unknown { } => { },
             Integer { value:_ } => { },
             Number { value:_ } => { },
+            Bool { value:_ } => { }
             Identifier { name:_ } => { },
             From { exp, field:_ } => {
                 self.exp(exp);

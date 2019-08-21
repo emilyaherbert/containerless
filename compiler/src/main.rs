@@ -57,7 +57,7 @@ mod tests {
         let handle = test_harness("multiple_callbacks_2.js", r#"
             let containerless = require('../tracing/containerless');
 
-            let foo = 'start';
+            let foo = true;
             foo = 42;
             //let foo = 42;
 

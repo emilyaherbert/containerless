@@ -86,6 +86,7 @@ impl Typeinf {
         match exp {
             Exp::Unknown { } => Ok(Typ::Unknown),
             Exp::Number { value:_ } => Ok(Typ::F64),
+            Exp::Bool { value:_ } => Ok(Typ::Bool),
             Exp::Integer { value:_ } => Ok(Typ::I32),
             Exp::Identifier { name } => env.get(name)
                 .cloned()
@@ -201,6 +202,7 @@ impl Typeinf {
         match exp {
             Exp::Unknown { } => (),
             Exp::Number { value:_ } => (),
+            Exp::Bool { value:_ } => (),
             Exp::Identifier { name:_ } => (),
             Exp::Stringg { value:_ } => (),
             Exp::Ref { e } => Typeinf::subst_metavars(subst, e),

@@ -83,6 +83,7 @@ impl LiftCallbacks {
         match exp {
             Unknown { } => return unknown(),
             Number { value } => return number(*value),
+            Bool { value } => return bool_(*value),
             Identifier { name } => return id(name),
             From { exp, field } => return from(self.lift_exp(exp), field),
             Stringg { value } => return string(value),
