@@ -14,6 +14,10 @@ use im_rc::{
 
 use crate::types::Typ;
 
+fn compile_rust_type_name(name: &usize) -> Ident {
+    return Ident::new(&format!("{}", "RustType".to_string() + name.to_string().as_str()), Span::call_site());
+}
+
 // quote! stuff for inside of types.
 fn compile_typ(typ: &Typ) -> TokenStream {
     match typ {
@@ -26,11 +30,11 @@ fn compile_typ(typ: &Typ) -> TokenStream {
         Typ::Ref(t) => {
             let q_t = compile_typ(t);
             quote! {
-                &'a Cell<#q_t>
+                &'a RefCell<#q_t>
             }
         }
         Typ::RustType(id) => {
-            let q_type = Ident::new(&format!("{}", "RustType".to_string() + id.to_string().as_str()), Span::call_site());
+            let q_type = compile_rust_type_name(id);
             return quote! {
                 #q_type<'a>
             }
@@ -40,13 +44,28 @@ fn compile_typ(typ: &Typ) -> TokenStream {
 }
 
 fn compile_union(name: &usize, ts: &ImHashSet<Typ>) -> TokenStream {
-    let q_name = Ident::new(&format!("{}", "RustType".to_string() + name.to_string().as_str()), Span::call_site());
+    let q_name = compile_rust_type_name(name);
+    let q_result_name = Ident::new(&format!("{}", "RustType".to_string() + name.to_string().as_str() + "Result"), Span::call_site());
+    let q_result_type = quote! {
+        pub type #q_result_name<'a> = Result<#q_name<'a>,Error>;
+    };
+    let mut q_methods: Vec<TokenStream> = vec![];
 
     let q_ts = ts.iter().map(|typ| {
         let q_typ = compile_typ(typ);
         match typ {
-            Typ::Bool => quote! { Bool(#q_typ) },
-            Typ::F64 => quote! { F64(#q_typ) },
+            Typ::Bool => {
+                q_methods.push(quote! {
+                    pub fn bool(b: bool) -> #q_result_type<'a> {
+                        Ok(#q_name::Bool(b));
+                    }
+                });
+                quote! { Bool(#q_typ) }
+            },
+            Typ::F64 => {
+                
+                quote! { F64(#q_typ) }
+            },
             Typ::I32 => quote! { I32(#q_typ) },
             Typ::String => quote! { Str(#q_typ) },
             Typ::Ref(_) => quote! { Ref(#q_typ) },
@@ -58,11 +77,13 @@ fn compile_union(name: &usize, ts: &ImHashSet<Typ>) -> TokenStream {
         pub enum #q_name<'a> {
             #(#q_ts),*
         }
+
+        
     };
 }
 
 fn compile_object(name: &usize, tm: &ImHashMap<String, Typ>) -> TokenStream {
-    let q_name = Ident::new(&format!("{}", "RustType".to_string() + name.to_string().as_str()), Span::call_site());
+    let q_name = compile_rust_type_name(name);
 
     if tm.len() > 0 {
         let q_tm = tm.iter().map(|(field, typ)| {
@@ -111,7 +132,8 @@ pub fn compile_typs(types: &HashMap<usize, Typ>) -> TokenStream {
         #[allow(unused_parens)]
 
         use std::cell::{
-            Cell
+            Cell,
+            RefCell
         };
 
         #(#q_typs)*

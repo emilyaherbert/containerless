@@ -52,4 +52,27 @@ mod tests {
         println!("{}", codegen(&handle));
     }
 
+    #[test]
+    pub fn multiple_callbacks_2() {
+        let handle = test_harness("multiple_callbacks_2.js", r#"
+            let containerless = require('../tracing/containerless');
+
+            let foo = 'start';
+            foo = 42;
+            //let foo = 42;
+
+            containerless.listen(function(req, resp) {
+                //console.error('Got a response');
+                let bar = foo + 1;
+                resp(req);
+
+            });
+        "#, "hello
+        goodbye
+        hello again");
+
+        println!("{}", codegen(&handle));
+
+    }
+
 }

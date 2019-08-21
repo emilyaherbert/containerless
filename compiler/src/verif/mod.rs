@@ -92,7 +92,7 @@ mod tests {
     }
 
     #[test]
-        pub fn multiple_callbacks_1() {
+    pub fn multiple_callbacks_1() {
         let handle = test_harness("multiple_callbacks_1.js", r#"
             let containerless = require('../tracing/containerless');
 
@@ -110,5 +110,5 @@ mod tests {
         goodbye
         hello again");
 
-        }
+    }
 }
