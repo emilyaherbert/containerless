@@ -270,6 +270,8 @@ pub enum Exp {
     Unknown { },
     Integer { value: i32 },
     Number { value: f64 },
+    #[serde(rename = "boolean")]
+    Bool { value: bool },
     Identifier { name: String },
     From { exp: Box<Exp>, field: String },
     #[serde(rename = "string")]
@@ -340,6 +342,7 @@ impl fmt::Display for Exp {
             Exp::Unknown { } => write!(f, "Unknown"),
             Exp::Integer { value } => write!(f, "Integer({})", value),
             Exp::Number { value } => write!(f, "Number({})", value),
+            Exp::Bool { value } => write!(f, "Bool({})", value),
             Exp::Identifier { name } => write!(f, "Identifier({})", name),
             Exp::From { exp, field } => write!(f, "From({},{})", exp, field),
             Exp::Stringg { value } => write!(f, "Stringg({})", value),
@@ -415,6 +418,10 @@ pub mod constructors {
 
     pub fn number(value: f64) -> Exp {
         return Number { value };
+    }
+
+    pub fn bool_(value: bool) -> Exp {
+        return Bool { value };
     }
 
     pub fn id(name: &str) -> Exp {
