@@ -54,7 +54,7 @@ mod tests {
     #[test]
     pub fn try_test() {
         let _handle = test_harness("try_test.js", r#"
-            let containerless = require("../tracing/containerless");
+            let containerless = require("../../javascript/containerless");
             containerless.listen(function(req, resp) {
                 resp('Hello, world!');
             });
@@ -64,7 +64,7 @@ mod tests {
     #[test]
     pub fn try_test2() {
         let handle = test_harness("try_test2.js", r#"
-            let containerless = require("../tracing/containerless");
+            let containerless = require("../../javascript/containerless");
             let str = 'Got a response!';
             containerless.listen(function(req, resp) {
                 // console.log(str);
@@ -78,7 +78,7 @@ mod tests {
     #[test]
     pub fn trace_with_unknown() {
         let handle = test_harness("trace_with_unknown.js", r#"
-            let containerless = require("../tracing/containerless");
+            let containerless = require("../../javascript/containerless");
             containerless.listen(function(req, resp) {
                 if (req === 'hello') {
                     resp('goodbye');
@@ -94,7 +94,7 @@ mod tests {
     #[test]
     pub fn multiple_callbacks_1() {
         let handle = test_harness("multiple_callbacks_1.js", r#"
-            let containerless = require('../tracing/containerless');
+            let containerless = require('../../javascript/containerless');
 
             let foo = 'start';
             foo = 42;

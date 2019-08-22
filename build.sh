@@ -1,14 +1,15 @@
 set -x
 set -e
-cd /workspace/containerless
+if [ -d /workspace ]; then
+  cd /workspace
+fi
+cd javascript/containerless
 yarn install
-cd /workspace/js-transform
-yarn install
-yarn link
-cd /workspace/containerless
-yarn link js-transform
 yarn run build
 yarn run test
-cd /workspace/trace-verif
+cd ../js-transform
+yarn install
+yarn run build
+cd ../../rust/compiler
 cargo build
 cargo test

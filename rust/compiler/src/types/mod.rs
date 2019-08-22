@@ -36,7 +36,7 @@ use std::fs;
 pub fn to_exp(filename: &str, code: &str, requests: &str) -> Exp {
     let f = File::create(filename).expect("creating file");
     let mut js_transform = Command::new("node")
-        .arg("../tracing/js-transform")
+        .arg("../../javascript/js-transform")
         .stdin(Stdio::piped())
         .stdout(f)
         .spawn()

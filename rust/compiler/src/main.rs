@@ -43,7 +43,7 @@ mod tests {
     #[test]
     pub fn codegen2() {
         let handle = test_harness("codegen.js", r#"
-            let containerless = require("../tracing/containerless");
+            let containerless = require("../../javascript/containerless");
             containerless.listen(function(req, resp) {
                 resp('Hello, world!');
             });
@@ -55,7 +55,7 @@ mod tests {
     #[test]
     pub fn multiple_callbacks_2() {
         let handle = test_harness("multiple_callbacks_2.js", r#"
-            let containerless = require('../tracing/containerless');
+            let containerless = require('../../javascript/containerless');
 
             let foo = true;
             foo = 42;
