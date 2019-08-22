@@ -25,10 +25,10 @@ pub fn gen(exp: &mut Exp) -> HashMap<usize, Typ> {
         .expect("Could not create .rs file.");
     rs_file.write_all(format!("{}", q_types).as_bytes())
         .expect("Could not write to file.");
-    cmd!("rustc", "--crate-type", "cdylib", "trace.rs").run()
-        .expect("Compiling to Rust failed.");
     cmd!("rustfmt", "trace.rs").run()
         .expect("rustfmt failed");
+    cmd!("rustc", "--crate-type", "cdylib", "trace.rs").run()
+        .expect("Compiling to Rust failed.");
 
     return rust_types;
 }
