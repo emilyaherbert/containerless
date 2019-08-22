@@ -92,12 +92,12 @@ function string(s: string): b.CallExpression {
     return b.callExpression(callee, theArgs);
 }
 
-function clos(fvs: b.ObjectProperty[]): b.CallExpression {
+function obj(props: b.ObjectProperty[]): b.CallExpression {
     const callee = b.memberExpression(
         b.identifier('exp'),
-        b.identifier('clos')
+        b.identifier('obj')
     );
-    const theArgs = [b.objectExpression(fvs)];
+    const theArgs = [b.objectExpression(props)];
     return b.callExpression(callee, theArgs);
 }
 
@@ -272,7 +272,25 @@ function reifyExpression(e: b.Expression, st: State): [b.Expression, State] {
             }
             return [from(identifier(obj.name), prop.name), st];
         }
-        default: return [b.stringLiteral('TODO: ' + e.type), st];
+        case 'ObjectExpression': {
+            const e2 = assertNormalized(e);
+            const properties = e2.properties;
+            let props: b.ObjectProperty[] = [];
+            let str = st;
+            properties.forEach(p => {
+                if(!b.isObjectProperty(p) || !b.isIdentifier(p.key) || b.isRestElement(p.value)) {
+                    throw new Error("Found something unexpected.");
+                } else {
+                    let [rhs, st1] = reifyExpression(p.value, st);
+                    str = merge(str, st1);
+                    props.push(b.objectProperty(p.key, rhs));
+                }
+            })
+            return [obj(props), merge(st, str)];
+        }
+        default: {
+            throw new Error('TODO: ' + e.type);
+        }
     }
 }
 
@@ -507,7 +525,7 @@ function reifyFunctionDeclaration(s: b.FunctionDeclaration, st: State): [b.State
                 throw new Error("Not found!");
             }
         });
-    const tClos = traceLet(lvaltoName(id), clos(fvs));
+    const tClos = traceLet(lvaltoName(id), obj(fvs));
     const theFunction = b.functionDeclaration(id, params, b.blockStatement(body));
     return [[tClos, theFunction], retSt];
 }
@@ -536,8 +554,9 @@ function reifyStatement(s: b.Statement, st: State): [b.Statement[], State] {
         case 'BreakStatement': return reifyBreakStatement(s, st);
         case 'FunctionDeclaration': return reifyFunctionDeclaration(s, st);
         case 'ReturnStatement': return reifyReturnStatement(s, st);
-        // TODO(arjun): Dangerous! Remove before any experiments.
-        default: return [[b.expressionStatement(b.stringLiteral('TODO: ' + s.type))], st];
+        default: {
+            throw new Error('TODO: ' + s.type);
+        }
     }
 }
 

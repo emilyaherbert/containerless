@@ -140,8 +140,8 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
                 break #q_name #q_value;
             }
         }
-        Exp::Clos { tenv } => {
-            let q_tenv = tenv.iter().map(|(k, v)| {
+        Exp::Object { properties } => {
+            let q_tenv = properties.iter().map(|(k, v)| {
                 let q_v = codegen_exp(v);
                 quote! { (#k, #q_v) }
             });

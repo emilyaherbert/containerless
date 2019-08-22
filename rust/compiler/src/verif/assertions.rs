@@ -54,8 +54,8 @@ impl Assertions {
             Block { body } => {
                 self.assert_stmts(body);
             },
-            Clos { tenv } => {
-                self.assert_tenv(tenv);
+            Object { properties } => {
+                self.assert_tenv(properties);
             },
             Array { exps } => {
                 self.assert_exps(exps);
@@ -186,8 +186,8 @@ impl Assertions {
             Break { name:_, value } => {
                 self.assert_unique_names(value);
             }
-            Clos { tenv } => {
-                self.assert_unique_names_tenv(tenv);
+            Object { properties } => {
+                self.assert_unique_names_tenv(properties);
             },
             Array { exps } => {
                 self.assert_unique_names_vec(exps);
@@ -280,8 +280,8 @@ impl Assertions {
             Break { name:_, value } => {
                 self.assert_all_options_are_none(value);
             }
-            Clos { tenv } => {
-                self.assert_all_options_are_none_tenv(tenv);
+            Object { properties } => {
+                self.assert_all_options_are_none_tenv(properties);
             },
             Array { exps } => {
                 self.assert_all_options_are_none_vec(exps);

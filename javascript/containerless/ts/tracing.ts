@@ -509,7 +509,7 @@ function mergeExp(e1: Exp, e2: Exp): Exp {
         e1.exp = mergeExp(e1.exp, e2.exp);
         return e1;
     }
-    else if (e1.kind === 'clos' && e2.kind === 'clos') {
+    else if (e1.kind === 'object' && e2.kind === 'object') {
         // TODO(emily): fix
         return e1;
     }

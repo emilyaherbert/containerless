@@ -217,39 +217,6 @@ impl Typ {
             _ => unimplemented!()
         }
     }
-
-    pub fn fake_hash_string(&self) -> String {
-        match self {
-            Typ::Metavar(y) => return "a".to_string() + (*y).to_string().as_str(),
-            Typ::Ref(t) => return "b".to_string() + t.fake_hash_string().as_str(),
-            Typ::Union(hs) => {
-                let mut ret = "c".to_string();
-                let mut hs2: Vec<String> = hs.iter().map(|t| t.fake_hash_string()).collect();
-                hs2.sort();
-                for t in hs2.iter() {
-                    ret += t;
-                }
-                return ret;
-            }
-            Typ::I32 => return "d".to_string(),
-            Typ::F64 => return "e".to_string(),
-            Typ::Bool => return "f".to_string(),
-            Typ::String => return "g".to_string(),
-            Typ::Unknown => return "h".to_string(),
-            Typ::Undefined => return "i".to_string(),
-            Typ::Object(ts) => {
-                let mut ret = "j".to_string();
-                let mut ts2: Vec<String> = ts.iter().map(|(k,v)| k.to_string() + v.fake_hash_string().as_str()).collect();
-                ts2.sort();
-                for t in ts2.iter() {
-                    ret += t;
-                }
-                return ret;
-            }
-            Typ::ResponseCallback => return "k".to_string(),
-            _ => unimplemented!()
-        }
-    }
 }
 
 #[derive(PartialEq, Debug, Deserialize, Clone)]
@@ -309,7 +276,7 @@ pub enum Exp {
     },
     Label { name: String, body: Vec<Exp> },
     Break { name: String, value: Box<Exp> },
-    Clos { tenv: HashMap<String,Exp> },
+    Object { properties: HashMap<String, Exp> },
     Array { exps: Vec<Exp> },
     Index { e1: Box<Exp>, e2: Box<Exp> },
     #[serde(skip)]
@@ -357,7 +324,7 @@ impl fmt::Display for Exp {
             Exp::Loopback { event, event_arg, callback_clos, id } => write!(f, "Loopback({}, {}, {}, {})", event, event_arg, callback_clos, id),
             Exp::Label { name, body } => write!(f, "Label({}, {})", name, vec_to_string(body)),
             Exp::Break { name, value } => write!(f, "Break({}, {})", name, value),
-            Exp::Clos { tenv } => write!(f, "Clos({:?}", tenv),
+            Exp::Object { properties } => write!(f, "Clos({:?}", properties),
             Exp::Array { exps } => write!(f, "Array({})", vec_to_string(exps)),
             Exp::Index { e1, e2 } => write!(f, "Index({}, {})", e1, e2),
             Exp::Ref { e } => write!(f, "Ref({})", e),
@@ -514,8 +481,8 @@ pub mod constructors {
         return PrimApp { event: event.to_string(), event_args: event_args };
     }
 
-    pub fn clos(tenv: HashMap<String, Exp>) -> Exp {
-        return Clos { tenv: tenv };
+    pub fn obj(tenv: HashMap<String, Exp>) -> Exp {
+        return Object { properties: tenv };
     }
 
 }

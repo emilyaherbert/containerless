@@ -2,7 +2,7 @@ import * as request from 'request';
 import * as express from 'express';
 import * as state from './state';
 import { Trace, newTrace } from './tracing';
-import { string, number, identifier, unknown, clos, from, undefined_ } from './exp';
+import { number, identifier } from './exp';
 
 const defaultEventArg = number(0);
 

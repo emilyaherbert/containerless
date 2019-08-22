@@ -79,7 +79,7 @@ impl Transformer {
             }
             Label { name, body } => return label(name, self.transform_exps(body)),
             Break { name, value } => return break_(name, self.transform_exp(value)),
-            Clos { tenv } => return clos(self.transform_clos(tenv)),
+            Object { properties } => return obj(self.transform_clos(properties)),
             Array { exps } => return array(self.transform_exps(exps)),
             PrimApp { event, event_args } => return prim_app(event, self.transform_exps(event_args)),
             Loopback { event: _, event_arg: _, callback_clos: _, id: _ }  => panic!("Did not expect to find this here."),

@@ -137,9 +137,9 @@ impl Typeinf {
                    _ => panic!(format!("not implemented: {:?}", op))
                 }
             },
-            Exp::Clos { tenv } => {
+            Exp::Object { properties } => {
                 let mut ts = ImHashMap::new();
-                for (x, e) in tenv.iter_mut() {
+                for (x, e) in properties.iter_mut() {
                     let t = self.exp(env, e)?;
                     ts.insert(x.to_string(), t);
                 }
@@ -223,8 +223,8 @@ impl Typeinf {
                     Typeinf::subst_metavars(subst, e)
                 }
             },
-            Exp::Clos { tenv } => {
-                for (_, e) in tenv.iter_mut() {
+            Exp::Object { properties } => {
+                for (_, e) in properties.iter_mut() {
                     Typeinf::subst_metavars(subst, e);
                 }
             },

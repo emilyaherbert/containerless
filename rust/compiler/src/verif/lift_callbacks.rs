@@ -96,7 +96,7 @@ impl LiftCallbacks {
             Callback { event, event_arg, callback_args, callback_clos, body } => return self.lift_callback(event, event_arg, callback_args, callback_clos, body),
             Label { name, body } => return label(name, self.lift_exps(body)),
             Break { name, value } => return break_(name, self.lift_exp(value)),
-            Clos { tenv } => return clos(self.lift_clos(tenv)),
+            Object { properties } => return obj(self.lift_clos(properties)),
             Array { exps } => return array(self.lift_exps(exps)),
             PrimApp { event, event_args } => return prim_app(event, self.lift_exps(event_args)),
             Ref { e }  => return ref_(self.lift_exp(e)),

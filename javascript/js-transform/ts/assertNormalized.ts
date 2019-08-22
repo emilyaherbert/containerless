@@ -22,6 +22,15 @@ export type NormalizedReturnStatement = {
     argument: t.Expression
 } & t.ReturnStatement;
 
+export type NormalizedObjectProperty = {
+    key: t.Identifier,
+    value: t.Expression
+} & t.ObjectProperty;
+
+export type NormalizedObjectExpression = {
+    properties: NormalizedObjectProperty[]
+} & t.ObjectExpression;
+
 /**
  * When the type of 'node' is statically known, we use a conditional type to
  * narrow it to what Stopify ensures. In addition, at runtime, we check to see
@@ -33,6 +42,8 @@ export function assertNormalized<T extends t.Node>(node: T):
   T extends t.VariableDeclaration ? NormalizedVariableDeclaration :
   T extends t.CallExpression ? NormalizedCallExpression :
   T extends t.MemberExpression ? NormalizedMemberExpression :
+  T extends t.ObjectProperty ? NormalizedObjectProperty :
+  T extends t.ObjectExpression ? NormalizedObjectExpression :
   T extends t.ReturnStatement ? NormalizedReturnStatement : unknown {
     if (t.isVariableDeclaration(node)) {
         if (node.declarations.length !== 1) {
@@ -67,7 +78,22 @@ export function assertNormalized<T extends t.Node>(node: T):
             throw new Error('return without a return value');
         }
         return node as any;
-    
+    }
+    else if (t.isObjectProperty(node)) {
+        if(!t.isIdentifier(node.key)) {
+            throw new Error("Found key that is not an identifier.")
+        }
+        if(!t.isExpression(node.value)) {
+            throw new Error("Found value that is not an expression.");
+        }
+        return node as any;
+    }
+    else if (t.isObjectExpression(node)) {
+        const properties = node.properties;
+        for(let i=0; i<properties.length; i++) {
+            assertNormalized(properties[i]);
+        }
+        return node as any;
     }
     else {
         throw new Error(`Cannot normalize ${node.type}`);

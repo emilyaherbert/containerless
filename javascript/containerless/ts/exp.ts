@@ -28,11 +28,11 @@ type PrimAppExp = {
 type LabelExp = { kind: 'label', name: string, body: Exp[] };
 type BreakExp = { kind: 'break', name: string, value: Exp };
 
-type IdPath = string[];
-type TEnv = { [key: string]: Exp };
-type ClosExp = { kind: 'clos', tenv: TEnv };
 type IdExp = { kind: 'identifier', name: string };
 type FromExp = { kind: 'from', exp: Exp, field: string };
+
+type TEnv = { [key: string]: Exp };
+type ObjExp = { kind: 'object', properties: TEnv };
 
 type ArrayExp = { kind: 'array', exps: Exp[] };
 
@@ -67,7 +67,7 @@ export type Exp
     | CallbackExp
     | LabelExp
     | BreakExp
-    | ClosExp
+    | ObjExp
     | ArrayExp
     | PrimAppExp;
 
@@ -131,8 +131,8 @@ export function break_(name: string, value: Exp): BreakExp {
     return { kind: 'break', name: name, value };
 }
 
-export function clos(tenv: TEnv): ClosExp {
-    return { kind: 'clos', tenv: tenv };
+export function obj(properties: TEnv): ObjExp {
+    return { kind: 'object', properties: properties };
 }
 
 export function from(exp: Exp, field: string): FromExp {

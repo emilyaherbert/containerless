@@ -143,8 +143,8 @@ impl RustTypes {
             Label { name:_, body } => {
                 self.exps(body);
             },
-            Clos { tenv } => {
-                self.tenv(tenv);
+            Object { properties } => {
+                self.tenv(properties);
             },
             Array { exps } => {
                 self.exps(exps);
