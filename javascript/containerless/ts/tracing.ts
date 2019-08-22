@@ -510,7 +510,13 @@ function mergeExp(e1: Exp, e2: Exp): Exp {
         return e1;
     }
     else if (e1.kind === 'object' && e2.kind === 'object') {
-        // TODO(emily): fix
+        for (var prop in e1.properties) {
+            if(e1.properties.hasOwnProperty(prop) && e2.properties.hasOwnProperty(prop)) {
+                e1.properties[prop] = mergeExp(e1.properties[prop], e2.properties[prop]);
+            } else {
+                throw new Error("One of these is not like the other.");
+            }
+        }
         return e1;
     }
     else {
