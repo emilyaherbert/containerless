@@ -9,8 +9,9 @@ trigger:
 pool:
   vmImage: 'ubuntu-latest'
 
-    
-steps:
+jobs:
+- job: deps
+  steps:
   - task: NodeTool@0
     inputs:
       versionSpec: '8.x'
@@ -18,5 +19,27 @@ steps:
       curl https://sh.rustup.rs -sSf | sh -s -- -y
       echo "##vso[task.setvariable variable=PATH;]$PATH:$HOME/.cargo/bin"
     displayName: Install rust
-  - script: ./build.sh
-    displayName: 'Build'
+- job: build
+  dependsOn: deps
+  steps:
+  - script: |
+      cd javascript/containerless
+      yarn install
+      yarn run build
+      cd ../js-transform
+      yarn install
+      yarn run build
+      cd ../../rust/compiler
+      cargo build
+- job: test-containerless
+  dependsOn: build
+  steps:
+  - script: |
+    cd javascript/containerless
+    yarn run test
+- job: test-compiler
+  dependsOn: build
+  steps:
+  - script: |
+    cd rust/compiler
+    yarn run test
