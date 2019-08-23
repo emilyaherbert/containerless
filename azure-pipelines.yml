@@ -35,9 +35,10 @@ jobs:
       cargo build
   - task: CacheBeta@0
     inputs:
-      key: cargo | $(Agent.OS)
+      key: "cargo" | $(Agent.OS)
       path: $HOME/.cargo
     displayName: Cache Cargo packages
+
 - job: test_containerless
   pool:
     vmImage: 'ubuntu-latest'
