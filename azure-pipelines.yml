@@ -5,7 +5,9 @@
 
 trigger:
 - master
-
+variables:
+  CARGO_CACHE_FOLDER: $(Pipeline.Workspace)/.cargo
+  YARN_CACHE_FOLDER: $(Pipeline.Workspace)/.config/yarn
 
 jobs:
 - job: deps
@@ -27,7 +29,7 @@ jobs:
   - task: CacheBeta@0
     inputs:
       key: cargo | $(Agent.OS)
-      path: $HOME/.cargo, $HOME/.config/yarn
+      path: $(CARGO_CACHE_FOLDER)
     displayName: Cache Cargo and Yarn packages
   - script: |
       echo $HOME
