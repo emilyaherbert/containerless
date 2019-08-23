@@ -35,11 +35,11 @@ jobs:
   dependsOn: build
   steps:
   - script: |
-    cd javascript/containerless
-    yarn run test
+      cd javascript/containerless
+      yarn run test
 - job: test-compiler
   dependsOn: build
   steps:
   - script: |
-    cd rust/compiler
-    yarn run test
+      cd rust/compiler
+      yarn run test
