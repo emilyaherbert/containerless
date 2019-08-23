@@ -48,7 +48,7 @@ jobs:
   steps:
   - script: |
       cd rust/compiler
-      yarn run test
+      cargo test
   - task: CacheBeta@0
     inputs:
       key: cargo | $(Agent.OS)
