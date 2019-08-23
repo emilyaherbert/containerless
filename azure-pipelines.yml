@@ -30,6 +30,8 @@ jobs:
       path: $HOME/.cargo, $HOME/.config/yarn
     displayName: Cache Cargo and Yarn packages
   - script: |
+      echo $HOME
+      ls -a $HOME
       cd javascript/containerless
       yarn install
       yarn run build
