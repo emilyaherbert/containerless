@@ -17,7 +17,7 @@ enum Constraint {
      */
     UnionMem(Typ, Typ),
     /**
-     * In `FromMem(t1, x, t2)` the type of `t1.x = t2`.
+     * In `FromMem(t1, x, t2)` t2 is an alias to t1.x.
      */
     FromMem(Typ, String, Typ),
     Eq(Typ, Typ)
@@ -116,6 +116,12 @@ impl Typeinf {
                     self.constraints.push(Constraint::UnionMem(t, *x.clone()));
                     Ok(Typ::Ref(x))
                 },
+                Typ::Metavar(x) => {
+                    // This should have just come from Exp::From
+                    let t = self.exp(env, e2)?;
+                    self.constraints.push(Constraint::UnionMem(t, Typ::Metavar(x.clone())));
+                    Ok(Typ::Metavar(x.clone()))
+                }
                 t => Err(err(
                     format!("in SetRef(e1, e2), type of e1 ({:?}) is {:?}", e1, t)))
             },
@@ -155,6 +161,7 @@ impl Typeinf {
                 Ok(x)
             },
             Exp::From { exp, field } => {
+                // x points to t.field
                 let t = self.exp(env, exp)?;
                 let x = self.fresh_var();
                 self.constraints.push(Constraint::FromMem(t, field.to_string(), x.clone()));
@@ -289,8 +296,16 @@ impl Typeinf {
         }
     }
 
+    fn resolve_aliasing(n: &usize, alias_map: &HashMap::<usize, usize>) -> usize {
+        match alias_map.get(n) {
+            None => n.clone(),
+            Some(m) => Typeinf::resolve_aliasing(m, alias_map)
+        }
+    }
+
     fn solve(constraints: Vec<Constraint>) -> Subst {
         let mut subst: HashMap::<usize, Typ> = HashMap::new();
+        let mut alias_map: HashMap::<usize, usize> = HashMap::new();
         for constraint in constraints.into_iter() {
             match constraint {
                 Constraint::Eq(t1, t2) => {
@@ -301,8 +316,10 @@ impl Typeinf {
                     Typeinf::unify(&mut subst, &t1, &t2);
                 },
                 Constraint::UnionMem(t, Typ::Metavar(n)) => {
+                    let n = Typeinf::resolve_aliasing(&n, &alias_map);
+
                     let mut t1 = t.clone();
-                    t1.apply_subst(&subst);
+                    //t1.apply_subst(&subst);
                     match subst.get_mut(&n) {
                         None => {
                             let _ = subst.insert(n, t1);
@@ -327,7 +344,10 @@ impl Typeinf {
                 },
                 Constraint::UnionMem(_, _) => panic!("unionmem"),
                 Constraint::FromMem(t, field, Typ::Metavar(n)) => {
+                    let n = Typeinf::resolve_aliasing(&n, &alias_map);
+
                     let mut t1 = t.clone();
+                    // Pulls the metavar out of subst without recursively calling apply_subst on properties
                     t1.apply_subst(&subst);
 
                     match t1 {
@@ -335,19 +355,20 @@ impl Typeinf {
                             // https://www.reddit.com/r/rust/comments/7mqwjn/hashmapstringt_vs_vecstringt/
                             match typ_vec.iter().find(|x|*x.0 == field) {
                                 Some((_k, v)) => {
-                                    match subst.get_mut(&n) {
-                                        None => {
-                                            let _ = subst.insert(n, v.clone());
+                                    println!("{:?}", v);
+                                    match v.clone() {
+                                        Typ::Ref(mv) => {
+                                            match *mv {
+                                                Typ::Metavar(m) => {
+                                                    alias_map.insert(n, m);
+                                                },
+                                                _ => unimplemented!()
+                                            }
+                                        }
+                                        Typ::Metavar(m) => {
+                                            alias_map.insert(n, m);
                                         },
-                                        Some(Typ::Union(ts)) => {
-                                            ts.insert(v.clone());
-                                        }
-                                        Some(s) => {
-                                            let mut hs = ImHashSet::new();
-                                            hs.insert(s.clone());
-                                            hs.insert(v.clone());
-                                            *s = Typ::Union(hs);
-                                        }
+                                        _ => unimplemented!()
                                     }
                                 }
                                 None => {
