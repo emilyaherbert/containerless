@@ -36,7 +36,7 @@ jobs:
   - task: CacheBeta@0
     inputs:
       key: cargo | $(Agent.OS)
-      path: $(Pipeline.Workspace)/.cargo
+      path: $HOME/.cargo
     displayName: Cache Cargo packages
 - job: test_containerless
   pool:
