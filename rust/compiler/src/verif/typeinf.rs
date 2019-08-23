@@ -296,16 +296,8 @@ impl Typeinf {
         }
     }
 
-    fn resolve_aliasing(n: &usize, alias_map: &HashMap::<usize, usize>) -> usize {
-        match alias_map.get(n) {
-            None => n.clone(),
-            Some(m) => Typeinf::resolve_aliasing(m, alias_map)
-        }
-    }
-
     fn solve(constraints: Vec<Constraint>) -> Subst {
         let mut subst: HashMap::<usize, Typ> = HashMap::new();
-        let mut alias_map: HashMap::<usize, usize> = HashMap::new();
         for constraint in constraints.into_iter() {
             match constraint {
                 Constraint::Eq(t1, t2) => {
@@ -316,7 +308,6 @@ impl Typeinf {
                     Typeinf::unify(&mut subst, &t1, &t2);
                 },
                 Constraint::UnionMem(t, Typ::Metavar(n)) => {
-                    let n = Typeinf::resolve_aliasing(&n, &alias_map);
 
                     let mut t1 = t.clone();
                     //t1.apply_subst(&subst);
@@ -344,7 +335,6 @@ impl Typeinf {
                 },
                 Constraint::UnionMem(_, _) => panic!("unionmem"),
                 Constraint::FromMem(t, field, Typ::Metavar(n)) => {
-                    let n = Typeinf::resolve_aliasing(&n, &alias_map);
 
                     let mut t1 = t.clone();
                     // Pulls the metavar out of subst without recursively calling apply_subst on properties
@@ -360,13 +350,21 @@ impl Typeinf {
                                         Typ::Ref(mv) => {
                                             match *mv {
                                                 Typ::Metavar(m) => {
-                                                    alias_map.insert(n, m);
+                                                    match subst.get_mut(&m) {
+                                                        None => unimplemented!(),
+                                                        Some(Typ::Union(ts1)) => {
+                                                            ts1.insert(Typ::Metavar(n.clone()));
+                                                        }
+                                                        Some(s) => {
+                                                            let mut hs = ImHashSet::new();
+                                                            hs.insert(s.clone());
+                                                            hs.insert(Typ::Metavar(n.clone()));
+                                                            *s = Typ::Union(hs);
+                                                        }
+                                                    }
                                                 },
                                                 _ => unimplemented!()
                                             }
-                                        }
-                                        Typ::Metavar(m) => {
-                                            alias_map.insert(n, m);
                                         },
                                         _ => unimplemented!()
                                     }
