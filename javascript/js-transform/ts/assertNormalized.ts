@@ -31,6 +31,11 @@ export type NormalizedObjectExpression = {
     properties: NormalizedObjectProperty[]
 } & t.ObjectExpression;
 
+export type NormalizedAssignmentExpression = {
+    left: t.Identifier | t.MemberExpression,
+    right: t.Expression
+} & t.AssignmentExpression;
+
 /**
  * When the type of 'node' is statically known, we use a conditional type to
  * narrow it to what Stopify ensures. In addition, at runtime, we check to see
@@ -44,6 +49,7 @@ export function assertNormalized<T extends t.Node>(node: T):
   T extends t.MemberExpression ? NormalizedMemberExpression :
   T extends t.ObjectProperty ? NormalizedObjectProperty :
   T extends t.ObjectExpression ? NormalizedObjectExpression :
+  T extends t.AssignmentExpression ? NormalizedAssignmentExpression :
   T extends t.ReturnStatement ? NormalizedReturnStatement : unknown {
     if (t.isVariableDeclaration(node)) {
         if (node.declarations.length !== 1) {
@@ -92,6 +98,12 @@ export function assertNormalized<T extends t.Node>(node: T):
         const properties = node.properties;
         for(let i=0; i<properties.length; i++) {
             assertNormalized(properties[i]);
+        }
+        return node as any;
+    }
+    else if (t.isAssignmentExpression(node)) {
+        if(!t.isIdentifier(node.left) && !t.isMemberExpression(node.left) || !t.isExpression(node.right)) {
+            throw new Error("Found something wrong.");
         }
         return node as any;
     }

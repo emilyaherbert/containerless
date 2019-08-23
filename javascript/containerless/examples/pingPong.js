@@ -1,9 +1,12 @@
-let containerless = require('../dist/index');
+let containerless = require("../dist/index");
 
 containerless.listen(function(req, resp) {
+    let ret = { path: 'pizza' };
     if(req.path === '/ping') {
-        resp({ path: 'pong' });
+        ret.path = 'pong';
+        resp(ret);
     } else {
-        resp({ path: 'ping' });
+        ret.path = 'ping';
+        resp(ret);
     }
 });

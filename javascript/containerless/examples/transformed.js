@@ -1,4 +1,4 @@
-var containerless00 = require('../dist/index');
+var containerless00 = require("../dist/index");
 
 let cb = containerless00.cb;
 let exp = containerless00.exp;
@@ -9,25 +9,27 @@ function fun000(req, resp) {
   let [clos, $req, $resp] = cb.trace.traceFunctionBody("'return");
   cb.trace.traceLet("req", $req);
   cb.trace.traceLet("resp", $resp);
+  cb.trace.traceLet("ret00", exp.obj({
+    path: exp.string("pizza")
+  }));
+  var ret00 = {
+    path: 'pizza'
+  };
   let $test = exp.binop("===", exp.from(exp.identifier("req"), "path"), exp.string("/ping"));
 
   if (req.path === '/ping') {
     cb.trace.traceIfTrue($test);
-    cb.trace.traceFunctionCall("app100", [exp.identifier("resp"), exp.obj({
-      path: exp.string("pong")
-    })]);
-    var app100 = resp({
-      path: 'pong'
-    });
+    cb.trace.traceSet(exp.from(exp.identifier("ret00"), "path"), exp.string("pong"));
+    ret00.path = 'pong';
+    cb.trace.traceFunctionCall("app100", [exp.identifier("resp"), exp.identifier("ret00")]);
+    var app100 = resp(ret00);
     cb.trace.exitBlock();
   } else {
     cb.trace.traceIfFalse($test);
-    cb.trace.traceFunctionCall("app200", [exp.identifier("resp"), exp.obj({
-      path: exp.string("ping")
-    })]);
-    var app200 = resp({
-      path: 'ping'
-    });
+    cb.trace.traceSet(exp.from(exp.identifier("ret00"), "path"), exp.string("ping"));
+    ret00.path = 'ping';
+    cb.trace.traceFunctionCall("app200", [exp.identifier("resp"), exp.identifier("ret00")]);
+    var app200 = resp(ret00);
     cb.trace.exitBlock();
   }
 

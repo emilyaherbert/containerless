@@ -258,9 +258,9 @@ function reifyExpression(e: b.Expression, st: State): [b.Expression, State] {
             return [binop(e.operator, left, right), merge(st1, st2)];
         }
         case 'AssignmentExpression': {
-            const [right, st1] = reifyExpression(e.right, st);
-            // TODO(emily): This will need to be changed.
-            const [left, st2] = reifyExpression(b.identifier(lvaltoName(e.left)), st);
+            const e2 = assertNormalized(e);
+            const [right, st1] = reifyExpression(e2.right, st);
+            const [left, st2] = reifyExpression(e2.left, st);
             return [traceSet(left, right), merge(st1, st2)];
         }
         case 'MemberExpression': {
