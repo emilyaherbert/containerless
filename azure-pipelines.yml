@@ -33,6 +33,11 @@ jobs:
       yarn run build
       cd ../../rust/compiler
       cargo build
+  - task: CacheBeta@0
+    inputs:
+      key: cargo | $(Agent.OS)
+      path: $(Pipeline.Workspace)/.cargo
+    displayName: Cache Cargo packages
 - job: test_containerless
   pool:
     vmImage: 'ubuntu-latest'
@@ -49,9 +54,4 @@ jobs:
   - script: |
       cd rust/compiler
       cargo test
-  - task: CacheBeta@0
-    inputs:
-      key: cargo | $(Agent.OS)
-      path: $(Pipeline.Workspace)/.cargo
-    displayName: Cache Cargo packages
 
