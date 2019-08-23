@@ -11,12 +11,12 @@ pool:
 
     
 steps:
-- task: NodeTool@0
-  inputs:
+  - task: NodeTool@0
+    inputs:
     versionSpec: '8.x'
- - script: |
+  - script: |
       curl https://sh.rustup.rs -sSf | sh -s -- -y
       echo "##vso[task.setvariable variable=PATH;]$PATH:$HOME/.cargo/bin"
     displayName: Install rust
-- script: ./build.sh
-  displayName: 'Build'
+  - script: ./build.sh
+    displayName: 'Build'
