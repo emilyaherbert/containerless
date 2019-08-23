@@ -33,7 +33,7 @@ jobs:
       yarn run build
       cd ../../rust/compiler
       cargo build
-- job: test-containerless
+- job: test_containerless
   pool:
     vmImage: 'ubuntu-latest'
   dependsOn: build
@@ -41,7 +41,7 @@ jobs:
   - script: |
       cd javascript/containerless
       yarn run test
-- job: test-compiler
+- job: test_compiler
   pool:
     vmImage: 'ubuntu-latest'
   dependsOn: build
