@@ -25,7 +25,7 @@ pub fn verify(exp: &Exp) -> Exp {
     let mut exp2 = transformer.transform(&exp);
     //println!("{}", exp3);
     crate::verif::typeinf::typeinf(&mut exp2).unwrap();
-    //println!("{}", exp3);
+    println!("{}", exp2);
 
 
     let exp3 = lift_callbacks.lift(&exp2);
@@ -59,6 +59,22 @@ mod tests {
                 resp('Hello, world!');
             });
         "#, "");
+    }
+
+    #[test]
+    pub fn setref() {
+        let _handle = test_harness("setref.js", r#"
+            let containerless = require("../../javascript/containerless");
+
+            let x = 10;
+            containerless.listen(function(req, resp) {
+                x = "hi";
+                resp('Hello, world!');
+            });
+            x = false;
+            x = true;
+        "#, "request1
+        request2");
     }
 
     #[test]
