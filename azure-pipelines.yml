@@ -6,11 +6,11 @@
 trigger:
 - master
 
-pool:
-  vmImage: 'ubuntu-latest'
 
 jobs:
 - job: deps
+  pool:
+    vmImage: 'ubuntu-latest'
   steps:
   - task: NodeTool@0
     inputs:
@@ -20,6 +20,8 @@ jobs:
       echo "##vso[task.setvariable variable=PATH;]$PATH:$HOME/.cargo/bin"
     displayName: Install rust
 - job: build
+  pool:
+    vmImage: 'ubuntu-latest'
   dependsOn: deps
   steps:
   - script: |
@@ -32,12 +34,16 @@ jobs:
       cd ../../rust/compiler
       cargo build
 - job: test-containerless
+  pool:
+    vmImage: 'ubuntu-latest'
   dependsOn: build
   steps:
   - script: |
       cd javascript/containerless
       yarn run test
 - job: test-compiler
+  pool:
+    vmImage: 'ubuntu-latest'
   dependsOn: build
   steps:
   - script: |
