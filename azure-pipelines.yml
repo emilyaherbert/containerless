@@ -49,3 +49,9 @@ jobs:
   - script: |
       cd rust/compiler
       yarn run test
+  - task: CacheBeta@0
+    inputs:
+      key: cargo | $(Agent.OS)
+      path: $(Pipeline.Workspace)/.cargo
+    displayName: Cache Cargo packages
+
