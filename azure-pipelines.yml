@@ -1,8 +1,3 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
 trigger:
 - master
 variables:
@@ -63,6 +58,11 @@ jobs:
     vmImage: 'ubuntu-latest'
   dependsOn: build
   steps:
+  - task: CacheBeta@0
+    inputs:
+      key: version2 | $(Agent.OS)
+      path: /home/vsts/.cargo/registry
+    displayName: Cache Cargo and Yarn packages
   - script: |
       cd rust/compiler
       cargo test
