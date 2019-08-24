@@ -15,6 +15,11 @@ jobs:
   pool:
     vmImage: 'ubuntu-latest'
   steps:
+  - task: CacheBeta@0
+    inputs:
+      key: $(Agent.OS)
+      path: /home/vsts/.cargo
+    displayName: Cache Cargo and Yarn packages
   - task: NodeTool@0
     inputs:
       versionSpec: '8.x'
@@ -31,11 +36,6 @@ jobs:
   variables:
     PATH: $[dependencies.deps.outputs['install_rust.PATH']]
   steps:
-  - task: CacheBeta@0
-    inputs:
-      key: version2 | $(Agent.OS)
-      path: /home/vsts/.cargo
-    displayName: Cache Cargo and Yarn packages
   - script: |
       cd javascript/containerless
       yarn install
