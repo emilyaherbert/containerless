@@ -11,6 +11,7 @@ variables:
 
 jobs:
 - job: deps
+  displayName: Install build tools
   pool:
     vmImage: 'ubuntu-latest'
   steps:
@@ -25,13 +26,14 @@ jobs:
 - job: build
   pool:
     vmImage: 'ubuntu-latest'
+  displayName: Build
   dependsOn: deps
   variables:
     PATH: $[dependencies.deps.outputs['install_rust.PATH']]
   steps:
   - task: CacheBeta@0
     inputs:
-      key: $(Agent.OS)
+      key: version2 | $(Agent.OS)
       path: /home/vsts/.cargo
     displayName: Cache Cargo and Yarn packages
   - script: |
@@ -44,7 +46,8 @@ jobs:
       cd ../../rust/compiler
       cargo build
 
-- job: test_containerless
+- job: test_javascript
+  displayName: Tests (JavaScript)
   pool:
     vmImage: 'ubuntu-latest'
   dependsOn: build
@@ -54,7 +57,8 @@ jobs:
   - script: |
       cd javascript/containerless
       yarn run test
-- job: test_compiler
+- job: test_rust
+  displayName: Tests (Rust)
   pool:
     vmImage: 'ubuntu-latest'
   dependsOn: build
