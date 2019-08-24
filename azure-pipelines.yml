@@ -27,14 +27,15 @@ jobs:
   - script: |
       set -x
       set -e
-      cd javascript/containerless
+      cd rust/compiler
+      ls -l $HOME/.cargo/bin
+      PATH=$HOME/.cargo/bin:$PATH cargo build
+      cd ../../javascript/containerless
       yarn install
       yarn run build
       cd ../js-transform
       yarn install
       yarn run build
-      cd ../../rust/compiler
-      PATH=$HOME/.cargo/bin:$PATH cargo build
 
 - job: test_javascript
   displayName: Tests (JavaScript)
