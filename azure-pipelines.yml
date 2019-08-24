@@ -37,6 +37,7 @@ jobs:
       path: /home/vsts/.cargo
     displayName: Cache Cargo and Yarn packages
   - script: |
+      which yarn
       cd javascript/containerless
       yarn install
       yarn run build
