@@ -25,6 +25,8 @@ jobs:
       path: /home/vsts/.cargo
     displayName: Cache Cargo and Yarn packages
   - script: |
+      set -x
+      set -e
       which cargo
       cd javascript/containerless
       yarn install
@@ -33,7 +35,7 @@ jobs:
       yarn install
       yarn run build
       cd ../../rust/compiler
-      cargo build
+      PATH=$HOME/.cargo/bin:$PATH cargo build
 
 - job: test_javascript
   displayName: Tests (JavaScript)
