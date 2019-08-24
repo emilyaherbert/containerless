@@ -26,7 +26,6 @@ jobs:
       chmod a+x $HOME/.cargo/bin/*
       set -x
       set -e
-      find $HOME/.cargo/registry/cache -maxdepth 2
       PATH=$HOME/.cargo/bin:$PATH cargo build
       cd ../../javascript/containerless
       yarn install
