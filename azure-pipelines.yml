@@ -22,6 +22,8 @@ jobs:
       path: /home/vsts/.cargo, /home/vsts/rust/compiler/target
     displayName: Cache Cargo and Yarn packages
   - script: |
+      echo "pwd"
+      pwd
       cd rust/compiler
       ls -l $HOME/.cargo/bin
       chmod a+x $HOME/.cargo/bin/*
@@ -35,6 +37,7 @@ jobs:
       cd ../js-transform
       yarn install
       yarn run build
+
       ls /home/vsts/rust/compiler/target
 
 - job: test_javascript
