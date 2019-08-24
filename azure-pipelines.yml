@@ -27,7 +27,6 @@ jobs:
   - script: |
       set -x
       set -e
-      which cargo
       cd javascript/containerless
       yarn install
       yarn run build
