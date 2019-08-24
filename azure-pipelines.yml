@@ -15,17 +15,14 @@ jobs:
       echo "##vso[task.setvariable variable=PATH;isOutput=true]$HOME/.cargo/bin:$PATH"
       cargo version
     name: install_rust
-    displayName: Install rust
+    displayName: Install Rust
   - task: CacheBeta@0
     inputs:
-      key: version5 | $(Agent.OS)
-      path: /home/vsts/.cargo, /home/vsts/rust/compiler/target
+      key: version4 | $(Agent.OS)
+      path: /home/vsts/.cargo
     displayName: Cache Cargo and Yarn packages
   - script: |
-      echo "pwd"
-      pwd
       cd rust/compiler
-      ls -l $HOME/.cargo/bin
       chmod a+x $HOME/.cargo/bin/*
       set -x
       set -e
@@ -37,8 +34,6 @@ jobs:
       cd ../js-transform
       yarn install
       yarn run build
-
-      ls /home/vsts/rust/compiler/target
 
 - job: test_javascript
   displayName: Tests (JavaScript)
@@ -60,11 +55,10 @@ jobs:
   steps:
   - task: CacheBeta@0
     inputs:
-      key: version5 | $(Agent.OS)
-      path: /home/vsts/.cargo, /home/vsts/rust/compiler/target
+      key: version4 | $(Agent.OS)
+      path: /home/vsts/.cargo
     displayName: Cache Cargo and Yarn packages
   - script: |
-      ls -l $HOME/.cargo/bin
       chmod a+x $HOME/.cargo/bin/*
       cd rust/compiler
       cargo test
