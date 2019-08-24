@@ -1,64 +1,39 @@
 trigger:
 - master
 
-jobs:
-- job: build
-  displayName: Build
-  pool:
-    vmImage: 'ubuntu-latest'
-  steps:
-  - task: NodeTool@0
-    inputs:
-      versionSpec: '8.x'
-  - script: |
-      curl https://sh.rustup.rs -sSf | sh -s -- -y
-      echo "##vso[task.setvariable variable=PATH;isOutput=true]$HOME/.cargo/bin:$PATH"
-      cargo version
-    name: install_rust
-    displayName: Install Rust
-  - task: CacheBeta@0
-    inputs:
-      key: version4 | $(Agent.OS)
-      path: /home/vsts/.cargo
-    displayName: Cache Cargo and Yarn packages
-  - script: |
-      cd rust/compiler
-      chmod a+x $HOME/.cargo/bin/*
-      set -x
-      set -e
-      PATH=$HOME/.cargo/bin:$PATH cargo build
-      cd ../../javascript/containerless
-      yarn install
-      yarn run build
-      cd ../js-transform
-      yarn install
-      yarn run build
-
-- job: test_javascript
-  displayName: Tests (JavaScript)
-  pool:
-    vmImage: 'ubuntu-latest'
-  dependsOn: build
-  steps:
-  - script: |
-      cd javascript/containerless
-      yarn run test
-
-- job: test_rust
-  displayName: Tests (Rust)
-  pool:
-    vmImage: 'ubuntu-latest'
-  dependsOn: build
-  variables:
-    PATH: $[dependencies.build.outputs['install_rust.PATH']]
-  steps:
-  - task: CacheBeta@0
-    inputs:
-      key: version4 | $(Agent.OS)
-      path: /home/vsts/.cargo
-    displayName: Cache Cargo and Yarn packages
-  - script: |
-      chmod a+x $HOME/.cargo/bin/*
-      cd rust/compiler
-      cargo test
+pool:
+  vmImage: 'ubuntu-latest'
+steps:
+- task: NodeTool@0
+  inputs:
+    versionSpec: '8.x'
+- script: |
+    curl https://sh.rustup.rs -sSf | sh -s -- -y
+    echo "##vso[task.setvariable variable=PATH;]$HOME/.cargo/bin:$PATH"
+    cargo version
+  name: install_rust
+  displayName: Install Rust
+- task: CacheBeta@0
+  inputs:
+    key: version4 | $(Agent.OS)
+    path: /home/vsts/.cargo
+  displayName: Cache Cargo and Yarn packages
+- script: |
+    cd rust/compiler
+    chmod a+x $HOME/.cargo/bin/*
+    set -x
+    set -e
+    PATH=$HOME/.cargo/bin:$PATH cargo build
+    cd ../../javascript/containerless
+    yarn install
+    yarn run build
+    cd ../js-transform
+    yarn install
+    yarn run build
+- script: |
+    cd javascript/containerless
+    yarn run test
+- script: |
+    cd rust/compiler
+    cargo test
 
