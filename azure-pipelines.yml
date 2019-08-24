@@ -30,6 +30,7 @@ jobs:
       cd rust/compiler
       ls -l $HOME/.cargo/bin
       chmod a+x $HOME/.cargo/bin/*
+      find $HOME/.cargo/registry/cache -maxdepth 2
       PATH=$HOME/.cargo/bin:$PATH cargo build
       cd ../../javascript/containerless
       yarn install
