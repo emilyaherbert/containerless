@@ -5,8 +5,8 @@ variables:
   YARN_CACHE_FOLDER: $(Pipeline.Workspace)/.config/yarn
 
 jobs:
-- job: deps
-  displayName: Install build tools
+- job: build
+  displayName: Build
   pool:
     vmImage: 'ubuntu-latest'
   steps:
@@ -19,18 +19,10 @@ jobs:
       cargo version
     name: install_rust
     displayName: Install rust
-- job: build
-  pool:
-    vmImage: 'ubuntu-latest'
-  displayName: Build
-  dependsOn: deps
-  variables:
-    PATH: $[dependencies.deps.outputs['install_rust.PATH']]
-  steps:
   - task: CacheBeta@0
     inputs:
-      key: version2 | $(Agent.OS)
-      path: /home/vsts/.cargo/registry
+      key: version3 | $(Agent.OS)
+      path: /home/vsts/.cargo
     displayName: Cache Cargo and Yarn packages
   - script: |
       which cargo
@@ -42,8 +34,6 @@ jobs:
       yarn run build
       cd ../../rust/compiler
       cargo build
-  - publish: $(Pipeline.Workspace)/.cargo
-    artifact: .cargo
 
 - job: test_javascript
   displayName: Tests (JavaScript)
@@ -54,14 +44,18 @@ jobs:
   - script: |
       cd javascript/containerless
       yarn run test
+
 - job: test_rust
   displayName: Tests (Rust)
   pool:
     vmImage: 'ubuntu-latest'
   dependsOn: build
   steps:
-  - download: current
-    artifact: .cargo
+  - task: CacheBeta@0
+    inputs:
+      key: version3 | $(Agent.OS)
+      path: /home/vsts/.cargo
+    displayName: Cache Cargo and Yarn packages
   - script: |
       cd rust/compiler
       cargo test
