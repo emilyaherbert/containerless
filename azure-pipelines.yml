@@ -21,7 +21,7 @@ jobs:
     displayName: Install rust
   - task: CacheBeta@0
     inputs:
-      key: version3 | $(Agent.OS)
+      key: version4 | $(Agent.OS)
       path: /home/vsts/.cargo
     displayName: Cache Cargo and Yarn packages
   - script: |
