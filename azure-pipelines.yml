@@ -34,8 +34,8 @@ jobs:
   steps:
   - task: CacheBeta@0
     inputs:
-      key: $(Agent.OS)
-      path: /home/vsts/.cargo
+      key: version2 | $(Agent.OS)
+      path: /home/vsts/.cargo/cache
     displayName: Cache Cargo and Yarn packages
   - script: |
       which cargo
