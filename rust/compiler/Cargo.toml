@@ -1,7 +1,10 @@
 [package]
 name = "compiler"
 version = "0.1.0"
-authors = ["Arjun Guha <arjun@cs.umass.edu>"]
+authors = [
+    "Arjun Guha <arjun@cs.umass.edu>",
+    "Emily Herbert <emilyherbert@cs.umass.edu>"
+]
 edition = "2018"
 
 [dependencies]
