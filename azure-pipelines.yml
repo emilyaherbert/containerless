@@ -51,7 +51,7 @@ jobs:
     vmImage: 'ubuntu-latest'
   dependsOn: build
   variables:
-        PATH: $[dependencies.build.outputs['install_rust.PATH']]
+    PATH: $[dependencies.build.outputs['install_rust.PATH']]
   steps:
   - task: CacheBeta@0
     inputs:
