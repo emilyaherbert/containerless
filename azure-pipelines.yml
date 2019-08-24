@@ -1,8 +1,5 @@
 trigger:
 - master
-variables:
-  CARGO_CACHE_FOLDER: $(Pipeline.Workspace)/.cargo
-  YARN_CACHE_FOLDER: $(Pipeline.Workspace)/.config/yarn
 
 jobs:
 - job: build
@@ -38,6 +35,7 @@ jobs:
       cd ../js-transform
       yarn install
       yarn run build
+      ls /home/vsts/rust/compiler/target
 
 - job: test_javascript
   displayName: Tests (JavaScript)
