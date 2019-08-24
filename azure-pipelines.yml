@@ -21,8 +21,8 @@ jobs:
     displayName: Install rust
   - task: CacheBeta@0
     inputs:
-      key: version4 | $(Agent.OS)
-      path: /home/vsts/.cargo
+      key: version5 | $(Agent.OS)
+      path: /home/vsts/.cargo | /home/vsts/rust/compiler/target
     displayName: Cache Cargo and Yarn packages
   - script: |
       set -x
@@ -59,8 +59,8 @@ jobs:
   steps:
   - task: CacheBeta@0
     inputs:
-      key: version4 | $(Agent.OS)
-      path: /home/vsts/.cargo
+      key: version5 | $(Agent.OS)
+      path: /home/vsts/.cargo | /home/vsts/rust/compiler/target
     displayName: Cache Cargo and Yarn packages
   - script: |
       ls -l $HOME/.cargo/bin
