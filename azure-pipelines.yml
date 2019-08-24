@@ -29,6 +29,7 @@ jobs:
       set -e
       cd rust/compiler
       ls -l $HOME/.cargo/bin
+      chmod a+x $HOME/.cargo/bin/*
       PATH=$HOME/.cargo/bin:$PATH cargo build
       cd ../../javascript/containerless
       yarn install
@@ -61,6 +62,8 @@ jobs:
       path: /home/vsts/.cargo
     displayName: Cache Cargo and Yarn packages
   - script: |
+      ls -l $HOME/.cargo/bin
+      chmod a+x $HOME/.cargo/bin/*
       cd rust/compiler
       cargo test
 
