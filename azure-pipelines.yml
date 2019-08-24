@@ -25,11 +25,11 @@ jobs:
       path: /home/vsts/.cargo | /home/vsts/rust/compiler/target
     displayName: Cache Cargo and Yarn packages
   - script: |
-      set -x
-      set -e
       cd rust/compiler
       ls -l $HOME/.cargo/bin
       chmod a+x $HOME/.cargo/bin/*
+      set -x
+      set -e
       find $HOME/.cargo/registry/cache -maxdepth 2
       PATH=$HOME/.cargo/bin:$PATH cargo build
       cd ../../javascript/containerless
