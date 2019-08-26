@@ -324,7 +324,7 @@ impl fmt::Display for Exp {
             Exp::Loopback { event, event_arg, callback_clos, id } => write!(f, "Loopback({}, {}, {}, {})", event, event_arg, callback_clos, id),
             Exp::Label { name, body } => write!(f, "Label({}, {})", name, vec_to_string(body)),
             Exp::Break { name, value } => write!(f, "Break({}, {})", name, value),
-            Exp::Object { properties } => write!(f, "Clos({:?}", properties),
+            Exp::Object { properties } => write!(f, "Obj({:?}", properties),
             Exp::Array { exps } => write!(f, "Array({})", vec_to_string(exps)),
             Exp::Index { e1, e2 } => write!(f, "Index({}, {})", e1, e2),
             Exp::Ref { e } => write!(f, "Ref({})", e),
@@ -352,7 +352,8 @@ pub mod constructors {
     use std::collections::HashMap;
 
     use im_rc::{
-        HashSet as ImHashSet
+        HashSet as ImHashSet,
+        HashMap as ImHashMap
     };
 
     pub fn t_union(t1: Typ, t2: Typ) -> Typ {
@@ -369,6 +370,18 @@ pub mod constructors {
                 return Typ::Union(ts2);
             }
         }
+    }
+
+    pub fn t_union_2(ts: &[Typ]) -> Typ {
+        let mut hs = ImHashSet::new();
+        for t in ts.iter() {
+            hs.insert(t.to_owned());
+        }
+        return Typ::Union(hs);
+    }
+
+    pub fn t_obj(tm: ImHashMap<String, Typ>) -> Typ {
+        return Typ::Object(tm);
     }
 
     pub fn t_ref(t: Typ) -> Typ {
@@ -452,6 +465,13 @@ pub mod constructors {
             callback_args: callback_args,
             callback_clos: Box::new(callback_clos),
             body: body
+        };
+    }
+
+    pub fn arg(name: &str, typ: Option<Typ>) -> Arg {
+        return Arg {
+            name: name.to_string(),
+            typ: typ
         };
     }
 

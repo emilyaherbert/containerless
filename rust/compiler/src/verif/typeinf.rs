@@ -345,7 +345,6 @@ impl Typeinf {
                             // https://www.reddit.com/r/rust/comments/7mqwjn/hashmapstringt_vs_vecstringt/
                             match typ_vec.iter().find(|x|*x.0 == field) {
                                 Some((_k, v)) => {
-                                    println!("{:?}", v);
                                     match v.clone() {
                                         Typ::Ref(mv) => {
                                             match *mv {
@@ -419,6 +418,13 @@ pub fn typeinf(exp: &mut Exp) -> Result<(), Error> {
 #[cfg(test)]
 mod tests {
 
+    use std::collections::HashMap;
+
+    use im_rc::{
+        HashMap as ImHashMap,
+        HashSet as ImHashSet
+    };
+
     use crate::{
         types::{
             Exp,
@@ -444,6 +450,71 @@ mod tests {
             },
             _ => panic!("wrong shape")
         }
+    }
+
+    #[test]
+    fn setref_2() {
+        let mut hm = HashMap::new();
+        hm.insert("x".to_string(), id("x"));
+
+        let mut e = block(vec![
+            let_("x", None, ref_(number(10.0))),
+            let_("fun", None, ref_(obj(hm))),
+            setref(id("x"), bool_(true))
+        ]);
+        
+        typeinf(&mut e).unwrap();
+
+        let mut hm2 = HashMap::new();
+        hm2.insert("x".to_string(), id("x"));
+
+        let mut hm3 = ImHashMap::new();
+        hm3.insert("x".to_string(), t_ref(t_union_2(&[Typ::F64, Typ::Bool])));
+
+        let goal = block(vec![
+            let_("x", Some(t_ref(t_union_2(&[Typ::F64, Typ::Bool]))), ref_(number(10.0))),
+            let_("fun", Some(t_ref(t_obj(hm3))), ref_(obj(hm2))),
+            setref(id("x"), bool_(true))
+        ]);
+        assert!(e == goal);
+    }
+
+    #[test]
+    fn setref_3() {
+        let mut hm = HashMap::new();
+        hm.insert("x".to_string(), id("x"));
+
+        let mut e = block(vec![
+            let_("x", None, ref_(number(10.0))),
+            let_("fun", None, ref_(obj(hm))),
+            let_("app", None, ref_(block(vec![
+                callback("test", number(0.0), vec![arg("clos", None)], deref(id("fun")), vec![
+                    setref(from(deref(id("clos")), "x"), string("tester"))
+                ])
+            ])))
+        ]);
+        
+        typeinf(&mut e).unwrap();
+
+        let mut hm2 = HashMap::new();
+        hm2.insert("x".to_string(), id("x"));
+
+        let mut hm3 = ImHashMap::new();
+        hm3.insert("x".to_string(), t_ref(t_union_2(&[Typ::String, Typ::F64])));
+
+        let mut hm4 = ImHashMap::new();
+        hm4.insert("x".to_string(), t_ref(t_union_2(&[Typ::String, Typ::F64])));
+
+        let goal = block(vec![
+            let_("x", Some(t_ref(t_union_2(&[Typ::F64, Typ::String]))), ref_(number(10.0))),
+            let_("fun", Some(t_ref(t_obj(hm3))), ref_(obj(hm2))),
+            let_("app", Some(t_ref(Typ::String)), ref_(block(vec![
+                callback("test", number(0.0), vec![arg("clos", Some(t_ref(t_obj(hm4))))], deref(id("fun")), vec![
+                    setref(from(deref(id("clos")), "x"), string("tester"))
+                ])
+            ])))
+        ]);
+        assert!(e == goal);
     }
 }
 
