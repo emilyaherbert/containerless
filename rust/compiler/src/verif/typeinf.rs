@@ -1,4 +1,10 @@
-use crate::types::{Exp, Typ, Op2, Arg};
+use crate::types::{
+    Exp,
+    Typ,
+    Op2,
+    Arg,
+    constructors::*
+};
 
 use std::collections::HashMap;
 
@@ -10,22 +16,17 @@ use im_rc::{
 type TypEnv = ImHashMap<String, Typ>;
 type Subst = std::collections::HashMap<usize, Typ>;
 
+#[derive(Debug)]
 enum Constraint {
     /**
-     * In `UnionMem(t1, t2)`, the type `t2` must be a union and `t1` is an element
-     * of the union.
+     * In `UnionMem(t1, Typ::Unionvar(u))`, the type `t1` is an element of u.
      */
     UnionMem(Typ, Typ),
     /**
-     * In `FromMem(t1, x, t2)` t2 is an alias to t1.x.
+     * In `FromMem(t1, foo, Typ::Metavar(x))` Typ::Metavar(x) is an alias to t1.foo.
      */
     FromMem(Typ, String, Typ),
     Eq(Typ, Typ)
-}
-
-pub struct Typeinf {
-    constraints: Vec<Constraint>,
-    next_var: usize
 }
 
 #[derive(Debug)]
@@ -50,19 +51,26 @@ impl std::fmt::Display for Error {
 
 impl std::error::Error for Error { }
 
-fn tref(t: Typ) -> Typ {
-    return Typ::Ref(Box::new(t));
+pub struct Typeinf {
+    constraints: Vec<Constraint>,
+    next_var: usize
 }
 
 impl Typeinf {
 
-    fn fresh_var(&mut self) -> Typ {
+    fn fresh_metavar(&mut self) -> Typ {
         let x = self.next_var;
         self.next_var = self.next_var + 1;
-        Typ::Metavar(x)
+        return Typ::Metavar(x);
     }
 
-    pub fn exp_list(&mut self, env: &TypEnv, exps: &mut [Exp]) -> Result<Typ, Error> {
+    fn fresh_unionvar(&mut self) -> Typ {
+        let x = self.next_var;
+        self.next_var = self.next_var + 1;
+        return Typ::Unionvar(x);
+    }
+
+    fn exp_list(&mut self, env: &TypEnv, exps: &mut [Exp]) -> Result<Typ, Error> {
         let mut env = env.clone();
         let mut last_typ = Typ::Undefined;
         for exp in exps.iter_mut() {
@@ -94,36 +102,41 @@ impl Typeinf {
             Exp::Stringg { value:_ } => Ok(Typ::String),
             Exp::Ref { e } => {
                 let t = self.exp(env, e)?;
-                let x = self.fresh_var();
-                self.constraints.push(Constraint::UnionMem(t, x.clone()));
-                Ok(Typ::Ref(Box::new(x)))
+                //return Ok(t_ref(t));
+                let u = self.fresh_unionvar();
+                self.constraints.push(Constraint::UnionMem(t, u.clone()));
+                return Ok(t_ref(u));
             },
             Exp::Deref { e } => {
-                let t = self.exp(env, e)?;
-                let x = self.fresh_var();
-                self.constraints.push(Constraint::Eq(tref(x.clone()), t));
-                Ok(x)
-            },
-            // Note that there *is a possibility of a type error below, if in
-            // SetRef(e1, e2), the type of e1 is not a reference type. However,
-            // reference-manipulation expressions do not appear in the original
-            // program and are instead added by the trace compiler, and they
-            // are guaranteed to be inserted in the right place. A type error
-            // indicates a bug in an earlier phase.
-            Exp::SetRef { e1, e2 } => match self.exp(env, e1)? {
-                Typ::Ref(x) => {
-                    let t = self.exp(env, e2)?;
-                    self.constraints.push(Constraint::UnionMem(t, *x.clone()));
-                    Ok(Typ::Ref(x))
-                },
-                Typ::Metavar(x) => {
-                    // This should have just come from Exp::From
-                    let t = self.exp(env, e2)?;
-                    self.constraints.push(Constraint::UnionMem(t, Typ::Metavar(x.clone())));
-                    Ok(Typ::Metavar(x.clone()))
+                match self.exp(env, e)? {
+                    Typ::Ref(t) => {
+                        // This is an optimistic case. Theoretically we could handle everything with metavars.
+                        return Ok(*t);
+                    },
+                    Typ::Metavar(x) => {
+                        let y = self.fresh_metavar();
+                        self.constraints.push(Constraint::Eq(Typ::Metavar(x), t_ref(y.clone())));
+                        return Ok(y);
+                    },
+                    t => panic!("Expected ref but found {:?}.", t)
                 }
-                t => Err(err(
-                    format!("in SetRef(e1, e2), type of e1 ({:?}) is {:?}", e1, t)))
+            },
+            Exp::SetRef { e1, e2 } => {
+                match self.exp(env, e1)? {
+                    Typ::Ref(t1) => {
+                        let t2 = self.exp(env, e2)?;
+                        self.constraints.push(Constraint::UnionMem(t2, *t1));
+                        return Ok(Typ::Undefined);
+                    },
+                    Typ::Metavar(x) => {
+                        let t2 = self.exp(env, e2)?;
+                        let y = self.fresh_metavar();
+                        self.constraints.push(Constraint::Eq(Typ::Metavar(x), t_ref(y.clone())));
+                        self.constraints.push(Constraint::UnionMem(t2, y.clone()));
+                        return Ok(Typ::Undefined);
+                    }
+                    _ => panic!("Expected ref here.")
+                }
             },
             // This should never occur. If it does, we should think about why.
             Exp::Let { name:_, named:_, typ:_ } =>
@@ -134,10 +147,10 @@ impl Typeinf {
                 let t2 = self.exp(env, e2)?;
                 match op {
                    Op2::Add => {
-                        let x = self.fresh_var();
-                        self.constraints.push(Constraint::UnionMem(t1, x.clone()));
-                        self.constraints.push(Constraint::UnionMem(t2, x.clone()));
-                        Ok(x)
+                        let u = self.fresh_unionvar();
+                        self.constraints.push(Constraint::UnionMem(t1, u.clone()));
+                        self.constraints.push(Constraint::UnionMem(t2, u.clone()));
+                        Ok(u)
                    },
                    Op2::StrictEq => Ok(Typ::Bool),
                    _ => panic!(format!("not implemented: {:?}", op))
@@ -155,15 +168,14 @@ impl Typeinf {
                 self.exp(env, cond)?;
                 let t2 = self.exp_list(env, true_part)?;
                 let t3 = self.exp_list(env, false_part)?;
-                let x = self.fresh_var();
-                self.constraints.push(Constraint::UnionMem(t2, x.clone()));
-                self.constraints.push(Constraint::UnionMem(t3, x.clone()));
-                Ok(x)
+                let u = self.fresh_unionvar();
+                self.constraints.push(Constraint::UnionMem(t2, u.clone()));
+                self.constraints.push(Constraint::UnionMem(t3, u.clone()));
+                return Ok(Typ::Undefined);
             },
             Exp::From { exp, field } => {
-                // x points to t.field
                 let t = self.exp(env, exp)?;
-                let x = self.fresh_var();
+                let x = self.fresh_metavar();
                 self.constraints.push(Constraint::FromMem(t, field.to_string(), x.clone()));
                 return Ok(x);
             },
@@ -173,18 +185,18 @@ impl Typeinf {
                 let mut env = env.clone();
                 for Arg { name, typ } in callback_args.iter_mut() {
                     let t = match name.as_ref() {
-                        "clos" => tref(t2.clone()),
+                        "clos" => t_ref(t2.clone()),
                         "request" => {
                             let mut hm = ImHashMap::new();
-                            hm.insert("path".to_string(), tref(Typ::String));
-                            tref(Typ::Object(hm))
+                            hm.insert("path".to_string(), t_ref(Typ::String));
+                            t_ref(Typ::Object(hm))
                         },
-                        "responseCallback" => tref(Typ::ResponseCallback),
+                        "responseCallback" => t_ref(Typ::ResponseCallback),
                         "response" => {
                             let mut hs = ImHashSet::new();
                             hs.insert(Typ::String);
                             hs.insert(Typ::Undefined);
-                            tref(Typ::Union(hs))
+                            t_ref(Typ::Union(hs))
                         }
                         _ => panic!("Unexpected argument {}", name)
                     };
@@ -205,74 +217,74 @@ impl Typeinf {
         } 
     }
 
-    fn subst_metavars(subst: &Subst, exp: &mut Exp) {
+    fn subst_vars(subst: &Subst, exp: &mut Exp) {
         match exp {
             Exp::Unknown { } => (),
             Exp::Number { value:_ } => (),
             Exp::Bool { value:_ } => (),
             Exp::Identifier { name:_ } => (),
             Exp::Stringg { value:_ } => (),
-            Exp::Ref { e } => Typeinf::subst_metavars(subst, e),
-            Exp::Deref { e } => Typeinf::subst_metavars(subst, e),
+            Exp::Ref { e } => Typeinf::subst_vars(subst, e),
+            Exp::Deref { e } => Typeinf::subst_vars(subst, e),
             Exp::SetRef { e1, e2 } => {
-                Typeinf::subst_metavars(subst, e1);
-                Typeinf::subst_metavars(subst, e2);
+                Typeinf::subst_vars(subst, e1);
+                Typeinf::subst_vars(subst, e2);
             },
             Exp::Let { name:_, named, typ } => {
-                Typeinf::subst_metavars(subst, named);
+                Typeinf::subst_vars(subst, named);
                 match typ {
-                    Some(t) => t.apply_subst(subst),
+                    Some(t) => t.apply_subst_strict(subst),
                     None => ()
                 }
             },
             Exp::Block { body } => {
                 for e in body.iter_mut() {
-                    Typeinf::subst_metavars(subst, e)
+                    Typeinf::subst_vars(subst, e)
                 }
             },
             Exp::Object { properties } => {
                 for (_, e) in properties.iter_mut() {
-                    Typeinf::subst_metavars(subst, e);
+                    Typeinf::subst_vars(subst, e);
                 }
             },
             Exp::Callback { event:_, event_arg, callback_args, callback_clos, body } => {
-                Typeinf::subst_metavars(subst, event_arg);
-                Typeinf::subst_metavars(subst, callback_clos);
+                Typeinf::subst_vars(subst, event_arg);
+                Typeinf::subst_vars(subst, callback_clos);
                 for Arg { name:_, typ } in callback_args.iter_mut() {
                     match typ {
-                        Some(t) => t.apply_subst(subst),
+                        Some(t) => t.apply_subst_strict(subst),
                         None => ()
                     }
                 }
                 for e in body.iter_mut() {
-                    Typeinf::subst_metavars(subst, e);
+                    Typeinf::subst_vars(subst, e);
                 }
             },
             Exp::Label { name:_, body } => {
                 for e in body.iter_mut() {
-                    Typeinf::subst_metavars(subst, e);
+                    Typeinf::subst_vars(subst, e);
                 }
             },
             Exp::PrimApp { event:_, event_args } => {
                 for e in event_args.iter_mut() {
-                    Typeinf::subst_metavars(subst, e);
+                    Typeinf::subst_vars(subst, e);
                 }
             },
             Exp::From { exp, field:_ } => {
-                Typeinf::subst_metavars(subst, exp);
+                Typeinf::subst_vars(subst, exp);
             },
             Exp::If { cond, true_part, false_part } => {
-                Typeinf::subst_metavars(subst, cond);
+                Typeinf::subst_vars(subst, cond);
                 for e in true_part.iter_mut() {
-                    Typeinf::subst_metavars(subst, e);
+                    Typeinf::subst_vars(subst, e);
                 }
                 for e in false_part.iter_mut() {
-                    Typeinf::subst_metavars(subst, e);
+                    Typeinf::subst_vars(subst, e);
                 }
             },
             Exp::BinOp { op:_, e1, e2 } => {
-                Typeinf::subst_metavars(subst, e1);
-                Typeinf::subst_metavars(subst, e2);
+                Typeinf::subst_vars(subst, e1);
+                Typeinf::subst_vars(subst, e2);
             }
             _ => unimplemented!("{:?}", exp),
         }
@@ -288,6 +300,7 @@ impl Typeinf {
                 subst.insert(*y, t1.clone());
             },
             (Typ::Bool, Typ::Bool) => (),
+            (Typ::String, Typ::String) => (),
             (Typ::F64, Typ::F64) => (),
             (Typ::Ref(t1), Typ::Ref(t2)) => Typeinf::unify(subst, t1, t2),
             _ => {
@@ -296,97 +309,144 @@ impl Typeinf {
         }
     }
 
-    fn solve(constraints: Vec<Constraint>) -> Subst {
-        let mut subst: HashMap::<usize, Typ> = HashMap::new();
-        for constraint in constraints.into_iter() {
-            match constraint {
-                Constraint::Eq(t1, t2) => {
-                    let mut t1 = t1.clone();
-                    t1.apply_subst(&subst);
-                    let mut t2 = t2.clone();
-                    t2.apply_subst(&subst);
-                    Typeinf::unify(&mut subst, &t1, &t2);
-                },
-                Constraint::UnionMem(t, Typ::Metavar(n)) => {
+    fn subst_insert(subst: &mut Subst, n: usize, typ: Typ) {
+        println!("{:?} : {:?} <- {:?}", n, subst.get(&n), typ);
+        println!("{:?}", subst);
 
-                    let mut t1 = t.clone();
-                    //t1.apply_subst(&subst);
-                    match subst.get_mut(&n) {
-                        None => {
-                            let _ = subst.insert(n, t1);
-                        },
-                        Some(Typ::Union(ts1)) => {
-                            match t1 {
-                                Typ::Union(ts2) => {
-                                    *ts1 = ts1.clone().union(ts2);
-                                },
-                                ts2 => {
-                                    ts1.insert(ts2);
-                                }
-                            }
-                        }
-                        Some(s) => {
-                            let mut hs = ImHashSet::new();
-                            hs.insert(s.clone());
-                            hs.insert(t1);
-                            *s = Typ::Union(hs);
-                        }
+        let typ = match typ {
+            Typ::Unionvar(u) => {
+                match subst.get(&u) {
+                    Some(typ) => typ.clone(),
+                    None => unimplemented!()
+                }
+            },
+            typ => typ
+        };
+
+        match subst.get_mut(&n) {
+            None => {
+                subst.insert(n, typ);
+            },
+            Some(Typ::Union(typs)) => {
+                match typ {
+                    Typ::Union(typs2) => {
+                        *typs = typs.clone().union(typs2);
+                    },
+                    typ => {
+                        typs.insert(typ);
                     }
-                },
-                Constraint::UnionMem(_, _) => panic!("unionmem"),
-                Constraint::FromMem(t, field, Typ::Metavar(n)) => {
-
-                    let mut t1 = t.clone();
-                    // Pulls the metavar out of subst without recursively calling apply_subst on properties
-                    t1.apply_subst(&subst);
-
-                    match t1 {
-                        Typ::Object(typ_vec) => {
-                            // https://www.reddit.com/r/rust/comments/7mqwjn/hashmapstringt_vs_vecstringt/
-                            match typ_vec.iter().find(|x|*x.0 == field) {
-                                Some((_k, v)) => {
-                                    match v.clone() {
-                                        Typ::Ref(mv) => {
-                                            match *mv {
-                                                Typ::Metavar(m) => {
-                                                    match subst.get_mut(&m) {
-                                                        None => unimplemented!(),
-                                                        Some(Typ::Union(ts1)) => {
-                                                            ts1.insert(Typ::Metavar(n.clone()));
-                                                        }
-                                                        Some(s) => {
-                                                            let mut hs = ImHashSet::new();
-                                                            hs.insert(s.clone());
-                                                            hs.insert(Typ::Metavar(n.clone()));
-                                                            *s = Typ::Union(hs);
-                                                        }
-                                                    }
-                                                },
-                                                _ => unimplemented!()
-                                            }
-                                        },
-                                        _ => unimplemented!()
-                                    }
-                                }
-                                None => {
-                                    panic!("Not found {:?} ----> {:?}", typ_vec, field)
-                                }
-                            }
-                        },
-                        _ =>
-                            panic!(format!("FromMem({:?}, {:?}, Metavar({:?}))", t1, field, n))
+                }
+            },
+            Some(t) => {
+                match typ {
+                    Typ::Union(typs) => {
+                        let mut typs2 = typs.clone();
+                        typs2.insert(t.clone());
+                        *t = Typ::Union(typs2);
+                    },
+                    typ => {
+                        let mut typs = ImHashSet::new();
+                        typs.insert(t.to_owned());
+                        typs.insert(typ);
+                        *t = Typ::Union(typs);
                     }
-                },
-                Constraint::FromMem(_, _, _) => panic!("frommem"),
+                }
             }
         }
+    }
+
+    /**
+     * RHS can be that thing, or a ref of that thing.
+     * Once we start working with closures, we really can't make any assumptions anywhere about ref/ not ref.
+     */
+    fn solve_constraint(constraint: &Constraint, subst: &mut Subst) -> Vec<Constraint> {
+        //println!("{:?}", constraint);
+        //println!("{:?}", subst);
+        let mut new_constraints = vec![];
+
+        match constraint {
+            Constraint::Eq(t1, t2) => {
+                let mut lhs = t1.clone();
+                lhs.apply_subst(&subst);
+                let mut rhs = t2.clone();
+                rhs.apply_subst(&subst);
+                Typeinf::unify(subst, &lhs, &rhs);
+            },
+            Constraint::UnionMem(t1, t2) => {
+                let mut lhs = t1.clone();
+                lhs.apply_subst(&subst);
+                let mut rhs = t2.clone();
+                rhs.apply_subst(&subst);
+
+                let n = match rhs {
+                    Typ::Metavar(_) => {
+                        new_constraints.push(Constraint::UnionMem(lhs, rhs));
+                        return new_constraints;
+                    },
+                    Typ::Unionvar(u) => u,
+                    _ => unimplemented!("UnionMem({:?}, {:?})", lhs, rhs)
+                };
+
+                Typeinf::subst_insert(subst, n, lhs);
+            },
+            Constraint::FromMem(t1, field, t2) => {
+                let mut lhs = t1.clone();
+                lhs.apply_subst(&subst);
+                let rhs = t2.clone();
+
+                let typ_vec = match lhs {
+                    Typ::Metavar(_) => {
+                        new_constraints.push(Constraint::FromMem(lhs, field.clone(), rhs));
+                        return new_constraints;
+                    },
+                    Typ::Unionvar(u) => {
+                        match subst.get(&u.clone()) {
+                            Some(Typ::Object(typ_vec)) => typ_vec.clone(),
+                            _ => unimplemented!()
+                        }
+                    }
+                    _ => unimplemented!()
+                };
+
+                // https://www.reddit.com/r/rust/comments/7mqwjn/hashmapstringt_vs_vecstringt/
+                let orig = match typ_vec.iter().find(|x|*x.0.to_string() == field.to_string()) {
+                    Some((_k, v)) => v.clone(),
+                    None => panic!("Field not found.")
+                };
+
+                new_constraints.append(&mut Typeinf::solve_constraint(&Constraint::Eq(orig.clone(), rhs.clone()), subst));
+                //new_constraints.push(Constraint::UnionMem(rhs.clone(), orig.clone()));
+            }
+        }
+
+        return new_constraints;
+    }
+
+    fn solve(constraints: Vec<Constraint>) -> Subst {
+        let mut constraints = constraints;
+        let mut subst: HashMap<usize, Typ> = HashMap::new();
+
+        loop {
+            let mut new_constraints: Vec<Constraint> = vec![];
+            for c in constraints.iter() {
+                new_constraints.append(&mut Typeinf::solve_constraint(c, &mut subst));
+            }
+            if new_constraints.len() > 0 {
+                constraints = new_constraints;
+            } else {
+                break;
+            }
+        }
+
+        //println!("{:?}", subst);
+
         let mut at_fixed_point = true;
         loop {
             let mut new_subst: HashMap::<usize, Typ> = HashMap::new();
             for (x, t) in subst.iter() {
                 let mut t1 = t.clone();
-                if t.has_metavars() {
-                    t1.apply_subst(&subst);
+                if t.has_vars() {
+                    t1.apply_subst_strict(&subst);
                     at_fixed_point = false;
                 }
                 new_subst.insert(*x, t1);
@@ -403,15 +463,16 @@ impl Typeinf {
         // Also have an occurs check.
         return subst;
     }
-
 }
 
 pub fn typeinf(exp: &mut Exp) -> Result<(), Error> {
     let mut state  = Typeinf { constraints: vec![], next_var: 0 };
     let env = ImHashMap::new();
     state.exp(&env, exp)?;
+    //println!("{}", exp);
+    //println!("{:?}", state.constraints);
     let subst = Typeinf::solve(state.constraints);
-    Typeinf::subst_metavars(&subst, exp);
+    Typeinf::subst_vars(&subst, exp);
     Ok(())
 }
 
@@ -429,7 +490,8 @@ mod tests {
         types::{
             Exp,
             Typ,
-            constructors::*
+            constructors::*,
+            Op2
         },
         verif::typeinf::typeinf
     };
@@ -441,7 +503,7 @@ mod tests {
             setref(id("x"), string("hi"))
         ]);
         typeinf(&mut e).unwrap();
-        match e {
+        match e.clone() {
             Exp::Block { body } => match &body[..] {
                 [ Exp::Let { name, named, typ: Some(t) }, _ ] => {
                     assert!(*t == t_ref(t_union(Typ::F64, Typ::String)));
@@ -476,17 +538,18 @@ mod tests {
             let_("fun", Some(t_ref(t_obj(hm3))), ref_(obj(hm2))),
             setref(id("x"), bool_(true))
         ]);
+
         assert!(e == goal);
     }
 
     #[test]
     fn setref_3() {
-        let mut hm = HashMap::new();
-        hm.insert("x".to_string(), id("x"));
 
         let mut e = block(vec![
             let_("x", None, ref_(number(10.0))),
-            let_("fun", None, ref_(obj(hm))),
+            let_("fun", None, ref_(obj2(&vec![
+                ("x", id("x"))
+            ]))),
             let_("app", None, ref_(block(vec![
                 callback("test", number(0.0), vec![arg("clos", None)], deref(id("fun")), vec![
                     setref(from(deref(id("clos")), "x"), string("tester"))
@@ -496,24 +559,64 @@ mod tests {
         
         typeinf(&mut e).unwrap();
 
-        let mut hm2 = HashMap::new();
-        hm2.insert("x".to_string(), id("x"));
-
-        let mut hm3 = ImHashMap::new();
-        hm3.insert("x".to_string(), t_ref(t_union_2(&[Typ::String, Typ::F64])));
-
-        let mut hm4 = ImHashMap::new();
-        hm4.insert("x".to_string(), t_ref(t_union_2(&[Typ::String, Typ::F64])));
-
         let goal = block(vec![
             let_("x", Some(t_ref(t_union_2(&[Typ::F64, Typ::String]))), ref_(number(10.0))),
-            let_("fun", Some(t_ref(t_obj(hm3))), ref_(obj(hm2))),
-            let_("app", Some(t_ref(Typ::String)), ref_(block(vec![
-                callback("test", number(0.0), vec![arg("clos", Some(t_ref(t_obj(hm4))))], deref(id("fun")), vec![
+            let_("fun", Some(t_ref(t_obj_2(&vec![
+                ("x", t_ref(t_union_2(&[Typ::F64, Typ::String])))
+            ]))), ref_(obj2(&vec![
+                ("x", id("x"))
+            ]))),
+            let_("app", Some(t_ref(Typ::Undefined)), ref_(block(vec![
+                callback("test", number(0.0), vec![
+                    arg("clos", Some(t_ref(t_obj_2(&vec![
+                        ("x",  t_ref(t_union_2(&[Typ::F64, Typ::String])))
+                    ]))))
+                ], deref(id("fun")), vec![
                     setref(from(deref(id("clos")), "x"), string("tester"))
                 ])
             ])))
         ]);
+
+        assert!(e == goal);
+    }
+
+    #[test]
+    fn setref_4() {
+
+        let mut e = block(vec![
+            let_("x", None, ref_(number(10.0))),
+            let_("fun", None, ref_(obj2(&vec![
+                ("x", id("x"))
+            ]))),
+            let_("app", None, ref_(block(vec![
+                callback("test", number(0.0), vec![
+                    arg("clos", None)
+                ], deref(id("fun")), vec![
+                    let_("y", None, ref_(binop(&Op2::Add, deref(from(deref(id("clos")), "x")), string("cheese"))))
+                ])
+            ])))
+        ]);
+        
+        typeinf(&mut e).unwrap();
+
+        let goal = block(vec![
+            let_("x", Some(t_ref(Typ::F64)), ref_(number(10.0))),
+            let_("fun", Some(t_ref(t_obj_2(&vec![
+                ("x", t_ref(Typ::F64))
+            ]))), ref_(obj2(&vec![
+                ("x", id("x"))
+            ]))),
+            let_("app", Some(t_ref(Typ::Undefined)), ref_(block(vec![
+                callback("test", number(0.0), vec![
+                    arg("clos", Some(t_ref(t_obj_2(&vec![
+                        ("x",  t_ref(Typ::F64))
+                    ]))))
+                ], deref(id("fun")), vec![
+                    let_("y", Some(t_ref(t_union_2(&[Typ::F64, Typ::String]))), ref_(binop(&Op2::Add, deref(from(deref(id("clos")), "x")), string("cheese"))))
+                ])
+            ])))
+        ]);
+
         assert!(e == goal);
     }
 }

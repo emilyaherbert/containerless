@@ -1,5 +1,7 @@
 pub mod transformer;
 pub mod typeinf;
+//pub mod typeinf2;
+//pub mod typeinf3;
 pub mod assertions;
 pub mod lift_callbacks;
 pub mod codegen;
@@ -23,11 +25,7 @@ pub fn verify(exp: &Exp) -> Exp {
     assertions.assert_all_options_are_none(&exp);
 
     let mut exp2 = transformer.transform(&exp);
-    println!("{}", exp2);
     crate::verif::typeinf::typeinf(&mut exp2).unwrap();
-    println!("{}", exp2);
-
-
     let exp3 = lift_callbacks.lift(&exp2);
 
     return exp3;
@@ -39,7 +37,10 @@ mod tests {
     use crate::{
         types::{
             Exp,
-            to_exp
+            to_exp,
+            constructors::*,
+            Op2,
+            Typ
         },
         verif::verify
     };
@@ -52,34 +53,47 @@ mod tests {
     }
 
     #[test]
-    pub fn try_test() {
-        let _handle = test_harness("try_test.js", r#"
+    pub fn try_test_1() {
+        let handle = test_harness("try_test.js", r#"
             let containerless = require("../../javascript/containerless");
             containerless.listen(function(req, resp) {
                 resp('Hello, world!');
             });
-        "#, "");
+        "#, "start
+        stop");
+
+        let goal =
+            if_(binop(&Op2::StrictEq, id("arg_cbid"), integer(1)), vec![
+                let_("clos", Some(t_ref(t_obj_2(&[]))), ref_(index(id("arg_cbargs"), integer(0)))),
+                let_("request", Some(t_ref(t_obj_2(&[("path", t_ref(Typ::String))]))), ref_(index(id("arg_cbargs"), integer(1)))),
+                let_("responseCallback", Some(t_ref(Typ::ResponseCallback)), ref_(index(id("arg_cbargs"), integer(2)))),
+                label("'return", vec![
+                    let_("req", Some(t_ref(t_obj_2(&[("path", t_ref(Typ::String))]))), ref_(deref(id("request")))),
+                    let_("resp", Some(t_ref(Typ::ResponseCallback)), ref_(deref(id("responseCallback")))),
+                    let_("app100", Some(t_ref(Typ::Undefined)), ref_(block(vec![
+                        label("'return", vec![
+                            let_("response", Some(t_ref(Typ::String)), ref_(string("Hello, world!"))),
+                            prim_app("send", vec![
+                                deref(id("response"))
+                            ])
+                        ])
+                    ])))
+                ])
+            ], vec![
+                block(vec![
+                    let_("fun000", Some(t_ref(t_obj_2(&[]))), ref_(obj2(&[]))),
+                    let_("app000", Some(t_ref(Typ::Undefined)), ref_(block(vec![
+                        loopback("listen", number(0.0), deref(id("fun000")), 1)
+                    ])))
+                ])
+            ]);
+
+        assert!(handle == goal);
     }
 
     #[test]
-    pub fn setref() {
-        let _handle = test_harness("setref.js", r#"
-            let containerless = require("../../javascript/containerless");
-
-            let x = 10;
-            containerless.listen(function(req, resp) {
-                x = "hi";
-                resp('Hello, world!');
-            });
-            x = false;
-            x = true;
-        "#, "request1
-        request2");
-    }
-
-    #[test]
-    pub fn try_test2() {
-        let handle = test_harness("try_test2.js", r#"
+    pub fn try_test_2() {
+        let handle = test_harness("try_test_2.js", r#"
             let containerless = require("../../javascript/containerless");
             let str = 'Got a response!';
             containerless.listen(function(req, resp) {
@@ -89,6 +103,39 @@ mod tests {
             });
         "#, "request1
         request2");
+
+                let goal =
+            if_(binop(&Op2::StrictEq, id("arg_cbid"), integer(1)), vec![
+                let_("clos", Some(t_ref(t_obj_2(&[("str00", t_ref(Typ::String))]))), ref_(index(id("arg_cbargs"), integer(0)))),
+                let_("request", Some(t_ref(t_obj_2(&[("path", t_ref(Typ::String))]))), ref_(index(id("arg_cbargs"), integer(1)))),
+                let_("responseCallback", Some(t_ref(Typ::ResponseCallback)), ref_(index(id("arg_cbargs"), integer(2)))),
+                label("'return", vec![
+                    let_("req", Some(t_ref(t_obj_2(&[("path", t_ref(Typ::String))]))), ref_(deref(id("request")))),
+                    let_("resp", Some(t_ref(Typ::ResponseCallback)), ref_(deref(id("responseCallback")))),
+                    prim_app("console.log", vec![
+                        deref(from(deref(id("clos")), "str00"))
+                    ]),
+                    let_("app200", Some(t_ref(Typ::Undefined)), ref_(block(vec![
+                        label("'return", vec![
+                            let_("response", Some(t_ref(t_obj_2(&[("path", t_ref(Typ::String))]))), ref_(deref(id("req")))),
+                            prim_app("send", vec![
+                                deref(id("response"))
+                            ])
+                        ])
+                    ])))
+                ])
+            ], vec![
+                block(vec![
+                    let_("str00", Some(t_ref(Typ::String)), ref_(string("Got a response!"))),
+                    let_("fun000", Some(t_ref(t_obj_2(&[("str00", t_ref(Typ::String))]))), ref_(obj2(&[("str00", id("str00"))]))),
+                    let_("app000", Some(t_ref(Typ::Undefined)), ref_(block(vec![
+                        loopback("listen", number(0.0), deref(id("fun000")), 1)
+                    ])))
+                ])
+            ]);
+
+        assert!(handle == goal);
+
     }
 
     #[test]
@@ -104,7 +151,38 @@ mod tests {
                 }
             });
         "#, "hello");
-        // assert!(false);
+
+        let goal =
+            if_(binop(&Op2::StrictEq, id("arg_cbid"), integer(1)), vec![
+                let_("clos", Some(t_ref(t_obj_2(&[]))), ref_(index(id("arg_cbargs"), integer(0)))),
+                let_("request", Some(t_ref(t_obj_2(&[("path", t_ref(Typ::String))]))), ref_(index(id("arg_cbargs"), integer(1)))),
+                let_("responseCallback", Some(t_ref(Typ::ResponseCallback)), ref_(index(id("arg_cbargs"), integer(2)))),
+                label("'return", vec![
+                    let_("req", Some(t_ref(t_obj_2(&[("path", t_ref(Typ::String))]))), ref_(deref(id("request")))),
+                    let_("resp", Some(t_ref(Typ::ResponseCallback)), ref_(deref(id("responseCallback")))),
+                    if_(binop(&Op2::StrictEq, deref(id("req")), string("hello")), vec![
+                        let_("app100", Some(t_ref(Typ::Undefined)), ref_(block(vec![
+                            label("'return", vec![
+                                let_("response", Some(t_ref(Typ::String)), ref_(string("goodbye"))),
+                                prim_app("send", vec![
+                                    deref(id("response"))
+                                ])
+                            ])
+                        ])))
+                    ], vec![
+                        unknown()
+                    ])
+                ])
+            ], vec![
+                block(vec![
+                    let_("fun000", Some(t_ref(t_obj_2(&[]))), ref_(obj2(&[]))),
+                    let_("app000", Some(t_ref(Typ::Undefined)), ref_(block(vec![
+                        loopback("listen", number(0.0), deref(id("fun000")), 1)
+                    ])))
+                ])
+            ]);
+
+        assert!(handle == goal);
     }
 
     #[test]
@@ -113,18 +191,54 @@ mod tests {
             let containerless = require('../../javascript/containerless');
 
             let foo = 'start';
-            foo = 42;
-            //let foo = 42;
 
             containerless.listen(function(req, resp) {
                 console.error('Got a response');
+                foo = 42;
                 let bar = foo + 1;
                 resp(req);
 
             });
+
+            foo = false;
         "#, "hello
         goodbye
         hello again");
+
+        let goal =
+            if_(binop(&Op2::StrictEq, id("arg_cbid"), integer(1)), vec![
+                let_("clos", Some(t_ref(t_obj_2(&[("foo00", t_ref(t_union_2(&[Typ::String, Typ::F64, Typ::Bool])))]))), ref_(index(id("arg_cbargs"), integer(0)))),
+                let_("request", Some(t_ref(t_obj_2(&[("path", t_ref(Typ::String))]))), ref_(index(id("arg_cbargs"), integer(1)))),
+                let_("responseCallback", Some(t_ref(Typ::ResponseCallback)), ref_(index(id("arg_cbargs"), integer(2)))),
+                label("'return", vec![
+                    let_("req", Some(t_ref(t_obj_2(&[("path", t_ref(Typ::String))]))), ref_(deref(id("request")))),
+                    let_("resp", Some(t_ref(Typ::ResponseCallback)), ref_(deref(id("responseCallback")))),
+                    prim_app("console.log", vec![
+                        string("Got a response")
+                    ]),
+                    setref(from(deref(id("clos")), "foo00"), number(42.0)),
+                    let_("bar00", Some(t_ref(t_union_2(&[Typ::String, Typ::F64]))), ref_(binop(&Op2::Add, deref(from(deref(id("clos")), "foo00")), number(1.0)))),
+                    let_("app200", Some(t_ref(Typ::Undefined)), ref_(block(vec![
+                        label("'return", vec![
+                            let_("response", Some(t_ref(t_obj_2(&[("path", t_ref(Typ::String))]))), ref_(deref(id("req")))),
+                            prim_app("send", vec![
+                                deref(id("response"))
+                            ])
+                        ])
+                    ])))
+                ])
+            ], vec![
+                block(vec![
+                    let_("foo00", Some(t_ref(t_union_2(&[Typ::String, Typ::F64, Typ::Bool]))), ref_(string("start"))),
+                    let_("fun000", Some(t_ref(t_obj_2(&[("foo00", t_ref(t_union_2(&[Typ::String, Typ::F64, Typ::Bool])))]))), ref_(obj2(&[("foo00", id("foo00"))]))),
+                    let_("app000", Some(t_ref(Typ::Undefined)), ref_(block(vec![
+                        loopback("listen", number(0.0), deref(id("fun000")), 1)
+                    ]))),
+                    setref(id("foo00"), bool_(false))
+                ])
+            ]);
+
+        assert_eq!(handle, goal);
 
     }
 }

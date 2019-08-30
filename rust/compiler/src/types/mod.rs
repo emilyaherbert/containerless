@@ -17,7 +17,11 @@
 //
 // - I could not find documentation for the #[serde(rename = "+")] directive.
 //   Instead, I guessed that it existed and it worked!
-use std::collections::HashMap;
+use std::{
+    rc::Rc,
+    cell::RefCell,
+    collections::HashMap
+};
 
 use im_rc::{
     HashMap as ImHashMap,
@@ -145,6 +149,7 @@ pub enum Typ {
     Unknown,
     Undefined,
     Metavar(usize),
+    Unionvar(usize),
     Ref(Box<Typ>),
     #[serde(skip)]
     Union(ImHashSet<Typ>),
@@ -156,11 +161,12 @@ pub enum Typ {
 
 impl Typ {
 
-    pub fn has_metavars(&self) -> bool {
+    pub fn has_vars(&self) -> bool {
         match self {
             Typ::Metavar(_) => true,
-            Typ::Ref(t) => t.has_metavars(),
-            Typ::Union(hs) => hs.iter().fold(false, |b, t| b || t.has_metavars()),
+            Typ::Unionvar(_) => true,
+            Typ::Ref(t) => t.has_vars(),
+            Typ::Union(hs) => hs.iter().fold(false, |b, t| b || t.has_vars()),
             Typ::I32 => false,
             Typ::F64 => false,
             Typ::Bool => false,
@@ -168,7 +174,7 @@ impl Typ {
             Typ::Unknown => false,
             Typ::Undefined => false,
             Typ::Object(ts) => ts.iter()
-                .fold(false, |b, (_, t)| b || t.has_metavars()),
+                .fold(false, |b, (_, t)| b || t.has_vars()),
             Typ::ResponseCallback => false,
             _ => unimplemented!()
         }
@@ -196,6 +202,7 @@ impl Typ {
                 None => (),
                 Some(t) => *self = t.clone()
             },
+            Typ::Unionvar(_) => (),
             Typ::Ref(t) => t.apply_subst(subst),
             Typ::Union(hs) => {
                 for t in hs.iter_mut() {
@@ -208,9 +215,38 @@ impl Typ {
             Typ::String => (),
             Typ::Unknown => (),
             Typ::Undefined => (),
+            Typ::Object(_) => (),
+            Typ::ResponseCallback => (),
+            _ => unimplemented!()
+        }
+    }
+
+    pub fn apply_subst_strict(&mut self,
+        subst: &std::collections::HashMap<usize, Typ>) -> () {
+        match self {
+            Typ::Metavar(x) => match subst.get(x) {
+                None => panic!("Did not find {} in subst.", x.to_string()),
+                Some(t) => *self = t.clone()
+            },
+            Typ::Unionvar(x) => match subst.get(x) {
+                None => panic!("Did not find {} in subst.", x.to_string()),
+                Some(t) => *self = t.clone()
+            },
+            Typ::Ref(t) => t.apply_subst_strict(subst),
+            Typ::Union(hs) => {
+                for t in hs.iter_mut() {
+                    t.apply_subst_strict(subst);
+                }
+            },
+            Typ::I32 => (),
+            Typ::F64 => (),
+            Typ::Bool => (),
+            Typ::String => (),
+            Typ::Unknown => (),
+            Typ::Undefined => (),
             Typ::Object(ts) => {
                 for t in ts.iter_mut() {
-                    t.apply_subst(subst)
+                    t.apply_subst_strict(subst)
                 }
             },
             Typ::ResponseCallback => (),
@@ -384,6 +420,14 @@ pub mod constructors {
         return Typ::Object(tm);
     }
 
+    pub fn t_obj_2(tm: &[(&str, Typ)]) -> Typ {
+        let mut hm = ImHashMap::new();
+        for (k, v) in tm.iter() {
+            hm.insert(k.to_string(), v.to_owned());
+        }
+        return Typ::Object(hm);
+    }
+
     pub fn t_ref(t: Typ) -> Typ {
         Typ::Ref(Box::new(t))
     }
@@ -503,6 +547,14 @@ pub mod constructors {
 
     pub fn obj(tenv: HashMap<String, Exp>) -> Exp {
         return Object { properties: tenv };
+    }
+    
+    pub fn obj2(tenv: &[(&str, Exp)]) -> Exp {
+        let mut hm = HashMap::new();
+        for (k,v) in tenv.iter() {
+            hm.insert(k.to_string(), v.to_owned());
+        }
+        return Object { properties: hm };
     }
 
 }
