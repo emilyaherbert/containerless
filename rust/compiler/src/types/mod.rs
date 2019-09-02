@@ -227,7 +227,20 @@ impl Typ {
             Typ::Metavar(_) => panic!("Found free metavar."),
             Typ::Unionvar(x) => match subst.get(x) {
                 None => panic!("Did not find {} in subst.", x.to_string()),
-                Some(t) => *self = t.flatten(*x)
+                Some(t) => {
+                    let new_t = t.flatten();
+                    match new_t {
+                        Typ::Union(typ_vec) => {
+                            let mut typ_vec2 = typ_vec.clone();
+                            // Don't include my own name in my union type.
+                            typ_vec2.remove(&Typ::Unionvar(*x));
+                            *self = Typ::Union(typ_vec2);
+                        },
+                        new_t => {
+                            *self = new_t;
+                        }
+                    }
+                }
             },
             Typ::Ref(t) => t.apply_subst_strict(subst),
             Typ::Union(hs) => {
@@ -251,12 +264,12 @@ impl Typ {
         }
     }
 
-    pub fn flatten(&self, prev: usize) -> Typ {
+    fn flatten(&self) -> Typ {
         match self {
             Typ::Union(typ_vec) => {
                 let mut new_typ_vec = ImHashSet::new();
                 for t in typ_vec.iter() {
-                    let t2 = t.flatten(prev);
+                    let t2 = t.flatten();
                     match t2 {
                         Typ::Union(typ_vec2) => {
                             new_typ_vec = new_typ_vec.union(typ_vec2);
@@ -266,9 +279,6 @@ impl Typ {
                         }
                     }
                 }
-                // hacky
-                new_typ_vec.remove(&Typ::Metavar(prev));
-                new_typ_vec.remove(&Typ::Unionvar(prev));
                 return Typ::Union(new_typ_vec);
             },
             t => {
