@@ -61,6 +61,117 @@ fn compile_typ(typ: &Typ) -> TokenStream {
     }
 }
 
+fn compile_bool_variant(q_name: Ident, q_result_name: Ident, q_variant_name: Ident) -> (TokenStream, TokenStream) {
+    let methods = quote! {
+        pub fn bool(b: bool) -> #q_result_name<'a> {
+            return Ok(#q_name::#q_variant_name(b));
+        }
+
+        pub fn strict_eq<T>(&self, other: T) -> BoolResult
+            where T : std::convert::Into<bool> {
+                match self {
+                    #q_name::#q_variant_name(n) => return Ok(Bool(*n == other.into())),
+                    _ => return Err(Error::TypeError)
+                }
+            }
+    };
+
+    let impls = quote! {
+        impl<'a> std::convert::Into<bool> for #q_name<'a> {
+            fn into(self) -> bool {
+                match self {
+                    #q_name::#q_variant_name(b) => return b,
+                    _ => unimplemented!()
+                }
+            }
+        }
+    };
+
+    return (methods, impls);
+}
+
+fn compile_f64_variant(q_name: Ident, q_result_name: Ident, q_variant_name: Ident) -> (TokenStream, TokenStream) {
+    let methods = quote! {
+        pub fn f64(n: f64) -> #q_result_name<'a> {
+            return Ok(#q_name::#q_variant_name(n));
+        }
+
+        pub fn strict_eq<T>(&self, other: T) -> BoolResult
+            where T : std::convert::Into<f64> {
+                match self {
+                    #q_name::#q_variant_name(n) => return Ok(Bool(*n == other.into())),
+                    _ => return Err(Error::TypeError)
+                }
+            }
+
+        pub fn gt<T>(&self, other: T) -> BoolResult
+            where T : std::convert::Into<f64> {
+                match self {
+                    #q_name::#q_variant_name(n) => return Ok(Bool(*n > other.into())),
+                    _ => return Err(Error::TypeError)
+                }
+            }
+
+        pub fn mul<T>(self, other: T) -> #q_result_name<'a>
+            where T : std::convert::Into<f64> {
+                match self {
+                    #q_name::#q_variant_name(n) => return #q_name::f64(n * other.into()),
+                    _ => return Err(Error::TypeError)
+                }
+        }
+    };   
+
+    let impls = quote! {
+        impl<'a> std::convert::Into<f64> for #q_name<'a> {
+            fn into(self) -> f64 {
+                match self {
+                    #q_name::#q_variant_name(n) => return n,
+                    _ => unimplemented!()
+                }
+            }
+        }
+    };
+
+    return (methods, impls);
+}
+
+fn compile_i32_variant(q_name: Ident, q_result_name: Ident, q_variant_name: Ident) -> (TokenStream, TokenStream) {
+    let methods = quote! {
+        pub fn i32(i: i32) -> #q_result_name<'a> {
+            return Ok(#q_name::#q_variant_name(i));
+        }
+
+        pub fn strict_eq<T>(&self, other: T) -> BoolResult
+            where T : std::convert::Into<i32> {
+                match self {
+                    #q_name::#q_variant_name(n) => return Ok(Bool(*n == other.into())),
+                    _ => return Err(Error::TypeError)
+                }
+            }
+
+        pub fn mul<T>(self, other: T) -> #q_result_name<'a>
+            where T : std::convert::Into<i32> {
+                match self {
+                    #q_name::#q_variant_name(n) => return #q_name::i32(n * other.into()),
+                    _ => return Err(Error::TypeError)
+                }
+        }
+    };
+
+    let impls = quote! {
+        impl<'a> std::convert::Into<i32> for #q_name<'a> {
+            fn into(self) -> i32 {
+                match self {
+                    #q_name::#q_variant_name(i) => return i,
+                    _ => unimplemented!()
+                }
+            }
+        }
+    };
+
+    return (methods, impls);
+}
+
 // enum
 fn compile_union(name: &usize, ts: &ImHashSet<Typ>) -> TokenStream {
     let q_name = compile_rust_type_name(name);
@@ -73,73 +184,21 @@ fn compile_union(name: &usize, ts: &ImHashSet<Typ>) -> TokenStream {
         let q_typ = compile_typ(typ);
         match typ {
             Typ::Bool => {
-                q_methods.push(quote! {
-                    pub fn bool(b: bool) -> #q_result_name<'a> {
-                        return Ok(#q_name::#q_variant_name(b));
-                    }
-                });
-                q_impls.push(quote! {
-                    impl<'a> std::convert::Into<bool> for #q_name<'a> {
-                        fn into(self) -> bool {
-                            match self {
-                                #q_name::#q_variant_name(b) => return b,
-                                _ => unimplemented!()
-                            }
-                        }
-                    }
-                });
+                let (methods, impls) = compile_bool_variant(q_name.clone(), q_result_name.clone(), q_variant_name.clone());
+                q_methods.push(methods);
+                q_impls.push(impls);
                 quote! { #q_variant_name(#q_typ) }
             },
             Typ::F64 => {
-                q_methods.push(quote! {
-                    pub fn f64(n: f64) -> #q_result_name<'a> {
-                        return Ok(#q_name::#q_variant_name(n));
-                    }
-
-                    pub fn mul<T>(self, other: T) -> #q_result_name<'a>
-                        where T : std::convert::Into<f64> {
-                            match self {
-                                #q_name::#q_variant_name(n) => return #q_name::f64(n * other.into()),
-                                _ => return Err(Error::TypeError)
-                            }
-                    }
-                });
-                q_impls.push(quote! {
-                    impl<'a> std::convert::Into<f64> for #q_name<'a> {
-                        fn into(self) -> f64 {
-                            match self {
-                                #q_name::#q_variant_name(n) => return n,
-                                _ => unimplemented!()
-                            }
-                        }
-                    }
-                });
+                let (methods, impls) = compile_f64_variant(q_name.clone(), q_result_name.clone(), q_variant_name.clone());
+                q_methods.push(methods);
+                q_impls.push(impls);
                 quote! { #q_variant_name(#q_typ) }
             },
             Typ::I32 => {
-                q_methods.push(quote! {
-                    pub fn i32(i: i32) -> #q_result_name<'a> {
-                        return Ok(#q_name::#q_variant_name(i));
-                    }
-
-                    pub fn mul<T>(self, other: T) -> #q_result_name<'a>
-                        where T : std::convert::Into<i32> {
-                            match self {
-                                #q_name::#q_variant_name(n) => return #q_name::i32(n * other.into()),
-                                _ => return Err(Error::TypeError)
-                            }
-                    }
-                });
-                q_impls.push(quote! {
-                    impl<'a> std::convert::Into<i32> for #q_name<'a> {
-                        fn into(self) -> i32 {
-                            match self {
-                                #q_name::#q_variant_name(i) => return i,
-                                _ => unimplemented!()
-                            }
-                        }
-                    }
-                });
+                let (methods, impls) = compile_i32_variant(q_name.clone(), q_result_name.clone(), q_variant_name.clone());
+                q_methods.push(methods);
+                q_impls.push(impls);
                 quote! { #q_variant_name(#q_typ) }
             },
             Typ::String => quote! { #q_variant_name(#q_typ) },
@@ -255,7 +314,7 @@ pub fn compile_typs(types: &HashMap<usize, Typ>) -> TokenStream {
             where
                 T : std::convert::Into<i32>
             {
-                return I32(self.0 + other.into());
+                return I32(self.0 * other.into());
             }
         }
 
@@ -279,15 +338,26 @@ pub fn compile_typs(types: &HashMap<usize, Typ>) -> TokenStream {
             where
                 T : std::convert::Into<f64>
             {
-                return F64(self.0 + other.into());
+                return F64(self.0 * other.into());
             }
         }
+
+        pub type BoolResult<'a> = Result<Bool, Error>;
 
         pub struct Bool(bool);
 
         impl std::convert::Into<bool> for Bool {
             fn into(self) -> bool {
                 return self.0;
+            }
+        }
+
+        impl Bool {
+            pub fn strict_eq<T>(&self, other: T) -> Bool
+            where
+                T : std::convert::Into<bool>
+            {
+                return Bool(self.0 == other.into());
             }
         }
 
@@ -313,4 +383,48 @@ impl JSInt {
         where T : std::convert::Into<i32> {
             return self.0 + other.into();
     }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use std::{
+        io::Write,
+        collections::HashMap
+    };
+
+    use crate::{
+        types::{
+            Typ,
+            constructors::*
+        },
+        gen::gen_types::compile_typs
+    };
+
+    fn test_harness(types: &HashMap<usize, Typ>) {
+        let q_types = compile_typs(types);
+
+        let filename = "TYPES.rs";
+
+        let mut rs_file = std::fs::File::create(filename)
+            .expect("Could not create .rs file.");
+        rs_file.write_all(format!("{}", q_types).as_bytes())
+            .expect("Could not write to file.");
+        cmd!("rustfmt", filename).run()
+            .expect("rustfmt failed");
+        cmd!("rustc", "--crate-type", "cdylib", filename).run()
+            .expect("Compiling to Rust failed.");
+    }
+
+    #[test]
+    fn types_1() {
+        let mut types = HashMap::new();
+        types.insert(0, t_union_2(&[Typ::F64, Typ::Bool]));
+        types.insert(1, t_union_2(&[Typ::F64, Typ::String]));
+
+        test_harness(&types);
+
+        assert!(false);
+    }
+
 }
