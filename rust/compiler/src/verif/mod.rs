@@ -217,7 +217,7 @@ mod tests {
                         string("Got a response")
                     ]),
                     setref(from(deref(id("clos")), "foo00"), number(42.0)),
-                    let_("bar00", Some(t_ref(t_union_2(&[Typ::String, Typ::F64]))), ref_(binop(&Op2::Add, deref(from(deref(id("clos")), "foo00")), number(1.0)))),
+                    let_("bar00", Some(t_ref(t_union_2(&[Typ::String, Typ::F64, Typ::Bool]))), ref_(binop(&Op2::Add, deref(from(deref(id("clos")), "foo00")), number(1.0)))),
                     let_("app200", Some(t_ref(Typ::Undefined)), ref_(block(vec![
                         label("'return", vec![
                             let_("response", Some(t_ref(t_obj_2(&[("path", t_ref(Typ::String))]))), ref_(deref(id("req")))),

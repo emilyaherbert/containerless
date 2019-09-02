@@ -224,13 +224,10 @@ impl Typ {
     pub fn apply_subst_strict(&mut self,
         subst: &std::collections::HashMap<usize, Typ>) -> () {
         match self {
-            Typ::Metavar(x) => match subst.get(x) {
-                None => panic!("Did not find {} in subst.", x.to_string()),
-                Some(t) => *self = t.clone()
-            },
+            Typ::Metavar(_) => panic!("Found free metavar."),
             Typ::Unionvar(x) => match subst.get(x) {
                 None => panic!("Did not find {} in subst.", x.to_string()),
-                Some(t) => *self = t.clone()
+                Some(t) => *self = t.flatten(*x)
             },
             Typ::Ref(t) => t.apply_subst_strict(subst),
             Typ::Union(hs) => {
@@ -251,6 +248,32 @@ impl Typ {
             },
             Typ::ResponseCallback => (),
             _ => unimplemented!()
+        }
+    }
+
+    pub fn flatten(&self, prev: usize) -> Typ {
+        match self {
+            Typ::Union(typ_vec) => {
+                let mut new_typ_vec = ImHashSet::new();
+                for t in typ_vec.iter() {
+                    let t2 = t.flatten(prev);
+                    match t2 {
+                        Typ::Union(typ_vec2) => {
+                            new_typ_vec = new_typ_vec.union(typ_vec2);
+                        },
+                        t => {
+                            new_typ_vec.insert(t);
+                        }
+                    }
+                }
+                // hacky
+                new_typ_vec.remove(&Typ::Metavar(prev));
+                new_typ_vec.remove(&Typ::Unionvar(prev));
+                return Typ::Union(new_typ_vec);
+            },
+            t => {
+                return t.clone();
+            }
         }
     }
 }

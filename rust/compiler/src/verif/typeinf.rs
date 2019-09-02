@@ -26,7 +26,8 @@ enum Constraint {
      * In `FromMem(t1, foo, Typ::Metavar(x))` Typ::Metavar(x) is an alias to t1.foo.
      */
     FromMem(Typ, String, Typ),
-    Eq(Typ, Typ)
+    Eq(Typ, Typ),
+    MutualFlag(Typ, bool)
 }
 
 #[derive(Debug)]
@@ -125,7 +126,7 @@ impl Typeinf {
                 match self.exp(env, e1)? {
                     Typ::Ref(t1) => {
                         let t2 = self.exp(env, e2)?;
-                        self.constraints.push(Constraint::UnionMem(t2, *t1));
+                        self.constraints.push(Constraint::UnionMem(t2, *t1.clone()));
                         return Ok(Typ::Undefined);
                     },
                     Typ::Metavar(x) => {
@@ -152,6 +153,13 @@ impl Typeinf {
                         self.constraints.push(Constraint::UnionMem(t2, u.clone()));
                         Ok(u)
                    },
+                   Op2::Sub => {
+                        let u = self.fresh_unionvar();
+                        self.constraints.push(Constraint::UnionMem(t1, u.clone()));
+                        self.constraints.push(Constraint::UnionMem(t2, u.clone()));
+                        Ok(u)
+                   },
+                   Op2::GT => Ok(Typ::Bool),
                    Op2::StrictEq => Ok(Typ::Bool),
                    _ => panic!(format!("not implemented: {:?}", op))
                 }
@@ -210,9 +218,14 @@ impl Typeinf {
                 self.exp_list(env, body)
             },
             Exp::PrimApp { event: _, event_args } => {
-                self.exp_list(&env, event_args)?;
+                self.exp_list(env, event_args)?;
                 Ok(Typ::Undefined)
             },
+            Exp::While { cond, body } => {
+                self.exp(env, cond)?;
+                self.exp(env, body)?;
+                return Ok(Typ::Undefined);
+            }
             _ => panic!(format!("{:?}", exp))
         } 
     }
@@ -286,6 +299,10 @@ impl Typeinf {
                 Typeinf::subst_vars(subst, e1);
                 Typeinf::subst_vars(subst, e2);
             }
+            Exp::While { cond, body } => {
+                Typeinf::subst_vars(subst, cond);
+                Typeinf::subst_vars(subst, body);
+            }
             _ => unimplemented!("{:?}", exp),
         }
     }
@@ -310,19 +327,6 @@ impl Typeinf {
     }
 
     fn subst_insert(subst: &mut Subst, n: usize, typ: Typ) {
-        println!("{:?} : {:?} <- {:?}", n, subst.get(&n), typ);
-        println!("{:?}", subst);
-
-        let typ = match typ {
-            Typ::Unionvar(u) => {
-                match subst.get(&u) {
-                    Some(typ) => typ.clone(),
-                    None => unimplemented!()
-                }
-            },
-            typ => typ
-        };
-
         match subst.get_mut(&n) {
             None => {
                 subst.insert(n, typ);
@@ -355,10 +359,6 @@ impl Typeinf {
         }
     }
 
-    /**
-     * RHS can be that thing, or a ref of that thing.
-     * Once we start working with closures, we really can't make any assumptions anywhere about ref/ not ref.
-     */
     fn solve_constraint(constraint: &Constraint, subst: &mut Subst) -> Vec<Constraint> {
         //println!("{:?}", constraint);
         //println!("{:?}", subst);
@@ -416,7 +416,8 @@ impl Typeinf {
 
                 new_constraints.append(&mut Typeinf::solve_constraint(&Constraint::Eq(orig.clone(), rhs.clone()), subst));
                 //new_constraints.push(Constraint::UnionMem(rhs.clone(), orig.clone()));
-            }
+            },
+            _ => unimplemented!(),
         }
 
         return new_constraints;
@@ -438,7 +439,7 @@ impl Typeinf {
             }
         }
 
-        //println!("{:?}", subst);
+        println!("{:?}", subst);
 
         let mut at_fixed_point = true;
         loop {
@@ -470,7 +471,7 @@ pub fn typeinf(exp: &mut Exp) -> Result<(), Error> {
     let env = ImHashMap::new();
     state.exp(&env, exp)?;
     //println!("{}", exp);
-    //println!("{:?}", state.constraints);
+    println!("{:?}", state.constraints);
     let subst = Typeinf::solve(state.constraints);
     Typeinf::subst_vars(&subst, exp);
     Ok(())
@@ -618,6 +619,40 @@ mod tests {
         ]);
 
         assert!(e == goal);
+    }
+
+    #[test]
+    fn while_1() {
+
+        let mut e = block(vec![
+            let_("x", None, ref_(number(10.0))),
+            let_("z", None, ref_(number(0.0))),
+            let_("y", None, ref_(deref(id("z")))),
+            while_(binop(&Op2::GT, deref(id("x")), number(0.0)), block(vec![
+                setref(id("y"), deref(id("z"))),
+                if_(binop(&Op2::StrictEq, deref(id("x")), number(5.0)), vec![
+                    setref(id("z"), bool_(true))
+                ], vec![]),
+                setref(id("x"), binop(&Op2::Sub, deref(id("x")), number(1.0)))
+            ]))
+        ]);
+        
+        typeinf(&mut e).unwrap();
+
+        let goal = block(vec![
+            let_("x", Some(t_ref(t_union_2(&[Typ::F64]))), ref_(number(10.0))),
+            let_("z", Some(t_ref(t_union_2(&[Typ::F64, Typ::Bool]))), ref_(number(0.0))),
+            let_("y", Some(t_ref(t_union_2(&[Typ::F64, Typ::Bool]))), ref_(deref(id("z")))),
+            while_(binop(&Op2::GT, deref(id("x")), number(0.0)), block(vec![
+                setref(id("y"), deref(id("z"))),
+                if_(binop(&Op2::StrictEq, deref(id("x")), number(5.0)), vec![
+                    setref(id("z"), bool_(true))
+                ], vec![]),
+                setref(id("x"), binop(&Op2::Sub, deref(id("x")), number(1.0)))
+            ]))
+        ]);
+
+        assert_eq!(e, goal);
     }
 }
 
