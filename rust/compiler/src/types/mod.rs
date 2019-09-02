@@ -200,7 +200,7 @@ impl Typ {
         match self {
             Typ::Metavar(x) => match subst.get(x) {
                 None => (),
-                Some(t) => *self = t.clone()
+                Some(t) => *self = t.flatten()
             },
             Typ::Unionvar(_) => (),
             Typ::Ref(t) => t.apply_subst(subst),
@@ -224,7 +224,10 @@ impl Typ {
     pub fn apply_subst_strict(&mut self,
         subst: &std::collections::HashMap<usize, Typ>) -> () {
         match self {
-            Typ::Metavar(_) => panic!("Found free metavar."),
+            Typ::Metavar(x) => match subst.get(x) {
+                None => panic!("Found free metavar."),
+                Some(t) => *self = t.flatten()
+            },
             Typ::Unionvar(x) => match subst.get(x) {
                 None => panic!("Did not find {} in subst.", x.to_string()),
                 Some(t) => {
@@ -247,6 +250,7 @@ impl Typ {
                 for t in hs.iter_mut() {
                     t.apply_subst_strict(subst);
                 }
+                *self = self.flatten();
             },
             Typ::I32 => (),
             Typ::F64 => (),

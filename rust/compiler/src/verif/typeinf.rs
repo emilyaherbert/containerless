@@ -26,8 +26,7 @@ enum Constraint {
      * In `FromMem(t1, foo, Typ::Metavar(x))` Typ::Metavar(x) is an alias to t1.foo.
      */
     FromMem(Typ, String, Typ),
-    Eq(Typ, Typ),
-    MutualFlag(Typ, bool)
+    Eq(Typ, Typ)
 }
 
 #[derive(Debug)]
@@ -106,29 +105,22 @@ impl Typeinf {
                 //return Ok(t_ref(t));
                 let u = self.fresh_unionvar();
                 self.constraints.push(Constraint::UnionMem(t, u.clone()));
-                return Ok(t_ref(u));
+                let x = self.fresh_metavar();
+                self.constraints.push(Constraint::Eq(t_ref(u), x.clone()));
+                return Ok(x);
             },
             Exp::Deref { e } => {
                 match self.exp(env, e)? {
-                    Typ::Ref(t) => {
-                        // This is an optimistic case. Theoretically we could handle everything with metavars.
-                        return Ok(*t);
-                    },
                     Typ::Metavar(x) => {
                         let y = self.fresh_metavar();
                         self.constraints.push(Constraint::Eq(Typ::Metavar(x), t_ref(y.clone())));
                         return Ok(y);
                     },
-                    t => panic!("Expected ref but found {:?}.", t)
+                    t => panic!("Expected metavar but found {:?}.", t)
                 }
             },
             Exp::SetRef { e1, e2 } => {
                 match self.exp(env, e1)? {
-                    Typ::Ref(t1) => {
-                        let t2 = self.exp(env, e2)?;
-                        self.constraints.push(Constraint::UnionMem(t2, *t1.clone()));
-                        return Ok(Typ::Undefined);
-                    },
                     Typ::Metavar(x) => {
                         let t2 = self.exp(env, e2)?;
                         let y = self.fresh_metavar();
@@ -136,7 +128,7 @@ impl Typeinf {
                         self.constraints.push(Constraint::UnionMem(t2, y.clone()));
                         return Ok(Typ::Undefined);
                     }
-                    _ => panic!("Expected ref here.")
+                    _ => panic!("Expected metavar here.")
                 }
             },
             // This should never occur. If it does, we should think about why.
@@ -192,6 +184,7 @@ impl Typeinf {
                 let t2 = self.exp(env, callback_clos)?;
                 let mut env = env.clone();
                 for Arg { name, typ } in callback_args.iter_mut() {
+                    let x = self.fresh_metavar();
                     let t = match name.as_ref() {
                         "clos" => t_ref(t2.clone()),
                         "request" => {
@@ -208,8 +201,9 @@ impl Typeinf {
                         }
                         _ => panic!("Unexpected argument {}", name)
                     };
-                    *typ = Some(t.clone());
-                    env.insert(name.to_string(), t);
+                    self.constraints.push(Constraint::Eq(t, x.clone()));
+                    *typ = Some(x.clone());
+                    env.insert(name.to_string(), x);
                 }
                 let t3 = self.exp_list(&env, body)?;
                 Ok(t3)
@@ -360,8 +354,6 @@ impl Typeinf {
     }
 
     fn solve_constraint(constraint: &Constraint, subst: &mut Subst) -> Vec<Constraint> {
-        //println!("{:?}", constraint);
-        //println!("{:?}", subst);
         let mut new_constraints = vec![];
 
         match constraint {
@@ -416,8 +408,7 @@ impl Typeinf {
 
                 new_constraints.append(&mut Typeinf::solve_constraint(&Constraint::Eq(orig.clone(), rhs.clone()), subst));
                 //new_constraints.push(Constraint::UnionMem(rhs.clone(), orig.clone()));
-            },
-            _ => unimplemented!(),
+            }
         }
 
         return new_constraints;
@@ -438,8 +429,6 @@ impl Typeinf {
                 break;
             }
         }
-
-        println!("{:?}", subst);
 
         let mut at_fixed_point = true;
         loop {
@@ -470,8 +459,6 @@ pub fn typeinf(exp: &mut Exp) -> Result<(), Error> {
     let mut state  = Typeinf { constraints: vec![], next_var: 0 };
     let env = ImHashMap::new();
     state.exp(&env, exp)?;
-    //println!("{}", exp);
-    println!("{:?}", state.constraints);
     let subst = Typeinf::solve(state.constraints);
     Typeinf::subst_vars(&subst, exp);
     Ok(())
