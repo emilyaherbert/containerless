@@ -535,7 +535,7 @@ mod tests {
 
         let mut e = block(vec![
             let_("x", None, ref_(number(10.0))),
-            let_("fun", None, ref_(obj2(&vec![
+            let_("fun", None, ref_(obj_2(&vec![
                 ("x", id("x"))
             ]))),
             let_("app", None, ref_(block(vec![
@@ -551,7 +551,7 @@ mod tests {
             let_("x", Some(t_ref(t_union_2(&[Typ::F64, Typ::String]))), ref_(number(10.0))),
             let_("fun", Some(t_ref(t_obj_2(&vec![
                 ("x", t_ref(t_union_2(&[Typ::F64, Typ::String])))
-            ]))), ref_(obj2(&vec![
+            ]))), ref_(obj_2(&vec![
                 ("x", id("x"))
             ]))),
             let_("app", Some(t_ref(Typ::Undefined)), ref_(block(vec![
@@ -573,7 +573,7 @@ mod tests {
 
         let mut e = block(vec![
             let_("x", None, ref_(number(10.0))),
-            let_("fun", None, ref_(obj2(&vec![
+            let_("fun", None, ref_(obj_2(&vec![
                 ("x", id("x"))
             ]))),
             let_("app", None, ref_(block(vec![
@@ -591,7 +591,7 @@ mod tests {
             let_("x", Some(t_ref(Typ::F64)), ref_(number(10.0))),
             let_("fun", Some(t_ref(t_obj_2(&vec![
                 ("x", t_ref(Typ::F64))
-            ]))), ref_(obj2(&vec![
+            ]))), ref_(obj_2(&vec![
                 ("x", id("x"))
             ]))),
             let_("app", Some(t_ref(Typ::Undefined)), ref_(block(vec![
@@ -637,6 +637,57 @@ mod tests {
                 ], vec![]),
                 setref(id("x"), binop(&Op2::Sub, deref(id("x")), number(1.0)))
             ]))
+        ]);
+
+        assert_eq!(e, goal);
+    }
+
+    #[test]
+    fn objects_1() {
+
+        let mut e = block(vec![
+            let_("foo", None, ref_(obj_2(&[
+                ("x", ref_(number(9.0))),
+                ("y", ref_(number(10.0)))
+            ]))),
+            let_("bar", None, ref_(obj_2(&[
+                ("x", ref_(string("some test string 123")))
+            ]))),
+            setref(from(deref(id("foo")), "x"), bool_(true)),
+            if_(binop(&Op2::StrictEq, deref(from(deref(id("foo")), "x")), bool_(true)), vec![
+                setref(from(deref(id("foo")), "y"), deref(from(deref(id("bar")), "x")))
+            ], vec![
+                unknown()
+            ])
+        ]);
+        
+        typeinf(&mut e).unwrap();
+
+        let goal = block(vec![
+            let_("foo", Some(t_ref(t_obj_2(&[
+                ("x", t_ref(t_union_2(&[
+                    Typ::F64,
+                    Typ::Bool
+                ]))),
+                ("y", t_ref(t_union_2(&[
+                    Typ::F64,
+                    Typ::String
+                ])))
+            ]))), ref_(obj_2(&[
+                ("x", ref_(number(9.0))),
+                ("y", ref_(number(10.0)))
+            ]))),
+            let_("bar", Some(t_ref(t_obj_2(&[
+                ("x", t_ref(Typ::String))
+            ]))), ref_(obj_2(&[
+                ("x", ref_(string("some test string 123")))
+            ]))),
+            setref(from(deref(id("foo")), "x"), bool_(true)),
+            if_(binop(&Op2::StrictEq, deref(from(deref(id("foo")), "x")), bool_(true)), vec![
+                setref(from(deref(id("foo")), "y"), deref(from(deref(id("bar")), "x")))
+            ], vec![
+                unknown()
+            ])
         ]);
 
         assert_eq!(e, goal);

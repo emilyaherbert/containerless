@@ -81,7 +81,7 @@ mod tests {
                 ])
             ], vec![
                 block(vec![
-                    let_("fun000", Some(t_ref(t_obj_2(&[]))), ref_(obj2(&[]))),
+                    let_("fun000", Some(t_ref(t_obj_2(&[]))), ref_(obj_2(&[]))),
                     let_("app000", Some(t_ref(Typ::Undefined)), ref_(block(vec![
                         loopback("listen", number(0.0), deref(id("fun000")), 1)
                     ])))
@@ -127,7 +127,7 @@ mod tests {
             ], vec![
                 block(vec![
                     let_("str00", Some(t_ref(Typ::String)), ref_(string("Got a response!"))),
-                    let_("fun000", Some(t_ref(t_obj_2(&[("str00", t_ref(Typ::String))]))), ref_(obj2(&[("str00", id("str00"))]))),
+                    let_("fun000", Some(t_ref(t_obj_2(&[("str00", t_ref(Typ::String))]))), ref_(obj_2(&[("str00", id("str00"))]))),
                     let_("app000", Some(t_ref(Typ::Undefined)), ref_(block(vec![
                         loopback("listen", number(0.0), deref(id("fun000")), 1)
                     ])))
@@ -175,7 +175,7 @@ mod tests {
                 ])
             ], vec![
                 block(vec![
-                    let_("fun000", Some(t_ref(t_obj_2(&[]))), ref_(obj2(&[]))),
+                    let_("fun000", Some(t_ref(t_obj_2(&[]))), ref_(obj_2(&[]))),
                     let_("app000", Some(t_ref(Typ::Undefined)), ref_(block(vec![
                         loopback("listen", number(0.0), deref(id("fun000")), 1)
                     ])))
@@ -230,7 +230,7 @@ mod tests {
             ], vec![
                 block(vec![
                     let_("foo00", Some(t_ref(t_union_2(&[Typ::String, Typ::F64, Typ::Bool]))), ref_(string("start"))),
-                    let_("fun000", Some(t_ref(t_obj_2(&[("foo00", t_ref(t_union_2(&[Typ::String, Typ::F64, Typ::Bool])))]))), ref_(obj2(&[("foo00", id("foo00"))]))),
+                    let_("fun000", Some(t_ref(t_obj_2(&[("foo00", t_ref(t_union_2(&[Typ::String, Typ::F64, Typ::Bool])))]))), ref_(obj_2(&[("foo00", id("foo00"))]))),
                     let_("app000", Some(t_ref(Typ::Undefined)), ref_(block(vec![
                         loopback("listen", number(0.0), deref(id("fun000")), 1)
                     ]))),

@@ -586,7 +586,7 @@ pub mod constructors {
         return Object { properties: tenv };
     }
     
-    pub fn obj2(tenv: &[(&str, Exp)]) -> Exp {
+    pub fn obj_2(tenv: &[(&str, Exp)]) -> Exp {
         let mut hm = HashMap::new();
         for (k,v) in tenv.iter() {
             hm.insert(k.to_string(), v.to_owned());
