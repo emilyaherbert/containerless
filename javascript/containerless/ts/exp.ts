@@ -35,6 +35,7 @@ type TEnv = { [key: string]: Exp };
 type ObjExp = { kind: 'object', properties: TEnv };
 
 type ArrayExp = { kind: 'array', exps: Exp[] };
+type IndexExp = { kind: 'index', exp: Exp, i: number };
 
 /**
  * NOTE(arjun): We do not make a distinction between statements and expressions.
@@ -69,6 +70,7 @@ export type Exp
     | BreakExp
     | ObjExp
     | ArrayExp
+    | IndexExp
     | PrimAppExp;
 
 export type LVal = IdExp | FromExp
@@ -135,6 +137,10 @@ export function obj(properties: TEnv): ObjExp {
     return { kind: 'object', properties: properties };
 }
 
+export function array(exps: Exp[]): ArrayExp {
+    return { kind: 'array', exps: exps };
+}
+
 export function from(exp: Exp, field: string): FromExp {
     return { kind: 'from', exp, field };
 }
@@ -145,6 +151,10 @@ export function froms(clos: Exp, ids: string[]): FromExp[] {
         ret.push(from(clos, ids[i]));
     }
     return ret;
+}
+
+export function index(exp: Exp, i: number): IndexExp {
+    return { kind: 'index', exp: exp, i: i };
 }
 
 export function primApp(event: string, eventArgs: Exp[]): PrimAppExp {

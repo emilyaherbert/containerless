@@ -65,6 +65,16 @@ function from(lhs: b.Identifier | b.CallExpression, rhs: string): b.CallExpressi
     return b.callExpression(callee, theArgs);
 }
 
+// TODO(emily): Think about let x = 0; arr[x]; case.
+function index(lhs: b.Identifier | b.CallExpression, rhs: number): b.CallExpression {
+    const callee = b.memberExpression(
+        b.identifier('exp'),
+        b.identifier('index')
+    );
+    const theArgs = [lhs, b.numericLiteral(rhs)];
+    return b.callExpression(callee, theArgs);
+}
+
 function number(n: number): b.CallExpression {
     const callee = b.memberExpression(
         b.identifier('exp'),
@@ -98,6 +108,15 @@ function obj(props: b.ObjectProperty[]): b.CallExpression {
         b.identifier('obj')
     );
     const theArgs = [b.objectExpression(props)];
+    return b.callExpression(callee, theArgs);
+}
+
+function array(exps: b.Expression[]): b.CallExpression {
+    const callee = b.memberExpression(
+        b.identifier('exp'),
+        b.identifier('array')
+    );
+    const theArgs = [b.arrayExpression(exps)];
     return b.callExpression(callee, theArgs);
 }
 
@@ -265,12 +284,15 @@ function reifyExpression(e: b.Expression, st: State): [b.Expression, State] {
         }
         case 'MemberExpression': {
             // TODO(emily): It could be the case that obj is a FV.
-            const obj = e.object;
+            const lhs = e.object;
             const prop = e.property;
-            if(!b.isIdentifier(obj) || !b.isIdentifier(prop)) {
-                throw new Error("Cannot chain member expressions!");
+            if(b.isIdentifier(lhs) && b.isIdentifier(prop)) {
+                return [from(identifier(lhs.name), prop.name), st];
+            } else if(b.isIdentifier(lhs) && b.isNumericLiteral(prop)) {
+                // TODO(emily): Think about { 0 : x } case.
+                return [index(identifier(lhs.name), prop.value), st];
             }
-            return [from(identifier(obj.name), prop.name), st];
+            throw new Error("Cannot chain member expressions!");
         }
         case 'ObjectExpression': {
             const e2 = assertNormalized(e);
@@ -286,7 +308,21 @@ function reifyExpression(e: b.Expression, st: State): [b.Expression, State] {
                     props.push(b.objectProperty(p.key, rhs));
                 }
             })
-            return [obj(props), merge(st, str)];
+            return [obj(props), str];
+        }
+        case 'ArrayExpression': {
+            const elems = e.elements;
+            let elems2: b.Expression[] = [];
+            let st2 = st;
+            elems.forEach(e => {
+                if(e == null || b.isNullLiteral(e) || b.isSpreadElement(e)) {
+                    throw new Error("Found unexpected array element.");
+                }
+                let [e2, st3] = reifyExpression(e, st);
+                elems2.push(e2);
+                st2 = st2.merge(st3);
+            });
+            return [array(elems2), st2];
         }
         default: {
             throw new Error('TODO: ' + e.type);

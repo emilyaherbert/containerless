@@ -519,6 +519,17 @@ function mergeExp(e1: Exp, e2: Exp): Exp {
         }
         return e1;
     }
+    else if (e1.kind === 'array' && e2.kind === 'array') {
+        e1.exps = mergeExpArray(e1.exps, e2.exps);
+        return e1;
+    }
+    else if (e1.kind === 'index' && e2.kind === 'index') {
+        if(e1.i != e2.i) {
+            throw new Error(`Cannot merge indices ${e1.i} and ${e2.i}`);
+        }
+        e1.exp = mergeExp(e1.exp, e2.exp);
+        return e1;
+    }
     else {
         // Note: We do not support merging callbacks here. traceCallback takes
         // care of that.
