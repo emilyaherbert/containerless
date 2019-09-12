@@ -23,7 +23,9 @@ impl std::error::Error for Error {}
 // https://www.reddit.com/r/rust/comments/7zrycu/so_function_overloading_is_part_of_stable_rust/
 // http://smallcultfollowing.com/babysteps/blog/2014/09/30/multi-and-conditional-dispatch-in-traits/
 trait StrictEq<T> {
-    fn strict_eq<U>(self, other: U) -> Bool where U: std::convert::Into<T>;
+    fn strict_eq<U>(self, other: U) -> Bool
+    where
+        U: std::convert::Into<T>;
 }
 
 trait MayConvertToF64 {
@@ -37,7 +39,6 @@ trait MayConvertToBool {
 trait StrictEq2<T> {
     fn strict_eq2(self, other: T) -> Bool;
 }
-
 
 pub struct I32(i32);
 impl std::convert::Into<i32> for I32 {
@@ -60,8 +61,6 @@ impl I32 {
     }
 }
 
-
-
 pub struct F64(f64);
 impl std::convert::Into<f64> for F64 {
     fn into(self) -> f64 {
@@ -83,9 +82,6 @@ impl F64 {
     }
 }
 
-
-
-
 pub type BoolResult<'a> = Result<Bool, Error>;
 
 pub struct Bool(bool);
@@ -103,13 +99,7 @@ impl Bool {
     }
 }
 
-
-
-
 pub struct Str<'a>(&'a str);
-
-
-
 
 pub type RustType0Result<'a> = Result<RustType0<'a>, Error>;
 pub enum RustType0<'a> {
@@ -142,7 +132,10 @@ impl<'a> std::convert::Into<f64> for RustType0<'a> {
     }
 }
 impl<'a> StrictEq<bool> for RustType0<'a> {
-    fn strict_eq<T>(self, other: T) -> Bool where T: std::convert::Into<bool>, {
+    fn strict_eq<T>(self, other: T) -> Bool
+    where
+        T: std::convert::Into<bool>,
+    {
         match self {
             RustType0::Variant0(b) => return Bool(b == other.into()),
             _ => unimplemented!(),
@@ -150,7 +143,10 @@ impl<'a> StrictEq<bool> for RustType0<'a> {
     }
 }
 impl<'a> StrictEq<f64> for RustType0<'a> {
-    fn strict_eq<T>(self, other: T) -> Bool where T: std::convert::Into<f64>, {
+    fn strict_eq<T>(self, other: T) -> Bool
+    where
+        T: std::convert::Into<f64>,
+    {
         match self {
             RustType0::Variant1(b) => return Bool(b == other.into()),
             _ => unimplemented!(),
@@ -184,8 +180,6 @@ impl<'a, T: MayConvertToF64> StrictEq2<T> for RustType0<'a> {
 }
 */
 
-
-
 pub type RustType1Result<'a> = Result<RustType1<'a>, Error>;
 pub enum RustType1<'a> {
     PhantomData(PhantomData<&'a i32>),
@@ -217,7 +211,10 @@ impl<'a> std::convert::Into<f64> for RustType1<'a> {
     }
 }
 impl<'a> StrictEq<f64> for RustType1<'a> {
-    fn strict_eq<T>(self, other: T) -> Bool where T: std::convert::Into<f64>, {
+    fn strict_eq<T>(self, other: T) -> Bool
+    where
+        T: std::convert::Into<f64>,
+    {
         match self {
             RustType1::Variant1(b) => return Bool(b == other.into()),
             _ => unimplemented!(),
@@ -228,7 +225,7 @@ impl<'a> MayConvertToF64 for RustType1<'a> {
     fn to_f64(&self) -> f64 {
         match self {
             RustType1::Variant1(i) => return *i,
-            _ => unimplemented!()
+            _ => unimplemented!(),
         }
     }
 }
@@ -236,20 +233,10 @@ impl<'a, T: MayConvertToF64> StrictEq2<T> for RustType1<'a> {
     fn strict_eq2(self, other: T) -> Bool {
         match self {
             RustType1::Variant1(i) => return Bool(i == other.to_f64()),
-            _ => unimplemented!()
+            _ => unimplemented!(),
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
 
 fn test_fun() {
     let a = F64(3.0);

@@ -1,30 +1,22 @@
-use quote::{
-    __rt::TokenStream,
-    *
-};
-use syn::{
-    Ident
-};
+use im_rc::{HashMap as ImHashMap, HashSet as ImHashSet};
 use proc_macro2::Span;
+use quote::{__rt::TokenStream, *};
 use std::collections::HashMap;
-use im_rc::{
-    HashMap as ImHashMap,
-    HashSet as ImHashSet
-};
+use syn::Ident;
 
 use crate::types::Typ;
 
 #[derive(Clone, Debug)]
 struct Variant {
     name: Ident,
-    typ: TokenStream
+    typ: TokenStream,
 }
 
 impl Variant {
     pub fn new(name: Ident, typ: TokenStream) -> Variant {
         return Variant {
             name: name,
-            typ: typ
+            typ: typ,
         };
     }
 }
@@ -55,21 +47,26 @@ fn quote_name(name: &str) -> Ident {
 }
 
 fn quote_rust_type_name(name: &usize) -> Ident {
-    return quote_name(& ("RustType".to_string() + name.to_string().as_str()));
+    return quote_name(&("RustType".to_string() + name.to_string().as_str()));
 }
 
 fn quote_variant_name(name: &usize) -> Ident {
-    return quote_name(& ("Variant".to_string() + name.to_string().as_str()));
+    return quote_name(&("Variant".to_string() + name.to_string().as_str()));
 }
 
-fn quote_constructor(input_type: &str, output_type: &Ident, enum_name: &Ident, variant_name: &Ident) -> TokenStream {
+fn quote_constructor(
+    input_type: &str,
+    output_type: &Ident,
+    enum_name: &Ident,
+    variant_name: &Ident,
+) -> TokenStream {
     let q_input_type = quote_name(input_type);
 
     return quote! {
         pub fn #q_input_type(input: #q_input_type) -> #output_type<'a> {
             return Ok(#enum_name::#variant_name(input));
         }
-    }
+    };
 }
 
 // quote! stuff for inside of types.
@@ -91,35 +88,38 @@ fn quote_typ(typ: &Typ) -> TokenStream {
             let q_type = quote_rust_type_name(id);
             return quote! {
                 #q_type<'a>
-            }
+            };
         }
-        _ => unimplemented!()
+        _ => unimplemented!(),
     }
 }
 
 // enum
 fn compile_union(name: &usize, ts: &ImHashSet<Typ>) -> RustTypeEnum {
-    let mut rt_enum = RustTypeEnum::new(quote_rust_type_name(name), quote_name(& ("RustType".to_string() + name.to_string().as_str() + "Result")));
+    let mut rt_enum = RustTypeEnum::new(
+        quote_rust_type_name(name),
+        quote_name(&("RustType".to_string() + name.to_string().as_str() + "Result")),
+    );
 
-    ts.iter().enumerate().for_each(|(i,typ)| {
+    ts.iter().enumerate().for_each(|(i, typ)| {
         let q_typ = quote_typ(typ);
         let variant = Variant::new(quote_variant_name(&i), q_typ);
         rt_enum.variants.push(variant.clone());
         match typ {
             Typ::Bool => {
                 rt_enum.strict_eqs.push(variant.clone());
-            },
+            }
             Typ::F64 => {
                 rt_enum.strict_eqs.push(variant.clone());
                 rt_enum.muls.push(variant.clone());
-            },
+            }
             Typ::I32 => {
                 rt_enum.strict_eqs.push(variant.clone());
                 rt_enum.muls.push(variant.clone());
-            },
-            Typ::String => { },
-            Typ::Ref(_) => { },
-            _ => unimplemented!()
+            }
+            Typ::String => {}
+            Typ::Ref(_) => {}
+            _ => unimplemented!(),
         }
     });
 
@@ -175,7 +175,7 @@ fn quote_union(rt_enum: RustTypeEnum) -> TokenStream {
         }
 
         #(#q_impls)*
-    }
+    };
 }
 
 // struct
@@ -189,7 +189,7 @@ fn quote_object(name: &usize, tm: &ImHashMap<String, Typ>) -> TokenStream {
             #q_field : #q_typ
         }
     });
-    
+
     return quote! {
         pub struct #q_name<'a> {
             _phantom: PhantomData<&'a i32>,
@@ -200,20 +200,20 @@ fn quote_object(name: &usize, tm: &ImHashMap<String, Typ>) -> TokenStream {
 
 // https://github.com/plasma-umass/decontainerization/blob/65d9ee78dc720efac7b6d944d8f70f608024ba2c/native/src/lib.rs#L102
 pub fn quote_typs(types: &HashMap<usize, Typ>) -> TokenStream {
-
     // Only create structs and enums for Unions and Objects.
-    let q_typs = types.iter()
+    let q_typs = types
+        .iter()
         .fold(vec![], |mut acc: Vec<TokenStream>, (name, typ)| {
             match typ {
                 Typ::Union(ts) => {
                     let rt_enum = compile_union(name, ts);
                     acc.push(quote_union(rt_enum));
                     return acc;
-                },
+                }
                 Typ::Object(tm) => {
                     //acc.push(quote_object(name, tm));
                     return acc;
-                },
+                }
                 _ => {
                     return acc;
                 }
@@ -329,17 +329,11 @@ pub fn quote_typs(types: &HashMap<usize, Typ>) -> TokenStream {
 #[cfg(test)]
 mod tests {
 
-    use std::{
-        io::Write,
-        collections::HashMap
-    };
+    use std::{collections::HashMap, io::Write};
 
     use crate::{
-        types::{
-            Typ,
-            constructors::*
-        },
-        gen::gen_types::quote_typs
+        gen::gen_types::quote_typs,
+        types::{constructors::*, Typ},
     };
 
     fn test_harness(types: &HashMap<usize, Typ>) {
@@ -347,13 +341,13 @@ mod tests {
 
         let filename = "TYPES.rs";
 
-        let mut rs_file = std::fs::File::create(filename)
-            .expect("Could not create .rs file.");
-        rs_file.write_all(format!("{}", q_types).as_bytes())
+        let mut rs_file = std::fs::File::create(filename).expect("Could not create .rs file.");
+        rs_file
+            .write_all(format!("{}", q_types).as_bytes())
             .expect("Could not write to file.");
-        cmd!("rustfmt", filename).run()
-            .expect("rustfmt failed");
-        cmd!("rustc", "--crate-type", "cdylib", filename).run()
+        cmd!("rustfmt", filename).run().expect("rustfmt failed");
+        cmd!("rustc", "--crate-type", "cdylib", filename)
+            .run()
             .expect("Compiling to Rust failed.");
     }
 

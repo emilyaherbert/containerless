@@ -1,4 +1,4 @@
-use super::super::types::{Exp, Op2};
+use crate::types::{Exp, Op2};
 use proc_macro2::Span;
 use quote::__rt::TokenStream;
 use quote::*;
@@ -16,12 +16,16 @@ fn codegen_op(op: &Op2) -> TokenStream {
 fn codegen_block(block: &[Exp]) -> TokenStream {
     let q_block = block.iter().map(|e| codegen_exp(e));
     match block.last() {
-        Some(Exp::Let { name: _, named: _, typ:_  }) => {
+        Some(Exp::Let {
+            name: _,
+            named: _,
+            typ: _,
+        }) => {
             quote! {
                 #(#q_block)*
                 Dyn::undefined()
             }
-        },
+        }
         _ => {
             quote! {
                 #(#q_block)*
@@ -32,8 +36,7 @@ fn codegen_block(block: &[Exp]) -> TokenStream {
 
 fn codegen_exp(exp: &Exp) -> TokenStream {
     match exp {
-        Exp::Clos { tenv:_ } =>
-            panic!("Exp::Clos should have been eliminated"),
+        Exp::Clos { tenv: _ } => panic!("Exp::Clos should have been eliminated"),
         Exp::Unknown {} => quote! { rt::unknown() },
         Exp::Integer { value } => quote! { Dyn::int(#value) },
         Exp::Number { value } => quote! { Dyn::float(#value) },

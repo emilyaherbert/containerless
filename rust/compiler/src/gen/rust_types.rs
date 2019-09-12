@@ -1,25 +1,19 @@
 use std::collections::HashMap;
 
-use crate::types::{
-    Typ,
-    Exp,
-    Exp::*,
-    Arg
-};
+use crate::types::{Arg, Exp, Exp::*, Typ};
 
 pub struct RustTypes {
     types: HashMap<Typ, usize>,
     rust_types: HashMap<usize, Typ>,
-    next_type_id: usize
+    next_type_id: usize,
 }
 
 impl RustTypes {
-
     pub fn new() -> RustTypes {
         return RustTypes {
             types: HashMap::new(),
             rust_types: HashMap::new(),
-            next_type_id: 0
+            next_type_id: 0,
         };
     }
 
@@ -42,16 +36,16 @@ impl RustTypes {
                 for v in hm.iter_mut() {
                     *v = self.register_type(v);
                 }
-            },
+            }
             Typ::Union(ts) => {
                 for t in ts.iter_mut() {
                     *t = self.register_type(t);
                 }
-            },
+            }
             Typ::Ref(t) => {
                 return Typ::Ref(Box::new(self.register_type(t)));
-            },
-            _ => { }
+            }
+            _ => {}
         }
 
         match self.types.get(typ) {
@@ -60,7 +54,7 @@ impl RustTypes {
                 self.types.insert(typ.clone(), id);
                 self.rust_types.insert(id, typ.to_owned());
                 return Typ::RustType(id);
-            },
+            }
             Some(id) => {
                 return Typ::RustType(*id);
             }
@@ -69,12 +63,10 @@ impl RustTypes {
 
     fn arg(&mut self, arg: &mut Arg) {
         match arg {
-            Arg { name:_, typ } => {
-                match typ {
-                    None => panic!("Found None typ"),
-                    Some(t) => *typ = Some(self.register_type(t))
-                }
-            }
+            Arg { name: _, typ } => match typ {
+                None => panic!("Found None typ"),
+                Some(t) => *typ = Some(self.register_type(t)),
+            },
         }
     }
 
@@ -92,81 +84,103 @@ impl RustTypes {
 
     fn exp(&mut self, exp: &mut Exp) {
         match exp {
-            Unknown { } => { },
-            Integer { value:_ } => { },
-            Number { value:_ } => { },
-            Bool { value:_ } => { }
-            Identifier { name:_ } => { },
-            From { exp, field:_ } => {
+            Unknown {} => {}
+            Integer { value: _ } => {}
+            Number { value: _ } => {}
+            Bool { value: _ } => {}
+            Identifier { name: _ } => {}
+            From { exp, field: _ } => {
                 self.exp(exp);
-            },
-            Stringg { value:_ } => { },
-            Undefined { } => { },
-            BinOp { op:_, e1, e2 } => {
+            }
+            Stringg { value: _ } => {}
+            Undefined {} => {}
+            BinOp { op: _, e1, e2 } => {
                 self.exp(e1);
                 self.exp(e2);
-            },
-            If { cond, true_part, false_part } => {
+            }
+            If {
+                cond,
+                true_part,
+                false_part,
+            } => {
                 self.exp(cond);
                 self.exps(true_part);
                 self.exps(false_part);
-            },
+            }
             While { cond, body } => {
                 self.exp(cond);
                 self.exp(body);
-            },
-            Let { name:_, typ, named } => {
+            }
+            Let {
+                name: _,
+                typ,
+                named,
+            } => {
                 match typ {
                     None => panic!("Found None typ"),
-                    Some(t) => *typ = Some(self.register_type(t))
+                    Some(t) => *typ = Some(self.register_type(t)),
                 }
                 self.exp(named);
-            },
-            Set { name:_, named } => {
+            }
+            Set { name: _, named } => {
                 self.exp(named);
-            },
+            }
             Block { body } => {
                 self.exps(body);
-            },
-            Callback { event:_, event_arg, callback_args, callback_clos, body } => {
+            }
+            Callback {
+                event: _,
+                event_arg,
+                callback_args,
+                callback_clos,
+                body,
+            } => {
                 self.exp(event_arg);
                 for arg in callback_args.iter_mut() {
                     self.arg(arg);
                 }
                 self.exp(callback_clos);
                 self.exps(body);
-            },
-            Loopback { event:_, event_arg, callback_clos, id:_ } => {
+            }
+            Loopback {
+                event: _,
+                event_arg,
+                callback_clos,
+                id: _,
+            } => {
                 self.exp(event_arg);
                 self.exp(callback_clos);
-            },
-            Label { name:_, body } => {
+            }
+            Label { name: _, body } => {
                 self.exps(body);
-            },
+            }
             Object { properties } => {
                 self.tenv(properties);
-            },
+            }
             Array { exps } => {
                 self.exps(exps);
-            },
+            }
             Index { e1, e2 } => {
                 self.exp(e1);
                 self.exp(e2);
-            },
+            }
             Ref { e } => {
                 self.exp(e);
-            },
+            }
             Deref { e } => {
                 self.exp(e);
-            },
+            }
             SetRef { e1, e2 } => {
                 self.exp(e1);
                 self.exp(e2);
-            },
-            PrimApp { event:_, event_args } => {
+            }
+            PrimApp {
+                event: _,
+                event_args,
+            } => {
                 self.exps(event_args);
-            },
-            _ => unimplemented!()
+            }
+            _ => unimplemented!(),
         }
     }
 }
