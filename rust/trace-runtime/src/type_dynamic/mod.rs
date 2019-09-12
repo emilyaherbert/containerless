@@ -1,5 +1,5 @@
 use super::error::Error;
-use bumpalo::{collections::Vec, Bump};
+use bumpalo::{collections::{Vec, String}, Bump};
 use std::cell::{Cell, RefCell};
 use std::convert::{From, TryFrom};
 
@@ -11,7 +11,7 @@ pub enum Dyn<'a> {
     Int(i32),
     Float(f64),
     Bool(bool),
-    Str(&'a str),
+    Str(&'a String<'a>),
     Undefined,
     Ref(&'a Cell<Dyn<'a>>),
     Vec(&'a RefCell<Vec<'a, Dyn<'a>>>),
@@ -21,13 +21,17 @@ pub enum Dyn<'a> {
 pub type DynResult<'a> = Result<Dyn<'a>, Error>;
 
 impl<'a> Dyn<'a> {
-    pub fn undefined() -> DynResult<'a> {
+    pub fn undef() -> DynResult<'a> {
         Ok(Dyn::Undefined)
     }
 
     /** Wraps an integer in type `Dyn`. */
     pub fn int(n: i32) -> DynResult<'a> {
         Ok(Dyn::Int(n))
+    }
+
+    pub fn str(arena: &'a Bump, s: &str) -> DynResult<'a> {
+        Ok(Dyn::Str(arena.alloc(String::from_str_in(s, arena))))
     }
 
     /** Wraps a floating-point number in type `Dyn`. */
@@ -90,7 +94,7 @@ impl<'a> Dyn<'a> {
         }
     }
 
-    pub fn deref(&'a self) -> DynResult<'a> {
+    pub fn deref(self) -> DynResult<'a> {
         match self {
             Dyn::Ref(cell) => Ok(cell.get()),
             // This should never occur, since we insert refs and derefs in the

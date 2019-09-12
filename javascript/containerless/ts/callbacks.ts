@@ -124,16 +124,16 @@ export class Callbacks {
     public tracedListenCallback(
         callback: (request: Request, responseCallback: ResponseCallback) => void) {
         let [_, $callbackClos] = this.trace.popArgs();
-        let innerTrace = this.trace.traceCallback('listen', defaultEventArg, ['clos', 'request', 'responseCallback'], $callbackClos);
+        let innerTrace = this.trace.traceCallback('listen', defaultEventArg, ['clos', 'request', 'response_callback'], $callbackClos);
 
         return (req: Request, resp: express.Response) => {
             this.withTrace(innerTrace, () => {
 
                 // NOTE(emily): I don't think we need this now that we are lifting closures to be an argument to callbacks.
-                //innerTrace.traceLet('responseCallback', clos({ }));
+                //innerTrace.traceLet('response_callback', clos({ }));
                 function responseCallback(response: any) {
                     // #3 <-
-                    let [_, $response] = innerTrace.traceFunctionBody('\'return');
+                    let [_, $response] = innerTrace.traceFunctionBody('\'ret');
                     innerTrace.traceLet('response', $response);
 
                     // NOTE(emily): Some of this info may be irrelevant.
@@ -143,7 +143,7 @@ export class Callbacks {
                     innerTrace.exitBlock();
                 }
 
-                innerTrace.pushArgs([identifier('clos'), identifier('request'), identifier('responseCallback')]);
+                innerTrace.pushArgs([identifier('clos'), identifier('request'), identifier('response_callback')]);
                 // #2 ->
                 if (typeof req === 'string') {
                     // TODO(arjun): This is a bit of a hack to allow us to

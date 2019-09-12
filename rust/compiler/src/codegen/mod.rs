@@ -13,22 +13,27 @@ fn codegen_op(op: &Op2) -> TokenStream {
     }
 }
 
-fn codegen_block(block: &[Exp]) -> TokenStream {
-    let q_block = block.iter().map(|e| codegen_exp(e));
-    match block.last() {
-        Some(Exp::Let {
-            name: _,
-            named: _,
-            typ: _,
-        }) => {
+fn codegen_block(block: &[Exp], to_break: Option<Lifetime>) -> TokenStream {
+    let undef = Exp::Undefined {};
+    let (last, all_but_last) = match block.last().expect("received empty block") {
+        Exp::Let { name: _, named: _, typ: _ } =>
+          (&undef, block),
+        _ => block.split_last().unwrap()
+    };
+
+    let q_block_but_last = all_but_last.iter().map(|e| codegen_exp(e));
+    let q_last = codegen_exp(last);
+    match to_break {
+        None => {
             quote! {
-                #(#q_block)*
-                Dyn::undefined()
+                #(#q_block_but_last)*
+                #q_last
             }
         }
-        _ => {
+        Some(lifetime) => {
             quote! {
-                #(#q_block)*
+                #(#q_block_but_last)*
+                break #lifetime #q_last;
             }
         }
     }
@@ -53,7 +58,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             let q_exp = codegen_exp(exp);
             quote! { #q_exp.get(#field) }
         }
-        Exp::Stringg { value } => quote! { Dyn::str(#value) },
+        Exp::Stringg { value } => quote! { Dyn::str(arena, #value)? },
         Exp::Undefined {} => quote! { Dyn::undef() },
         Exp::BinOp { op, e1, e2 } => {
             let q_op = codegen_op(op);
@@ -67,8 +72,8 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             false_part,
         } => {
             let q_test = codegen_exp(cond);
-            let q_then_part = codegen_block(true_part);
-            let q_else_part = codegen_block(false_part);
+            let q_then_part = codegen_block(true_part, None);
+            let q_else_part = codegen_block(false_part, None);
             quote! {
                 if #q_test.into() { #q_then_part } else { #q_else_part }
             }
@@ -99,7 +104,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             panic!("unexpected Exp::Set during code generation")
         }
         Exp::Block { body } => {
-            let q_body = codegen_block(body);
+            let q_body = codegen_block(body, None);
             quote! {
                 {
                     #q_body
@@ -130,10 +135,12 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             }
         }
         Exp::Label { name, body } => {
-            let q_body = codegen_block(body);
             let q_name = Lifetime::new(&format!("{}", name), Span::call_site());
+            let q_body = codegen_block(body, Some(q_name.clone()));
             quote! {
-                #q_name: {
+                // NOTE(arjun): Unfortunately, labelled blocks are a nightly-only
+                // feature.
+                #q_name: loop {
                     #q_body;
                 }
             }
@@ -167,7 +174,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
         }
         Exp::Deref { e } => {
             let q_e = codegen_exp(e);
-            quote! { Dyn::deref(&#q_e) }
+            quote! { Dyn::deref(#q_e)? }
         }
         Exp::SetRef { e1, e2 } => {
             let q_e1 = codegen_exp(e1);
@@ -178,7 +185,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             let q_event_args = event_args.iter().map(|e| codegen_exp(e));
             let q_event = Ident::new(&format!("{}", event), Span::call_site());
             quote! {
-                rts.#q_event(#(#q_event_args),*);
+                ec.#q_event(#(#q_event_args),*)
             }
         }
     }

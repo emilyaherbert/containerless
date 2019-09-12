@@ -21,7 +21,7 @@ function merge(x: State, y: State): State {
     )
 }
 
-const functionBreakName = '\'return';
+const functionBreakName = '\'ret';
 
 const t: b.MemberExpression = b.memberExpression(b.identifier('cb'), b.identifier('trace'));
 

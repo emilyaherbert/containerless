@@ -1,0 +1,3 @@
+This empty directory is meant to be committed.  We generate lib.rs dynamically
+and place it in here.  Git cannot hold empty directories, which is why this
+file exists.

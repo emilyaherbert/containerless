@@ -194,7 +194,7 @@ impl Typeinf {
                             hm.insert("path".to_string(), t_ref(Typ::String));
                             t_ref(Typ::Object(hm))
                         }
-                        "responseCallback" => t_ref(Typ::ResponseCallback),
+                        "response_callback" => t_ref(Typ::ResponseCallback),
                         "response" => {
                             let mut hs = ImHashSet::new();
                             hs.insert(Typ::String);
