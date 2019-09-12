@@ -26,6 +26,14 @@ pub fn verify(exp: &Exp) -> Exp {
     return exp3;
 }
 
+pub fn verify_from_file(filename: &str) -> Exp {
+    let json = std::fs::read_to_string(filename)
+        .expect(&format!("could not read file {}", filename));
+    let exp = serde_json::from_str::<Exp>(&json)
+        .unwrap_or_else(|exp| panic!("\n{:?} \nin \n{}", exp, &json));
+    return verify(&exp);
+}
+
 #[cfg(test)]
 mod tests {
 

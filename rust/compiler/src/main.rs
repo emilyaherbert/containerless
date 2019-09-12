@@ -29,6 +29,24 @@ fn main() {
                         .required(true),
                 ),
         )
+        .subcommand(
+            SubCommand::with_name("test-codegen")
+                .about("Verify and generate Rust code from a trace")
+                .arg(
+                    Arg::with_name("input")
+                        .short("i")
+                        .help("Path to trace (.json) file")
+                        .takes_value(true)
+                        .required(true),
+                )
+                .arg(
+                    Arg::with_name("output")
+                        .short("o")
+                        .help("Path to output (.rs) file")
+                        .takes_value(true)
+                        .required(true),
+                )
+        )
         .get_matches();
 
     if let Some(m) = matches.subcommand_matches("test-tracing") {
@@ -37,14 +55,25 @@ fn main() {
         let trace_json = trace_js::trace_with_files(file, input);
         println!("{}", trace_json);
     }
+    else if let Some(m) = matches.subcommand_matches("test-codegen") {
+        let input = m.value_of("input").unwrap();
+        let output = m.value_of("output").unwrap();
+        let exp = verif::verify_from_file(input);
+        codegen::codegen(&exp, &output);
+    }
+    else {
+        println!("Missing sub-command. Run --help for help.");
+        std::process::exit(1);
+    }
 }
 
 #[cfg(test)]
 mod tests {
 
+    use crate::trace_js::to_exp;
     use crate::{
         gen::gen,
-        types::{to_exp, Exp},
+        types::Exp,
         verif::verify,
     };
 
@@ -52,7 +81,7 @@ mod tests {
         // Turns a code string to Exp tree
         let exp = to_exp(filename, code, requests);
         // Checks assertions, calculates types
-        let mut exp2 = verify(&exp);
+        let mut exp2 = verify(&serde_json::from_str(&exp).unwrap());
         // Translates typ's to RustType's, creates a usize -> Typ
         let rust_types = gen(&mut exp2);
 

@@ -184,7 +184,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
     }
 }
 
-pub fn codegen(e: &Exp) -> String {
+pub fn codegen(e: &Exp, dest_file: &str) {
     let q_e = codegen_exp(e);
     let tokens = quote! {
         use trace_runtime::{Error, ExecutionContext, Dyn};
@@ -199,5 +199,12 @@ pub fn codegen(e: &Exp) -> String {
             #q_e
         }
     };
-    return format!("{}", tokens);
+
+    std::fs::write(dest_file, format!("{}", tokens))
+        .expect(&format!("could not write to {}", dest_file));
+
+    // NOTE(arjun): If we ever measure compilation time, this line *must* be
+    // removed.
+    cmd!("rustfmt", dest_file).run()
+        .expect("rustfmt failed");
 }
