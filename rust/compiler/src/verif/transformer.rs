@@ -68,7 +68,13 @@ impl Transformer {
                     from(self.transform_exp(exp), field),
                     self.transform_exp(named)
                 );
-            } 
+            },
+            Set { name: LVal::Index { exp, i }, named } => {
+                return setref(
+                    index(self.transform_exp(exp), self.transform_exp(i)),
+                    self.transform_exp(named)
+                );
+            }
             Block { body } => return block(self.transform_exps(body)),
             Callback { event, event_arg, callback_args, callback_clos, body } => {
                 return callback(event,

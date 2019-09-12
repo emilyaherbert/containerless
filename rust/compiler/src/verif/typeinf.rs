@@ -220,6 +220,26 @@ impl Typeinf {
                 self.exp(env, body)?;
                 return Ok(Typ::Undefined);
             }
+            Exp::Array { exps } => {
+                if exps.len() == 0 {
+                    return Ok(t_array(Typ::Undefined));
+                } else {
+                    let x = self.fresh_metavar();
+                    exps.iter_mut().for_each(|e| {
+                        let t = self.exp(env, e).unwrap();
+                        self.constraints.push(Constraint::Eq(t, x.clone()));
+                    });
+                    return Ok(t_array(x));
+                }
+            },
+            Exp::Index { e1, e2 } => {
+                let t = self.exp(env, e1)?;
+                // TODO(emily): Check if I32?
+                self.exp(env, e2)?;
+                let x = self.fresh_metavar();
+                self.constraints.push(Constraint::Eq(t_array(x.clone()), t));
+                return Ok(x);
+            }
             _ => panic!(format!("{:?}", exp))
         } 
     }
@@ -228,6 +248,7 @@ impl Typeinf {
         match exp {
             Exp::Unknown { } => (),
             Exp::Number { value:_ } => (),
+            Exp::Integer { value:_ } => (),
             Exp::Bool { value:_ } => (),
             Exp::Identifier { name:_ } => (),
             Exp::Stringg { value:_ } => (),
@@ -297,6 +318,15 @@ impl Typeinf {
                 Typeinf::subst_vars(subst, cond);
                 Typeinf::subst_vars(subst, body);
             }
+            Exp::Array { exps } => {
+                for e in exps.iter_mut() {
+                    Typeinf::subst_vars(subst, e);
+                }
+            }
+            Exp::Index { e1, e2 } => {
+                Typeinf::subst_vars(subst, e1);
+                Typeinf::subst_vars(subst, e2);
+            }
             _ => unimplemented!("{:?}", exp),
         }
     }
@@ -314,6 +344,24 @@ impl Typeinf {
             (Typ::String, Typ::String) => (),
             (Typ::F64, Typ::F64) => (),
             (Typ::Ref(t1), Typ::Ref(t2)) => Typeinf::unify(subst, t1, t2),
+            (Typ::Array(t1), Typ::Array(t2)) => Typeinf::unify(subst, t1, t2),
+            (Typ::Unionvar(n), Typ::Unionvar(m)) => {
+                // TODO(emily): I *think* this means that they should now be the same,
+                // not that we should perform some type of unification.
+                match subst.get(n) {
+                    Some(t1) => {
+                        match subst.get(m) {
+                            Some(t2) => {
+                                if t1 != t2 {
+                                    panic!("Found mismatched types.");
+                                }
+                            },
+                            None => panic!("Unionvar not found.")
+                        }
+                    },
+                    None => panic!("Unionvar not found.")
+                }
+            },
             _ => {
                 panic!(format!("Cannot unify {:?} with {:?}", t1, t2))
             }
@@ -343,10 +391,12 @@ impl Typeinf {
                         *t = Typ::Union(typs2);
                     },
                     typ => {
-                        let mut typs = ImHashSet::new();
-                        typs.insert(t.to_owned());
-                        typs.insert(typ);
-                        *t = Typ::Union(typs);
+                        if t.clone() != typ {
+                            let mut typs = ImHashSet::new();
+                            typs.insert(t.to_owned());
+                            typs.insert(typ);
+                            *t = Typ::Union(typs);
+                        }
                     }
                 }
             }
@@ -691,6 +741,47 @@ mod tests {
         ]);
 
         assert_eq!(e, goal);
+    }
+
+    #[test]
+    fn arrays_1() {
+
+        let mut e = block(vec![
+            let_("arr", None, array(vec![
+                ref_(number(9.0)),
+                ref_(number(10.0))
+            ])),
+            setref(index(id("arr"), integer(0)), bool_(false))
+        ]);
+        
+        typeinf(&mut e).unwrap();
+
+        let goal = block(vec![
+            let_("arr", Some(t_array(t_ref(t_union_2(&vec![
+                Typ::F64,
+                Typ::Bool
+            ])))), array(vec![
+                ref_(number(9.0)),
+                ref_(number(10.0))
+            ])),
+            setref(index(id("arr"), integer(0)), bool_(false))
+        ]);
+
+        assert_eq!(e, goal);
+    }
+
+    #[test]
+    #[should_panic]
+    fn arrays_2() {
+
+        let mut e = block(vec![
+            let_("arr", None, array(vec![
+                ref_(number(9.0)),
+                ref_(bool_(false))
+            ]))
+        ]);
+        
+        typeinf(&mut e).unwrap();
     }
 }
 

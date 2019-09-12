@@ -155,6 +155,7 @@ pub enum Typ {
     Union(ImHashSet<Typ>),
     #[serde(skip)]
     Object(ImHashMap<String, Typ>),
+    Array(Box<Typ>),
     ResponseCallback,
     RustType(usize)
 }
@@ -217,6 +218,7 @@ impl Typ {
             Typ::Undefined => (),
             Typ::Object(_) => (),
             Typ::ResponseCallback => (),
+            Typ::Array(t) => t.apply_subst(subst),
             _ => unimplemented!()
         }
     }
@@ -264,6 +266,7 @@ impl Typ {
                 }
             },
             Typ::ResponseCallback => (),
+            Typ::Array(t) => t.apply_subst_strict(subst),
             _ => unimplemented!()
         }
     }
@@ -368,7 +371,8 @@ pub enum Exp {
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum LVal {
     Identifier { name: String },
-    From { exp: Box<Exp>, field: String }
+    From { exp: Box<Exp>, field: String },
+    Index { exp: Box<Exp>, i: Box<Exp> }
 }
 
 // https://stackoverflow.com/a/42661287
@@ -467,6 +471,10 @@ pub mod constructors {
 
     pub fn t_ref(t: Typ) -> Typ {
         Typ::Ref(Box::new(t))
+    }
+
+    pub fn t_array(t: Typ) -> Typ {
+        return Typ::Array(Box::new(t));
     }
 
     pub fn unknown() -> Exp {
