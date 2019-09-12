@@ -26,7 +26,7 @@ steps:
     PATH=$HOME/.cargo/bin:$PATH cargo build
   displayName: Build Rust code
 - script: |
-    cd ../../javascript/containerless
+    cd javascript/containerless
     yarn install
     yarn run build
     cd ../js-transform
