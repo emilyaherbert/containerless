@@ -58,13 +58,13 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             let q_exp = codegen_exp(exp);
             quote! { #q_exp.get(#field) }
         }
-        Exp::Stringg { value } => quote! { Dyn::str(arena, #value)? },
+        Exp::Stringg { value } => quote! { Dyn::str(arena, #value) },
         Exp::Undefined {} => quote! { Dyn::undef() },
         Exp::BinOp { op, e1, e2 } => {
             let q_op = codegen_op(op);
             let q_e1 = codegen_exp(e1);
             let q_e2 = codegen_exp(e2);
-            quote! { #q_e1.#q_op(#q_e2)? }
+            quote! { (#q_e1?).#q_op(#q_e2?)? }
         }
         Exp::If {
             cond,
@@ -131,7 +131,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             let q_event_arg = codegen_exp(event_arg);
             let q_callback_clos = codegen_exp(callback_clos);
             quote! {
-                ec.loopback(#event, #q_event_arg, #q_callback_clos, #id)?
+                ec.loopback(#event, #q_event_arg, #q_callback_clos, #id)
             }
         }
         Exp::Label { name, body } => {
@@ -166,15 +166,15 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
         Exp::Index { e1, e2 } => {
             let q_e1 = codegen_exp(e1);
             let q_e2 = codegen_exp(e2);
-            quote! { #q_e1.index(#q_e2)? }
+            quote! { (#q_e1?).index(#q_e2) }
         }
         Exp::Ref { e } => {
             let q_e = codegen_exp(e);
-            quote! { Dyn::ref_(arena, #q_e) }
+            quote! { Dyn::ref_(arena, #q_e?) }
         }
         Exp::Deref { e } => {
             let q_e = codegen_exp(e);
-            quote! { Dyn::deref(#q_e)? }
+            quote! { Dyn::deref(#q_e?) }
         }
         Exp::SetRef { e1, e2 } => {
             let q_e1 = codegen_exp(e1);
@@ -185,7 +185,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             let q_event_args = event_args.iter().map(|e| codegen_exp(e));
             let q_event = Ident::new(&format!("{}", event), Span::call_site());
             quote! {
-                ec.#q_event(#(#q_event_args),*)
+                ec.#q_event(#(#q_event_args?),*)
             }
         }
     }
@@ -194,15 +194,15 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
 pub fn codegen(e: &Exp, dest_file: &str) {
     let q_e = codegen_exp(e);
     let tokens = quote! {
-        use trace_runtime::{Error, ExecutionContext, Dyn};
+        use trace_runtime::{Error, ExecutionContext, Dyn, DynResult};
         use trace_runtime as rt;
 
         #[no_mangle]
         pub extern "C" fn containerless<'a>(
             ec: &mut ExecutionContext,
             arena: &'a bumpalo::Bump,
-            arg_cbid: &'a Dyn<'a>,
-            arg_cbargs: &'a Dyn<'a>) -> Result<Dyn<'a>, Error> {
+            arg_cbid: DynResult<'a>,
+            arg_cbargs: DynResult<'a>) -> DynResult<'a> {
             #q_e
         }
     };

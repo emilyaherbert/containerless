@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum Error {
     /** Equivalent to a runtime type-error in JavaScript */
     TypeError,

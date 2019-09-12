@@ -39,33 +39,33 @@ impl<'a> Dyn<'a> {
         Ok(Dyn::Float(x))
     }
 
-    pub fn ref_(arena: &'a Bump, value: Dyn<'a>) -> Dyn<'a> {
-        Dyn::Ref(arena.alloc(Cell::new(value)))
+    pub fn ref_(arena: &'a Bump, value: Dyn<'a>) -> DynResult<'a> {
+        Ok(Dyn::Ref(arena.alloc(Cell::new(value))))
     }
 
-    pub fn object(arena: &'a Bump, _fields: std::vec::Vec<(&'a str, Dyn<'a>)>) -> Dyn<'a> {
-        return Dyn::Object(arena.alloc(RefCell::new(Vec::new_in(arena))));
+    pub fn object(arena: &'a Bump, _fields: std::vec::Vec<(&'a str, Dyn<'a>)>) -> DynResult<'a> {
+        Ok(Dyn::Object(arena.alloc(RefCell::new(Vec::new_in(arena)))))
     }
 
-    pub fn add(&self, other: &Dyn<'a>) -> DynResult<'a> {
-        match (self, other) {
+    pub fn add(&self, other: Dyn<'a>) -> DynResult<'a> {
+        match (*self, other) {
             (Dyn::Int(m), Dyn::Int(n)) => Ok(Dyn::Int(m + n)),
-            (Dyn::Float(x), Dyn::Int(n)) => Ok(Dyn::Float(*x + f64::from(*n))),
-            (Dyn::Int(n), Dyn::Float(x)) => Ok(Dyn::Float(f64::from(*n) + *x)),
+            (Dyn::Float(x), Dyn::Int(n)) => Ok(Dyn::Float(x + f64::from(n))),
+            (Dyn::Int(n), Dyn::Float(x)) => Ok(Dyn::Float(f64::from(n) + x)),
             (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Float(x + y)),
             _ => Err(Error::TypeError),
         }
     }
 
-    pub fn strict_eq(&self, other: DynResult<'a>) -> DynResult<'a> {
-        match (*self, other?) {
+    pub fn strict_eq(&self, other: Dyn<'a>) -> DynResult<'a> {
+        match (*self, other) {
             (Dyn::Int(m), Dyn::Int(n)) => Ok(Dyn::Bool(m == n)),
             _ => unimplemented!(),
         }
     }
 
     /** Array indexing. */
-    pub fn index(&'a self, index: DynResult<'a>) -> DynResult<'a> {
+    pub fn index(&self, index: DynResult<'a>) -> DynResult<'a> {
         match (self, index?) {
             (Dyn::Vec(vec_cell), Dyn::Int(index)) => match usize::try_from(index) {
                 Err(_) => Ok(Dyn::Undefined),
