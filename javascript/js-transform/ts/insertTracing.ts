@@ -111,6 +111,15 @@ function obj(props: b.ObjectProperty[]): b.CallExpression {
     return b.callExpression(callee, theArgs);
 }
 
+function clos(props: b.ObjectProperty[]): b.CallExpression {
+    const callee = b.memberExpression(
+        b.identifier('exp'),
+        b.identifier('clos')
+    );
+    const theArgs = [b.objectExpression(props)];
+    return b.callExpression(callee, theArgs);
+}
+
 function array(exps: b.Expression[]): b.CallExpression {
     const callee = b.memberExpression(
         b.identifier('exp'),
@@ -561,7 +570,7 @@ function reifyFunctionDeclaration(s: b.FunctionDeclaration, st: State): [b.State
                 throw new Error("Not found!");
             }
         });
-    const tClos = traceLet(lvaltoName(id), obj(fvs));
+    const tClos = traceLet(lvaltoName(id), clos(fvs));
     const theFunction = b.functionDeclaration(id, params, b.blockStatement(body));
     return [[tClos, theFunction], retSt];
 }

@@ -32,6 +32,8 @@ fn codegen_block(block: &[Exp]) -> TokenStream {
 
 fn codegen_exp(exp: &Exp) -> TokenStream {
     match exp {
+        Exp::Clos { tenv:_ } =>
+            panic!("Exp::Clos should have been eliminated"),
         Exp::Unknown {} => quote! { rt::unknown() },
         Exp::Integer { value } => quote! { Dyn::int(#value) },
         Exp::Number { value } => quote! { Dyn::float(#value) },

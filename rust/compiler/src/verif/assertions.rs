@@ -57,6 +57,7 @@ impl Assertions {
             Object { properties } => {
                 self.assert_tenv(properties);
             },
+            Clos { tenv } => self.assert_tenv(tenv),
             Array { exps } => {
                 self.assert_exps(exps);
             },
@@ -283,6 +284,7 @@ impl Assertions {
             Object { properties } => {
                 self.assert_all_options_are_none_tenv(properties);
             },
+            Clos { tenv } => self.assert_all_options_are_none_tenv(tenv),
             Array { exps } => {
                 self.assert_all_options_are_none_vec(exps);
             },

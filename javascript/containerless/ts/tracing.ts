@@ -509,7 +509,19 @@ function mergeExp(e1: Exp, e2: Exp): Exp {
         e1.exp = mergeExp(e1.exp, e2.exp);
         return e1;
     }
+    else if (e1.kind === 'clos' && e2.kind === 'clos') {
+        // TODO(arjun): We *never* use for .. in loops. Use Object.keys.
+        for (var prop in e1.tenv) {
+            if(e1.tenv.hasOwnProperty(prop) && e2.tenv.hasOwnProperty(prop)) {
+                e1.tenv[prop] = mergeExp(e1.tenv[prop], e2.tenv[prop]);
+            } else {
+                throw new Error("One of these is not like the other.");
+            }
+        }
+        return e1;
+    }
     else if (e1.kind === 'object' && e2.kind === 'object') {
+        // TODO(arjun): We *never* use for .. in loops. Use Object.keys.
         for (var prop in e1.properties) {
             if(e1.properties.hasOwnProperty(prop) && e2.properties.hasOwnProperty(prop)) {
                 e1.properties[prop] = mergeExp(e1.properties[prop], e2.properties[prop]);

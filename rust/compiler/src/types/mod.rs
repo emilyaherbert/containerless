@@ -353,6 +353,7 @@ pub enum Exp {
     Label { name: String, body: Vec<Exp> },
     Break { name: String, value: Box<Exp> },
     Object { properties: HashMap<String, Exp> },
+    Clos { tenv: HashMap<String, Exp> },
     Array { exps: Vec<Exp> },
     Index { e1: Box<Exp>, e2: Box<Exp> },
     #[serde(skip)]
@@ -402,6 +403,7 @@ impl fmt::Display for Exp {
             Exp::Label { name, body } => write!(f, "Label({}, {})", name, vec_to_string(body)),
             Exp::Break { name, value } => write!(f, "Break({}, {})", name, value),
             Exp::Object { properties } => write!(f, "Obj({:?}", properties),
+            Exp::Clos { tenv } => write!(f, "clos({:?}", tenv),
             Exp::Array { exps } => write!(f, "Array({})", vec_to_string(exps)),
             Exp::Index { e1, e2 } => write!(f, "Index({}, {})", e1, e2),
             Exp::Ref { e } => write!(f, "Ref({})", e),

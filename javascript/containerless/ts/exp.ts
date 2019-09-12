@@ -33,6 +33,7 @@ type FromExp = { kind: 'from', exp: Exp, field: string };
 
 type TEnv = { [key: string]: Exp };
 type ObjExp = { kind: 'object', properties: TEnv };
+type ClosExp = { kind: 'clos', tenv: TEnv };
 
 type ArrayExp = { kind: 'array', exps: Exp[] };
 type IndexExp = { kind: 'index', exp: Exp, i: number };
@@ -69,6 +70,7 @@ export type Exp
     | LabelExp
     | BreakExp
     | ObjExp
+    | ClosExp
     | ArrayExp
     | IndexExp
     | PrimAppExp;
@@ -159,6 +161,10 @@ export function index(exp: Exp, i: number): IndexExp {
 
 export function primApp(event: string, eventArgs: Exp[]): PrimAppExp {
     return { kind: 'primApp', event: event, eventArgs: eventArgs };
+}
+
+export function clos(tenv: TEnv): ClosExp {
+    return { kind: 'clos', tenv: tenv };
 }
 
 let nextId = 0;

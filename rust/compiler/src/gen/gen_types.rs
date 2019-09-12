@@ -365,7 +365,7 @@ mod tests {
 
         test_harness(&types);
 
-        assert!(false);
+        // assert!(false);
     }
 
 }
