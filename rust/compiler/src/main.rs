@@ -5,9 +5,9 @@ use clap::{App, Arg, SubCommand};
 
 mod codegen;
 mod gen;
+mod trace_js;
 mod types;
 mod verif;
-mod trace_js;
 
 fn main() {
     let matches = App::new("decontainerization")
@@ -21,7 +21,13 @@ fn main() {
                         .takes_value(true)
                         .required(true),
                 )
-                .arg(Arg::with_name("input").short("i").help("Path to input").takes_value(true).required(true)),
+                .arg(
+                    Arg::with_name("input")
+                        .short("i")
+                        .help("Path to input")
+                        .takes_value(true)
+                        .required(true),
+                ),
         )
         .get_matches();
 

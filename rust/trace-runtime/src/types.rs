@@ -1,12 +1,12 @@
-use std::{pin::Pin, marker::PhantomData};
-use futures::{Future, Poll, Async, future};
 use bumpalo::Bump;
+use futures::{future, Async, Future, Poll};
+use std::{marker::PhantomData, pin::Pin};
 
 /// An empty type. We need to define our own until the `!` type is
 /// stabilized. See the [RFC 1216] for more information.
 ///
 /// [RFC 1216]: https://github.com/rust-lang/rfcs/blob/master/text/1216-bang-type.md
-pub enum Never { }
+pub enum Never {}
 
 /// This is a *family trait*. See  this [blog post] for more information.
 ///
@@ -21,16 +21,15 @@ pub enum AsyncOp {
     /// This event immediately completes, which is useful for testing without
     /// performing real I/O.
     Immediate,
-    Request(String)
+    Request(String),
 }
 
 /// The execution context allows a callback to send new events.
 pub struct ExecutionContext {
-    new_ops: Vec<(AsyncOp, usize)>
+    new_ops: Vec<(AsyncOp, usize)>,
 }
 
 impl ExecutionContext {
-
     /// Send a new event. The argument `indicator` is sent back with the
     /// response, which helps the decontainerized keep track of multiple
     /// pending requests. There is no requirement that indicators be distinct,
@@ -87,7 +86,6 @@ impl ExecutionContext {
 /// has not be implemented (even in nightly). As a workaround, we use
 /// type families as shown below.
 pub trait Decontainerized {
-
     /// Note that the methods `new` and `callback` require this associated type
     /// to implement the trait `FamilyLt<'a>`. A typical implementation will be
     /// as follows:
@@ -105,24 +103,23 @@ pub trait Decontainerized {
     /// parameterized by the lifetime `'a`, which is the lifetime of the
     /// arena allocator. Therefore, the structure can hold borrowed references
     /// to values allocated in the arena.
-    type StateFamily : Send;
+    type StateFamily: Send;
 
     /// Initializes the decontainerized function. This function borrows the
     /// arena and produces a structure with the type `StateFamily<'a>::Out`.
     /// That structure may be parameterized by `'a,`, thus may hold references
     /// to values allocated in `arena`.
-    fn new<'a>(
-        arena: &'a Bump) ->
-        <Self::StateFamily as FamilyLt<'a>>::Out where
+    fn new<'a>(arena: &'a Bump) -> <Self::StateFamily as FamilyLt<'a>>::Out
+    where
         Self::StateFamily: FamilyLt<'a>;
 
     fn callback<'a, 'b>(
         arena: &'a Bump,
         state: &'a mut <Self::StateFamily as FamilyLt<'a>>::Out,
-        ec: &'b mut ExecutionContext)
-        -> () where
+        ec: &'b mut ExecutionContext,
+    ) -> ()
+    where
         Self::StateFamily: FamilyLt<'a>;
-
 }
 
 // This structure owns an arena and has an unsafe implementation of `Send`.
@@ -130,14 +127,16 @@ pub trait Decontainerized {
 // However, the `poll` method in `Decontainer` ensures that only one thread
 // accesses `bump` at a time, which is why this is safe.
 struct Arena {
-    bump: Bump
+    bump: Bump,
 }
 
-unsafe impl Send for Arena { }
+unsafe impl Send for Arena {}
 
 // TODO(arjun): Does this need to have a `PhantomPin` field?
-struct DecontainerImpl<T> where
-  T : Send + Sized + Decontainerized {
+struct DecontainerImpl<T>
+where
+    T: Send + Sized + Decontainerized,
+{
     task: PhantomData<T>,
     arena: Arena,
     machine_state: Vec<(bool, Box<Future<Item = usize, Error = ()> + Send>)>,
@@ -155,14 +154,17 @@ struct DecontainerImpl<T> where
     // type has no constructors, we won't accidentally use it.  The function
     // ``remember_type` below makes it hard to cast the `Never` to the
     // wrong type.
-    state: Box<Never>
+    state: Box<Never>,
 }
 
-unsafe fn remember_type<'a, T>(state: &'a mut Box<Never>)
--> &'a mut Box<<<T as Decontainerized>::StateFamily as FamilyLt<'a>>::Out> where
-  T : Decontainerized,
-  <T as Decontainerized>::StateFamily: FamilyLt<'a> {
-      return std::mem::transmute(state);
+unsafe fn remember_type<'a, T>(
+    state: &'a mut Box<Never>,
+) -> &'a mut Box<<<T as Decontainerized>::StateFamily as FamilyLt<'a>>::Out>
+where
+    T: Decontainerized,
+    <T as Decontainerized>::StateFamily: FamilyLt<'a>,
+{
+    return std::mem::transmute(state);
 }
 
 fn forget_type<T>(x: Box<T>) -> Box<Never> {
@@ -171,17 +173,20 @@ fn forget_type<T>(x: Box<T>) -> Box<Never> {
     }
 }
 
-pub struct Decontainer<T> where
-    T : Send + Sized + Decontainerized {
+pub struct Decontainer<T>
+where
+    T: Send + Sized + Decontainerized,
+{
     pinned: Pin<Box<DecontainerImpl<T>>>,
-    ec : ExecutionContext
+    ec: ExecutionContext,
 }
 
 #[allow(unused)]
-impl<T> Decontainer<T> where
-    T : Send + Sized + Decontainerized,
-    <T as Decontainerized>::StateFamily: for<'a> FamilyLt<'a> {
-
+impl<T> Decontainer<T>
+where
+    T: Send + Sized + Decontainerized,
+    <T as Decontainerized>::StateFamily: for<'a> FamilyLt<'a>,
+{
     /// Creates a new instance of a decontainerized function.
     ///
     /// This function allocates an arena and calls `T::new` with a reference
@@ -199,25 +204,25 @@ impl<T> Decontainer<T> where
                 arena: Arena { bump: arena },
                 state: state,
                 task: PhantomData,
-                machine_state: vec![ (false, Box::new(future::ok(0))) ]
+                machine_state: vec![(false, Box::new(future::ok(0)))],
             }),
-            ec: ExecutionContext { new_ops: Vec::new() }
+            ec: ExecutionContext {
+                new_ops: Vec::new(),
+            },
         };
     }
-
 }
 
 #[allow(unused)]
-impl<T> Future for Decontainer<T> where
-    T : Send + Sized + Decontainerized,
-    <T as Decontainerized>::StateFamily: for<'a> FamilyLt<'a>  {
-
+impl<T> Future for Decontainer<T>
+where
+    T: Send + Sized + Decontainerized,
+    <T as Decontainerized>::StateFamily: for<'a> FamilyLt<'a>,
+{
     type Item = ();
     type Error = ();
 
-    fn poll<'a>(
-        &'a mut self
-    ) -> Poll<Self::Item, Self::Error> {
+    fn poll<'a>(&'a mut self) -> Poll<Self::Item, Self::Error> {
         // Boilerplate to address pinning
         let mut_ref = unsafe { Pin::as_mut(&mut self.pinned) };
         let self_ = unsafe { Pin::get_unchecked_mut(mut_ref) };
@@ -237,11 +242,11 @@ impl<T> Future for Decontainer<T> where
                 match future.poll() {
                     Result::Err(err) => {
                         eprintln!("Error: {:?}", &err);
-                        return Result::Err(err)
-                    },
+                        return Result::Err(err);
+                    }
                     Result::Ok(Async::NotReady) => {
                         // Try next future
-                    },
+                    }
                     Result::Ok(Async::Ready(n)) => {
                         *completed = true;
                         any_completed = true;
@@ -254,13 +259,17 @@ impl<T> Future for Decontainer<T> where
             if any_completed == false {
                 return Result::Ok(Async::NotReady);
             }
-            self_.machine_state.retain(|(completed, _)| *completed == false);
+            self_
+                .machine_state
+                .retain(|(completed, _)| *completed == false);
             // Create a future for each new operation.
             for (op, indicator) in ec.new_ops.iter() {
                 match op {
                     AsyncOp::Immediate => {
-                        self_.machine_state.push((false, Box::new(future::ok(*indicator))));
-                    },
+                        self_
+                            .machine_state
+                            .push((false, Box::new(future::ok(*indicator))));
+                    }
                     AsyncOp::Request(_) => {
                         panic!("request not yet implemented");
                     }
@@ -269,5 +278,4 @@ impl<T> Future for Decontainer<T> where
             ec.new_ops.clear();
         }
     }
-
 }

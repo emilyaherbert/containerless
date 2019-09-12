@@ -184,11 +184,13 @@ mod tests {
                             ref_(block(vec![label(
                                 "'return",
                                 vec![
-                            let_("response", Some(t_ref(t_obj_2(&[("path", t_ref(Typ::String))]))), ref_(deref(id("req")))),
-                            prim_app("send", vec![
-                                deref(id("response"))
-                            ])
-                        ],
+                                    let_(
+                                        "response",
+                                        Some(t_ref(t_obj_2(&[("path", t_ref(Typ::String))]))),
+                                        ref_(deref(id("req"))),
+                                    ),
+                                    prim_app("send", vec![deref(id("response"))]),
+                                ],
                             )])),
                         ),
                     ],
