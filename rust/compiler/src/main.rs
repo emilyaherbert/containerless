@@ -47,6 +47,24 @@ fn main() {
                         .required(true),
                 )
         )
+        .subcommand(
+            SubCommand::with_name("test-compiled-trace")
+                .about("Execute a compiled trace on inputs")
+                .arg(
+                    Arg::with_name("file")
+                        .short("f")
+                        .help("Path to Rust library")
+                        .takes_value(true)
+                        .required(true),
+                )
+                .arg(
+                    Arg::with_name("input")
+                        .short("i")
+                        .help("Path to input")
+                        .takes_value(true)
+                        .required(true),
+                ),
+        )
         .get_matches();
 
     if let Some(m) = matches.subcommand_matches("test-tracing") {
@@ -60,6 +78,17 @@ fn main() {
         let output = m.value_of("output").unwrap();
         let exp = verif::verify_from_file(input);
         codegen::codegen(&exp, &output);
+    }
+    else if let Some(m) = matches.subcommand_matches("test-compiled-trace") {
+        use libloading::{Library, Symbol};
+        let lib = Library::new("../containerless-scaffold/target/debug/libcontainerless_scaffold.dylib")
+            .expect("failed to load DLL");
+
+        let func: Symbol<fn() -> ()> = unsafe {
+            lib.get(b"containerless")
+                .expect("did not find containerless function")
+        };
+        func();
     }
     else {
         println!("Missing sub-command. Run --help for help.");

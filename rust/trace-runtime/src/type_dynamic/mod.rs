@@ -60,7 +60,15 @@ impl<'a> Dyn<'a> {
     pub fn strict_eq(&self, other: Dyn<'a>) -> DynResult<'a> {
         match (*self, other) {
             (Dyn::Int(m), Dyn::Int(n)) => Ok(Dyn::Bool(m == n)),
-            _ => unimplemented!(),
+            (Dyn::Str(s1), Dyn::Str(s2)) => Ok(Dyn::Bool(s1 == s2)),
+            (Dyn::Str(_), other) => panic!("not working Dyn::Str(_) == {:?}", other),
+            (that, other) => {
+                println!("Other is {:?}", other);
+                println!("self is {:?}", self);
+                panic!("not working {:?} == {:?}", self, other)
+            },
+            // (that, other) => panic!("not working {:?}", other),
+                // panic!(format!("Trying {:?} === {:?}", that, other))
         }
     }
 

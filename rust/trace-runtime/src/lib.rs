@@ -7,8 +7,36 @@ pub use error::*;
 pub use execution_context::*;
 pub use type_dynamic::*;
 
+pub type ContainerlessFunc<'a> = fn(
+    ec: &mut ExecutionContext,
+    arena: &'a bumpalo::Bump,
+    arg_cbid: DynResult<'a>,
+    arg_cbargs: DynResult<'a>,
+) -> DynResult<'a>;
+
 pub fn unknown<T>() -> Result<T, Error> {
     Err(Error::Unknown)
+}
+
+use bumpalo::Bump;
+
+pub fn init<'a>(arena: &'a Bump, f: ContainerlessFunc<'a>) -> DynResult<'a> {
+
+    let mut ec = ExecutionContext::new();
+    let mut loopback_id = 0;
+    loop {
+        f(&mut ec,
+            &arena,
+            Dyn::int(loopback_id),
+            Dyn::int(0)).expect("function failed");
+        if let Some((event_name, new_loopback_id)) = ec.events.pop() {
+            loopback_id = new_loopback_id;
+            println!("Processing event {} with id {}", event_name, new_loopback_id);
+        }
+        else {
+            return Dyn::int(0);
+        }
+    }
 }
 
 #[cfg(test)]

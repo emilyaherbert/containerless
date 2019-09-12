@@ -197,14 +197,20 @@ pub fn codegen(e: &Exp, dest_file: &str) {
         use trace_runtime::{Error, ExecutionContext, Dyn, DynResult};
         use trace_runtime as rt;
 
-        #[no_mangle]
-        pub extern "C" fn containerless<'a>(
+        fn containerless_func<'a>(
             ec: &mut ExecutionContext,
             arena: &'a bumpalo::Bump,
             arg_cbid: DynResult<'a>,
             arg_cbargs: DynResult<'a>) -> DynResult<'a> {
             #q_e
         }
+
+        #[no_mangle]
+        pub extern "C" fn containerless() {
+            let arena = bumpalo::Bump::new();
+            rt::init(&arena, containerless_func);
+        }
+
     };
 
     std::fs::write(dest_file, format!("{}", tokens))
