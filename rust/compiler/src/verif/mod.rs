@@ -84,12 +84,12 @@ mod tests {
                     ref_(index(id("arg_cbargs"), integer(1))),
                 ),
                 let_(
-                    "responseCallback",
+                    "response_callback",
                     Some(t_ref(Typ::ResponseCallback)),
                     ref_(index(id("arg_cbargs"), integer(2))),
                 ),
                 label(
-                    "'return",
+                    "'ret",
                     vec![
                         let_(
                             "req",
@@ -99,13 +99,13 @@ mod tests {
                         let_(
                             "resp",
                             Some(t_ref(Typ::ResponseCallback)),
-                            ref_(deref(id("responseCallback"))),
+                            ref_(deref(id("response_callback"))),
                         ),
                         let_(
                             "app100",
                             Some(t_ref(Typ::Undefined)),
                             ref_(block(vec![label(
-                                "'return",
+                                "'ret",
                                 vec![
                                     let_(
                                         "response",
@@ -134,7 +134,7 @@ mod tests {
             ])],
         );
 
-        assert!(handle == goal);
+        assert_eq!(handle, goal);
     }
 
     #[test]
@@ -168,12 +168,12 @@ mod tests {
                     ref_(index(id("arg_cbargs"), integer(1))),
                 ),
                 let_(
-                    "responseCallback",
+                    "response_callback",
                     Some(t_ref(Typ::ResponseCallback)),
                     ref_(index(id("arg_cbargs"), integer(2))),
                 ),
                 label(
-                    "'return",
+                    "'ret",
                     vec![
                         let_(
                             "req",
@@ -183,14 +183,14 @@ mod tests {
                         let_(
                             "resp",
                             Some(t_ref(Typ::ResponseCallback)),
-                            ref_(deref(id("responseCallback"))),
+                            ref_(deref(id("response_callback"))),
                         ),
                         prim_app("console.log", vec![deref(from(deref(id("clos")), "str00"))]),
                         let_(
                             "app200",
                             Some(t_ref(Typ::Undefined)),
                             ref_(block(vec![label(
-                                "'return",
+                                "'ret",
                                 vec![
                                     let_(
                                         "response",
@@ -228,7 +228,7 @@ mod tests {
             ])],
         );
 
-        assert!(handle == goal);
+        assert_eq!(handle, goal);
     }
 
     #[test]
@@ -263,12 +263,12 @@ mod tests {
                     ref_(index(id("arg_cbargs"), integer(1))),
                 ),
                 let_(
-                    "responseCallback",
+                    "response_callback",
                     Some(t_ref(Typ::ResponseCallback)),
                     ref_(index(id("arg_cbargs"), integer(2))),
                 ),
                 label(
-                    "'return",
+                    "'ret",
                     vec![
                         let_(
                             "req",
@@ -278,7 +278,7 @@ mod tests {
                         let_(
                             "resp",
                             Some(t_ref(Typ::ResponseCallback)),
-                            ref_(deref(id("responseCallback"))),
+                            ref_(deref(id("response_callback"))),
                         ),
                         if_(
                             binop(&Op2::StrictEq, deref(id("req")), string("hello")),
@@ -286,7 +286,7 @@ mod tests {
                                 "app100",
                                 Some(t_ref(Typ::Undefined)),
                                 ref_(block(vec![label(
-                                    "'return",
+                                    "'ret",
                                     vec![
                                         let_(
                                             "response",
@@ -361,12 +361,12 @@ mod tests {
                     ref_(index(id("arg_cbargs"), integer(1))),
                 ),
                 let_(
-                    "responseCallback",
+                    "response_callback",
                     Some(t_ref(Typ::ResponseCallback)),
                     ref_(index(id("arg_cbargs"), integer(2))),
                 ),
                 label(
-                    "'return",
+                    "'ret",
                     vec![
                         let_(
                             "req",
@@ -376,7 +376,7 @@ mod tests {
                         let_(
                             "resp",
                             Some(t_ref(Typ::ResponseCallback)),
-                            ref_(deref(id("responseCallback"))),
+                            ref_(deref(id("response_callback"))),
                         ),
                         prim_app("console.log", vec![string("Got a response")]),
                         setref(from(deref(id("clos")), "foo00"), number(42.0)),
@@ -393,7 +393,7 @@ mod tests {
                             "app200",
                             Some(t_ref(Typ::Undefined)),
                             ref_(block(vec![label(
-                                "'return",
+                                "'ret",
                                 vec![
                                     let_(
                                         "response",
