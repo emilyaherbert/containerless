@@ -544,8 +544,6 @@ impl Typeinf {
         let mut constraints = constraints;
         let mut subst: HashMap<usize, Typ> = HashMap::new();
 
-        println!("{:?}", constraints);
-
         loop {
             let mut new_constraints: Vec<Constraint> = vec![];
             for c in constraints.iter() {

@@ -55,14 +55,14 @@ fn main() {
                         .short("f")
                         .help("Path to Rust library")
                         .takes_value(true)
-                        .required(true),
+                        .required(false),
                 )
                 .arg(
                     Arg::with_name("input")
                         .short("i")
                         .help("Path to input")
                         .takes_value(true)
-                        .required(true),
+                        .required(false),
                 ),
         )
         .get_matches();
@@ -82,6 +82,7 @@ fn main() {
     else if let Some(m) = matches.subcommand_matches("test-compiled-trace") {
         use libloading::{Library, Symbol};
         let lib = Library::new("../containerless-scaffold/target/debug/libcontainerless_scaffold.dylib")
+            .or_else(|_| Library::new("../containerless-scaffold/target/debug/libcontainerless_scaffold.so"))
             .expect("failed to load DLL");
 
         let func: Symbol<fn() -> ()> = unsafe {
