@@ -66,12 +66,12 @@ function from(lhs: b.Identifier | b.CallExpression, rhs: string): b.CallExpressi
 }
 
 // TODO(emily): Think about let x = 0; arr[x]; case.
-function index(lhs: b.Identifier | b.CallExpression, rhs: number): b.CallExpression {
+function index(lhs: b.CallExpression, rhs: b.CallExpression): b.CallExpression {
     const callee = b.memberExpression(
         b.identifier('exp'),
         b.identifier('index')
     );
-    const theArgs = [lhs, b.numericLiteral(rhs)];
+    const theArgs = [lhs, rhs];
     return b.callExpression(callee, theArgs);
 }
 
@@ -299,7 +299,7 @@ function reifyExpression(e: b.Expression, st: State): [b.Expression, State] {
                 return [from(identifier(lhs.name), prop.name), st];
             } else if(b.isIdentifier(lhs) && b.isNumericLiteral(prop)) {
                 // TODO(emily): Think about { 0 : x } case.
-                return [index(identifier(lhs.name), prop.value), st];
+                return [index(identifier(lhs.name), number(prop.value)), st];
             }
             throw new Error("Cannot chain member expressions!");
         }

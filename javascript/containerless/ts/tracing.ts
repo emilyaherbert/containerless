@@ -536,10 +536,8 @@ function mergeExp(e1: Exp, e2: Exp): Exp {
         return e1;
     }
     else if (e1.kind === 'index' && e2.kind === 'index') {
-        if(e1.i != e2.i) {
-            throw new Error(`Cannot merge indices ${e1.i} and ${e2.i}`);
-        }
         e1.exp = mergeExp(e1.exp, e2.exp);
+        e1.i = mergeExp(e1.i, e2.i);
         return e1;
     }
     else {

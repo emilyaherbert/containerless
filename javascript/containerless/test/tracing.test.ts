@@ -1,6 +1,6 @@
 import {
     while_, break_, label, block, let_, set, number, if_, callback,
-    identifier, string, binop, unknown, undefined_, clos, from, froms
+    identifier, string, binop, unknown, undefined_, clos, from, array, index
 } from '../ts/exp';
 import {
     newTrace
@@ -813,4 +813,23 @@ test('sometimes break', () => {
             ])
         ]))
     ]));
+});
+
+test('arrays_1', () => {
+    let t = newTrace();
+    t.traceLet('arr', array([number(1), number(2)]));
+    t.traceSet(
+        index(identifier('arr'), number(0)),
+        index(identifier('arr'), number(1))
+    );
+    t.exitBlock();
+
+    expect(t.getTrace()).toMatchObject(
+        block([
+            let_('arr', array([number(1), number(2)])),
+            set(
+                index(identifier('arr'), number(0)),
+                index(identifier('arr'), number(1))
+            )
+        ]));
 });

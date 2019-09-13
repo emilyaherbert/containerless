@@ -36,7 +36,7 @@ type ObjExp = { kind: 'object', properties: TEnv };
 type ClosExp = { kind: 'clos', tenv: TEnv };
 
 type ArrayExp = { kind: 'array', exps: Exp[] };
-type IndexExp = { kind: 'index', exp: Exp, i: number };
+type IndexExp = { kind: 'index', exp: Exp, i: Exp };
 
 /**
  * NOTE(arjun): We do not make a distinction between statements and expressions.
@@ -75,7 +75,7 @@ export type Exp
     | IndexExp
     | PrimAppExp;
 
-export type LVal = IdExp | FromExp
+export type LVal = IdExp | FromExp | IndexExp
 
 export const undefined_ : Exp = { kind: 'undefined' };
 
@@ -155,7 +155,7 @@ export function froms(clos: Exp, ids: string[]): FromExp[] {
     return ret;
 }
 
-export function index(exp: Exp, i: number): IndexExp {
+export function index(exp: Exp, i: Exp): IndexExp {
     return { kind: 'index', exp: exp, i: i };
 }
 
