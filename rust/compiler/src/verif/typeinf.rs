@@ -444,12 +444,10 @@ impl Typeinf {
                     *t = Typ::Union(typs2);
                 }
                 typ => {
-                    if t.clone() != typ {
-                        let mut typs = ImHashSet::new();
-                        typs.insert(t.to_owned());
-                        typs.insert(typ);
-                        *t = Typ::Union(typs);
-                    }
+                    let mut typs = ImHashSet::new();
+                    typs.insert(t.to_owned());
+                    typs.insert(typ);
+                    *t = Typ::Union(typs);
                 }
             },
         }
@@ -804,7 +802,7 @@ mod tests {
         typeinf(&mut e).unwrap();
 
         let goal = block(vec![
-            let_("x", Some(t_ref(t_union_2(&[Typ::F64]))), ref_(number(10.0))),
+            let_("x", Some(t_ref(Typ::F64)), ref_(number(10.0))),
             let_(
                 "z",
                 Some(t_ref(t_union_2(&[Typ::F64, Typ::Bool]))),

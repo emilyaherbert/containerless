@@ -246,7 +246,16 @@ impl Typ {
                         }
                     }
                 }
-                return Typ::Union(new_typ_vec);
+                if new_typ_vec.len() == 0 {
+                    panic!("Did not expect to find empty Union type.")
+                } else if new_typ_vec.len() == 1 {
+                    match new_typ_vec.iter().next() {
+                        Some(new_typ) => return new_typ.to_owned(),
+                        None => panic!("Something went wrong.")
+                    }
+                } else {
+                    return Typ::Union(new_typ_vec);
+                }
             }
             t => {
                 return t.clone();
