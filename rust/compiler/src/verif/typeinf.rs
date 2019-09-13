@@ -542,12 +542,6 @@ impl Typeinf {
         return new_constraints;
     }
 
-/*
-
-    The algorithm expects the contents of an array to be refs
-
-*/
-
     fn solve(constraints: Vec<Constraint>) -> Subst {
         let mut constraints = constraints;
         let mut subst: HashMap<usize, Typ> = HashMap::new();

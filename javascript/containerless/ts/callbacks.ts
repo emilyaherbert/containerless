@@ -129,14 +129,11 @@ export class Callbacks {
         return (req: Request, resp: express.Response) => {
             this.withTrace(innerTrace, () => {
 
-                // NOTE(emily): I don't think we need this now that we are lifting closures to be an argument to callbacks.
-                //innerTrace.traceLet('response_callback', clos({ }));
                 function responseCallback(response: any) {
                     // #3 <-
                     let [_, $response] = innerTrace.traceFunctionBody('\'ret');
                     innerTrace.traceLet('response', $response);
 
-                    // NOTE(emily): Some of this info may be irrelevant.
                     innerTrace.tracePrimApp('send', [identifier('response')]);
                     resp.send(response);
 
