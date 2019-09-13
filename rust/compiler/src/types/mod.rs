@@ -138,6 +138,7 @@ impl Typ {
             Typ::Undefined => false,
             Typ::Object(ts) => ts.iter().fold(false, |b, (_, t)| b || t.has_vars()),
             Typ::ResponseCallback => false,
+            Typ::Array(t) => t.has_vars(),
             _ => unimplemented!(),
         }
     }
@@ -697,6 +698,13 @@ pub mod constructors {
             hm.insert(k.to_string(), v.to_owned());
         }
         return Object { properties: hm };
+    }
+
+    pub fn lval_index(exp: Exp, i: Exp) -> LVal {
+        return LVal::Index {
+            exp: Box::new(exp),
+            i: Box::new(i)
+        };
     }
 
 }

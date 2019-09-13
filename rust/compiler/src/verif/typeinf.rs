@@ -1,4 +1,4 @@
-use crate::types::{constructors::*, Arg, Exp, Op2, Typ};
+use crate::types::{constructors::*, Arg, Exp, Op2, Typ, LVal};
 
 use std::collections::HashMap;
 
@@ -6,6 +6,9 @@ use im_rc::{HashMap as ImHashMap, HashSet as ImHashSet};
 
 type TypEnv = ImHashMap<String, Typ>;
 type Subst = std::collections::HashMap<usize, Typ>;
+
+// TODO(emily): Huge TODO, implement thing where `let x = 0; x = { y:0 }; x.y;`
+// This can happen with FromMem and IndexMem.
 
 #[derive(Debug)]
 enum Constraint {
@@ -17,6 +20,10 @@ enum Constraint {
      * In `FromMem(t1, foo, Typ::Metavar(x))` Typ::Metavar(x) is an alias to t1.foo.
      */
     FromMem(Typ, String, Typ),
+    /**
+     * In `IndexMem(t1, Typ::Metavar(x))`, where `t1` is some `Typ::Array(t2)`, Typ::Metavar(x) is an alias to t2.
+     */
+    IndexMem(Typ, Typ),
     Eq(Typ, Typ),
 }
 
@@ -60,6 +67,16 @@ impl Typeinf {
         return Typ::Unionvar(x);
     }
 
+    fn lval(&mut self, env: &TypEnv, lval: &mut LVal) -> Result<Typ, Error> {
+        match lval {
+            LVal::Index { exp, i } => {
+                let mut exp = index(*exp.to_owned(), *i.to_owned());
+                return self.exp(env, &mut exp);
+            },
+            _ => unimplemented!()
+        }
+    }
+
     fn exp_list(&mut self, env: &TypEnv, exps: &mut [Exp]) -> Result<Typ, Error> {
         let mut env = env.clone();
         let mut last_typ = Typ::Undefined;
@@ -92,7 +109,6 @@ impl Typeinf {
             Exp::Stringg { value: _ } => Ok(Typ::String),
             Exp::Ref { e } => {
                 let t = self.exp(env, e)?;
-                //return Ok(t_ref(t));
                 let u = self.fresh_unionvar();
                 self.constraints.push(Constraint::UnionMem(t, u.clone()));
                 let x = self.fresh_metavar();
@@ -112,12 +128,23 @@ impl Typeinf {
                 Typ::Metavar(x) => {
                     let t2 = self.exp(env, e2)?;
                     let y = self.fresh_metavar();
-                    self.constraints
-                        .push(Constraint::Eq(Typ::Metavar(x), t_ref(y.clone())));
+                    self.constraints.push(Constraint::Eq(Typ::Metavar(x), t_ref(y.clone())));
                     self.constraints.push(Constraint::UnionMem(t2, y.clone()));
                     return Ok(Typ::Undefined);
                 }
                 _ => panic!("Expected metavar here."),
+            },
+            Exp::Set { name, named } => {
+                match self.lval(env, name)? {
+                    Typ::Metavar(x) => {
+                        let t2 = self.exp(env, named)?;
+                        let y = self.fresh_metavar();
+                        self.constraints.push(Constraint::Eq(Typ::Metavar(x), y.clone()));
+                        self.constraints.push(Constraint::UnionMem(t2, y.clone()));
+                        return Ok(Typ::Undefined);
+                    }
+                    _ => panic!("Expected metavar here.")
+                }
             },
             // This should never occur. If it does, we should think about why.
             Exp::Let {
@@ -171,8 +198,7 @@ impl Typeinf {
             Exp::From { exp, field } => {
                 let t = self.exp(env, exp)?;
                 let x = self.fresh_metavar();
-                self.constraints
-                    .push(Constraint::FromMem(t, field.to_string(), x.clone()));
+                self.constraints.push(Constraint::FromMem(t, field.to_string(), x.clone()));
                 return Ok(x);
             }
             Exp::Callback {
@@ -227,23 +253,34 @@ impl Typeinf {
                 if exps.len() == 0 {
                     return Ok(t_array(Typ::Undefined));
                 } else {
-                    let x = self.fresh_metavar();
+                    let u = self.fresh_unionvar();
                     exps.iter_mut().for_each(|e| {
                         let t = self.exp(env, e).unwrap();
-                        self.constraints.push(Constraint::Eq(t, x.clone()));
+                        self.constraints.push(Constraint::UnionMem(t, u.clone()));
                     });
-                    return Ok(t_array(x));
+                    let x = self.fresh_metavar();
+                    self.constraints.push(Constraint::Eq(t_array(u), x.clone()));
+                    return Ok(x);
                 }
             }
             Exp::Index { e1, e2 } => {
                 let t = self.exp(env, e1)?;
-                // TODO(emily): Check if I32?
                 self.exp(env, e2)?;
                 let x = self.fresh_metavar();
-                self.constraints.push(Constraint::Eq(t_array(x.clone()), t));
+                self.constraints.push(Constraint::IndexMem(t, x.clone()));
                 return Ok(x);
             }
             _ => panic!(format!("{:?}", exp)),
+        }
+    }
+
+    fn subst_vars_lval(subst: &Subst, lval: &mut LVal) {
+        match lval {
+            LVal::Index { exp, i } => {
+                Typeinf::subst_vars(subst, exp);
+                Typeinf::subst_vars(subst, i);
+            },
+            _ => unimplemented!()
         }
     }
 
@@ -260,6 +297,10 @@ impl Typeinf {
             Exp::SetRef { e1, e2 } => {
                 Typeinf::subst_vars(subst, e1);
                 Typeinf::subst_vars(subst, e2);
+            },
+            Exp::Set { name, named } => {
+                Typeinf::subst_vars_lval(subst, name);
+                Typeinf::subst_vars(subst, named);
             }
             Exp::Let {
                 name: _,
@@ -470,18 +511,48 @@ impl Typeinf {
 
                 new_constraints.append(&mut Typeinf::solve_constraint(
                     &Constraint::Eq(orig.clone(), rhs.clone()),
-                    subst,
+                    subst
                 ));
                 //new_constraints.push(Constraint::UnionMem(rhs.clone(), orig.clone()));
+            },
+            Constraint::IndexMem(t1, t2) => {
+                let mut lhs = t1.clone();
+                lhs.apply_subst(&subst);
+                let rhs = t2.clone();
+
+                let elem_typ = match lhs {
+                    Typ::Metavar(_) => {
+                        new_constraints.push(Constraint::IndexMem(lhs, rhs));
+                        return new_constraints;
+                    },
+                    Typ::Unionvar(u) => match subst.get(&u.clone()) {
+                        Some(Typ::Array(elem_typ)) => *elem_typ.clone(),
+                        _ => unimplemented!()
+                    },
+                    _ => unimplemented!()
+                };
+
+                new_constraints.append(&mut Typeinf::solve_constraint(
+                    &Constraint::Eq(elem_typ.clone(), rhs.clone()),
+                    subst
+                ));
             }
         }
 
         return new_constraints;
     }
 
+/*
+
+    The algorithm expects the contents of an array to be refs
+
+*/
+
     fn solve(constraints: Vec<Constraint>) -> Subst {
         let mut constraints = constraints;
         let mut subst: HashMap<usize, Typ> = HashMap::new();
+
+        println!("{:?}", constraints);
 
         loop {
             let mut new_constraints: Vec<Constraint> = vec![];
@@ -841,9 +912,12 @@ mod tests {
             let_(
                 "arr",
                 None,
-                array(vec![ref_(number(9.0)), ref_(number(10.0))]),
+                ref_(array(vec![
+                    number(9.0),
+                    number(10.0)
+                ])),
             ),
-            setref(index(id("arr"), integer(0)), bool_(false)),
+            set(lval_index(deref(id("arr")), integer(0)), bool_(false)),
         ]);
 
         typeinf(&mut e).unwrap();
@@ -851,25 +925,46 @@ mod tests {
         let goal = block(vec![
             let_(
                 "arr",
-                Some(t_array(t_ref(t_union_2(&vec![Typ::F64, Typ::Bool])))),
-                array(vec![ref_(number(9.0)), ref_(number(10.0))]),
+                Some(t_ref(t_array(t_union_2(&vec![
+                    Typ::F64,
+                    Typ::Bool
+                ])))),
+                ref_(array(vec![
+                    number(9.0),
+                    number(10.0)
+                ])),
             ),
-            setref(index(id("arr"), integer(0)), bool_(false)),
+            set(lval_index(deref(id("arr")), integer(0)), bool_(false)),
         ]);
 
         assert_eq!(e, goal);
     }
 
     #[test]
-    #[should_panic]
     fn arrays_2() {
         let mut e = block(vec![let_(
             "arr",
             None,
-            array(vec![ref_(number(9.0)), ref_(bool_(false))]),
+            ref_(array(vec![
+                number(9.0),
+                bool_(false)
+            ])),
         )]);
 
         typeinf(&mut e).unwrap();
+
+        let goal = block(vec![
+            let_(
+                "arr",
+                Some(t_ref(t_array(t_union_2(&vec![Typ::F64, Typ::Bool])))),
+                ref_(array(vec![
+                    number(9.0),
+                    bool_(false)
+                ])),
+            )
+        ]);
+
+        assert_eq!(e, goal);
     }
 }
 

@@ -76,8 +76,8 @@ impl Transformer {
                 name: LVal::Index { exp, i },
                 named,
             } => {
-                return setref(
-                    index(self.transform_exp(exp), self.transform_exp(i)),
+                return set(
+                    lval_index(self.transform_exp(exp), self.transform_exp(i)),
                     self.transform_exp(named),
                 );
             }
