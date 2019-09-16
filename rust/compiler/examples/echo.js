@@ -1,4 +1,5 @@
 let containerless = require("../../javascript/containerless");
 containerless.listen(function(req, resp) {
-    resp('Hello, world!');
+    //console.error('Got a response');
+    resp(req);
 });
