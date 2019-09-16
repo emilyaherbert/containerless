@@ -9,6 +9,7 @@ edition = "2018"
 
 [dependencies]
 hyper = "*"
+hyper-tls = "*"
 futures = "*"
 bumpalo = "*"
 tokio = "*"

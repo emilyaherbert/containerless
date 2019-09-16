@@ -5,6 +5,7 @@ use std::io::{self, Write};
 
 use hyper::{Client, Uri};
 use hyper::rt::{self, Future, Stream};
+use hyper_tls::HttpsConnector;
 use tokio::runtime::Runtime;
 
 pub struct ExecutionContext {
@@ -17,6 +18,7 @@ pub struct ExecutionContext {
 // https://docs.rs/hyper/0.12.35/hyper/client/index.html
 // https://github.com/hyperium/hyper/blob/0.12.x/examples/client.rs
 // https://github.com/tokio-rs/tokio/issues/1412#issuecomment-519667025
+// https://hyper.rs/guides/client/basic/
 
 impl ExecutionContext {
     pub fn loopback<'a>(
@@ -29,40 +31,16 @@ impl ExecutionContext {
     {
         if event_name == "listen" {
 
-            println!("something is happening at least!");
-
-            let mut rt = Runtime::new().unwrap();
-            let client = Client::new();
-
-            /*
-            let fut = client.get(Uri::from_static("http://httpbin.org/ip"))
-                .and_then(|res| {
-                    println!("status: {}", res.status());
-                    res.into_body().concat2()
-                })
-                .and_then(|body| {
-                    let s = ::std::str::from_utf8(&body)
-                        .expect("httpbin sends utf-8 JSON");
-
-                    println!("body: {}", s);
-                    Ok(())
-                })
-                .map_err(|err| {
-                    println!("error: {}", err);
-                });
-            rt::run(fut);
-            */
-
             let mut rt = Runtime::new().unwrap();
             rt.block_on(
-                fetch_url(Uri::from_static("http://httpbin.org/ip"))
+                fetch_url_https(Uri::from_static("https://emilyaherbert.github.io/success.txt"))
                     .and_then(|res| {
                         println!("{:?}", res);
                         println!("Something else after the first thing!");
                         Ok(())
                     })
             ).unwrap();
-            rt.shutdown_now().wait().expect("could not shutdown Tokio");
+            rt.shutdown_now().wait().expect("Could not shutdown Tokio");
 
             self.events.push((event_name.to_string(), loopback_id));
             Dyn::int(0)
@@ -85,31 +63,41 @@ impl ExecutionContext {
 }
 
 // https://github.com/hyperium/hyper/blob/0.12.x/examples/client.rs
-fn fetch_url(url: hyper::Uri) -> impl Future<Item=(), Error=()> {
+fn fetch_url_http(url: hyper::Uri) -> impl Future<Item=(), Error=()> {
     let client = Client::new();
 
     client
-        // Fetch the url...
         .get(url)
-        // And then, if we get a response back...
         .and_then(|res| {
-            println!("Response: {}", res.status());
-            println!("Headers: {:#?}", res.headers());
-
-            // The body is a stream, and for_each returns a new Future
-            // when the stream is finished, and calls the closure on
-            // each chunk of the body...
+            //println!("Response: {}", res.status());
+            //println!("Headers: {:#?}", res.headers());
             res.into_body().for_each(|chunk| {
                 io::stdout().write_all(&chunk)
                     .map_err(|e| panic!("example expects stdout is open, error={}", e))
             })
         })
-        // If all good, just tell the user...
-        .map(|_| {
-            println!("\n\nDone.");
-        })
-        // If there was an error, let the user know...
         .map_err(|err| {
-            eprintln!("Error {}", err);
+            println!("Error {}", err);
+        })
+}
+
+// https://hyper.rs/guides/client/configuration/
+fn fetch_url_https(url: hyper::Uri) -> impl Future<Item=(), Error=()> {
+    let https = HttpsConnector::new(4).expect("TLS initialization failed");
+    let client = Client::builder()
+        .build::<_, hyper::Body>(https);
+
+    client
+        .get(url)
+        .and_then(|res| {
+            //println!("Response: {}", res.status());
+            //println!("Headers: {:#?}", res.headers());
+            res.into_body().for_each(|chunk| {
+                io::stdout().write_all(&chunk)
+                    .map_err(|e| panic!("example expects stdout is open, error={}", e))
+            })
+        })
+        .map_err(|err| {
+            println!("Error {}", err);
         })
 }
