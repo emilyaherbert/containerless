@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate duct;
 
+use libloading::{Library, Symbol};
 use clap::{App, Arg, SubCommand};
 
 mod codegen;
@@ -8,6 +9,7 @@ mod gen;
 mod trace_js;
 mod types;
 mod verif;
+mod runtime;
 
 fn main() {
     let matches = App::new("decontainerization")
@@ -80,8 +82,9 @@ fn main() {
         codegen::codegen(&exp, &output);
     }
     else if let Some(m) = matches.subcommand_matches("test-compiled-trace") {
-        use libloading::{Library, Symbol};
-        let lib = Library::new("../containerless-scaffold/target/debug/libcontainerless_scaffold.dylib")
+        let file = m.value_of("file").unwrap();
+        let input = m.value_of("input").unwrap();
+        let lib = Library::new(file)
             .expect("failed to load DLL");
 
         let func: Symbol<fn() -> ()> = unsafe {

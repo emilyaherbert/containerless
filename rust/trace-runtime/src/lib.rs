@@ -1,3 +1,5 @@
+use bumpalo::Bump;
+
 pub mod error;
 pub mod execution_context;
 pub mod type_dynamic;
@@ -9,35 +11,56 @@ pub use type_dynamic::*;
 
 pub type ContainerlessFunc<'a> = fn(
     ec: &mut ExecutionContext,
-    arena: &'a bumpalo::Bump,
-    arg_cbid: DynResult<'a>,
-    arg_cbargs: DynResult<'a>,
+    arg_cbid: Dyn<'a>,
+    arg_cbargs: Dyn<'a>,
 ) -> DynResult<'a>;
+
+pub struct Decontainerized<'a> {
+    arena: Bump,
+    ec: ExecutionContext,
+    f: for <'b> ContainerlessFunc<'b>
+}
 
 pub fn unknown<T>() -> Result<T, Error> {
     Err(Error::Unknown)
 }
 
-use bumpalo::Bump;
+impl<'a> Decontainerized<'a> {
 
-pub fn init<'a>(arena: &'a Bump, f: ContainerlessFunc<'a>) -> DynResult<'a> {
-
-    let mut ec = ExecutionContext::new();
-    let mut loopback_id = 0;
-    loop {
-        f(&mut ec,
-            &arena,
-            Dyn::int(loopback_id),
-            Dyn::int(0)).expect("function failed");
-        if let Some((event_name, new_loopback_id)) = ec.events.pop() {
-            loopback_id = new_loopback_id;
-            println!("Processing event {} with id {}", event_name, new_loopback_id);
-        }
-        else {
-            return Dyn::int(0);
+    pub fn poll(&mut self) -> () {
+        let mut loopback_id = 0;
+        let cbargs = Dyn::vec(&self.arena);
+        // Dummy value for the "global closure". It does not matter what this is.
+        cbargs.push(Dyn::int(0));
+        // The actual argument
+        cbargs.push(Dyn::int(1));
+        // TODO(arjun): This is the response_callback. I have a feeling this is
+        // junk
+        cbargs.push(Dyn::int(2));
+        loop {
+            let fun = self.f;
+            fun(&mut self.ec,
+                Dyn::int(loopback_id),
+                cbargs).expect("function failed");
+            if let Some((event_name, new_loopback_id)) = self.ec.events.pop() {
+                loopback_id = new_loopback_id;
+                println!("Processing event {} with id {}", event_name, new_loopback_id);
+            }
+            else {
+                return;
+            }
         }
     }
+
+    pub fn new(f: ContainerlessFunc<'a>) -> Decontainerized<'a> {
+        return Decontainerized {
+            arena: Bump::new(),
+            ec: ExecutionContext::new(),
+            f: f
+        };
+    }
 }
+
 
 #[cfg(test)]
 mod tests {
