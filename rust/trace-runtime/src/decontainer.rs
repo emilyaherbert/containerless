@@ -2,20 +2,13 @@ use bumpalo::Bump;
 use futures::{future, Async, Future, Poll};
 use std::{pin::Pin};
 use crate::execution_context::*;
-use super::type_dynamic::Dyn;
-
-/// An empty type. We need to define our own until the `!` type is
-/// stabilized. See the [RFC 1216] for more information.
-///
-/// [RFC 1216]: https://github.com/rust-lang/rfcs/blob/master/text/1216-bang-type.md
-pub enum Never {}
+use super::type_dynamic::{Dyn, DynResult};
 
 // This structure owns an arena and has an unsafe implementation of `Send`.
 // In general, it is not safe to send `Bump` across threads without a mutex.
 // However, the `poll` method in `Decontainer` ensures that only one thread
 // accesses `bump` at a time, which is why this is safe.
 unsafe impl Send for DecontainerImpl { }
-
 
 // TODO(arjun): Does this need to have a `PhantomPin` field?
 struct DecontainerImpl {
@@ -30,9 +23,8 @@ pub struct Decontainer {
     pinned: Pin<Box<DecontainerImpl>>
 }
 
-type CB = Box<dyn for <'a, 'b> Fn(&'a Bump, &'b mut ExecutionContext<'a>, Dyn<'a>) -> ()>;
+type CB = Box<dyn for <'a, 'b> Fn(&'a Bump, &'b mut ExecutionContext<'a>, Dyn<'a>) -> DynResult<'a>>;
 
-#[allow(unused)]
 impl Decontainer {
     pub fn new(f: CB) -> Decontainer {
         let arena = Bump::new();
@@ -62,22 +54,22 @@ unsafe fn extend_lifetime<'a>(v: Dyn<'a>) -> Dyn<'static> {
     std::mem::transmute(v)
 }
 
-#[allow(unused)]
 impl Future for Decontainer {
     type Item = ();
     type Error = ();
 
     fn poll<'a>(&'a mut self) -> Poll<Self::Item, Self::Error> {
         // Boilerplate to address pinning
-        
-        let mut_ref: std::pin::Pin<&'a mut DecontainerImpl>   = unsafe { Pin::as_mut(&mut self.pinned) };
-        // pub unsafe fn get_unchecked_mut(self: Pin<&'a mut T>) -> &'a mut T
-
-        let self_: &'a mut DecontainerImpl = unsafe { Pin::get_unchecked_mut(mut_ref) };
+        let mut_ref: std::pin::Pin<&'a mut DecontainerImpl> =
+            Pin::as_mut(&mut self.pinned);
+        let self_: &'a mut DecontainerImpl = unsafe {
+            Pin::get_unchecked_mut(mut_ref)
+        };
 
         assert!(self_.ec.new_ops.len() == 0);
-        // let mut ec = &mut self_.ec;
-        let mut ec: &'a mut ExecutionContext<'a> = unsafe { shorten_invariant_lifetime(&mut self_.ec) };
+        let mut ec: &'a mut ExecutionContext<'a> = unsafe {
+            shorten_invariant_lifetime(&mut self_.ec)
+        };
         loop {
             // Nothing left to do, so we are ready. Note that
             // Decontainer::new() adds a single future to machine_state, so
@@ -100,8 +92,7 @@ impl Future for Decontainer {
                         *completed = true;
                         any_completed = true;
                         let f = &self_.func;
-                        
-                        f(&self_.arena, &mut ec, unsafe { shorten_invariant_lifetime2(*clos) });
+                        f(&self_.arena, &mut ec, unsafe { shorten_invariant_lifetime2(*clos) }).unwrap();
                     }
                 }
             }
@@ -115,6 +106,12 @@ impl Future for Decontainer {
             // Create a future for each new operation.
             for (op, indicator, clos) in ec.new_ops.iter() {
                 match op {
+                    AsyncOp::Listen => {
+                        // TODO(arjun): Bogus implementation
+                        self_
+                            .machine_state
+                            .push((false, unsafe { extend_lifetime(*clos) }, Box::new(future::ok(*indicator))))
+                    },
                     AsyncOp::Immediate => {
                         self_
                             .machine_state

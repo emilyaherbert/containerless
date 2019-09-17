@@ -1,4 +1,4 @@
-use super::error::Error;
+use super::error::{Error, type_error};
 use bumpalo::{collections::{Vec, String}, Bump};
 use std::cell::{Cell, RefCell};
 use std::convert::{From, TryFrom};
@@ -21,30 +21,30 @@ pub enum Dyn<'a> {
 pub type DynResult<'a> = Result<Dyn<'a>, Error>;
 
 impl<'a> Dyn<'a> {
-    pub fn undef() -> DynResult<'a> {
-        Ok(Dyn::Undefined)
+    pub fn undef() -> Dyn<'a> {
+        Dyn::Undefined
     }
 
     /** Wraps an integer in type `Dyn`. */
-    pub fn int(n: i32) -> DynResult<'a> {
-        Ok(Dyn::Int(n))
+    pub fn int(n: i32) -> Dyn<'a> {
+        Dyn::Int(n)
     }
 
-    pub fn str(arena: &'a Bump, s: &str) -> DynResult<'a> {
-        Ok(Dyn::Str(arena.alloc(String::from_str_in(s, arena))))
+    pub fn str(arena: &'a Bump, s: &str) -> Dyn<'a> {
+        Dyn::Str(arena.alloc(String::from_str_in(s, arena)))
     }
 
     /** Wraps a floating-point number in type `Dyn`. */
-    pub fn float(x: f64) -> DynResult<'a> {
-        Ok(Dyn::Float(x))
+    pub fn float(x: f64) -> Dyn<'a> {
+        Dyn::Float(x)
     }
 
-    pub fn ref_(arena: &'a Bump, value: Dyn<'a>) -> DynResult<'a> {
-        Ok(Dyn::Ref(arena.alloc(Cell::new(value))))
+    pub fn ref_(arena: &'a Bump, value: Dyn<'a>) -> Dyn<'a> {
+        Dyn::Ref(arena.alloc(Cell::new(value)))
     }
 
-    pub fn object(arena: &'a Bump, _fields: std::vec::Vec<(&'a str, Dyn<'a>)>) -> DynResult<'a> {
-        Ok(Dyn::Object(arena.alloc(RefCell::new(Vec::new_in(arena)))))
+    pub fn object(arena: &'a Bump, _fields: std::vec::Vec<(&'a str, Dyn<'a>)>) -> Dyn<'a> {
+        Dyn::Object(arena.alloc(RefCell::new(Vec::new_in(arena))))
     }
 
     pub fn add(&self, other: Dyn<'a>) -> DynResult<'a> {
@@ -53,7 +53,7 @@ impl<'a> Dyn<'a> {
             (Dyn::Float(x), Dyn::Int(n)) => Ok(Dyn::Float(x + f64::from(n))),
             (Dyn::Int(n), Dyn::Float(x)) => Ok(Dyn::Float(f64::from(n) + x)),
             (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Float(x + y)),
-            _ => Err(Error::TypeError),
+            _ => type_error("add")
         }
     }
 
@@ -73,8 +73,8 @@ impl<'a> Dyn<'a> {
     }
 
     /** Array indexing. */
-    pub fn index(&self, index: DynResult<'a>) -> DynResult<'a> {
-        match (self, index?) {
+    pub fn index(&self, index: Dyn<'a>) -> DynResult<'a> {
+        match (self, index) {
             (Dyn::Vec(vec_cell), Dyn::Int(index)) => match usize::try_from(index) {
                 Err(_) => Ok(Dyn::Undefined),
                 Ok(index) => {
@@ -85,7 +85,7 @@ impl<'a> Dyn<'a> {
                     return Ok(vec[index]);
                 }
             },
-            _ => Err(Error::TypeError),
+            _ => type_error("array indexing")
         }
     }
 
@@ -95,16 +95,16 @@ impl<'a> Dyn<'a> {
     }
 
     /** push an element into a vector. */
-    pub fn push(&'a self, value: Dyn<'a>) {
+    pub fn push(self, value: Dyn<'a>) {
         match self {
             Dyn::Vec(vec_cell) => vec_cell.borrow_mut().push(value),
             _ => panic!(""),
         }
     }
 
-    pub fn deref(self) -> DynResult<'a> {
+    pub fn deref(self) -> Dyn<'a> {
         match self {
-            Dyn::Ref(cell) => Ok(cell.get()),
+            Dyn::Ref(cell) => cell.get(),
             // This should never occur, since we insert refs and derefs in the
             // right places.
             _ => panic!("invoked deref on {:?}", self),
