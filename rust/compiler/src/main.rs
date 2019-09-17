@@ -9,7 +9,7 @@ mod gen;
 mod trace_js;
 mod types;
 mod verif;
-mod runtime;
+mod decontainer;
 
 fn main() {
     let matches = App::new("decontainerization")
@@ -87,11 +87,25 @@ fn main() {
         let lib = Library::new(file)
             .expect("failed to load DLL");
 
-        let func: Symbol<fn() -> ()> = unsafe {
-            lib.get(b"containerless")
-                .expect("did not find containerless function")
+        use tokio::runtime::Runtime;
+        use futures::{
+            future::{lazy, ok},
+            sync::oneshot,
+            Future,
         };
-        func();
+        let mut rt = Runtime::new().unwrap();
+        let (tx, rx) = oneshot::channel();
+        rt.spawn(lazy(move || {
+            let func: Symbol<fn () -> trace_runtime::Decontainer> = unsafe {
+                lib.get(b"make_containerless")
+                    .expect("did not find containerless function")
+            };
+            let task = func();
+
+            return task.then(|_r| tx.send(()));
+        }));
+        rx.wait().unwrap();
+        rt.shutdown_now().wait().expect("could not shutdown Tokio");
     }
     else {
         println!("Missing sub-command. Run --help for help.");

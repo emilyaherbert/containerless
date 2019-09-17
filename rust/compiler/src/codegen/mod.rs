@@ -199,10 +199,11 @@ pub fn codegen(e: &Exp, dest_file: &str) {
 
         #[no_mangle]
         pub extern "C" fn containerless<'a>(
-            ec: &mut ExecutionContext,
             arena: &'a bumpalo::Bump,
+            ec: &mut ExecutionContext<'a>,
             arg_cbid: Dyn<'a>,
-            arg_cbargs: Dyn<'a>) -> DynResult<'a> {
+            arg_cbargs: Dyn<'a>,
+        ) -> DynResult<'a> {
             Ok(#q_e)
         }
     };

@@ -23,7 +23,7 @@ pub struct Decontainer {
     pinned: Pin<Box<DecontainerImpl>>
 }
 
-type CB = Box<dyn for <'a, 'b> Fn(&'a Bump, &'b mut ExecutionContext<'a>, Dyn<'a>) -> DynResult<'a>>;
+type CB = Box<dyn for <'a, 'b> Fn(&'a Bump, &'b mut ExecutionContext<'a>, Dyn<'a>, Dyn<'a>) -> DynResult<'a>>;
 
 impl Decontainer {
     pub fn new(f: CB) -> Decontainer {
@@ -73,7 +73,7 @@ impl Future for Decontainer {
         loop {
             // Nothing left to do, so we are ready. Note that
             // Decontainer::new() adds a single future to machine_state, so
-            // this is not empty initially.
+            // this is not empty initialarg_cbidly.
             if self_.machine_state.len() == 0 {
                 return Result::Ok(Async::Ready(()));
             }
@@ -92,7 +92,7 @@ impl Future for Decontainer {
                         *completed = true;
                         any_completed = true;
                         let f = &self_.func;
-                        f(&self_.arena, &mut ec, unsafe { shorten_invariant_lifetime2(*clos) }).unwrap();
+                        f(&self_.arena, &mut ec, Dyn::Int(0), unsafe { shorten_invariant_lifetime2(*clos) }).unwrap();
                     }
                 }
             }
