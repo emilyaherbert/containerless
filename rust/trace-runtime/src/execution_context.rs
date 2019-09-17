@@ -24,19 +24,22 @@ impl ExecutionContext {
     pub fn loopback<'a>(
         &mut self,
         event_name: &'static str,
-        _event_arg: DynResult<'a>,
+        event_arg: DynResult<'a>,
         _event_clos: DynResult<'a>,
         loopback_id: i32,
     ) -> DynResult<'a>
     {
         if event_name == "listen" {
 
+            self.events.push((event_name.to_string(), loopback_id));
+            Dyn::int(0)
+
+        } else if event_name == "get" {
             let mut rt = Runtime::new().unwrap();
             rt.block_on(
-                fetch_url_https(Uri::from_static("https://emilyaherbert.github.io/success.txt"))
+                fetch_url_https(Uri::from_static("https://emilyaherbert.github.io/authorize.txt"))
                     .and_then(|res| {
                         println!("{:?}", res);
-                        println!("Something else after the first thing!");
                         Ok(())
                     })
             ).unwrap();
@@ -44,7 +47,6 @@ impl ExecutionContext {
 
             self.events.push((event_name.to_string(), loopback_id));
             Dyn::int(0)
-
         }
         else {
             Dyn::int(0)

@@ -333,6 +333,11 @@ function reifyExpression(e: b.Expression, st: State): [b.Expression, State] {
             });
             return [array(elems2), st2];
         }
+        case 'LogicalExpression': {
+            const [left, st1] = reifyExpression(e.left, st);
+            const [right, st2] = reifyExpression(e.right, st);
+            return [binop(e.operator, left, right), merge(st1, st2)];
+        }
         default: {
             throw new Error('TODO: ' + e.type);
         }
