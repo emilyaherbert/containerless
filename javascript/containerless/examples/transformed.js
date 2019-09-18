@@ -18,8 +18,8 @@ function fun000(req, resp) {
     function fun100(response) {
       let [clos, $response] = cb.trace.traceFunctionBody("'ret");
       cb.trace.traceLet("response", $response);
-      cb.trace.traceFunctionCall("app200", [exp.identifier("resp"), exp.string("Someone tried to log in.")]);
-      var app200 = resp("Someone tried to log in.");
+      cb.trace.traceFunctionCall("app200", [exp.from(exp.identifier("containerless00"), "respond"), exp.string("Someone tried to log in.")]);
+      var app200 = containerless00.respond("Someone tried to log in.");
       cb.trace.exitBlock();
       cb.trace.exitBlock();
     }
@@ -29,8 +29,8 @@ function fun000(req, resp) {
     cb.trace.exitBlock();
   } else {
     cb.trace.traceIfFalse($test);
-    cb.trace.traceFunctionCall("app300", [exp.identifier("resp"), exp.identifier("req")]);
-    var app300 = resp(req);
+    cb.trace.traceFunctionCall("app300", [exp.from(exp.identifier("containerless00"), "respond"), exp.identifier("req")]);
+    var app300 = containerless00.respond(req);
     cb.trace.exitBlock();
   }
 
@@ -39,18 +39,6 @@ function fun000(req, resp) {
 }
 
 cb.trace.traceFunctionCall("app000", [exp.from(exp.identifier("containerless00"), "listen"), exp.identifier("fun000")]);
-
-/*
-
-This does not work because the args are pushed onto the args stack of the innerTrace of .get,
-but when they are used, the active trace is switched to the innerTrace of .listen, which has an empty stack.
-
-Can we confidently copy the args stack around?
-
-"args stack" is actually the traceStack. Will need to implement args buffer!
-Actually, args buffer makes sense here...
-
-*/
 var app000 = containerless00.listen(fun000);
 cb.trace.exitBlock();
 cb.trace.exitBlock();

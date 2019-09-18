@@ -16,10 +16,12 @@ export type ResponseCallback = (response: string) => void;
 export class Callbacks {
 
     private app: express.Express | undefined;
+    private response: express.Response | undefined;
     public trace: Trace;
 
     constructor() {
         this.app = undefined;
+        this.response = undefined;
         this.trace = newTrace();
     }
 
@@ -119,20 +121,11 @@ export class Callbacks {
         }
     }
 
-    public tracedListenCallback(
-        callback: (request: Request, responseCallback: ResponseCallback) => void) {
+    public tracedListenCallback(callback: (request: Request) => void) {
         let [_, $callbackClos] = this.trace.popArgs();
         let innerTrace = this.trace.traceCallback('listen', defaultEventArg, ['clos', 'request', 'response_callback'], $callbackClos);
 
-        let theThis = this;
-
-        return (req: Request, resp: express.Response) => {
-            function responseCallback(response: any) {
-                let [_, $response] = theThis.trace.popArgs();
-                theThis.trace.tracePrimApp('send', [$response]);
-                resp.send(response);
-            }
-
+        return (req: Request) => {
             this.withTrace(innerTrace, () => {
                 innerTrace.pushArgs([identifier('clos'), identifier('request'), identifier('response_callback')]);
                 if (typeof req === 'string') {
@@ -140,17 +133,16 @@ export class Callbacks {
                     // test tracing by sending raw strings as input. We should
                     // instead put in the effort to construct mock request
                     // objects.
-                    callback(req, responseCallback);
+                    callback(req);
                 }
                 else {
-                    callback({ path: req.path }, responseCallback);
+                    callback({ path: req.path });
                 }
             });
         };
     }
 
-    public listen(
-        callback: (request: Request, responseCallback: ResponseCallback) => void) {
+    public listen(callback: (request: Request) => void) {
         let tracedCallback = this.tracedListenCallback(callback);
         this.app = express();
 
@@ -176,7 +168,8 @@ export class Callbacks {
         });
 
         this.app.get('/:path*', (req, resp) => {
-            tracedCallback(req, resp);
+            this.response = resp;
+            tracedCallback(req);
         });
 
         const port = state.getListenPort();
@@ -185,4 +178,14 @@ export class Callbacks {
         console.error(`Serverless function has started listening on port ${port}`);
     }
 
+
+    public respond(response: any) {
+        let [_, $response] = this.trace.popArgs();
+        this.trace.tracePrimApp('send', [$response]);
+        if(this.response !== undefined) {
+            this.response.send(response);
+        } else {
+            throw new Error("No express.Response found.");
+        }
+    }
 }

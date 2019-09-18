@@ -18,8 +18,7 @@ export function get(
 }
 
 export function listen(
-    callback: (request: callbacks.Request,
-               responseCallback: callbacks.ResponseCallback) => void) {
+    callback: (request: callbacks.Request) => void) {
     if (state.getListenPort() !== 'test') {
         return cb.listen(callback);
     }
@@ -34,7 +33,7 @@ export function listen(
             // Skips the blank line at the end of input.
             continue;
         }
-        tracedCallback(line as any, { send: function(resp: any) {  } } as any);
+        tracedCallback(line as any);
     }
     // setImmediate is necessary so that execution reaches the end of the
     // main body of the program. E.g., if the last function call in the program
@@ -44,6 +43,10 @@ export function listen(
     setImmediate(() => {
         console.log(JSON.stringify(cb.trace.getTrace()))
     });
+}
+
+export function respond(response: any) {
+    return cb.respond(response);
 }
 
 

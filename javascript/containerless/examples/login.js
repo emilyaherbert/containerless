@@ -3,7 +3,7 @@ let containerless = require('../dist/index');
 containerless.listen(function(req, resp) {
     if(req.path === '/login') {
         containerless.get("https://emilyaherbert.github.io/authorize.txt", function(response) {
-            resp("Someone tried to log in.");
+            containerless.respond("Someone tried to log in.");
             /*
             if(response.username === 'javascript' && response.password === 'rust') {
                 resp("Login successful!\n");
@@ -13,6 +13,6 @@ containerless.listen(function(req, resp) {
             */
         });
     } else {
-        resp(req);
+        containerless.respond(req);
     }
 });
