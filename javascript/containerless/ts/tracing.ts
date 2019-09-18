@@ -22,7 +22,6 @@
     while_, break_, label, block, let_, set, if_, callback,
     Exp, BlockExp, LVal, primApp, unknown
 } from './exp';
-import { RSA_X931_PADDING } from 'constants';
 
 type Cursor = { body: Exp[], index: number };
 
@@ -31,6 +30,7 @@ export class Trace {
     private cursorStack: Cursor[];
     private cursor: Cursor | undefined;
     private traceStack: Exp[];
+    private argsBuf: Exp | undefined;
 
     constructor(body: Exp[]) {
         let exp = block(body);
@@ -38,6 +38,7 @@ export class Trace {
         this.cursor = { body: exp.body, index: 0 };
         this.cursorStack = [];
         this.traceStack = [];
+        this.argsBuf = undefined;
     }
 
     private getValidCursor(): Cursor {
@@ -93,26 +94,36 @@ export class Trace {
         this.cursor = cursor;
     }
 
-    pushArg(e: Exp) {
-        this.traceStack.push(e);
+    private pushArg(e: Exp) {
+        if(this.argsBuf === undefined) {
+            this.argsBuf = e;
+        } else {
+            throw new Error("Already something in the args buffer.");
+        }
     }
 
-    popArg(): Exp {
-        return this.traceStack.pop()!;
+    private popArg(): Exp {
+        if(this.argsBuf !== undefined) {
+            let e = this.argsBuf;
+            this.argsBuf = undefined;
+            return e;
+        } else {
+            throw new Error("Nothing in the args buffer.");
+        }
     }
 
     pushArgs(exps: Exp[]) {
-        this.traceStack.push({ kind : 'array', exps : exps });
+        this.pushArg({ kind : 'array', exps : exps });
     }
 
     popArgs(): Exp[] {
-        const a = this.traceStack.pop()!;
+        const a = this.popArg();
         if(a.kind !== 'array') {
             throw new Error("Expected array kind.");
         }
         return a.exps;
     }
-
+    
     getTrace(): Exp {
         return this.trace;
     }
@@ -181,6 +192,7 @@ export class Trace {
         }
         else if (exp.kind === 'let') {
             if (exp.name !== name) {
+                this.prettyPrint();
                 throw new Error(`Cannot merge let with name ${name} into let with
                     name ${exp.name}`);
             }

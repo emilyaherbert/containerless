@@ -35,8 +35,6 @@ export class Callbacks {
         trace.newTrace();
         let result = body();
         trace.exitBlock();
-        // If this callback is called again, which occurs with listen,
-        // then we need to reset the cursor to start from the top.
         trace.newTrace();
         this.trace = outerTrace;
         return result;
@@ -126,22 +124,17 @@ export class Callbacks {
         let [_, $callbackClos] = this.trace.popArgs();
         let innerTrace = this.trace.traceCallback('listen', defaultEventArg, ['clos', 'request', 'response_callback'], $callbackClos);
 
+        let theThis = this;
+
         return (req: Request, resp: express.Response) => {
+            function responseCallback(response: any) {
+                let [_, $response] = theThis.trace.popArgs();
+                theThis.trace.tracePrimApp('send', [$response]);
+                resp.send(response);
+            }
+
             this.withTrace(innerTrace, () => {
-
-                function responseCallback(response: any) {
-                    // #3 <-
-                    let [_, $response] = innerTrace.traceFunctionBody('\'ret');
-                    innerTrace.traceLet('response', $response);
-
-                    innerTrace.tracePrimApp('send', [identifier('response')]);
-                    resp.send(response);
-
-                    innerTrace.exitBlock();
-                }
-
                 innerTrace.pushArgs([identifier('clos'), identifier('request'), identifier('response_callback')]);
-                // #2 ->
                 if (typeof req === 'string') {
                     // TODO(arjun): This is a bit of a hack to allow us to
                     // test tracing by sending raw strings as input. We should
@@ -152,24 +145,19 @@ export class Callbacks {
                 else {
                     callback({ path: req.path }, responseCallback);
                 }
-
-                //innerTrace.traceReturn(number(0));
             });
         };
     }
 
     public listen(
         callback: (request: Request, responseCallback: ResponseCallback) => void) {
-        // #1 <-
-
         let tracedCallback = this.tracedListenCallback(callback);
-
         this.app = express();
 
         // There isn't anything inherently wrong with this, but calling listen
         // multiple times makes the application unpredictable.
         if (state.isListening()) {
-            console.error(`Serverless function called listen more than once`);
+            //console.error(`Serverless function called listen more than once`);
             process.exit(1);
         }
         state.setListening();
