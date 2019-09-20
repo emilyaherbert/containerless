@@ -62,8 +62,8 @@ mod tests {
             "try_test.js",
             r#"
             let containerless = require("../../javascript/containerless");
-            containerless.listen(function(req, resp) {
-                resp('Hello, world!');
+            containerless.listen(function(req) {
+                containerless.respond("Hello, world!");
             });
         "#,
             "start
@@ -97,24 +97,9 @@ mod tests {
                             ref_(deref(id("request"))),
                         ),
                         let_(
-                            "resp",
-                            Some(t_ref(Typ::ResponseCallback)),
-                            ref_(deref(id("response_callback"))),
-                        ),
-                        let_(
                             "app100",
                             Some(t_ref(Typ::Undefined)),
-                            ref_(block(vec![label(
-                                "'ret",
-                                vec![
-                                    let_(
-                                        "response",
-                                        Some(t_ref(Typ::String)),
-                                        ref_(string("Hello, world!")),
-                                    ),
-                                    prim_app("send", vec![deref(id("response"))]),
-                                ],
-                            )])),
+                            ref_(block(vec![prim_app("send", vec![string("Hello, world!")])])),
                         ),
                     ],
                 ),
@@ -144,10 +129,10 @@ mod tests {
             r#"
             let containerless = require("../../javascript/containerless");
             let str = 'Got a response!';
-            containerless.listen(function(req, resp) {
+            containerless.listen(function(req) {
                 // console.log(str);
                 console.error(str);
-                resp(req);
+                containerless.respond(req);
             });
         "#,
             "request1
@@ -180,26 +165,11 @@ mod tests {
                             Some(t_ref(t_obj_2(&[("path", t_ref(Typ::String))]))),
                             ref_(deref(id("request"))),
                         ),
-                        let_(
-                            "resp",
-                            Some(t_ref(Typ::ResponseCallback)),
-                            ref_(deref(id("response_callback"))),
-                        ),
                         prim_app("console.log", vec![deref(from(deref(id("clos")), "str00"))]),
                         let_(
                             "app200",
                             Some(t_ref(Typ::Undefined)),
-                            ref_(block(vec![label(
-                                "'ret",
-                                vec![
-                                    let_(
-                                        "response",
-                                        Some(t_ref(t_obj_2(&[("path", t_ref(Typ::String))]))),
-                                        ref_(deref(id("req"))),
-                                    ),
-                                    prim_app("send", vec![deref(id("response"))]),
-                                ],
-                            )])),
+                            ref_(block(vec![prim_app("send", vec![deref(id("req"))])])),
                         ),
                     ],
                 ),
@@ -237,12 +207,12 @@ mod tests {
             "trace_with_unknown.js",
             r#"
             let containerless = require("../../javascript/containerless");
-            containerless.listen(function(req, resp) {
+            containerless.listen(function(req) {
                 if (req === 'hello') {
-                    resp('goodbye');
+                    containerless.respond("goodbye");
                 }
                 else {
-                    resp('bad');
+                    containerless.respond("bad");
                 }
             });
         "#,
@@ -275,27 +245,12 @@ mod tests {
                             Some(t_ref(t_obj_2(&[("path", t_ref(Typ::String))]))),
                             ref_(deref(id("request"))),
                         ),
-                        let_(
-                            "resp",
-                            Some(t_ref(Typ::ResponseCallback)),
-                            ref_(deref(id("response_callback"))),
-                        ),
                         if_(
                             binop(&Op2::StrictEq, deref(id("req")), string("hello")),
                             vec![let_(
                                 "app100",
                                 Some(t_ref(Typ::Undefined)),
-                                ref_(block(vec![label(
-                                    "'ret",
-                                    vec![
-                                        let_(
-                                            "response",
-                                            Some(t_ref(Typ::String)),
-                                            ref_(string("goodbye")),
-                                        ),
-                                        prim_app("send", vec![deref(id("response"))]),
-                                    ],
-                                )])),
+                                ref_(block(vec![prim_app("send", vec![string("goodbye")])])),
                             )],
                             vec![unknown()],
                         ),
@@ -317,7 +272,7 @@ mod tests {
             ])],
         );
 
-        assert!(handle == goal);
+        assert_eq!(handle, goal);
     }
 
     #[test]
@@ -329,11 +284,11 @@ mod tests {
 
             let foo = 'start';
 
-            containerless.listen(function(req, resp) {
+            containerless.listen(function(req) {
                 console.error('Got a response');
                 foo = 42;
                 let bar = foo + 1;
-                resp(req);
+                containerless.respond(req);
 
             });
 
@@ -373,11 +328,6 @@ mod tests {
                             Some(t_ref(t_obj_2(&[("path", t_ref(Typ::String))]))),
                             ref_(deref(id("request"))),
                         ),
-                        let_(
-                            "resp",
-                            Some(t_ref(Typ::ResponseCallback)),
-                            ref_(deref(id("response_callback"))),
-                        ),
                         prim_app("console.log", vec![string("Got a response")]),
                         setref(from(deref(id("clos")), "foo00"), number(42.0)),
                         let_(
@@ -392,17 +342,7 @@ mod tests {
                         let_(
                             "app200",
                             Some(t_ref(Typ::Undefined)),
-                            ref_(block(vec![label(
-                                "'ret",
-                                vec![
-                                    let_(
-                                        "response",
-                                        Some(t_ref(t_obj_2(&[("path", t_ref(Typ::String))]))),
-                                        ref_(deref(id("req"))),
-                                    ),
-                                    prim_app("send", vec![deref(id("response"))]),
-                                ],
-                            )])),
+                            ref_(block(vec![prim_app("send", vec![deref(id("req"))])])),
                         ),
                     ],
                 ),

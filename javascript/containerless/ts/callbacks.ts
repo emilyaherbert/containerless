@@ -184,7 +184,7 @@ export class Callbacks {
         this.trace.tracePrimApp('send', [$response]);
         if(this.response !== undefined) {
             this.response.send(response);
-        } else {
+        } else if(state.getListenPort() !== 'test') {
             throw new Error("No express.Response found.");
         }
     }
