@@ -7,11 +7,9 @@ import { number, identifier } from './exp';
 const defaultEventArg = number(0);
 
 export type Request = {
-    path: string
-};
-
-
-export type ResponseCallback = (response: string) => void;
+    path: string,
+    query: JSON
+}
 
 export class Callbacks {
 
@@ -136,7 +134,7 @@ export class Callbacks {
                     callback(req);
                 }
                 else {
-                    callback({ path: req.path });
+                    callback({ path: req.path, query: req.query });
                 }
             });
         };
@@ -169,7 +167,7 @@ export class Callbacks {
 
         this.app.get('/:path*', (req, resp) => {
             this.response = resp;
-            tracedCallback(req);
+            tracedCallback({ path: req.path, query: req.query });
         });
 
         const port = state.getListenPort();

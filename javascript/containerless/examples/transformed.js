@@ -9,6 +9,9 @@ cb.trace.traceLet("fun000", exp.clos({}));
 function fun000(req) {
   let [clos, $req] = cb.trace.traceFunctionBody("'ret");
   cb.trace.traceLet("req", $req);
+  cb.trace.traceLet("query00", exp.from(exp.identifier("req"), "query"));
+  // TODO(emily): Fix so that you can chain member expressions.
+  var query00 = req.query;
   $test = exp.binop("===", exp.from(exp.identifier("req"), "path"), exp.string("/login"));
 
   if (req.path === '/login') {
@@ -27,9 +30,9 @@ function fun000(req) {
         cb.trace.exitBlock();
       } else {
         cb.trace.traceIfFalse($test);
-        $test = exp.binop("&&", exp.binop("===", exp.from(exp.identifier("resp"), "username"), exp.string("javascript")), exp.binop("===", exp.from(exp.identifier("resp"), "password"), exp.string("rust")));
+        $test = exp.binop("&&", exp.binop("===", exp.from(exp.identifier("resp"), "username"), exp.from(exp.identifier("query00"), "username")), exp.binop("===", exp.from(exp.identifier("resp"), "password"), exp.from(exp.identifier("query00"), "password")));
 
-        if (resp.username === 'javascript' && resp.password === 'rust') {
+        if (resp.username === query00.username && resp.password === query00.password) {
           cb.trace.traceIfTrue($test);
           cb.trace.traceFunctionCall("app300", [exp.from(exp.identifier("containerless00"), "respond"), exp.string("Login successful!\n")]);
           var app300 = containerless00.respond("Login successful!\n");
