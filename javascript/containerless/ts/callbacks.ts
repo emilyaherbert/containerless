@@ -90,7 +90,7 @@ export class Callbacks {
      */
     get(
         uri: string,
-        callback: (response: undefined | string) => void) {
+        callback: (response: undefined | JSON) => void) {
         // TODO(arjun): string(uri) is not right. This needs to be the expression
         // passed to the function.
         let [_, $argRep, $callbackClos] = this.trace.popArgs();
@@ -100,7 +100,7 @@ export class Callbacks {
         if (state.getListenPort() === 'test') {
             this.withTrace(innerTrace, () => {
                 innerTrace.pushArgs([identifier('clos'), identifier('response')]);
-                callback(String("GENERIC RESPONSE"));
+                callback(JSON.parse(String("{ message: 'GENERIC RESPONSE' }")));
             });
         } else {
 
@@ -112,7 +112,7 @@ export class Callbacks {
                     }
                     else {
                         // TODO(arjun): Test case with nested closures
-                        callback(String(resp.body));
+                        callback(JSON.parse(String(resp.body)));
                     }
 
                     //innerTrace.traceReturn(number(0));

@@ -129,7 +129,11 @@ function array(exps: b.Expression[]): b.CallExpression {
     return b.callExpression(callee, theArgs);
 }
 
-const undefined_: b.Identifier = b.identifier('undefined_');
+const undefined_: b.MemberExpression =
+    b.memberExpression(
+        b.identifier('exp'),
+        b.identifier('undefined_')
+    );
 
 function binop(op: string, e1: b.Expression, e2: b.Expression): b.CallExpression {
     const callee = b.memberExpression(
@@ -154,6 +158,11 @@ function traceLet(lhs: string, rhs: b.Expression): b.ExpressionStatement {
 function jsLet(lhs: b.LVal, rhs: b.Expression): b.VariableDeclaration {
     const variableDeclarator = b.variableDeclarator(lhs, rhs);
     return b.variableDeclaration('let', [variableDeclarator]);
+}
+
+function jsAssignment(lhs: b.LVal, rhs: b.Expression): b.ExpressionStatement {
+    const assignmentExpression = b.assignmentExpression('=', lhs, rhs);
+    return b.expressionStatement(assignmentExpression);
 }
 
 function traceSet(lhs: b.Expression, rhs: b.Expression): b.CallExpression {
@@ -267,7 +276,9 @@ const exitBlock: b.ExpressionStatement =
 function reifyExpression(e: b.Expression, st: State): [b.Expression, State] {
     switch(e.type) {
         case 'Identifier': {
-            if(st.has(e.name)) {
+            if(e.name === 'undefined') {
+                return [undefined_, st];
+            } else if(st.has(e.name)) {
                 if(st.get(e.name)) {
                     return [from(b.identifier('clos'), e.name), st];
                 } else {
@@ -472,7 +483,7 @@ function reifyIfStatement(s: b.IfStatement, st: State): [b.Statement[], State] {
     const id = '$test';
     ifTrue.unshift(traceIfTrue(id));
     ifFalse.unshift(traceIfFalse(id));
-    const tTest = jsLet(b.identifier(id), test);
+    const tTest = jsAssignment(b.identifier(id), test);
     const theIf = b.ifStatement(s.test, b.blockStatement(ifTrue), b.blockStatement(ifFalse));
     return [[tTest, theIf, exitBlock], merge(merge(st1, st2), st3)];
 }
@@ -626,15 +637,28 @@ function reifyStatements(s: b.Statement[], st: State): [b.Statement[], State] {
 }
 
 function reify(s: b.Statement[]): b.Statement[] {
-    const [ret, _] = reifyStatements(s, Map());
-    //ret.unshift(jsLet(b.identifier('t'), newTrace));
+    const [prog, _] = reifyStatements(s, Map());
     // TODO(emily): Fix. Need to detect require statements or something.
-    ret.splice(1, 0, newTrace);
-    ret.splice(1, 0, jsLet(b.identifier('exp'), b.memberExpression(b.identifier('containerless00'), b.identifier('exp'))));
-    ret.splice(1, 0, jsLet(b.identifier('cb'), b.memberExpression(b.identifier('containerless00'), b.identifier('cb'))));
-    ret.push(exitBlock);
-    ret.push(getTrace);
-    return ret;
+
+    let req = prog.shift();
+
+    if(req === undefined) {
+        throw new Error("Undefined program.");
+    }
+    
+    let head: b.Statement[] = [
+        jsLet(b.identifier('cb'), b.memberExpression(b.identifier('containerless00'), b.identifier('cb'))),
+        jsLet(b.identifier('exp'), b.memberExpression(b.identifier('containerless00'), b.identifier('exp'))),
+        newTrace,
+        jsLet(b.identifier('$test'), boolean(false))
+    ];
+
+    let tail: b.Statement[] = [
+        exitBlock,
+        getTrace
+    ];
+
+    return [req].concat(head).concat(prog).concat(tail);
 }
 
 export function transform(inputCode: string): string {
