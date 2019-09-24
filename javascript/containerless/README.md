@@ -2,7 +2,7 @@
 2. `node TRANSFORMED_FILE PORT`
 
 POST:
-> curl -H "Content-Type: application/json" -d @files/credentials.json localhost:8080/login
+`curl -H "Content-Type: application/json" -d @files/credentials.json localhost:8080/login`
 
 GET:
-> curl localhost:8080/trace
+`curl localhost:8080/trace`
