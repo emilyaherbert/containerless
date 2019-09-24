@@ -1,5 +1,6 @@
 import * as request from 'request';
 import * as express from 'express';
+import * as bodyParser from "body-parser";
 import * as state from './state';
 import { Trace, newTrace } from './tracing';
 import { number, identifier } from './exp';
@@ -8,7 +9,7 @@ const defaultEventArg = number(0);
 
 export type Request = {
     path: string,
-    query: JSON
+    body: JSON
 }
 
 export class Callbacks {
@@ -134,7 +135,7 @@ export class Callbacks {
                     callback(req);
                 }
                 else {
-                    callback({ path: req.path, query: req.query });
+                    callback({ path: req.path, body: req.body });
                 }
             });
         };
@@ -143,6 +144,8 @@ export class Callbacks {
     public listen(callback: (request: Request) => void) {
         let tracedCallback = this.tracedListenCallback(callback);
         this.app = express();
+        this.app.use(bodyParser.json());
+        this.app.use(bodyParser.urlencoded({ extended: false }));
 
         // There isn't anything inherently wrong with this, but calling listen
         // multiple times makes the application unpredictable.
@@ -153,12 +156,16 @@ export class Callbacks {
         state.setListening();
 
         this.app.get('/', (req, resp) => {
-            resp.send('Hello world!');
+            resp.send('Hello world!\n');
+        });
+
+        this.app.post('/', (req, resp) => {
+            resp.send('Hello world 2.0!\n');
         });
 
         this.app.get('/clear', (req, resp) => {
             this.trace.newTrace();
-            resp.send('Cleared!');
+            resp.send('Cleared!\n');
         })
 
         this.app.get('/trace', (req, resp) => {
@@ -166,8 +173,12 @@ export class Callbacks {
         });
 
         this.app.get('/:path*', (req, resp) => {
+            resp.send("Can only do this with POST!");
+        });
+
+        this.app.post('/:path*', (req, resp) => {
             this.response = resp;
-            tracedCallback({ path: req.path, query: req.query });
+            tracedCallback({ path: req.path, body: req.body });
         });
 
         const port = state.getListenPort();

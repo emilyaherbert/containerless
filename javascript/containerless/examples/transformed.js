@@ -7,11 +7,11 @@ let $test = exp.boolean(false);
 cb.trace.traceLet("fun000", exp.clos({}));
 
 function fun000(req) {
-  let [clos, $req] = cb.trace.traceFunctionBody("'ret");
+  let [$clos, $req] = cb.trace.traceFunctionBody("'ret");
   cb.trace.traceLet("req", $req);
-  cb.trace.traceLet("query00", exp.from(exp.identifier("req"), "query"));
+  cb.trace.traceLet("body00", exp.from(exp.identifier("req"), "body"));
   // TODO(emily): Fix so that you can chain member expressions.
-  var query00 = req.query;
+  var body00 = req.body;
   $test = exp.binop("===", exp.from(exp.identifier("req"), "path"), exp.string("/login"));
 
   if (req.path === '/login') {
@@ -19,20 +19,20 @@ function fun000(req) {
     cb.trace.traceLet("fun100", exp.clos({}));
 
     function fun100(resp) {
-      let [clos, $resp] = cb.trace.traceFunctionBody("'ret");
+      let [$clos, $resp] = cb.trace.traceFunctionBody("'ret");
       cb.trace.traceLet("resp", $resp);
-      $test = exp.binop("||", exp.binop("===", exp.from(exp.identifier("resp"), "username"), exp.undefined_), exp.binop("===", exp.from(exp.identifier("resp"), "password"), exp.undefined_));
+      $test = exp.binop("||", exp.binop("||", exp.binop("||", exp.binop("===", exp.from(exp.identifier("resp"), "username"), exp.undefined_), exp.binop("===", exp.from(exp.identifier("resp"), "password"), exp.undefined_)), exp.binop("===", exp.from(exp.identifier("body00"), "username"), exp.undefined_)), exp.binop("===", exp.from(exp.identifier("body00"), "password"), exp.undefined_));
 
-      if (resp.username === undefined || resp.password === undefined) {
+      if (resp.username === undefined || resp.password === undefined || body00.username === undefined || body00.password === undefined) {
         cb.trace.traceIfTrue($test);
         cb.trace.traceFunctionCall("app200", [exp.from(exp.identifier("containerless00"), "respond"), exp.string("Username and password not found.\n")]);
         var app200 = containerless00.respond("Username and password not found.\n");
         cb.trace.exitBlock();
       } else {
         cb.trace.traceIfFalse($test);
-        $test = exp.binop("&&", exp.binop("===", exp.from(exp.identifier("resp"), "username"), exp.from(exp.identifier("query00"), "username")), exp.binop("===", exp.from(exp.identifier("resp"), "password"), exp.from(exp.identifier("query00"), "password")));
+        $test = exp.binop("&&", exp.binop("===", exp.from(exp.identifier("resp"), "username"), exp.from(exp.identifier("body00"), "username")), exp.binop("===", exp.from(exp.identifier("resp"), "password"), exp.from(exp.identifier("body00"), "password")));
 
-        if (resp.username === query00.username && resp.password === query00.password) {
+        if (resp.username === body00.username && resp.password === body00.password) {
           cb.trace.traceIfTrue($test);
           cb.trace.traceFunctionCall("app300", [exp.from(exp.identifier("containerless00"), "respond"), exp.string("Login successful!\n")]);
           var app300 = containerless00.respond("Login successful!\n");

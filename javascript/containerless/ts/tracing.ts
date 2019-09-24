@@ -441,6 +441,9 @@ function mergeExp(e1: Exp, e2: Exp): Exp {
     else if (e2.kind === 'unknown') {
         return e1;
     }
+    else if(e1.kind === 'undefined' && e2.kind === 'undefined') {
+        return e1;
+    }
     else if (e1.kind === 'number' && e2.kind === 'number') {
         if (e1.value !== e2.value) {
             throw new Error(`Cannot merge numbers ${e1.value} and ${e2.value}`);
