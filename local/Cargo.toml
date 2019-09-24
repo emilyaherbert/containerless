@@ -5,4 +5,5 @@ authors = ["emilyaherbert <emilyherbert@cs.umass.edu>"]
 edition = "2018"
 
 [dependencies]
-hyper = "*"
+hyper = "0.12"
+futures = "0.1" 

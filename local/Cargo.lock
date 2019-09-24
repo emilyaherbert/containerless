@@ -242,6 +242,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "local"
 version = "0.1.0"
 dependencies = [
+ "futures 0.1.29 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.12.35 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
