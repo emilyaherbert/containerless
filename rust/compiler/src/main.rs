@@ -79,18 +79,6 @@ fn main() {
         let exp = verif::verify_from_file(input);
         codegen::codegen(&exp, &output);
     }
-    else if let Some(m) = matches.subcommand_matches("test-compiled-trace") {
-        use libloading::{Library, Symbol};
-        let lib = Library::new("../containerless-scaffold/target/debug/libcontainerless_scaffold.dylib")
-            .or_else(|_| Library::new("../containerless-scaffold/target/debug/libcontainerless_scaffold.so"))
-            .expect("failed to load DLL");
-
-        let func: Symbol<fn() -> ()> = unsafe {
-            lib.get(b"containerless")
-                .expect("did not find containerless function")
-        };
-        func();
-    }
     else {
         println!("Missing sub-command. Run --help for help.");
         std::process::exit(1);
