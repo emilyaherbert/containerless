@@ -6,7 +6,7 @@ containerless.listen(function(req) {
         containerless.post({
             url: 'http://localhost:3000/upload',
             method: 'POST',
-            body: "fdasfdsafsd"
+            body: file
         }, function(resp) {
             containerless.respond(resp);
         });
