@@ -208,7 +208,7 @@ export class Callbacks {
         });
 
         this.app.get('/:path*', (req, resp) => {
-            resp.send("Can only do this with POST!");
+            resp.send("Can only do this with POST!\n");
         });
 
         this.app.post('/:path*', (req, resp) => {
