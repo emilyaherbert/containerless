@@ -15,6 +15,7 @@ fn echo(req: Request<Body>) -> BoxFut {
             *response.body_mut() = Body::from("Try POSTing a file to /upload.\n");
         },
         (&Method::POST, "/upload") => {
+            println!("New file!");
             *response.body_mut() = Body::from("Done uploading!\n");
         },
         _ => {

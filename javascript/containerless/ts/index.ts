@@ -13,8 +13,11 @@ export function getTrace() {
 export function get(
     uri: string,
     callback: (response: undefined | JSON) => void) {
-    //cb.trace.prettyPrint();
     return cb.get(uri, callback);
+}
+
+export function post(obj: any, callback: (response: undefined | string) => void) {
+    return cb.post(obj, callback);
 }
 
 export function listen(

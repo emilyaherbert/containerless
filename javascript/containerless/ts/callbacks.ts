@@ -120,6 +120,41 @@ export class Callbacks {
         }
     }
 
+    /**
+     * Issues an HTTP POST request
+     */
+    post(obj: any, callback: (response: undefined | string) => void) {
+        let [_, $callbackClos] = this.trace.popArgs();
+        let innerTrace = this.trace.traceCallback('listen', defaultEventArg, ['clos', 'request', 'response_callback'], $callbackClos);
+
+        /*
+        // https://stackoverflow.com/questions/37870594/how-to-post-with-request-in-express
+        request(obj, function(error: any, response: any, body: any){
+            console.log(body);
+        });
+        */
+
+        if (state.getListenPort() === 'test') {
+            this.withTrace(innerTrace, () => {
+                innerTrace.pushArgs([identifier('clos'), identifier('response')]);
+                // TODO(emily): This is probably wrong.
+                callback(String("{ message: 'GENERIC RESPONSE' }"));
+            });
+        } else {
+            request.post(obj, (error: any, resp: any) => {
+                this.withTrace(innerTrace, () => {
+                    innerTrace.pushArgs([identifier('clos'), identifier('reponse')]);
+                    if (error !== null) {
+                        callback(undefined);
+                    }
+                    else {
+                        callback(String(resp.body));
+                    }
+                });
+            });
+        }
+    }
+
     public tracedListenCallback(callback: (request: Request) => void) {
         let [_, $callbackClos] = this.trace.popArgs();
         let innerTrace = this.trace.traceCallback('listen', defaultEventArg, ['clos', 'request', 'response_callback'], $callbackClos);
