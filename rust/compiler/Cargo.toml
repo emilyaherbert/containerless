@@ -13,10 +13,7 @@ im-rc = "*"
 quote = "*"
 serde = { version = "*", features = ["derive"] }
 serde_json = "*"
-trace-runtime = { path = "../trace-runtime" }
 duct = "*"
-bumpalo = "*"
 proc-macro2 = "*"
 syn = "*"
 tempfile = "*"
-libloading = "*"
