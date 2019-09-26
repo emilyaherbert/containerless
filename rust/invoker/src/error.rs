@@ -4,6 +4,7 @@ use futures::sync::oneshot::Canceled;
 pub enum Error {
     Hyper(hyper::Error),
     Canceled,
+    Unrecoverable(String),
     Unknown,
 }
 
@@ -12,6 +13,7 @@ impl std::fmt::Display for Error {
         match self {
             Error::Hyper(err) => err.fmt(fmt),
             Error::Unknown => fmt.write_str("Unknown"),
+            Error::Unrecoverable(s) => fmt.write_str(&s),
             Error::Canceled => fmt.write_str("Canceled"),
         }
     }
@@ -34,5 +36,11 @@ impl std::convert::From<hyper::Error> for Error {
 impl std::convert::From<Canceled> for Error {
     fn from(_error: Canceled) -> Error {
         return Error::Canceled;
+    }
+}
+
+impl std::convert::From<tokio_retry::Error<hyper::Error>> for Error {
+    fn from(_error: tokio_retry::Error<hyper::Error>) -> Error {
+        return Error::Unrecoverable("retry failed".to_string());
     }
 }

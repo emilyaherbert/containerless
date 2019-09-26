@@ -14,8 +14,8 @@ use duct::cmd;
 /// The request function sends a
 use futures::{future, Future};
 use futures_locks::{Mutex, MutexGuard};
-use std::sync::Arc;
 use std::sync::atomic;
+use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 struct ContainerHandle {
@@ -24,6 +24,34 @@ struct ContainerHandle {
 }
 
 impl ContainerHandle {
+    pub fn test(
+        &self,
+        client: Arc<HttpClient>,
+    ) -> impl Future<Item = (), Error = tokio_retry::Error<hyper::Error>> {
+        use tokio_retry::strategy::FixedInterval;
+        use tokio_retry::Retry;
+
+        let authority = self.authority.clone();
+
+        let retry_strategy = FixedInterval::from_millis(1000).take(10);
+        Retry::spawn(retry_strategy, move || {
+            let req = hyper::Request::get(
+                hyper::Uri::builder()
+                    .scheme("http")
+                    // TODO(arjun): Create Authority in ContainerHandle
+                    .authority(authority.as_bytes())
+                    .path_and_query("/")
+                    .build()
+                    .unwrap(),
+            )
+            .body(hyper::Body::empty())
+            .unwrap();
+            client.request(req)
+        })
+        // TODO(arjun): Check for a particular response?
+        .map(|_resp| ())
+    }
+
     pub fn request(
         &self,
         client: Arc<HttpClient>,
@@ -128,6 +156,7 @@ impl ContainerPool {
         let idle = self.idle.clone();
         let config = self.config.clone();
         let num_containers = Arc::clone(&self.num_containers);
+        let client = self.client.clone();
         self.spawner.lock().from_err().and_then(move |mut guard| {
             // TODO Generate names, start new containers, add them to idle, and return
             // For robustness, we should send a request to each container to verify
@@ -136,11 +165,16 @@ impl ContainerPool {
                 .map(|_i| create_container(&config, &mut guard))
                 .collect::<Vec<ContainerHandle>>();
 
-            future::join_all(handles.into_iter().map(move |h| idle.send(h)))
-                .from_err()
-                .map(move |_vec| {
-                    num_containers.fetch_add(n, atomic::Ordering::SeqCst);
-                })
+            future::join_all(handles.into_iter().map(move |h| {
+                let idle = idle.clone();
+                h.clone()
+                    .test(client.clone())
+                    .from_err()
+                    .and_then(move |()| idle.send(h).from_err())
+            }))
+            .map(move |_vec| {
+                num_containers.fetch_add(n, atomic::Ordering::SeqCst);
+            })
         })
     }
 }

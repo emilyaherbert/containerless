@@ -1,18 +1,17 @@
 use crate::config::Config;
+use crate::container_pool::ContainerPool;
 use crate::error::Error;
 use futures::stream::Stream;
 use futures::{future, Future};
 use hyper::service::service_fn;
 use hyper::{Client, Server};
-use std::sync::Arc;
-use std::sync::atomic::AtomicI64;
-use std::sync::atomic;
-use std::time::{Instant,Duration};
 use std::convert::TryInto;
-use crate::container_pool::ContainerPool;
+use std::sync::atomic;
+use std::sync::atomic::AtomicI64;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 
-fn monitor_usage(pool: &ContainerPool,
-    usage_counter: &atomic::AtomicI64) {
+fn monitor_usage(pool: &ContainerPool, usage_counter: &atomic::AtomicI64) {
     // num_containers will fit in i64
     let n: i64 = pool.get_num_containers().try_into().unwrap();
     // Note that all other threads are incrementing usage_counter.
@@ -22,7 +21,6 @@ fn monitor_usage(pool: &ContainerPool,
     if usage - 1000 > 1000 * n {
         println!("Usage: {}", usage);
     }
-
 }
 
 pub fn serve(config: Config) -> impl Future<Item = (), Error = Error> {
@@ -43,9 +41,11 @@ pub fn serve(config: Config) -> impl Future<Item = (), Error = Error> {
         service_fn(move |req| {
             let start = Instant::now();
             let usage_counter = Arc::clone(&usage_counter);
-            pool2.request(req)
-            .map(move |resp| {
-                let t: i64 = start.elapsed().as_millis().try_into()
+            pool2.request(req).map(move |resp| {
+                let t: i64 = start
+                    .elapsed()
+                    .as_millis()
+                    .try_into()
                     // Only occurs if a single invocation takes over 200
                     // million years to complete...
                     .expect("invocation time (in milliseconds) does not fit in i64");
