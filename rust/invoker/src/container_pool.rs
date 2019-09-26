@@ -1,23 +1,24 @@
+/// Manages a pool of containers that can process requests. At the moment, the
+/// API is very straightforward and just has a single method called `request`,
+/// which redirects a request to an available container. If no container is
+/// immediately available, then `request` spawns a single new container upto
+/// the configured maximum number of containers. This is sufficient to do
+/// a cold start.
+///
+/// Note that the pool *does not* shut down containers ever.
 use crate::config::Config;
 use crate::error::Error;
 use crate::mpmc::{Queue, Receiver, Sender};
+use crate::time_keeper::TimeKeeper;
 use crate::types::*;
-use duct::cmd;
-use std::time::{Duration, Instant};
 use atomic::Ordering::SeqCst;
-/// Manages a pool of containers that can process requests. There are three
-/// primary functions in the API:
-///
-/// 1. `request` sends a request to a container and returns a response in
-///    a future.
-/// 2. `create_containers` adds new containers to the pool.
-/// 3. `remove_containers` deletes containers from the pool.
-///
-/// The request function sends a
+use duct::cmd;
 use futures::{future, Future};
 use futures_locks::{Mutex, MutexGuard};
 use std::sync::atomic;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
+use std::thread;
 
 #[derive(Clone, Debug)]
 struct ContainerHandle {
@@ -68,7 +69,7 @@ impl ContainerHandle {
             .build()
             .unwrap();
         *req.uri_mut() = new_uri;
-        client.request(req).map(move |resp| (resp, start.elapsed()))
+        client.request(req).map(move |req| (req, start.elapsed()))
     }
 }
 
@@ -79,8 +80,6 @@ struct ContainerSpawner {
 }
 
 pub struct ContainerPool {
-    // True when a container is currently being spawned
-    spawning: Arc<atomic::AtomicBool>,
     num_containers: Arc<atomic::AtomicUsize>,
     // Use available.try_recv() to get a handle to a container that is ready
     // to process a request.
@@ -91,6 +90,7 @@ pub struct ContainerPool {
     client: Arc<HttpClient>,
     config: Arc<Config>,
     spawner: Mutex<ContainerSpawner>,
+    time_keeper: TimeKeeper,
 }
 
 fn create_container(
@@ -127,10 +127,10 @@ fn create_container(
 impl ContainerPool {
     pub fn new(config: Arc<Config>, client: Arc<HttpClient>) -> ContainerPool {
         let (idle, available) = Queue::new();
-        let spawning = Arc::new(atomic::AtomicBool::new(false));
+        let time_keeper = TimeKeeper::new(Duration::from_secs(30));
         return ContainerPool {
             num_containers: Arc::new(atomic::AtomicUsize::new(0)),
-            spawning,
+            time_keeper,
             available,
             idle,
             client,
@@ -143,33 +143,49 @@ impl ContainerPool {
         };
     }
 
-    pub fn is_spawning(&self) -> bool {
-        return self.spawning.load(SeqCst);
-    }
-
     pub fn get_num_containers(&self) -> usize {
-        return self.num_containers.load(atomic::Ordering::SeqCst);
+        return self.num_containers.load(SeqCst);
     }
 
-    pub fn request(this: &Arc<Self>, req: Request) -> impl Future<Item = (Response, Duration), Error = Error> {
+    pub fn request(
+        this: &Arc<Self>,
+        req: Request,
+    ) -> impl Future<Item = (Response, Duration), Error = Error> {
         let idle = this.idle.clone();
-        let this = this.clone();
-        return future::loop_fn(req, move |req| {
-            let idle = idle.clone();
-            let client = this.client.clone();
-            if this.get_num_containers() == 0 {
-                let fut = ContainerPool::create_containers(&this, 1);
-                return future::Either::A(fut
-                        .map(move |()| future::Loop::Continue(req)));
+        let available = this.available.clone();
+        let client = this.client.clone();
+        let time_keeper = this.time_keeper.clone();
+        match this.available.recv_immediate() {
+            Some(container) => {
+                let fut = container
+                    .request(client, req)
+                    .from_err()
+                    .and_then(move |resp| {
+                        idle.send(container).from_err().map(move |()| {
+                            time_keeper.record_time(Duration::new(0, 0));
+                            resp
+                        })
+                    });
+                future::Either::B(fut)
             }
-            let fut = this.available.recv().from_err().and_then(move |container| {
-                container
-                .request(client, req)
-                .from_err()
-                .and_then(move |resp| idle.send(container).from_err().map(|()| resp))
-            });
-            return future::Either::B(fut.map(|r| future::Loop::Break(r)));
-        });
+            None => {
+                let start = Instant::now();
+                let fut = ContainerPool::create_containers(&this, 1)
+                    .and_then(move |()| available.recv().from_err())
+                    .and_then(move |container| {
+                        container
+                            .request(client, req)
+                            .from_err()
+                            .and_then(move |resp| {
+                                idle.send(container).from_err().map(move |()| {
+                                    time_keeper.record_time(start.elapsed());
+                                    resp
+                                })
+                            })
+                    });
+                future::Either::A(fut)
+            }
+        }
     }
 
     // Starts `n` new containers.
@@ -177,16 +193,14 @@ impl ContainerPool {
         let idle = this.idle.clone();
         let config = this.config.clone();
         let client = this.client.clone();
-        let spawning = this.spawning.clone();
-        this.spawning.store(true, SeqCst);
 
         // NOTE(arjun): The containers are not yet available. But, we increment
         // anyway to avoid exceeding self.max_containers
-        if this.num_containers.load(SeqCst) == this.config.max_containers {
+        if this.get_num_containers() == this.config.max_containers {
             return future::Either::A(future::ok(()));
         }
 
-        this.num_containers.fetch_add(n, atomic::Ordering::SeqCst);
+        this.num_containers.fetch_add(n, SeqCst);
         let fut = this.spawner.lock().from_err().and_then(move |mut guard| {
             // TODO Generate names, start new containers, add them to idle, and return
             // For robustness, we should send a request to each container to verify
@@ -201,9 +215,8 @@ impl ContainerPool {
                     .test(client.clone())
                     .from_err()
                     .and_then(move |()| idle.send(h).from_err())
-            })).map(move |_vec|  {
-                spawning.store(false, SeqCst);
-            })
+            }))
+            .map(|_vec| ())
         });
         return future::Either::B(fut);
     }

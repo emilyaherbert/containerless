@@ -49,9 +49,15 @@ impl<T> Queue<T> {
 }
 
 impl<T> Receiver<T> {
+    pub fn recv_immediate(&self) -> Option<T> {
+        match self.queue.try_lock() {
+            Err(_) => None,
+            Ok(mut q) => q.queue.pop_front(),
+        }
+    }
+
     pub fn recv(&self) -> impl Future<Item = T, Error = Error> {
-        self
-            .queue
+        self.queue
             .lock()
             .from_err()
             .and_then(|mut q| match q.queue.pop_front() {

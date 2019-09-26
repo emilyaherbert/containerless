@@ -4,6 +4,7 @@ mod error;
 mod mpmc;
 mod server;
 mod types;
+mod time_keeper;
 
 use clap::{App, Arg};
 use config::Config;
