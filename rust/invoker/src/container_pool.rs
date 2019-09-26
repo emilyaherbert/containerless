@@ -15,6 +15,7 @@ use duct::cmd;
 use futures::{future, Future};
 use futures_locks::{Mutex, MutexGuard};
 use std::sync::Arc;
+use std::sync::atomic;
 
 #[derive(Clone, Debug)]
 struct ContainerHandle {
@@ -30,12 +31,12 @@ impl ContainerHandle {
     ) -> impl Future<Item = Response, Error = hyper::Error> {
         let new_uri = hyper::Uri::builder()
             .scheme("http")
-            .authority("localhost:3000")
+            // TODO(arjun): Create Authority in ContainerHandle
+            .authority(self.authority.as_bytes())
             .path_and_query(req.uri().path())
             .build()
             .unwrap();
         *req.uri_mut() = new_uri;
-        println!("Sending a request to {}", &self.name);
         client.request(req)
     }
 }
@@ -47,6 +48,7 @@ struct ContainerSpawner {
 }
 
 pub struct ContainerPool {
+    num_containers: Arc<atomic::AtomicUsize>,
     // Use available.try_recv() to get a handle to a container that is ready
     // to process a request.
     available: Receiver<ContainerHandle>,
@@ -68,7 +70,7 @@ fn create_container(
     );
     spawner.container_name_suffix += 1;
     let port = spawner.next_container_port;
-    let authority = format!("http://{}:{}", &config.container_hostname, port);
+    let authority = format!("{}:{}", &config.container_hostname, port);
     spawner.next_container_port += 1;
     let run_result = cmd!(
         "docker",
@@ -93,6 +95,7 @@ impl ContainerPool {
     pub fn new(config: Arc<Config>, client: Arc<HttpClient>) -> ContainerPool {
         let (idle, available) = Queue::new();
         return ContainerPool {
+            num_containers: Arc::new(atomic::AtomicUsize::new(0)),
             available,
             idle,
             client,
@@ -103,6 +106,10 @@ impl ContainerPool {
                 next_container_port: 3000,
             }),
         };
+    }
+
+    pub fn get_num_containers(&self) -> usize {
+        return self.num_containers.load(atomic::Ordering::SeqCst);
     }
 
     pub fn request(&self, req: Request) -> impl Future<Item = Response, Error = Error> {
@@ -120,6 +127,7 @@ impl ContainerPool {
     pub fn create_containers(&self, n: usize) -> impl Future<Item = (), Error = Error> {
         let idle = self.idle.clone();
         let config = self.config.clone();
+        let num_containers = Arc::clone(&self.num_containers);
         self.spawner.lock().from_err().and_then(move |mut guard| {
             // TODO Generate names, start new containers, add them to idle, and return
             // For robustness, we should send a request to each container to verify
@@ -130,7 +138,9 @@ impl ContainerPool {
 
             future::join_all(handles.into_iter().map(move |h| idle.send(h)))
                 .from_err()
-                .map(|_vec| ())
+                .map(move |_vec| {
+                    num_containers.fetch_add(n, atomic::Ordering::SeqCst);
+                })
         })
     }
 }

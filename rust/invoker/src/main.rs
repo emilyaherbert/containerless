@@ -13,6 +13,12 @@ fn main() {
     println!("Starting Decontainerizer");
     let matches = App::new("decontainerizer-invoker")
         .arg(
+            Arg::with_name("image-name")
+                .takes_value(true)
+                .required(true)
+                .help("The name of the Docker image that contains the container to run"),
+        )
+        .arg(
             Arg::with_name("container-internal-port")
                 .takes_value(true)
                 .default_value("3000")
@@ -25,12 +31,6 @@ fn main() {
                 .help(
                     "The host on which container run. Same as the hostname of DOCKER_HOST, if set.",
                 ),
-        )
-        .arg(
-            Arg::with_name("image-name")
-                .takes_value(true)
-                .required(true)
-                .help("The name of the Docker image that contains the container to run"),
         )
         .arg(
             Arg::with_name("bind-port")
