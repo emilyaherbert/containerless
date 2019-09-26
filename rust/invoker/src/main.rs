@@ -38,6 +38,12 @@ fn main() {
                 .default_value("8080")
                 .help("The port number at which decontainer-invoke listens for requests"),
         )
+        .arg(
+            Arg::with_name("max-containers")
+                .takes_value(true)
+                .default_value("4")
+                .help("The maximum number of containers to run in parallel"),
+        )
         .get_matches();
     let config = Config {
         container_internal_port: matches
@@ -45,6 +51,7 @@ fn main() {
             .unwrap()
             .parse()
             .unwrap(),
+        max_containers: matches.value_of("max-containers").unwrap().parse().unwrap(),
         container_hostname: matches.value_of("container-hostname").unwrap().to_string(),
         image_name: matches.value_of("image-name").unwrap().to_string(),
         bind_port: matches.value_of("bind-port").unwrap().parse().unwrap(),

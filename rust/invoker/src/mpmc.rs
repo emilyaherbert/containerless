@@ -10,7 +10,7 @@
 /// lock. However, it should be good enough for our purposes.
 use crate::error::Error;
 use futures::sync::oneshot;
-use futures::{future, Async, Future, Poll};
+use futures::{future, Future};
 use futures_locks::Mutex;
 use std::collections::VecDeque;
 
@@ -48,53 +48,20 @@ impl<T> Queue<T> {
     }
 }
 
-// Receiver::recv needs to return two different futures in either branch. That
-// cannot be done, so this serves to wrap both of them.
-enum ReceiverFut<T> {
-    Immediate(Option<T>),
-    Waiting(future::FromErr<oneshot::Receiver<T>, Error>),
-}
-
-impl<T> ReceiverFut<T> {
-    fn immediate(x: T) -> ReceiverFut<T> {
-        return ReceiverFut::Immediate(Some(x));
-    }
-
-    fn waiting(f: future::FromErr<oneshot::Receiver<T>, Error>) -> ReceiverFut<T> {
-        return ReceiverFut::Waiting(f);
-    }
-}
-impl<T> Future for ReceiverFut<T> {
-    type Item = T;
-    type Error = Error;
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        match self {
-            ReceiverFut::Immediate(x) => {
-                let y = std::mem::replace(x, None);
-                // An error here means the called violated the protocol that
-                // futures follow. So, a catastrophic failure that should never
-                // occur.
-                Ok(Async::Ready(y.expect("double poll")))
-            }
-            ReceiverFut::Waiting(fut) => fut.poll(),
-        }
-    }
-}
-
 impl<T> Receiver<T> {
     pub fn recv(&self) -> impl Future<Item = T, Error = Error> {
-        return self
+        self
             .queue
             .lock()
             .from_err()
             .and_then(|mut q| match q.queue.pop_front() {
-                Some(x) => return ReceiverFut::immediate(x),
+                Some(x) => future::Either::A(future::ok(x)),
                 None => {
                     let (send, recv) = oneshot::channel();
                     q.pending_tasks.push_back(send);
-                    return ReceiverFut::waiting(recv.from_err());
+                    future::Either::B(recv.from_err())
                 }
-            });
+            })
     }
 }
 
