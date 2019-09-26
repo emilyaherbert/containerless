@@ -10,11 +10,11 @@
 /// lock. However, it should be good enough for our purposes.
 use crate::error::Error;
 use futures::sync::oneshot;
-use futures::{Async, Future, Poll};
-use futures_locks::{Mutex};
+use futures::{future, Async, Future, Poll};
+use futures_locks::Mutex;
 use std::collections::VecDeque;
 
-// NOTE(arjun): It would probably be straightforward to introduce a mutex
+// TODO(arjun): It would probably be straightforward to introduce a mutex
 // around each field to improve performance. Alternatively, use a lock-free
 // queue for both queue and pending_tasks. We only need oneshot::Sender for
 // tasks that wait.
@@ -48,38 +48,35 @@ impl<T> Queue<T> {
     }
 }
 
-enum ReceiverFutData<T> {
+// Receiver::recv needs to return two different futures in either branch. That
+// cannot be done, so this serves to wrap both of them.
+enum ReceiverFut<T> {
     Immediate(Option<T>),
-    Waiting(futures::future::FromErr<oneshot::Receiver<T>, Error>),
-}
-
-struct ReceiverFut<T> {
-    data: ReceiverFutData<T>,
+    Waiting(future::FromErr<oneshot::Receiver<T>, Error>),
 }
 
 impl<T> ReceiverFut<T> {
     fn immediate(x: T) -> ReceiverFut<T> {
-        return ReceiverFut {
-            data: ReceiverFutData::Immediate(Some(x)),
-        };
+        return ReceiverFut::Immediate(Some(x));
     }
 
-    fn waiting(f: futures::future::FromErr<oneshot::Receiver<T>, Error>) -> ReceiverFut<T> {
-        return ReceiverFut {
-            data: ReceiverFutData::Waiting(f),
-        };
+    fn waiting(f: future::FromErr<oneshot::Receiver<T>, Error>) -> ReceiverFut<T> {
+        return ReceiverFut::Waiting(f);
     }
 }
 impl<T> Future for ReceiverFut<T> {
     type Item = T;
     type Error = Error;
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        match &mut self.data {
-            ReceiverFutData::Immediate(x) => {
+        match self {
+            ReceiverFut::Immediate(x) => {
                 let y = std::mem::replace(x, None);
+                // An error here means the called violated the protocol that
+                // futures follow. So, a catastrophic failure that should never
+                // occur.
                 Ok(Async::Ready(y.expect("double poll")))
             }
-            ReceiverFutData::Waiting(fut) => fut.poll(),
+            ReceiverFut::Waiting(fut) => fut.poll(),
         }
     }
 }
@@ -107,6 +104,7 @@ impl<T> Sender<T> {
             match q.pending_tasks.pop_front() {
                 Some(task) => match task.send(x) {
                     Ok(_) => (),
+                    // TODO(arjun): Think through why this would occur.
                     Err(_err) => panic!("send failed"),
                 },
                 None => {

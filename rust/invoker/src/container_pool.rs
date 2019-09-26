@@ -1,4 +1,8 @@
+use crate::config::Config;
 use crate::error::Error;
+use crate::mpmc::{Queue, Receiver, Sender};
+use crate::types::*;
+use duct::cmd;
 /// Manages a pool of containers that can process requests. There are three
 /// primary functions in the API:
 ///
@@ -8,12 +12,9 @@ use crate::error::Error;
 /// 3. `remove_containers` deletes containers from the pool.
 ///
 /// The request function sends a
-use crate::types::*;
 use futures::{future, Future};
 use futures_locks::{Mutex, MutexGuard};
 use std::sync::Arc;
-use crate::mpmc::{Receiver, Sender, Queue};
-use duct::cmd;
 
 #[derive(Clone, Debug)]
 struct ContainerHandle {
@@ -40,7 +41,6 @@ impl ContainerHandle {
 }
 
 struct ContainerSpawner {
-    image_name: String,
     container_name_suffix: usize,
     container_name_prefix: String,
     next_container_port: usize,
@@ -54,17 +54,21 @@ pub struct ContainerPool {
     // it available to another thread.
     idle: Sender<ContainerHandle>,
     client: Arc<HttpClient>,
+    config: Arc<Config>,
     spawner: Mutex<ContainerSpawner>,
 }
 
-fn create_container(spawner: &mut MutexGuard<ContainerSpawner>) -> ContainerHandle {
+fn create_container(
+    config: &Arc<Config>,
+    spawner: &mut MutexGuard<ContainerSpawner>,
+) -> ContainerHandle {
     let name = format!(
         "{}-{}",
         spawner.container_name_prefix, spawner.container_name_suffix
     );
     spawner.container_name_suffix += 1;
     let port = spawner.next_container_port;
-    let authority = format!("http://localhost:{}", port);
+    let authority = format!("http://{}:{}", &config.container_hostname, port);
     spawner.next_container_port += 1;
     let run_result = cmd!(
         "docker",
@@ -73,12 +77,11 @@ fn create_container(spawner: &mut MutexGuard<ContainerSpawner>) -> ContainerHand
         "-d",
         // delete on termination. Makes debugging harder
         "--rm",
-        // NOTE(arjun): Hardcoded port 3000 as the listening port within the container
         "-p",
-        format!("{}:3000", port),
+        format!("{}:{}", port, config.container_internal_port),
         "--name",
         &name,
-        &spawner.image_name
+        &config.image_name
     )
     .run();
     run_result.unwrap();
@@ -87,14 +90,14 @@ fn create_container(spawner: &mut MutexGuard<ContainerSpawner>) -> ContainerHand
 }
 
 impl ContainerPool {
-    pub fn new(client: Arc<HttpClient>) -> ContainerPool {
+    pub fn new(config: Arc<Config>, client: Arc<HttpClient>) -> ContainerPool {
         let (idle, available) = Queue::new();
         return ContainerPool {
             available,
             idle,
             client,
+            config,
             spawner: Mutex::new(ContainerSpawner {
-                image_name: "demo-container".to_string(),
                 container_name_suffix: 0,
                 container_name_prefix: "vanilla".to_string(),
                 next_container_port: 3000,
@@ -109,21 +112,20 @@ impl ContainerPool {
             container
                 .request(client, req)
                 .from_err()
-                .and_then(move |resp| {
-                    idle.send(container).from_err().map(|()| resp)
-                })
+                .and_then(move |resp| idle.send(container).from_err().map(|()| resp))
         })
     }
 
     // Starts `n` new containers.
     pub fn create_containers(&self, n: usize) -> impl Future<Item = (), Error = Error> {
         let idle = self.idle.clone();
+        let config = self.config.clone();
         self.spawner.lock().from_err().and_then(move |mut guard| {
             // TODO Generate names, start new containers, add them to idle, and return
             // For robustness, we should send a request to each container to verify
             // that the server is running!
             let handles = (0..n)
-                .map(|_i| create_container(&mut guard))
+                .map(|_i| create_container(&config, &mut guard))
                 .collect::<Vec<ContainerHandle>>();
 
             future::join_all(handles.into_iter().map(move |h| idle.send(h)))
