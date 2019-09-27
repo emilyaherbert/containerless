@@ -24,6 +24,8 @@ steps:
     set -x
     set -e
     PATH=$HOME/.cargo/bin:$PATH cargo build
+    cd ../invoker
+    PATH=$HOME/.cargo/bin:$PATH cargo build
   displayName: Build Rust code
 - script: |
     cd javascript/containerless
