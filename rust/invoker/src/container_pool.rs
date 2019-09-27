@@ -11,14 +11,14 @@ use crate::error::Error;
 use crate::mpmc::{Queue, Receiver, Sender};
 use crate::time_keeper::TimeKeeper;
 use crate::types::*;
+use crate::util;
 use atomic::Ordering::SeqCst;
 use duct::cmd;
-use futures::{future, Future, Stream};
+use futures::{future, Future};
 use futures_locks::{Mutex, MutexGuard};
 use std::sync::atomic;
 use std::sync::Arc;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-use tokio::executor::Executor;
+use std::time::{Duration, Instant};
 
 #[derive(Clone, Debug)]
 struct ContainerHandle {
@@ -75,10 +75,11 @@ impl ContainerHandle {
     pub fn stop(&self) {
         println!("Stopping {}", &self.name);
         cmd!(
-            "docker",
-            "stop",
-            "-t", "0", // stop immediately
-            &self.name).run().expect("failed to stop container");
+            "docker", "stop", "-t", "0", // stop immediately
+            &self.name
+        )
+        .run()
+        .expect("failed to stop container");
     }
 }
 
@@ -100,12 +101,12 @@ struct ContainerPoolData {
     config: Arc<Config>,
     spawner: Mutex<ContainerSpawner>,
     time_keeper: TimeKeeper,
-    last_container_start_time: atomic::AtomicU64
+    last_container_start_time: atomic::AtomicU64,
 }
 
 #[derive(Clone)]
 pub struct ContainerPool {
-    data: Arc<ContainerPoolData>
+    data: Arc<ContainerPoolData>,
 }
 
 fn create_container(
@@ -139,18 +140,11 @@ fn create_container(
     return handle;
 }
 
-fn get_time_secs() -> u64 {
-    let start = SystemTime::now();
-    let since_the_epoch = start.duration_since(UNIX_EPOCH).unwrap();
-    since_the_epoch.as_secs()
-}
-
 impl ContainerPoolData {
     pub fn new(config: Arc<Config>, client: Arc<HttpClient>) -> ContainerPoolData {
         let (idle, available) = Queue::new();
         let time_keeper = TimeKeeper::new(Duration::from_secs(30));
-        let last_container_start_time =
-            atomic::AtomicU64::new(get_time_secs());
+        let last_container_start_time = atomic::AtomicU64::new(util::unix_epoch_secs());
         return ContainerPoolData {
             num_containers: atomic::AtomicUsize::new(0),
             last_container_start_time,
@@ -184,7 +178,8 @@ impl ContainerPoolData {
         let idle = this.idle.clone();
         let config = this.config.clone();
         let client = this.client.clone();
-        this.last_container_start_time.store(get_time_secs(), SeqCst);
+        this.last_container_start_time
+            .store(util::unix_epoch_secs(), SeqCst);
 
         // NOTE(arjun): The containers are not yet available. But, we increment
         // anyway to avoid exceeding self.max_containers
@@ -212,9 +207,7 @@ impl ContainerPoolData {
         });
         return future::Either::B(fut);
     }
-
 }
-
 
 impl ContainerPool {
     pub fn new(config: Arc<Config>, client: Arc<HttpClient>) -> ContainerPool {
@@ -224,26 +217,22 @@ impl ContainerPool {
     }
 
     fn launch_container_killer(data: Arc<ContainerPoolData>) {
-        tokio::executor::DefaultExecutor::current().spawn(
-            Box::new(
-            tokio::timer::Interval::new_interval(Duration::from_secs(1))
-            .map_err(|_err| Error::Unrecoverable("timer".to_string()))
-            .map(move |_t| {
-                let t = get_time_secs();
-                if t - data.last_container_start_time.load(SeqCst) < 10 {
-                    future::Either::B(future::ok(()))
-                }
-                else if data.time_keeper.mean() < 100 && data.get_num_containers() > 0 {
-                    future::Either::A(ContainerPoolData::stop_container(&data))
-                }
-                else {
-                    future::Either::B(future::ok(()))
-                }
-            }).fold((), |(), f| f)
-            .map_err(|_err| ())))
-            .unwrap();
+        tokio::executor::spawn(
+            util::set_interval(Duration::from_secs(1), move |_t| {
+                        let t = util::unix_epoch_secs();
+                        if t - data.last_container_start_time.load(SeqCst) < 10 {
+                            future::Either::B(future::ok(()))
+                        } else if data.time_keeper.mean() < 100 && data.get_num_containers() > 0 {
+                            future::Either::A(ContainerPoolData::stop_container(&data))
+                        } else {
+                            future::Either::B(future::ok(()))
+                        }
+            })
+            .map_err(|err| {
+                println!("Error in launch_container_killer {}", err);
+                std::process::exit(1)
+            }));
     }
-
 
     pub fn request(&self, req: Request) -> impl Future<Item = (Response, Duration), Error = Error> {
         let data = self.data.clone();
@@ -280,5 +269,4 @@ impl ContainerPool {
             }
         }
     }
-
 }

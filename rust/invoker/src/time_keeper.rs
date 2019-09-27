@@ -1,30 +1,32 @@
-use std::time::Duration;
-use std::thread;
-use std::sync::{Arc, Mutex};
 use std::convert::TryInto;
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
 
 #[derive(Clone, Copy)]
 struct Measurement {
     num_samples: usize,
-    total_time: usize
+    total_time: usize,
 }
 
 struct TimeKeeperData {
     measurements: Vec<Measurement>,
     next_index: usize,
     total_time: usize,
-    total_samples: usize
+    total_samples: usize,
 }
-
 
 #[derive(Clone)]
 pub struct TimeKeeper {
-    data: Arc<Mutex<TimeKeeperData>>
+    data: Arc<Mutex<TimeKeeperData>>,
 }
 
 impl Measurement {
     fn new() -> Measurement {
-        return Measurement { num_samples: 0, total_time: 0 };
+        return Measurement {
+            num_samples: 0,
+            total_time: 0,
+        };
     }
 }
 
@@ -34,22 +36,27 @@ impl TimeKeeperData {
         let next_index = 0;
         let total_time = 0;
         let total_samples = 0;
-        TimeKeeperData { measurements, next_index, total_time, total_samples }
+        TimeKeeperData {
+            measurements,
+            next_index,
+            total_time,
+            total_samples,
+        }
     }
 
     fn mean(&self) -> usize {
-        if self.total_samples == 0 { 0 } else { self.total_time / self.total_samples }
+        if self.total_samples == 0 {
+            0
+        } else {
+            self.total_time / self.total_samples
+        }
     }
-
 }
 
-
 impl TimeKeeper {
-
     pub fn new(window: Duration) -> TimeKeeper {
         let len: usize = window.as_secs().try_into().unwrap();
-        let data = Arc::new(Mutex::new(
-            TimeKeeperData::new(len)));
+        let data = Arc::new(Mutex::new(TimeKeeperData::new(len)));
         let data2 = data.clone();
         thread::spawn(move || {
             loop {
@@ -83,6 +90,4 @@ impl TimeKeeper {
         let data = self.data.lock().unwrap();
         data.mean()
     }
-
 }
-

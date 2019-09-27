@@ -3,8 +3,9 @@ mod container_pool;
 mod error;
 mod mpmc;
 mod server;
-mod types;
 mod time_keeper;
+mod types;
+mod util;
 
 use clap::{App, Arg};
 use config::Config;
@@ -58,9 +59,10 @@ fn main() {
         bind_port: matches.value_of("bind-port").unwrap().parse().unwrap(),
     };
 
-    hyper::rt::run(future::lazy(||
+    hyper::rt::run(future::lazy(|| {
         server::serve(config).map_err(|err| {
             println!("Error: {}", err);
             return ();
-        })));
+        })
+    }));
 }
