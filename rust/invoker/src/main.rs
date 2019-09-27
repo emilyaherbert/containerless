@@ -8,7 +8,7 @@ mod time_keeper;
 
 use clap::{App, Arg};
 use config::Config;
-use futures::future::Future;
+use futures::future::{self, Future};
 
 fn main() {
     println!("Starting Decontainerizer");
@@ -58,8 +58,9 @@ fn main() {
         bind_port: matches.value_of("bind-port").unwrap().parse().unwrap(),
     };
 
-    hyper::rt::run(server::serve(config).map_err(|err| {
-        println!("Error: {}", err);
-        return ();
-    }));
+    hyper::rt::run(future::lazy(||
+        server::serve(config).map_err(|err| {
+            println!("Error: {}", err);
+            return ();
+        })));
 }

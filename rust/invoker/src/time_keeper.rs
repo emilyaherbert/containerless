@@ -81,7 +81,7 @@ impl TimeKeeper {
 
     pub fn mean(&self) -> usize {
         let data = self.data.lock().unwrap();
-        data.total_time / data.total_samples
+        data.mean()
     }
 
 }

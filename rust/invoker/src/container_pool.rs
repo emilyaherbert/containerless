@@ -13,12 +13,12 @@ use crate::time_keeper::TimeKeeper;
 use crate::types::*;
 use atomic::Ordering::SeqCst;
 use duct::cmd;
-use futures::{future, Future};
+use futures::{future, Future, Stream};
 use futures_locks::{Mutex, MutexGuard};
 use std::sync::atomic;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
-use std::thread;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use tokio::executor::Executor;
 
 #[derive(Clone, Debug)]
 struct ContainerHandle {
@@ -71,6 +71,15 @@ impl ContainerHandle {
         *req.uri_mut() = new_uri;
         client.request(req).map(move |req| (req, start.elapsed()))
     }
+
+    pub fn stop(&self) {
+        println!("Stopping {}", &self.name);
+        cmd!(
+            "docker",
+            "stop",
+            "-t", "0", // stop immediately
+            &self.name).run().expect("failed to stop container");
+    }
 }
 
 struct ContainerSpawner {
@@ -79,8 +88,8 @@ struct ContainerSpawner {
     next_container_port: usize,
 }
 
-pub struct ContainerPool {
-    num_containers: Arc<atomic::AtomicUsize>,
+struct ContainerPoolData {
+    num_containers: atomic::AtomicUsize,
     // Use available.try_recv() to get a handle to a container that is ready
     // to process a request.
     available: Receiver<ContainerHandle>,
@@ -91,6 +100,12 @@ pub struct ContainerPool {
     config: Arc<Config>,
     spawner: Mutex<ContainerSpawner>,
     time_keeper: TimeKeeper,
+    last_container_start_time: atomic::AtomicU64
+}
+
+#[derive(Clone)]
+pub struct ContainerPool {
+    data: Arc<ContainerPoolData>
 }
 
 fn create_container(
@@ -124,12 +139,21 @@ fn create_container(
     return handle;
 }
 
-impl ContainerPool {
-    pub fn new(config: Arc<Config>, client: Arc<HttpClient>) -> ContainerPool {
+fn get_time_secs() -> u64 {
+    let start = SystemTime::now();
+    let since_the_epoch = start.duration_since(UNIX_EPOCH).unwrap();
+    since_the_epoch.as_secs()
+}
+
+impl ContainerPoolData {
+    pub fn new(config: Arc<Config>, client: Arc<HttpClient>) -> ContainerPoolData {
         let (idle, available) = Queue::new();
         let time_keeper = TimeKeeper::new(Duration::from_secs(30));
-        return ContainerPool {
-            num_containers: Arc::new(atomic::AtomicUsize::new(0)),
+        let last_container_start_time =
+            atomic::AtomicU64::new(get_time_secs());
+        return ContainerPoolData {
+            num_containers: atomic::AtomicUsize::new(0),
+            last_container_start_time,
             time_keeper,
             available,
             idle,
@@ -143,49 +167,16 @@ impl ContainerPool {
         };
     }
 
-    pub fn get_num_containers(&self) -> usize {
-        return self.num_containers.load(SeqCst);
+    fn get_num_containers(&self) -> usize {
+        self.num_containers.load(SeqCst)
     }
 
-    pub fn request(
-        this: &Arc<Self>,
-        req: Request,
-    ) -> impl Future<Item = (Response, Duration), Error = Error> {
-        let idle = this.idle.clone();
-        let available = this.available.clone();
-        let client = this.client.clone();
-        let time_keeper = this.time_keeper.clone();
-        match this.available.recv_immediate() {
-            Some(container) => {
-                let fut = container
-                    .request(client, req)
-                    .from_err()
-                    .and_then(move |resp| {
-                        idle.send(container).from_err().map(move |()| {
-                            time_keeper.record_time(Duration::new(0, 0));
-                            resp
-                        })
-                    });
-                future::Either::B(fut)
-            }
-            None => {
-                let start = Instant::now();
-                let fut = ContainerPool::create_containers(&this, 1)
-                    .and_then(move |()| available.recv().from_err())
-                    .and_then(move |container| {
-                        container
-                            .request(client, req)
-                            .from_err()
-                            .and_then(move |resp| {
-                                idle.send(container).from_err().map(move |()| {
-                                    time_keeper.record_time(start.elapsed());
-                                    resp
-                                })
-                            })
-                    });
-                future::Either::A(fut)
-            }
-        }
+    fn stop_container(this: &Arc<Self>) -> impl Future<Item = (), Error = Error> {
+        let this2 = this.clone();
+        this.available.recv().map(move |handle| {
+            handle.stop();
+            this2.num_containers.fetch_sub(1, SeqCst);
+        })
     }
 
     // Starts `n` new containers.
@@ -193,6 +184,7 @@ impl ContainerPool {
         let idle = this.idle.clone();
         let config = this.config.clone();
         let client = this.client.clone();
+        this.last_container_start_time.store(get_time_secs(), SeqCst);
 
         // NOTE(arjun): The containers are not yet available. But, we increment
         // anyway to avoid exceeding self.max_containers
@@ -220,4 +212,73 @@ impl ContainerPool {
         });
         return future::Either::B(fut);
     }
+
+}
+
+
+impl ContainerPool {
+    pub fn new(config: Arc<Config>, client: Arc<HttpClient>) -> ContainerPool {
+        let data = Arc::new(ContainerPoolData::new(config, client));
+        ContainerPool::launch_container_killer(data.clone());
+        ContainerPool { data }
+    }
+
+    fn launch_container_killer(data: Arc<ContainerPoolData>) {
+        tokio::executor::DefaultExecutor::current().spawn(
+            Box::new(
+            tokio::timer::Interval::new_interval(Duration::from_secs(1))
+            .map_err(|_err| Error::Unrecoverable("timer".to_string()))
+            .map(move |_t| {
+                let t = get_time_secs();
+                if t - data.last_container_start_time.load(SeqCst) < 10 {
+                    future::Either::B(future::ok(()))
+                }
+                else if data.time_keeper.mean() < 100 && data.get_num_containers() > 0 {
+                    future::Either::A(ContainerPoolData::stop_container(&data))
+                }
+                else {
+                    future::Either::B(future::ok(()))
+                }
+            }).fold((), |(), f| f)
+            .map_err(|_err| ())))
+            .unwrap();
+    }
+
+
+    pub fn request(&self, req: Request) -> impl Future<Item = (Response, Duration), Error = Error> {
+        let data = self.data.clone();
+        match data.available.recv_immediate() {
+            Some(container) => {
+                let fut = container
+                    .request(data.client.clone(), req)
+                    .from_err()
+                    .and_then(move |resp| {
+                        data.idle.send(container).from_err().map(move |()| {
+                            data.time_keeper.record_time(Duration::new(0, 0));
+                            resp
+                        })
+                    });
+                future::Either::B(fut)
+            }
+            None => {
+                let start = Instant::now();
+                let data2 = data.clone();
+                let fut = ContainerPoolData::create_containers(&data, 1)
+                    .and_then(move |()| data2.available.recv().from_err())
+                    .and_then(move |container| {
+                        container
+                            .request(data.client.clone(), req)
+                            .from_err()
+                            .and_then(move |resp| {
+                                data.idle.send(container).from_err().map(move |()| {
+                                    data.time_keeper.record_time(start.elapsed());
+                                    resp
+                                })
+                            })
+                    });
+                future::Either::A(fut)
+            }
+        }
+    }
+
 }
