@@ -1,7 +1,6 @@
 let containerless = require('../dist/index');
 
 containerless.listen(function(req) {
-    console.log(req.body);
     if(req.path === '/upload') {
         if(req.body !== undefined) {
             containerless.post({

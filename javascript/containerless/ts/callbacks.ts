@@ -9,7 +9,7 @@ const defaultEventArg = number(0);
 
 export type Request = {
     path: string,
-    body: string
+    body: JSON
 }
 
 export class Callbacks {
@@ -141,7 +141,10 @@ export class Callbacks {
                 callback(String("{ message: 'GENERIC RESPONSE' }"));
             });
         } else {
-            request.post(obj, (error: any, resp: any) => {
+            request.post({
+                url: obj.url,
+                body: JSON.stringify(obj.body)
+            }, (error: any, resp: any) => {
                 this.withTrace(innerTrace, () => {
                     innerTrace.pushArgs([identifier('clos'), identifier('reponse')]);
                     if (error !== null) {
@@ -179,7 +182,7 @@ export class Callbacks {
     public listen(callback: (request: Request) => void) {
         let tracedCallback = this.tracedListenCallback(callback);
         this.app = express();
-        this.app.use(bodyParser.text());
+        this.app.use(bodyParser.json());
         this.app.use(bodyParser.urlencoded({ extended: false }));
 
         // There isn't anything inherently wrong with this, but calling listen
@@ -213,7 +216,6 @@ export class Callbacks {
 
         this.app.post('/:path*', (req, resp) => {
             this.response = resp;
-            console.log(req.body);
             tracedCallback({ path: req.path, body: req.body });
         });
 

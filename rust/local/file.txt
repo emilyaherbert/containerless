@@ -1,3 +1,1 @@
-1 carton eggs
-1 gallon milk
-bag of apples
+{"message":"1 carton eggs\n1 gallon milk\nbag of apples"}

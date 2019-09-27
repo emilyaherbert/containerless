@@ -12,8 +12,6 @@ use futures::Stream;
 type BoxFut = Box<dyn Future<Item=Response<Body>, Error=hyper::Error> + Send>;
 
 fn echo(req: Request<Body>) -> BoxFut {
-    let mut response = Response::new(Body::empty());
-
     match (req.method(), req.uri().path()) {
         (&Method::GET, "/") => {
             return Box::new(future::ok(
@@ -31,10 +29,11 @@ fn echo(req: Request<Body>) -> BoxFut {
                         .unwrap()
                         .write_all(&body)
                         .unwrap();
+                    println!("File written to file.txt.");
                     future::ok(body)
                 }).then(|_| {
                     Box::new(future::ok(
-                        Response::new(Body::from("Done uploading!.\n"))
+                        Response::new(Body::from("Done uploading!\n"))
                     ))
                 })
             );
