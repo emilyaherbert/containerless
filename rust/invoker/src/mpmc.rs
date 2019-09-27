@@ -39,7 +39,8 @@ impl<T> Queue<T> {
             // NOTE(arjun): 64 seems like an okay default. Are we really going
             // to run more than 64 containers on a single machine?
             queue: VecDeque::with_capacity(64),
-            // TODO(arjun): What determines this number?
+            // NOTE(arjun): This is the number of stalled requests. If we
+            // hammer the machine, the buffer will grow.
             pending_tasks: VecDeque::with_capacity(128),
         };
         let send_mutex = Mutex::new(q);

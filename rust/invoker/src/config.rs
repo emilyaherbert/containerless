@@ -4,4 +4,6 @@ pub struct Config {
     pub image_name: String,
     pub bind_port: u16,
     pub max_containers: usize,
+    pub max_container_buffer_delay: usize,
+    pub min_container_lifespan: u64,
 }

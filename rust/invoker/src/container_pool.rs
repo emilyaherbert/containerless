@@ -2,10 +2,7 @@
 /// API is very straightforward and just has a single method called `request`,
 /// which redirects a request to an available container. If no container is
 /// immediately available, then `request` spawns a single new container upto
-/// the configured maximum number of containers. This is sufficient to do
-/// a cold start.
-///
-/// Note that the pool *does not* shut down containers ever.
+/// the configured maximum number of containers (i.e., cold starts).
 use crate::config::Config;
 use crate::error::Error;
 use crate::mpmc::{Queue, Receiver, Sender};
@@ -13,9 +10,11 @@ use crate::time_keeper::TimeKeeper;
 use crate::types::*;
 use crate::util;
 use atomic::Ordering::SeqCst;
+use bytes::Bytes;
 use duct::cmd;
 use futures::{future, Future};
 use futures_locks::{Mutex, MutexGuard};
+use http::uri::Authority;
 use std::sync::atomic;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -23,7 +22,7 @@ use std::time::{Duration, Instant};
 #[derive(Clone, Debug)]
 struct ContainerHandle {
     name: String,
-    authority: String, // localhost:port
+    authority: Authority, // localhost:port
 }
 
 impl ContainerHandle {
@@ -34,15 +33,14 @@ impl ContainerHandle {
         use tokio_retry::strategy::FixedInterval;
         use tokio_retry::Retry;
 
-        let authority = self.authority.clone();
+        let authority = Arc::new(self.authority.clone());
 
         let retry_strategy = FixedInterval::from_millis(1000).take(10);
         Retry::spawn(retry_strategy, move || {
             let req = hyper::Request::get(
                 hyper::Uri::builder()
                     .scheme("http")
-                    // TODO(arjun): Create Authority in ContainerHandle
-                    .authority(authority.as_bytes())
+                    .authority((&*authority).clone())
                     .path_and_query("/")
                     .build()
                     .unwrap(),
@@ -63,8 +61,7 @@ impl ContainerHandle {
         let start = Instant::now();
         let new_uri = hyper::Uri::builder()
             .scheme("http")
-            // TODO(arjun): Create Authority in ContainerHandle
-            .authority(self.authority.as_bytes())
+            .authority(self.authority.clone())
             .path_and_query(req.uri().path())
             .build()
             .unwrap();
@@ -119,7 +116,11 @@ fn create_container(
     );
     spawner.container_name_suffix += 1;
     let port = spawner.next_container_port;
-    let authority = format!("{}:{}", &config.container_hostname, port);
+    let authority = Authority::from_shared(Bytes::from(format!(
+        "{}:{}",
+        &config.container_hostname, port
+    )))
+    .expect("error parsing authority");
     spawner.next_container_port += 1;
     let run_result = cmd!(
         "docker",
@@ -211,27 +212,32 @@ impl ContainerPoolData {
 
 impl ContainerPool {
     pub fn new(config: Arc<Config>, client: Arc<HttpClient>) -> ContainerPool {
-        let data = Arc::new(ContainerPoolData::new(config, client));
-        ContainerPool::launch_container_killer(data.clone());
+        let data = Arc::new(ContainerPoolData::new(config.clone(), client));
+        ContainerPool::launch_container_killer(&config, data.clone());
         ContainerPool { data }
     }
 
-    fn launch_container_killer(data: Arc<ContainerPoolData>) {
+    fn launch_container_killer(config: &Config, data: Arc<ContainerPoolData>) {
+        let max_container_buffer_delay = config.max_container_buffer_delay;
+        let min_container_lifespan = config.min_container_lifespan;
         tokio::executor::spawn(
             util::set_interval(Duration::from_secs(1), move |_t| {
-                        let t = util::unix_epoch_secs();
-                        if t - data.last_container_start_time.load(SeqCst) < 10 {
-                            future::Either::B(future::ok(()))
-                        } else if data.time_keeper.mean() < 100 && data.get_num_containers() > 0 {
-                            future::Either::A(ContainerPoolData::stop_container(&data))
-                        } else {
-                            future::Either::B(future::ok(()))
-                        }
+                let t = util::unix_epoch_secs();
+                if t - data.last_container_start_time.load(SeqCst) < min_container_lifespan {
+                    future::Either::B(future::ok(()))
+                } else if data.time_keeper.mean() < max_container_buffer_delay
+                    && data.get_num_containers() > 0
+                {
+                    future::Either::A(ContainerPoolData::stop_container(&data))
+                } else {
+                    future::Either::B(future::ok(()))
+                }
             })
             .map_err(|err| {
                 println!("Error in launch_container_killer {}", err);
                 std::process::exit(1)
-            }));
+            }),
+        );
     }
 
     pub fn request(&self, req: Request) -> impl Future<Item = (Response, Duration), Error = Error> {

@@ -1,6 +1,6 @@
-use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
-use tokio::timer::Interval;
 use futures::{Future, Stream};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use tokio::timer::Interval;
 
 /// Seconds since Jan 1, 1970. This takes more than 1 line in Rust.
 pub fn unix_epoch_secs() -> u64 {
@@ -17,10 +17,11 @@ pub fn unix_epoch_secs() -> u64 {
 /// tokio::executor::spawn(
 ///   util::set_interval(Duration::from_secs(1), move |t| { ... })
 ///   .map_err(|err| println!("Error = {}", err)));
-pub fn set_interval<F,Fut,E>(duration: Duration, f: F)
-  -> impl Future<Item = (), Error = E> where
-  Fut : Future<Item = (), Error = E>,
-  F: Fn(Instant) -> Fut {
+pub fn set_interval<F, Fut, E>(duration: Duration, f: F) -> impl Future<Item = (), Error = E>
+where
+    Fut: Future<Item = (), Error = E>,
+    F: Fn(Instant) -> Fut,
+{
     Interval::new_interval(duration)
         .map_err(|err| panic!("Tokio timer error: {}", err))
         .map(f)
