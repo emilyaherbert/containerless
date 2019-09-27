@@ -9,7 +9,7 @@ const defaultEventArg = number(0);
 
 export type Request = {
     path: string,
-    body: JSON
+    body: string
 }
 
 export class Callbacks {
@@ -179,7 +179,7 @@ export class Callbacks {
     public listen(callback: (request: Request) => void) {
         let tracedCallback = this.tracedListenCallback(callback);
         this.app = express();
-        this.app.use(bodyParser.json());
+        this.app.use(bodyParser.text());
         this.app.use(bodyParser.urlencoded({ extended: false }));
 
         // There isn't anything inherently wrong with this, but calling listen
@@ -213,6 +213,7 @@ export class Callbacks {
 
         this.app.post('/:path*', (req, resp) => {
             this.response = resp;
+            console.log(req.body);
             tracedCallback({ path: req.path, body: req.body });
         });
 

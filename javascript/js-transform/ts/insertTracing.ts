@@ -586,7 +586,6 @@ function reifyFunctionDeclaration(s: b.FunctionDeclaration, st: State): [b.State
                     fvs.push(b.objectProperty(b.identifier(k!), identifier(k!)));
                 }
             } else {
-                console.log(k);
                 throw new Error("Not found!");
             }
         });
