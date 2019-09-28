@@ -77,7 +77,7 @@ fn main() {
             .parse()
             .unwrap(),
         min_container_lifespan: matches
-            .value_of("max-container-lifespan")
+            .value_of("min-container-lifespan")
             .unwrap()
             .parse()
             .unwrap(),
