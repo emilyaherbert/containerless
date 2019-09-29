@@ -126,7 +126,7 @@ export class Callbacks {
      */
     post(obj: any, callback: (response: undefined | string) => void) {
         let [_, $callbackClos] = this.trace.popArgs();
-        let innerTrace = this.trace.traceCallback('listen', defaultEventArg, ['clos', 'request', 'response_callback'], $callbackClos);
+        let innerTrace = this.trace.traceCallback('post', defaultEventArg, ['clos', 'request', 'response_callback'], $callbackClos);
 
         /*
         // https://stackoverflow.com/questions/37870594/how-to-post-with-request-in-express
