@@ -9,6 +9,7 @@ const defaultEventArg = number(0);
 
 export type Request = {
     path: string,
+    query: JSON,
     body: JSON
 }
 
@@ -141,10 +142,10 @@ export class Callbacks {
                 callback(String("{ message: 'GENERIC RESPONSE' }"));
             });
         } else {
-            request.post({
-                url: obj.url,
-                body: JSON.stringify(obj.body)
-            }, (error: any, resp: any) => {
+            // TODO(emily): fix this
+            let obj2 = obj;
+            obj2.body = JSON.stringify(obj2.body);
+            request.post(obj2, (error: any, resp: any) => {
                 this.withTrace(innerTrace, () => {
                     innerTrace.pushArgs([identifier('clos'), identifier('reponse')]);
                     if (error !== null) {
@@ -173,7 +174,7 @@ export class Callbacks {
                     callback(req);
                 }
                 else {
-                    callback({ path: req.path, body: req.body });
+                    callback({ path: req.path, query: req.query, body: req.body });
                 }
             });
         };
@@ -216,7 +217,7 @@ export class Callbacks {
 
         this.app.post('/:path*', (req, resp) => {
             this.response = resp;
-            tracedCallback({ path: req.path, body: req.body });
+            tracedCallback({ path: req.path, query: req.query, body: req.body });
         });
 
         const port = state.getListenPort();
@@ -230,7 +231,7 @@ export class Callbacks {
         let [_, $response] = this.trace.popArgs();
         this.trace.tracePrimApp('send', [$response]);
         if(this.response !== undefined) {
-            this.response.send(response);
+            this.response.send(response + '\n');
         } else if(state.getListenPort() !== 'test') {
             throw new Error("No express.Response found.");
         }

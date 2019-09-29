@@ -1,24 +1,34 @@
 let containerless = require('../dist/index');
 
-// https://developer.github.com/v3/repos/statuses/
-// https://api.github.com/repos/plasma-umass/decontainerization
-// curl -X GET -u "emilyaherbert:TOKEN" https://api.github.com/repos/plasma-umass/decontainerization
-
 containerless.listen(function(req) {
     if(req.path === '/status') {
         containerless.get({
-            url: "https://api.github.com/repos/plasma-umass/decontainerization/branches/test-status",
-            headers: {
-                'User-Agent': 'request'
+            'url': 'https://api.github.com/repos/plasma-umass/decontainerization/branches/test-status',
+            'headers': {
+                'User-Agent': req.body.username
             },
-            auth: {
+            'auth': {
                 'username': req.body.username,
                 'password': req.body.token
             }
-        }, function(resp) {
-            containerless.respond(resp);
+        }, function(resp1) {
+            containerless.post({
+                'url': 'https://api.github.com/repos/plasma-umass/decontainerization/statuses/' + resp1.commit.sha,
+                'headers': {
+                    'User-Agent': req.body.username
+                },
+                'auth': {
+                    'username': req.body.username,
+                    'password': req.body.token
+                },
+                'body': {
+                    'state': req.query.state
+                }
+            }, function(resp2) {
+                containerless.respond("Done!");
+            });
         });
     } else {
-        containerless.respond("Unknown command.\n");
+        containerless.respond("Unknown command.");
     }
 });
