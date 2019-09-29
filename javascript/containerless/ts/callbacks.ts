@@ -88,7 +88,7 @@ export class Callbacks {
      * @param callback receives the request body or undefined if request failed
      */
     get(
-        uri: string,
+        obj: any,
         callback: (response: undefined | JSON) => void) {
         // TODO(arjun): string(uri) is not right. This needs to be the expression
         // passed to the function.
@@ -103,7 +103,7 @@ export class Callbacks {
             });
         } else {
 
-            request.get(uri, undefined, (error, resp) => {
+            request.get(obj, undefined, (error, resp) => {
                 this.withTrace(innerTrace, () => {
                     innerTrace.pushArgs([identifier('clos'), identifier('reponse')]);
                     if (error !== null) {

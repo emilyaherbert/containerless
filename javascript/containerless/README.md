@@ -2,8 +2,9 @@
 2. `node TRANSFORMED_FILE PORT`
 
 POST:
-`curl -H "Content-Type: application/json" -d @input/login.json localhost:8080/login`
-`containerless$ curl -H "Content-Type: text/plain" --data-binary @input/upload.txt localhost:8080/upload`
+`curl -X POST -H "Content-Type: application/json" -d @input/login.json localhost:8080/login`
+`curl -X POST -H "Content-Type: application/json" -d @input/upload.json localhost:8080/upload`
+`curl -X POST -H "Content-Type: application/json" -d @input/token_status.json localhost:8080/status`
 
 GET:
 `curl localhost:8080/trace`

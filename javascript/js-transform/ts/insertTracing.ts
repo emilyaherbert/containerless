@@ -323,7 +323,7 @@ function reifyExpression(e: b.Expression, st: State): [b.Expression, State] {
             let props: b.ObjectProperty[] = [];
             let str = st;
             properties.forEach(p => {
-                if(!b.isObjectProperty(p) || !b.isIdentifier(p.key) || b.isRestElement(p.value)) {
+                if(!b.isObjectProperty(p) || !(b.isIdentifier(p.key) || b.isStringLiteral(p.key)) || b.isRestElement(p.value)) {
                     throw new Error("Found something unexpected.");
                 } else {
                     let [rhs, st1] = reifyExpression(p.value, st);

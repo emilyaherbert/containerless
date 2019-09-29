@@ -86,8 +86,8 @@ export function assertNormalized<T extends t.Node>(node: T):
         return node as any;
     }
     else if (t.isObjectProperty(node)) {
-        if(!t.isIdentifier(node.key)) {
-            throw new Error("Found key that is not an identifier.")
+        if(!t.isIdentifier(node.key) && !t.isStringLiteral(node.key)) {
+            throw new Error("Found key that is not an identifier or string.")
         }
         if(!t.isExpression(node.value)) {
             throw new Error("Found value that is not an expression.");
