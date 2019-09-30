@@ -18,14 +18,15 @@
  *   of a callback, since it is a block as well.
  */
 
- import {
+import { TracingInterface } from './types';
+import {
     while_, break_, label, block, let_, set, if_, callback,
     Exp, BlockExp, LVal, primApp, unknown
 } from './exp';
 
 type Cursor = { body: Exp[], index: number };
 
-export class Trace {
+class Trace implements TracingInterface {
     private trace: BlockExp;
     private cursorStack: Cursor[];
     private cursor: Cursor | undefined;
@@ -417,7 +418,7 @@ export class Trace {
 
 }
 
-export function newTrace() {
+export function newTrace(): TracingInterface {
     return new Trace([unknown()]);
 }
 
