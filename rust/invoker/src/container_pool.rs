@@ -133,7 +133,15 @@ fn create_container(
         format!("{}:{}", port, config.container_internal_port),
         "--name",
         &name,
-        &config.image_name
+        "--cpus",
+        &config.cpus,
+        "--memory",
+        &config.memory,
+        &config.image_name,
+        // The remaining arguments are CLI arguments passed to the entrypoint
+        // of the container
+        format!("{}", config.container_internal_port),
+        "disable-tracing"
     )
     .run();
     run_result.unwrap();

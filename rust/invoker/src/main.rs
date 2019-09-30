@@ -64,8 +64,22 @@ fn main() {
                 .default_value("10")
                 .help("The minimum lifespan (s) of a container")
         )
+        .arg(
+            Arg::with_name("cpus")
+                .long("--cpus")
+                .takes_value(true)
+                .default_value("1.0")
+                .help("CPUs allocated per container"))
+        .arg(
+            Arg::with_name("memory")
+                .long("--memory")
+                .takes_value(true)
+                .default_value("512MB")
+                .help("Memory allocated per container"))
         .get_matches();
     let config = Config {
+        memory: matches.value_of("memory").unwrap().to_string(),
+        cpus: matches.value_of("cpus").unwrap().to_string(),
         container_internal_port: matches
             .value_of("container-internal-port")
             .unwrap()
