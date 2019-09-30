@@ -1,5 +1,6 @@
 let listening = false;
 let listenPort: number | 'test' = 0;
+let tracing = true;
 
 export function setListening() {
     listening = true;
@@ -15,4 +16,12 @@ export function setListenPort(port: number | 'test') {
 
 export function getListenPort() {
     return listenPort;
+}
+
+export function disableTracing() {
+    tracing = false;
+}
+
+export function isTracing() {
+    return tracing;
 }

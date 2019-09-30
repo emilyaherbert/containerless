@@ -4,6 +4,33 @@ import * as exp from './exp';
 import * as fs from 'fs';
 export { exp };
 
+if (!(process.argv.length >= 3 && process.argv.length <= 4)) {
+    console.error(`Expected port number on command line`);
+    process.exit(1);
+}
+
+if (process.argv.length === 4) {
+    if (process.argv[3] === 'disable-tracing') {
+        state.disableTracing();
+    }
+    else {
+        console.error(`4th argument must be disable-tracing or omitted`);
+        process.exit(1);
+    }
+}
+
+if (process.argv[2] === 'test') {
+    state.setListenPort('test');
+}
+else {
+    const listenPort = Number(process.argv[2]) | 0;
+    if (listenPort <= 1024) {
+        console.error(`Expected port argument to be > 1024 or the word 'test'`);
+        process.exit(1);
+    }
+    state.setListenPort(listenPort);
+}
+
 export let cb = new callbacks.Callbacks();
 
 export function getTrace() {
@@ -50,24 +77,6 @@ export function listen(
 
 export function respond(response: any) {
     return cb.respond(response);
-}
-
-
-if (process.argv.length !== 3) {
-    console.error(`Expected port number on command line`);
-    process.exit(1);
-}
-
-if (process.argv[2] === 'test') {
-    state.setListenPort('test');
-}
-else {
-    const listenPort = Number(process.argv[2]) | 0;
-    if (listenPort <= 1024) {
-        console.error(`Expected port argument to be > 1024 or the word 'test'`);
-        process.exit(1);
-    }
-    state.setListenPort(listenPort);
 }
 
 // Check if the application called listening. If not, blow up.
