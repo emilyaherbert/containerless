@@ -75,6 +75,7 @@ impl ContainerHandle {
             "docker", "stop", "-t", "0", // stop immediately
             &self.name
         )
+        .stdout_to_stderr()
         .run()
         .expect("failed to stop container");
     }
@@ -143,6 +144,7 @@ fn create_container(
         format!("{}", config.container_internal_port),
         "disable-tracing"
     )
+    .stdout_to_stderr()
     .run();
     run_result.unwrap();
     let handle = ContainerHandle { name, authority };
