@@ -6,6 +6,7 @@ mod server;
 mod time_keeper;
 mod types;
 mod util;
+mod sysmon;
 
 use clap::{App, Arg};
 use config::Config;
@@ -76,8 +77,15 @@ fn main() {
                 .takes_value(true)
                 .default_value("512MB")
                 .help("Memory allocated per container"))
+        .arg(
+            Arg::with_name("utilization-log")
+            .long("--utilization-log")
+            .takes_value(true)
+            .default_value("utilization.log")
+            .help("Log of CPU and memory utilization"))
         .get_matches();
     let config = Config {
+        utilization_log: matches.value_of("utilization-log").unwrap().to_string(),
         memory: matches.value_of("memory").unwrap().to_string(),
         cpus: matches.value_of("cpus").unwrap().to_string(),
         container_internal_port: matches
@@ -102,6 +110,7 @@ fn main() {
     };
 
     hyper::rt::run(future::lazy(|| {
+        let send_latency = sysmon::sysmon(&config);
         server::serve(config).map_err(|err| {
             println!("Error: {}", err);
             return ();

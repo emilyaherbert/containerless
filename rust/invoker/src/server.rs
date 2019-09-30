@@ -30,7 +30,7 @@ pub fn serve(config: Config) -> impl future::Future<Item = (), Error = Error> {
                 *req.uri_mut() = new_uri;
                 future::Either::A(client1.request(req).from_err())
             } else {
-                future::Either::B(ContainerPool::request(&pool2, req).map(move |(resp, _duration)| resp))
+                future::Either::B(ContainerPool::request(&pool2, req))
             }
         })
     };
