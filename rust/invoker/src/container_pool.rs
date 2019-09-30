@@ -57,8 +57,7 @@ impl ContainerHandle {
         &self,
         client: Arc<HttpClient>,
         mut req: Request,
-    ) -> impl Future<Item = (Response, Duration), Error = hyper::Error> {
-        let start = Instant::now();
+    ) -> impl Future<Item = Response, Error = hyper::Error> {
         let new_uri = hyper::Uri::builder()
             .scheme("http")
             .authority(self.authority.clone())
@@ -66,7 +65,7 @@ impl ContainerHandle {
             .build()
             .unwrap();
         *req.uri_mut() = new_uri;
-        client.request(req).map(move |req| (req, start.elapsed()))
+        client.request(req)
     }
 
     pub fn stop(&self) {
@@ -250,8 +249,9 @@ impl ContainerPool {
         );
     }
 
-    pub fn request(&self, req: Request) -> impl Future<Item = (Response, Duration), Error = Error> {
+    pub fn request(&self, req: Request) -> impl Future<Item = Response, Error = Error> {
         let data = self.data.clone();
+        let start = Instant::now();
         match data.available.recv_immediate() {
             Some(container) => {
                 let fut = container
