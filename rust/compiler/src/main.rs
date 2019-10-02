@@ -1,4 +1,5 @@
 #[macro_use]
+
 extern crate duct;
 
 use clap::{App, Arg, SubCommand};
