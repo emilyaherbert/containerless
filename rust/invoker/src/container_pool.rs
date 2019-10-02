@@ -57,8 +57,7 @@ impl ContainerHandle {
         &self,
         client: Arc<HttpClient>,
         mut req: Request,
-    ) -> impl Future<Item = (Response, Duration), Error = hyper::Error> {
-        let start = Instant::now();
+    ) -> impl Future<Item = Response, Error = hyper::Error> {
         let new_uri = hyper::Uri::builder()
             .scheme("http")
             .authority(self.authority.clone())
@@ -66,7 +65,7 @@ impl ContainerHandle {
             .build()
             .unwrap();
         *req.uri_mut() = new_uri;
-        client.request(req).map(move |req| (req, start.elapsed()))
+        client.request(req)
     }
 
     pub fn stop(&self) {
@@ -75,6 +74,7 @@ impl ContainerHandle {
             "docker", "stop", "-t", "0", // stop immediately
             &self.name
         )
+        .stdout_to_stderr()
         .run()
         .expect("failed to stop container");
     }
@@ -133,8 +133,17 @@ fn create_container(
         format!("{}:{}", port, config.container_internal_port),
         "--name",
         &name,
-        &config.image_name
+        "--cpus",
+        &config.cpus,
+        "--memory",
+        &config.memory,
+        &config.image_name,
+        // The remaining arguments are CLI arguments passed to the entrypoint
+        // of the container
+        format!("{}", config.container_internal_port),
+        "disable-tracing"
     )
+    .stdout_to_stderr()
     .run();
     run_result.unwrap();
     let handle = ContainerHandle { name, authority };
@@ -240,8 +249,9 @@ impl ContainerPool {
         );
     }
 
-    pub fn request(&self, req: Request) -> impl Future<Item = (Response, Duration), Error = Error> {
+    pub fn request(&self, req: Request) -> impl Future<Item = Response, Error = Error> {
         let data = self.data.clone();
+        let start = Instant::now();
         match data.available.recv_immediate() {
             Some(container) => {
                 let fut = container

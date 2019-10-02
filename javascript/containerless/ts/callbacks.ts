@@ -2,8 +2,10 @@ import * as request from 'request';
 import * as express from 'express';
 import * as bodyParser from "body-parser";
 import * as state from './state';
-import { Trace, newTrace } from './tracing';
+import { newTrace } from './tracing';
+import { newMockTrace } from './mockTracing';
 import { number, identifier } from './exp';
+import { TracingInterface } from './types';
 
 const defaultEventArg = number(0);
 
@@ -17,12 +19,12 @@ export class Callbacks {
 
     private app: express.Express | undefined;
     private response: express.Response | undefined;
-    public trace: Trace;
+    public trace: TracingInterface;
 
     constructor() {
         this.app = undefined;
         this.response = undefined;
-        this.trace = newTrace();
+        this.trace = state.isTracing() ? newTrace() : newMockTrace();
     }
 
     /**
@@ -31,7 +33,7 @@ export class Callbacks {
      * @param trace Callback trace.
      * @param body Callback body.
      */
-    private withTrace(trace: Trace, body: () => void) {
+    private withTrace(trace: TracingInterface, body: () => void) {
         let outerTrace = this.trace;
         this.trace = trace;
         trace.newTrace();

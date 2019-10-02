@@ -6,6 +6,7 @@ mod server;
 mod time_keeper;
 mod types;
 mod util;
+mod sysmon;
 
 use clap::{App, Arg};
 use config::Config;
@@ -64,8 +65,29 @@ fn main() {
                 .default_value("10")
                 .help("The minimum lifespan (s) of a container")
         )
+        .arg(
+            Arg::with_name("cpus")
+                .long("--cpus")
+                .takes_value(true)
+                .default_value("1.0")
+                .help("CPUs allocated per container"))
+        .arg(
+            Arg::with_name("memory")
+                .long("--memory")
+                .takes_value(true)
+                .default_value("512MB")
+                .help("Memory allocated per container"))
+        .arg(
+            Arg::with_name("utilization-log")
+            .long("--utilization-log")
+            .takes_value(true)
+            .default_value("utilization.log")
+            .help("Log of CPU and memory utilization"))
         .get_matches();
     let config = Config {
+        utilization_log: matches.value_of("utilization-log").unwrap().to_string(),
+        memory: matches.value_of("memory").unwrap().to_string(),
+        cpus: matches.value_of("cpus").unwrap().to_string(),
         container_internal_port: matches
             .value_of("container-internal-port")
             .unwrap()
@@ -77,7 +99,7 @@ fn main() {
             .parse()
             .unwrap(),
         min_container_lifespan: matches
-            .value_of("max-container-lifespan")
+            .value_of("min-container-lifespan")
             .unwrap()
             .parse()
             .unwrap(),
@@ -88,6 +110,7 @@ fn main() {
     };
 
     hyper::rt::run(future::lazy(|| {
+        let send_latency = sysmon::sysmon(&config);
         server::serve(config).map_err(|err| {
             println!("Error: {}", err);
             return ();
