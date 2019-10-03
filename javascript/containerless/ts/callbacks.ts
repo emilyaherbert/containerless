@@ -128,7 +128,7 @@ export class Callbacks {
      */
     post(obj: any, callback: (response: undefined | string) => void) {
         let [_, $callbackClos] = this.trace.popArgs();
-        let innerTrace = this.trace.traceCallback('post', defaultEventArg, ['clos', 'request', 'response_callback'], $callbackClos);
+        let innerTrace = this.trace.traceCallback('post', defaultEventArg, ['clos', 'request'], $callbackClos);
 
         /*
         // https://stackoverflow.com/questions/37870594/how-to-post-with-request-in-express
@@ -163,11 +163,11 @@ export class Callbacks {
 
     public tracedListenCallback(callback: (request: Request) => void) {
         let [_, $callbackClos] = this.trace.popArgs();
-        let innerTrace = this.trace.traceCallback('listen', defaultEventArg, ['clos', 'request', 'response_callback'], $callbackClos);
+        let innerTrace = this.trace.traceCallback('listen', defaultEventArg, ['clos', 'request'], $callbackClos);
 
         return (req: Request) => {
             this.withTrace(innerTrace, () => {
-                innerTrace.pushArgs([identifier('clos'), identifier('request'), identifier('response_callback')]);
+                innerTrace.pushArgs([identifier('clos'), identifier('request')]);
                 if (typeof req === 'string') {
                     // TODO(arjun): This is a bit of a hack to allow us to
                     // test tracing by sending raw strings as input. We should
