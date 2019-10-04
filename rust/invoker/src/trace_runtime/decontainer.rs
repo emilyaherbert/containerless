@@ -1,19 +1,19 @@
+use super::super::error::Error;
+use super::super::types;
+use super::execution_context::*;
+use super::type_dynamic::Dyn;
+use super::Containerless;
 use bumpalo::Bump;
 use futures::{future, Async, Future, Poll};
-use std::{pin::Pin};
-use super::execution_context::*;
-use super::type_dynamic::{Dyn};
-use super::Containerless;
-use super::super::types;
-use super::super::error::Error;
-use std::convert::TryInto;
 use hyper::{Body, Response};
+use std::convert::TryInto;
+use std::pin::Pin;
 
 // This structure owns an arena and has an unsafe implementation of `Send`.
 // In general, it is not safe to send `Bump` across threads without a mutex.
 // However, the `poll` method in `Decontainer` ensures that only one thread
 // accesses `bump` at a time, which is why this is safe.
-unsafe impl Send for DecontainerImpl { }
+unsafe impl Send for DecontainerImpl {}
 
 struct Event {
     completed: bool,
@@ -26,9 +26,15 @@ impl Event {
     pub fn new(
         closure: Dyn<'static>,
         indicator: i32,
-        future: Box<dyn Future<Item = usize, Error = ()> + Send>) -> Self {
+        future: Box<dyn Future<Item = usize, Error = ()> + Send>,
+    ) -> Self {
         let completed = false;
-        Event { completed, closure, indicator, future }
+        Event {
+            completed,
+            closure,
+            indicator,
+            future,
+        }
     }
 }
 
@@ -38,14 +44,12 @@ struct DecontainerImpl {
     machine_state: Vec<Event>,
     ec: ExecutionContext<'static>,
     func: Containerless,
-    request: types::Request
+    request: types::Request,
 }
-
 
 pub struct Decontainer {
-    pinned: Pin<Box<DecontainerImpl>>
+    pinned: Pin<Box<DecontainerImpl>>,
 }
-
 
 /*
 
@@ -62,16 +66,19 @@ impl Decontainer {
         let arena = Bump::new();
         return Decontainer {
             pinned: Box::pin(DecontainerImpl {
-                arena, func, request,
-                machine_state: vec![ Event::new(Dyn::Int(0), 0, Box::new(future::ok(0))) ],
+                arena,
+                func,
+                request,
+                machine_state: vec![Event::new(Dyn::Int(0), 0, Box::new(future::ok(0)))],
                 ec: ExecutionContext::new(),
-            })
+            }),
         };
     }
 }
 
-unsafe fn shorten_invariant_lifetime<'b, 'c>(r: &'b mut ExecutionContext<'static>)
-                                             -> &'b mut ExecutionContext<'c> {
+unsafe fn shorten_invariant_lifetime<'b, 'c>(
+    r: &'b mut ExecutionContext<'static>,
+) -> &'b mut ExecutionContext<'c> {
     std::mem::transmute::<&'b mut ExecutionContext<'static>, &'b mut ExecutionContext<'c>>(r)
 }
 
@@ -89,16 +96,12 @@ impl Future for Decontainer {
 
     fn poll<'a>(&'a mut self) -> Poll<Self::Item, Self::Error> {
         // Boilerplate to address pinning
-        let mut_ref: std::pin::Pin<&'a mut DecontainerImpl> =
-            Pin::as_mut(&mut self.pinned);
-        let self_: &'a mut DecontainerImpl = unsafe {
-            Pin::get_unchecked_mut(mut_ref)
-        };
+        let mut_ref: std::pin::Pin<&'a mut DecontainerImpl> = Pin::as_mut(&mut self.pinned);
+        let self_: &'a mut DecontainerImpl = unsafe { Pin::get_unchecked_mut(mut_ref) };
 
         assert!(self_.ec.new_ops.len() == 0);
-        let mut ec: &'a mut ExecutionContext<'a> = unsafe {
-            shorten_invariant_lifetime(&mut self_.ec)
-        };
+        let mut ec: &'a mut ExecutionContext<'a> =
+            unsafe { shorten_invariant_lifetime(&mut self_.ec) };
         loop {
             // Nothing left to do, so we are ready. Note that
             // Decontainer::new() adds a single future to machine_state, so
@@ -114,8 +117,11 @@ impl Future for Decontainer {
                 // It will re-occur if we re-execution in JavaScript, thus we
                 // don't bother doing so.
                 return Result::Ok(Async::Ready(
-                    Response::builder().status(500).body(Body::from("Could not convert response to string"))
-                        .unwrap()));
+                    Response::builder()
+                        .status(500)
+                        .body(Body::from("Could not convert response to string"))
+                        .unwrap(),
+                ));
             }
             let mut any_completed = false;
             for event in self_.machine_state.iter_mut() {
@@ -132,7 +138,10 @@ impl Future for Decontainer {
                         event.completed = true;
                         any_completed = true;
                         let f = &self_.func;
-                        f(&self_.arena, &mut ec, Dyn::Int(event.indicator), unsafe { shorten_invariant_lifetime2(event.closure) }).unwrap();
+                        f(&self_.arena, &mut ec, Dyn::Int(event.indicator), unsafe {
+                            shorten_invariant_lifetime2(event.closure)
+                        })
+                        .unwrap();
                     }
                 }
             }
@@ -140,9 +149,7 @@ impl Future for Decontainer {
             if any_completed == false {
                 return Result::Ok(Async::NotReady);
             }
-            self_
-                .machine_state
-                .retain(|event| event.completed == false);
+            self_.machine_state.retain(|event| event.completed == false);
             // Create a future for each new operation.
             for (op, indicator, clos) in ec.new_ops.drain(0..) {
                 match op {
@@ -152,14 +159,18 @@ impl Future for Decontainer {
                         let args = Dyn::vec(&self_.arena);
                         args.push(clos);
                         args.push(Dyn::int(0)); // TODO(arjun): The request
-                        self_
-                            .machine_state
-                            .push(Event::new(unsafe { extend_lifetime(args) }, indicator, Box::new(future::ok(0))));
-                    },
+                        self_.machine_state.push(Event::new(
+                            unsafe { extend_lifetime(args) },
+                            indicator,
+                            Box::new(future::ok(0)),
+                        ));
+                    }
                     AsyncOp::Immediate => {
-                        self_
-                            .machine_state
-                            .push(Event::new(unsafe { extend_lifetime(clos) }, indicator, Box::new(future::ok(0))));
+                        self_.machine_state.push(Event::new(
+                            unsafe { extend_lifetime(clos) },
+                            indicator,
+                            Box::new(future::ok(0)),
+                        ));
                     }
                     AsyncOp::Request(_) => {
                         panic!("request not yet implemented");

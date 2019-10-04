@@ -1,8 +1,11 @@
+use super::trace_runtime::Decontainer;
 use crate::config::Config;
 use crate::container_pool::ContainerPool;
 use crate::error::Error;
-use super::trace_runtime::Decontainer;
-use futures::{future::{self, Either}, Future};
+use futures::{
+    future::{self, Either},
+    Future,
+};
 use hyper::service::service_fn;
 use hyper::{Client, Server};
 use std::sync::Arc;
@@ -24,11 +27,11 @@ pub fn serve(config: Config) -> impl future::Future<Item = (), Error = Error> {
         service_fn(move |mut req| {
             if req.uri() == "/ping" {
                 let new_uri = hyper::Uri::builder()
-                .scheme("http")
-                .authority("localhost:8081")
-                .path_and_query(req.uri().path())
-                .build()
-                .unwrap();
+                    .scheme("http")
+                    .authority("localhost:8081")
+                    .path_and_query(req.uri().path())
+                    .build()
+                    .unwrap();
                 *req.uri_mut() = new_uri;
                 Either::B(Either::A(client1.request(req).from_err()))
             } else if let Some(containerless) = config.containerless {

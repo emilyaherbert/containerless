@@ -1,16 +1,15 @@
+use crate::config::Config;
+use std::convert::TryInto;
 use std::fs::File;
 use std::io::LineWriter;
 use std::io::Write;
-use std::time::Duration;
 use std::thread;
-use std::convert::TryInto;
-use systemstat::{System, Platform};
-use crate::config::Config;
+use std::time::Duration;
+use systemstat::{Platform, System};
 
 pub fn sysmon(config: &Config) {
-
-    let utilization_log = File::create(&config.utilization_log)
-        .expect("could not create utilization log file");
+    let utilization_log =
+        File::create(&config.utilization_log).expect("could not create utilization log file");
     let mut utilization_writer = LineWriter::new(utilization_log);
 
     // NOTE(arjun): trying to do this with Tokio and futures_locks runs into
@@ -27,7 +26,9 @@ pub fn sysmon(config: &Config) {
             let mem_total = mem_total as f64;
             let mem_free = mem_free as f64;
             let mem_load = (mem_total - mem_free) / mem_total;
-            utilization_writer.write_fmt(format_args!("{},{}\n", 1.0 - load.idle, mem_load)).unwrap();
+            utilization_writer
+                .write_fmt(format_args!("{},{}\n", 1.0 - load.idle, mem_load))
+                .unwrap();
             cpu_load = sys.cpu_load_aggregate().unwrap();
         }
     });

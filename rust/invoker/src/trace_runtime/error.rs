@@ -12,7 +12,7 @@ impl std::fmt::Display for Error {
             Error::TypeError(s) => {
                 fmt.write_str("TypeError: ")?;
                 fmt.write_str(s)
-            },
+            }
             Error::Unknown => fmt.write_str("Unknown"),
         }
     }
@@ -21,5 +21,5 @@ impl std::fmt::Display for Error {
 impl std::error::Error for Error {}
 
 pub fn type_error<T>(message: &str) -> Result<T, Error> {
-    return  Err(Error::TypeError(message.to_string()));
+    return Err(Error::TypeError(message.to_string()));
 }
