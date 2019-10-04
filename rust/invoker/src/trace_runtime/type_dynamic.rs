@@ -1,5 +1,8 @@
-use super::error::{Error, type_error};
-use bumpalo::{collections::{Vec, String}, Bump};
+use super::error::{type_error, Error};
+use bumpalo::{
+    collections::{String, Vec},
+    Bump,
+};
 use std::cell::{Cell, RefCell};
 use std::convert::{From, TryFrom};
 
@@ -53,7 +56,7 @@ impl<'a> Dyn<'a> {
             (Dyn::Float(x), Dyn::Int(n)) => Ok(Dyn::Float(x + f64::from(n))),
             (Dyn::Int(n), Dyn::Float(x)) => Ok(Dyn::Float(f64::from(n) + x)),
             (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Float(x + y)),
-            _ => type_error("add")
+            _ => type_error("add"),
         }
     }
 
@@ -66,9 +69,9 @@ impl<'a> Dyn<'a> {
                 println!("Other is {:?}", other);
                 println!("self is {:?}", self);
                 panic!("not working {:?} == {:?}", self, other)
-            },
+            }
             // (that, other) => panic!("not working {:?}", other),
-                // panic!(format!("Trying {:?} === {:?}", that, other))
+            // panic!(format!("Trying {:?} === {:?}", that, other))
         }
     }
 
@@ -85,7 +88,7 @@ impl<'a> Dyn<'a> {
                     return Ok(vec[index]);
                 }
             },
-            _ => type_error("array indexing")
+            _ => type_error("array indexing"),
         }
     }
 
@@ -136,8 +139,7 @@ impl<'a> TryFrom<Dyn<'a>> for std::string::String {
     fn try_from(value: Dyn<'a>) -> Result<Self, ()> {
         match value {
             Dyn::Str(s) => Ok(s.to_string()),
-            _ => Err(())
+            _ => Err(()),
         }
     }
-
 }

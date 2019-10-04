@@ -3,11 +3,11 @@ mod container_pool;
 mod error;
 mod mpmc;
 mod server;
+mod sysmon;
 mod time_keeper;
+pub mod trace_runtime;
 mod types;
 mod util;
-mod sysmon;
-pub mod trace_runtime;
 
 use clap::{App, Arg};
 use config::Config;
@@ -108,7 +108,7 @@ pub fn main(containerless: Option<trace_runtime::Containerless>) {
         container_hostname: matches.value_of("container-hostname").unwrap().to_string(),
         image_name: matches.value_of("image-name").unwrap().to_string(),
         bind_port: matches.value_of("bind-port").unwrap().parse().unwrap(),
-        containerless: containerless
+        containerless: containerless,
     };
 
     hyper::rt::run(future::lazy(|| {

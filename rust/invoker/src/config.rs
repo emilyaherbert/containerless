@@ -8,8 +8,8 @@ pub struct Config {
     pub max_containers: usize,
     pub max_container_buffer_delay: usize,
     pub min_container_lifespan: u64,
-    pub cpus: String, // string passed to Docker's --cpu flag
+    pub cpus: String,   // string passed to Docker's --cpu flag
     pub memory: String, // string passed to Docker's -m flag
     pub utilization_log: String,
-    pub containerless: Option<Containerless>
+    pub containerless: Option<Containerless>,
 }

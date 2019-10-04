@@ -17,11 +17,10 @@ pub enum AsyncOp {
 /// heap values.
 pub struct ExecutionContext<'a> {
     pub new_ops: Vec<(AsyncOp, i32, Dyn<'a>)>,
-    pub response: Option<Dyn<'a>>
+    pub response: Option<Dyn<'a>>,
 }
 
 impl<'a> ExecutionContext<'a> {
-
     pub fn new() -> Self {
         let response = None;
         let new_ops = vec![];
@@ -32,10 +31,7 @@ impl<'a> ExecutionContext<'a> {
     /// response, which helps the decontainerized keep track of multiple
     /// pending requests. There is no requirement that indicators be distinct,
     /// but that will be helpful to client code.
-    pub fn loopback_int(&mut self,
-        op: AsyncOp,
-        indicator: i32,
-        closure: Dyn<'a>) {
+    pub fn loopback_int(&mut self, op: AsyncOp, indicator: i32, closure: Dyn<'a>) {
         self.new_ops.push((op, indicator, closure));
     }
 
@@ -45,13 +41,11 @@ impl<'a> ExecutionContext<'a> {
         _event_arg: Dyn<'a>,
         event_clos: Dyn<'a>,
         indicator: i32,
-    ) -> DynResult<'a>
-    {
+    ) -> DynResult<'a> {
         if event_name == "listen" {
             self.loopback_int(AsyncOp::Listen, indicator, event_clos);
             Ok(Dyn::int(0))
-        }
-        else {
+        } else {
             Ok(Dyn::int(0))
         }
     }
@@ -60,5 +54,4 @@ impl<'a> ExecutionContext<'a> {
         self.response = Some(value);
         Ok(Dyn::int(0))
     }
-
 }
