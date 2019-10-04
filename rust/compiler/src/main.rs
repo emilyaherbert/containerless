@@ -48,24 +48,6 @@ fn main() {
                         .required(true),
                 )
         )
-        .subcommand(
-            SubCommand::with_name("test-compiled-trace")
-                .about("Execute a compiled trace on inputs")
-                .arg(
-                    Arg::with_name("file")
-                        .short("f")
-                        .help("Path to Rust library")
-                        .takes_value(true)
-                        .required(false),
-                )
-                .arg(
-                    Arg::with_name("input")
-                        .short("i")
-                        .help("Path to input")
-                        .takes_value(true)
-                        .required(false),
-                ),
-        )
         .get_matches();
 
     if let Some(m) = matches.subcommand_matches("test-tracing") {
