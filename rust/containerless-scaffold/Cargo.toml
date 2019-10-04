@@ -4,11 +4,8 @@ version = "0.1.0"
 authors = ["Arjun Guha <arjun@cs.umass.edu>"]
 edition = "2018"
 
-[lib]
-crate-type = ["dylib" ]
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-trace-runtime = { path = "../trace-runtime" }
+invoker = { path = "../invoker" }
 bumpalo = "*"

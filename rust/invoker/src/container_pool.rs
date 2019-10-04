@@ -251,7 +251,6 @@ impl ContainerPool {
 
     pub fn request(&self, req: Request) -> impl Future<Item = Response, Error = Error> {
         let data = self.data.clone();
-        let start = Instant::now();
         match data.available.recv_immediate() {
             Some(container) => {
                 let fut = container

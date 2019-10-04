@@ -1,3 +1,5 @@
+use super::trace_runtime::Containerless;
+
 pub struct Config {
     pub container_internal_port: usize,
     pub container_hostname: String,
@@ -8,5 +10,6 @@ pub struct Config {
     pub min_container_lifespan: u64,
     pub cpus: String, // string passed to Docker's --cpu flag
     pub memory: String, // string passed to Docker's -m flag
-    pub utilization_log: String
+    pub utilization_log: String,
+    pub containerless: Option<Containerless>
 }

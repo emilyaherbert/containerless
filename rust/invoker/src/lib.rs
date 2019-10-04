@@ -7,12 +7,13 @@ mod time_keeper;
 mod types;
 mod util;
 mod sysmon;
+pub mod trace_runtime;
 
 use clap::{App, Arg};
 use config::Config;
 use futures::future::{self, Future};
 
-fn main() {
+pub fn main(containerless: Option<trace_runtime::Containerless>) {
     println!("Starting Decontainerizer");
     let matches = App::new("decontainerizer-invoker")
         .arg(
@@ -107,10 +108,11 @@ fn main() {
         container_hostname: matches.value_of("container-hostname").unwrap().to_string(),
         image_name: matches.value_of("image-name").unwrap().to_string(),
         bind_port: matches.value_of("bind-port").unwrap().parse().unwrap(),
+        containerless: containerless
     };
 
     hyper::rt::run(future::lazy(|| {
-        let send_latency = sysmon::sysmon(&config);
+        sysmon::sysmon(&config);
         server::serve(config).map_err(|err| {
             println!("Error: {}", err);
             return ();
