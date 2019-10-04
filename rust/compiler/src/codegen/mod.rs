@@ -64,7 +64,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             let q_op = codegen_op(op);
             let q_e1 = codegen_exp(e1);
             let q_e2 = codegen_exp(e2);
-            quote! { (#q_e1?).#q_op(#q_e2?)? }
+            quote! { (#q_e1).#q_op(#q_e2)? }
         }
         Exp::If {
             cond,
@@ -131,7 +131,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             let q_event_arg = codegen_exp(event_arg);
             let q_callback_clos = codegen_exp(callback_clos);
             quote! {
-                ec.loopback(#event, #q_event_arg, #q_callback_clos, #id)
+                ec.loopback(#event, #q_event_arg, #q_callback_clos, #id)?
             }
         }
         Exp::Label { name, body } => {
@@ -166,26 +166,26 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
         Exp::Index { e1, e2 } => {
             let q_e1 = codegen_exp(e1);
             let q_e2 = codegen_exp(e2);
-            quote! { (#q_e1?).index(#q_e2) }
+            quote! { (#q_e1).index(#q_e2)? }
         }
         Exp::Ref { e } => {
             let q_e = codegen_exp(e);
-            quote! { Dyn::ref_(arena, #q_e?) }
+            quote! { Dyn::ref_(arena, #q_e) }
         }
         Exp::Deref { e } => {
             let q_e = codegen_exp(e);
-            quote! { Dyn::deref(#q_e?) }
+            quote! { Dyn::deref(#q_e) }
         }
         Exp::SetRef { e1, e2 } => {
             let q_e1 = codegen_exp(e1);
             let q_e2 = codegen_exp(e2);
-            quote! { Dyn::setref(#q_e1, #q_e2) }
+            quote! { Dyn::setref(#q_e1, #q_e2)? }
         }
         Exp::PrimApp { event, event_args } => {
             let q_event_args = event_args.iter().map(|e| codegen_exp(e));
             let q_event = Ident::new(&format!("{}", event), Span::call_site());
             quote! {
-                ec.#q_event(#(#q_event_args?),*)
+                ec.#q_event(#(#q_event_args),*)?
             }
         }
     }
@@ -194,23 +194,16 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
 pub fn codegen(e: &Exp, dest_file: &str) {
     let q_e = codegen_exp(e);
     let tokens = quote! {
-        use trace_runtime::{Error, ExecutionContext, Dyn, DynResult};
-        use trace_runtime as rt;
+        use invoker::trace_runtime::{self as rt, Error, ExecutionContext, Dyn, DynResult};
 
-        fn containerless_func<'a>(
-            ec: &mut ExecutionContext,
+        pub fn containerless<'a>(
             arena: &'a bumpalo::Bump,
-            arg_cbid: DynResult<'a>,
-            arg_cbargs: DynResult<'a>) -> DynResult<'a> {
-            #q_e
+            ec: &mut ExecutionContext<'a>,
+            arg_cbid: Dyn<'a>,
+            arg_cbargs: Dyn<'a>,
+        ) -> DynResult<'a> {
+            Ok(#q_e)
         }
-
-        #[no_mangle]
-        pub extern "C" fn containerless() {
-            let arena = bumpalo::Bump::new();
-            rt::init(&arena, containerless_func);
-        }
-
     };
 
     std::fs::write(dest_file, format!("{}", tokens))
