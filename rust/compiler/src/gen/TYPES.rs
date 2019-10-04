@@ -37,28 +37,35 @@ no generics !
 https://tratt.net/laurie/blog/entries/a_quick_look_at_trait_objects_in_rust.html
 https://doc.rust-lang.org/book/ch17-02-trait-objects.html#object-safety-is-required-for-trait-objects
 
+Update:
+
+Just kidding scrap everything! This is better:
+https://stackoverflow.com/questions/26412396/several-implementations-of-the-add-trait-for-the-same-type
+
+Apparently you are allowed to implement traits for multiple types, but you are
+allowed one implementation for trait objects... I think this might actually be a
+bug.
+
 */
 
-trait Dynamic {
-    fn get_i32(&self) -> I32Result {
+trait JSDynamic {
+    fn to_i32(&self) -> I32Result {
         return Err(Error::TypeError);
     }
 
-    fn get_f64(&self) -> F64Result {
+    fn to_f64(&self) -> F64Result {
         return Err(Error::TypeError);
     }
 
-    fn get_bool(&self) -> BoolResult {
+    fn to_bool(&self) -> BoolResult {
         return Err(Error::TypeError);
     }
+}
 
-    fn strict_eq(&self, other: &dyn Dynamic) -> BoolResult {
-        return Err(Error::TypeError);
-    }
+trait Add<other=Self> {
+    type Output;
 
-    fn add(&self, other: &dyn Dynamic) -> Result<Self, Error> where Self: std::marker::Sized {
-        return Err(Error::TypeError);
-    }
+    fn add(&self, other: &other) -> Self::Output;
 }
 
 /*
@@ -69,35 +76,29 @@ trait Dynamic {
 #[derive(Debug)]
 pub struct I32(i32);
 pub type I32Result = Result<I32, Error>;
-trait MayConvertToI32 {
-    fn to_i32(&self) -> i32;
-}
 impl I32 {
     pub fn i32(n: i32) -> I32Result {
         return Ok(I32(n));
     }
-    pub fn strict_eq(&self, other: &dyn MayConvertToI32) -> BoolResult {
-        return Bool::bool(self.0 == other.to_i32());
-    }
-    pub fn add(&self, other: &dyn MayConvertToI32) -> I32Result {
-        return I32::i32(self.0 + other.to_i32());
-    }
-    pub fn sub(&self, other: &dyn MayConvertToI32) -> I32Result {
-        return I32::i32(self.0 - other.to_i32());
-    }
-    pub fn mul(&self, other: &dyn MayConvertToI32) -> I32Result {
-        return I32::i32(self.0 * other.to_i32());
-    }
-    pub fn div(&self, other: &dyn MayConvertToI32) -> I32Result {
-        return I32::i32(self.0 / other.to_i32());
-    }
-}
-impl std::convert::Into<i32> for I32 {
-    fn into(self) -> i32 {
+
+    pub fn to_i32(&self) -> i32 {
         return self.0;
     }
 }
+impl Add for I32 {
+    type Output = I32Result;
 
+    fn add(&self, other: &I32) -> Self::Output {
+        return I32::i32(self.0 + other.0);
+    }
+}
+impl<T> Add<T> for I32 where T: JSDynamic {
+    type Output = I32Result;
+
+    fn add(&self, other: &T) -> Self::Output {
+        return I32::i32(self.0 + other.to_i32()?.0);
+    }
+}
 
 /*
     #################
@@ -107,46 +108,27 @@ impl std::convert::Into<i32> for I32 {
 #[derive(Debug)]
 pub struct F64(f64);
 pub type F64Result = Result<F64, Error>;
-trait MayConvertToF64 {
-    fn to_f64(&self) -> f64;
-}
 impl F64 {
     pub fn f64(n: f64) -> F64Result {
         return Ok(F64(n));
     }
-    pub fn strict_eq(&self, other: &dyn MayConvertToF64) -> BoolResult {
-        return Bool::bool(self.0 == other.to_f64());
-    }
-    pub fn add(&self, other: &dyn MayConvertToF64) -> F64Result {
-        return F64::f64(self.0 + other.to_f64());
-    }
-    pub fn sub(&self, other: &dyn MayConvertToF64) -> F64Result {
-        return F64::f64(self.0 - other.to_f64());
-    }
-    pub fn mul(&self, other: &dyn MayConvertToF64) -> F64Result {
-        return F64::f64(self.0 * other.to_f64());
-    }
-    pub fn div(&self, other: &dyn MayConvertToF64) -> F64Result {
-        return F64::f64(self.0 / other.to_f64());
-    }
-}
-impl MayConvertToF64 for F64 {
-    fn to_f64(&self) -> f64 {
+
+    pub fn to_f64(&self) -> f64 {
         return self.0;
     }
 }
-impl Dynamic for F64 {
-    fn get_f64(&self) -> F64Result {
-        return F64::f64(self.0);
-    }
+impl Add for F64 {
+    type Output = F64Result;
 
-    fn strict_eq(&self, other: &dyn Dynamic) -> BoolResult {
-        return Bool::bool(self.0 == other.get_f64()?.0);
+    fn add(&self, other: &F64) -> Self::Output {
+        return F64::f64(self.0 + other.0);
     }
+}
+impl<T> Add<T> for F64 where T: JSDynamic {
+    type Output = F64Result;
 
-    fn add(&self, other: &dyn Dynamic) -> F64Result
-        where Self: std::marker::Sized {
-        return F64::f64(self.0 + other.get_f64()?.0);
+    fn add(&self, other: &T) -> Self::Output {
+        return F64::f64(self.0 + other.to_f64()?.0);
     }
 }
 
@@ -158,25 +140,12 @@ impl Dynamic for F64 {
 #[derive(Debug)]
 pub struct Bool(bool);
 pub type BoolResult = Result<Bool, Error>;
-trait MayConvertToBool {
-    fn to_bool(&self) -> bool;
-}
 impl Bool {
     pub fn bool(b: bool) -> BoolResult {
         return Ok(Bool(b));
     }
-    pub fn strict_eq(&self, other: &dyn MayConvertToBool) -> BoolResult {
-        return Bool::bool(self.0 == other.to_bool());
-    }
-    pub fn and(&self, other: &dyn MayConvertToBool) -> BoolResult {
-        return Bool::bool(self.0 && other.to_bool());
-    }
-    pub fn or(&self, other: &dyn MayConvertToBool) -> BoolResult {
-        return Bool::bool(self.0 || other.to_bool());
-    }
-}
-impl std::convert::Into<bool> for Bool {
-    fn into(self) -> bool {
+
+    pub fn to_bool(&self) -> bool {
         return self.0;
     }
 }
@@ -201,32 +170,37 @@ impl<'a> RustType0<'a> {
         return Ok(RustType0::Variant1(i));
     }
 }
-impl<'a> Dynamic for RustType0<'a> {
-    fn get_f64(&self) -> F64Result {
+impl<'a> JSDynamic for RustType0<'a> {
+    fn to_f64(&self) -> F64Result {
         match self {
             RustType0::Variant1(n) => F64::f64(*n),
             _ => Err(Error::TypeError)
         }
     }
 
-    fn get_bool(&self) -> BoolResult {
+    fn to_bool(&self) -> BoolResult {
         match self {
             RustType0::Variant0(n) => Bool::bool(*n),
             _ => Err(Error::TypeError)
         }
     }
+}
+impl<'a> Add<F64> for RustType0<'a> {
+    type Output = RustType0Result<'a>;
 
-    fn strict_eq(&self, other: &dyn Dynamic) -> BoolResult {
+    fn add(&self, other: &F64) -> Self::Output {
         match self {
-            RustType0::Variant0(b) => Bool::bool(*b == other.get_bool()?.0),
-            RustType0::Variant1(n) => Bool::bool(*n == other.get_f64()?.0),
+            RustType0::Variant1(n) => RustType0::f64(n + other.to_f64()),
             _ => Err(Error::TypeError)
         }
     }
+}
+impl<'a, T> Add<T> for RustType0<'a> where T: JSDynamic {
+    type Output = RustType0Result<'a>;
 
-    fn add(&self, other: &dyn Dynamic) -> RustType0Result<'a> where Self: std::marker::Sized {
+    fn add(&self, other: &T) -> Self::Output {
         match self {
-            RustType0::Variant1(n) => RustType0::f64(n + other.get_f64()?.0),
+            RustType0::Variant1(n) => RustType0::f64(n + other.to_f64()?.0),
             _ => Err(Error::TypeError)
         }
     }
@@ -252,33 +226,48 @@ impl<'a> RustType1<'a> {
         return Ok(RustType1::Variant1(i));
     }
 }
-impl<'a> Dynamic for RustType1<'a> {
-    fn get_i32(&self) -> I32Result {
+impl<'a> JSDynamic for RustType1<'a> {
+    fn to_i32(&self) -> I32Result {
         match self {
             RustType1::Variant0(n) => I32::i32(*n),
             _ => Err(Error::TypeError)
         }
     }
 
-    fn get_f64(&self) -> F64Result {
+    fn to_f64(&self) -> F64Result {
         match self {
             RustType1::Variant1(n) => F64::f64(*n),
             _ => Err(Error::TypeError)
         }
     }
+}
+impl<'a> Add<I32> for RustType1<'a> {
+    type Output = RustType1Result<'a>;
 
-    fn strict_eq(&self, other: &dyn Dynamic) -> BoolResult {
+    fn add(&self, other: &I32) -> Self::Output {
         match self {
-            RustType1::Variant0(n) => Bool::bool(*n == other.get_i32()?.0),
-            RustType1::Variant1(n) => Bool::bool(*n == other.get_f64()?.0),
+            RustType1::Variant0(n) => RustType1::i32(n + other.to_i32()),
             _ => Err(Error::TypeError)
         }
     }
+}
+impl<'a> Add<F64> for RustType1<'a> {
+    type Output = RustType1Result<'a>;
 
-    fn add(&self, other: &dyn Dynamic) -> RustType1Result<'a> where Self: std::marker::Sized {
+    fn add(&self, other: &F64) -> Self::Output {
         match self {
-            RustType1::Variant0(n) => RustType1::i32(n + other.get_i32()?.0),
-            RustType1::Variant1(n) => RustType1::f64(n + other.get_f64()?.0),
+            RustType1::Variant1(n) => RustType1::f64(n + other.to_f64()),
+            _ => Err(Error::TypeError)
+        }
+    }
+}
+impl<'a, T> Add<T> for RustType1<'a> where T: JSDynamic {
+    type Output = RustType1Result<'a>;
+
+    fn add(&self, other: &T) -> Self::Output {
+        match self {
+            RustType1::Variant0(n) => RustType1::i32(n + other.to_i32()?.0),
+            RustType1::Variant1(n) => RustType1::f64(n + other.to_f64()?.0),
             _ => Err(Error::TypeError)
         }
     }
@@ -293,36 +282,23 @@ mod tests {
     fn trying_types() {
         let a = F64(1.0);
         let b = F64(10.0);
-        let c = a.mul(&b);
-
-        let foo = Bool(true);
-        //let fail = a.add(foo);
-
+        let c = Bool(true);
         let mut x = RustType0::f64(100.0).unwrap();
         let y = RustType1::f64(1000.0).unwrap();
 
-        // primitive + primitive
-        // "static"
-        let r1 = a.strict_eq(&b).unwrap();
         let s1 = a.add(&b).unwrap();
         println!("{:?}", s1);
-
-        // rust type + rust type
-        // "dynamic"
-        let r2 = x.strict_eq(&y).unwrap();
-        let s2 = y.add(&x).unwrap();
+        let s2 = a.add(&y).unwrap();
         println!("{:?}", s2);
-
-        // rust type + primitive
-        // "dynamic"
-        let r3 = x.strict_eq(&b).unwrap();
         let s3 = y.add(&a).unwrap();
         println!("{:?}", s3);
-
-        // primitive + rust type
-        // "dynamic"
-        //let r4 = b.strict_eq(y);
-        //let s3 = b.add(y).unwrap();
+        let s4 = y.add(&x).unwrap();
+        println!("{:?}", s4);
+        let s5 = y.add(&y).unwrap();
+        println!("{:?}", s5);
+        
+        
+        //let fail = a.add(&c).unwrap();
     }
 
 }
