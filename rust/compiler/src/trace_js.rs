@@ -2,6 +2,7 @@
  * This module is a small shim to the JavaScript tracing code.
  */
 use std::fs;
+use std::path::Path;
 use std::fs::File;
 use std::io::prelude::*;
 use std::process::Command;
@@ -55,10 +56,11 @@ pub fn to_exp(filename: &str, code: &str, requests: &str) -> String {
 }
 
 pub fn trace_with_files(file: &str, input: &str) -> String {
+    let parent_path = Path::new(file).parent().map(|p| p.to_str().unwrap()).unwrap_or(".");
     let untransformed_code =
         fs::read_to_string(file).expect(&format!("could not read file {}", file));
     let requests = fs::read_to_string(input).expect(&format!("could not read file {}", input));
-    let transformed_file = NamedTempFile::new_in(".").expect("could not create temporary file");
+    let transformed_file = NamedTempFile::new_in(parent_path).expect("could not create temporary file");
     let exp = to_exp(
         transformed_file.path().to_str().unwrap(),
         &untransformed_code,
