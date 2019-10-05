@@ -51,16 +51,6 @@ pub struct Decontainer {
     pinned: Pin<Box<DecontainerImpl>>,
 }
 
-/*
-
-pub type Containerless = for <'a> fn(
-    arena: &'a bumpalo::Bump,
-    ec: &mut ExecutionContext<'a>,
-    arg_cbid: Dyn<'a>,
-    arg_cbargs: Dyn<'a>) -> DynResult<'a>;
-
-*/
-
 impl Decontainer {
     pub fn new(func: Containerless, request: types::Request) -> Decontainer {
         let arena = Bump::new();
@@ -154,11 +144,12 @@ impl Future for Decontainer {
             for (op, indicator, clos) in ec.new_ops.drain(0..) {
                 match op {
                     AsyncOp::Listen => {
-                        // TODO(arjun): Bogus implementation. Need to pass
-                        // the request in.
                         let args = Dyn::vec(&self_.arena);
                         args.push(clos);
-                        args.push(Dyn::int(0)); // TODO(arjun): The request
+                        let req = Dyn::object(&self_.arena);
+                        // TODO(arjun): More fields
+                        Dyn::set_field(req, "path", Dyn::str(&self_.arena, self_.request.uri().path()));
+                        args.push(req);
                         self_.machine_state.push(Event::new(
                             unsafe { extend_lifetime(args) },
                             indicator,

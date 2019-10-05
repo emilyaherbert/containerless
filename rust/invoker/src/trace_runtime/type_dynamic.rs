@@ -46,8 +46,26 @@ impl<'a> Dyn<'a> {
         Dyn::Ref(arena.alloc(Cell::new(value)))
     }
 
-    pub fn object(arena: &'a Bump, _fields: std::vec::Vec<(&'a str, Dyn<'a>)>) -> Dyn<'a> {
+    pub fn object(arena: &'a Bump) -> Dyn<'a> {
         Dyn::Object(arena.alloc(RefCell::new(Vec::new_in(arena))))
+    }
+
+    pub fn set_field(obj: Dyn<'a>, key: &'static str, value: Dyn<'a>) -> DynResult<'a> {
+        // This is a pretty bad implementation. We are scanning a vector!
+        if let Dyn::Object(cell) =  obj {
+            let mut vec = cell.borrow_mut();
+            for (k, v) in vec.iter_mut() {
+                if *k == key {
+                    *v = value;
+                    return Ok(Dyn::Undefined);
+                }
+            }
+            vec.push((key, value));
+            return Ok(Dyn::Undefined);
+        }
+        else {
+            return type_error("set_field");
+        }
     }
 
     pub fn add(&self, other: Dyn<'a>) -> DynResult<'a> {
