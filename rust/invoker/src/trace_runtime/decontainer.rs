@@ -44,7 +44,7 @@ struct DecontainerImpl {
     machine_state: Vec<Event>,
     ec: ExecutionContext<'static>,
     func: Containerless,
-    request: types::Request,
+    request: Dyn<'static>,
 }
 
 pub struct Decontainer {
@@ -52,8 +52,13 @@ pub struct Decontainer {
 }
 
 impl Decontainer {
-    pub fn new(func: Containerless, request: types::Request) -> Decontainer {
+    pub fn new_from(func: Containerless,
+        path: &str) -> Decontainer {
         let arena = Bump::new();
+        let request = Dyn::object(&arena);
+        request.set_field("path", Dyn::str(&arena, path))
+            .unwrap();
+        let request = unsafe { extend_lifetime(request) };
         return Decontainer {
             pinned: Box::pin(DecontainerImpl {
                 arena,
@@ -63,6 +68,11 @@ impl Decontainer {
                 ec: ExecutionContext::new(),
             }),
         };
+    }
+
+    pub fn new(func: Containerless, req: types::Request) -> Decontainer {
+        let (parts, _body) = req.into_parts();
+        Decontainer::new_from(func, parts.uri.path())
     }
 }
 
@@ -146,10 +156,7 @@ impl Future for Decontainer {
                     AsyncOp::Listen => {
                         let args = Dyn::vec(&self_.arena);
                         args.push(clos);
-                        let req = Dyn::object(&self_.arena);
-                        // TODO(arjun): More fields
-                        Dyn::set_field(req, "path", Dyn::str(&self_.arena, self_.request.uri().path()));
-                        args.push(req);
+                        args.push(unsafe { shorten_invariant_lifetime2(self_.request) });
                         self_.machine_state.push(Event::new(
                             unsafe { extend_lifetime(args) },
                             indicator,
