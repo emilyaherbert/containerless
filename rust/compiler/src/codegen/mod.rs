@@ -42,7 +42,7 @@ fn codegen_block(block: &[Exp], to_break: Option<Lifetime>) -> TokenStream {
 fn codegen_exp(exp: &Exp) -> TokenStream {
     match exp {
         Exp::Clos { tenv: _ } => panic!("Exp::Clos should have been eliminated"),
-        Exp::Unknown {} => quote! { rt::unknown() },
+        Exp::Unknown {} => quote! { rt::unknown()? },
         Exp::Integer { value } => quote! { Dyn::int(#value) },
         Exp::Number { value } => quote! { Dyn::float(#value) },
         Exp::Bool { value } => quote! { Dyn::bool(#value) },
@@ -56,7 +56,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
         }
         Exp::From { exp, field } => {
             let q_exp = codegen_exp(exp);
-            quote! { #q_exp.get(#field) }
+            quote! { #q_exp.get(#field)? }
         }
         Exp::Stringg { value } => quote! { Dyn::str(arena, #value) },
         Exp::Undefined {} => quote! { Dyn::undef() },
@@ -157,7 +157,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
                 let q_v = codegen_exp(v);
                 quote! { (#k, #q_v) }
             });
-            quote! { Dyn::object(arena, vec![#(#q_tenv),*]) }
+            quote! { Dyn::object_with(arena, vec![#(#q_tenv),*]) }
         }
         Exp::Array { exps } => {
             let q_exps = exps.iter().map(|e| codegen_exp(e));
