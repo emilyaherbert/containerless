@@ -6,6 +6,10 @@ use bumpalo::{
 use std::cell::{Cell, RefCell};
 use std::convert::{From, TryFrom};
 
+pub fn unknown<'a>() -> DynResult<'a> {
+    Err(Error::Unknown)
+}
+
 /**
  * This is an implementation of "type dynamic" for traces.
  */
@@ -50,9 +54,17 @@ impl<'a> Dyn<'a> {
         Dyn::Object(arena.alloc(RefCell::new(Vec::new_in(arena))))
     }
 
-    pub fn set_field(obj: Dyn<'a>, key: &'static str, value: Dyn<'a>) -> DynResult<'a> {
+    pub fn object_with(arena: &'a Bump, fields: std::vec::Vec<(&'static str, Dyn<'a>)>) -> Dyn<'a> {
+        let obj = Dyn::object(arena);
+        for (k, v) in fields.into_iter() {
+            obj.set_field(k, v).unwrap();
+        }
+        return obj;
+    }
+
+    pub fn set_field(&self, key: &'static str, value: Dyn<'a>) -> DynResult<'a> {
         // This is a pretty bad implementation. We are scanning a vector!
-        if let Dyn::Object(cell) =  obj {
+        if let Dyn::Object(cell) = self {
             let mut vec = cell.borrow_mut();
             for (k, v) in vec.iter_mut() {
                 if *k == key {
@@ -65,6 +77,21 @@ impl<'a> Dyn<'a> {
         }
         else {
             return type_error("set_field");
+        }
+    }
+
+    pub fn get(&self, key: &str) -> DynResult<'a> {
+        match self {
+            Dyn::Object(cell) => {
+                let vec = cell.borrow();
+                for (k, v) in vec.iter() {
+                    if *k == key {
+                        return Ok(*v);
+                    }
+                }
+                return Ok(Dyn::Undefined);
+            }
+            _ => return type_error("not an object")
         }
     }
 
