@@ -36,7 +36,7 @@ impl Transformer {
             Number { value } => return number(*value),
             Bool { value } => return bool_(*value),
             Identifier { name } => return deref(id(name)),
-            From { exp, field } => return deref(from(self.transform_exp(exp), field)),
+            From { exp, field } => return from(self.transform_exp(exp), field),
             Stringg { value } => return string(value),
             Undefined {} => return undefined(),
             BinOp { op, e1, e2 } => {
