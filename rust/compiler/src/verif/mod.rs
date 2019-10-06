@@ -39,342 +39,102 @@ mod tests {
 
     use crate::trace_js::to_exp;
     use crate::{
-        types::{constructors::*, Exp, Op2, Typ},
+        types::Exp,
         verif::verify,
     };
+    use super::super::codegen;
+    use std::process::Command;
+    use std::process::Stdio;
+    use std::io::prelude::*;
 
-    fn test_harness(filename: &str, code: &str, requests: &str) -> Exp {
-        let json = to_exp(filename, code, requests);
-        // TODO(arjun): We should only remove the file after the calling test
-        // case succeeds. How can we do this neatly? Destructors?
+
+    fn test_end_to_end(
+        filename: &str,
+        code: &str,
+        js_requests: &str,
+        rs_requests: &str) -> Vec<String> {
+        let json = to_exp(filename, code, js_requests);
         std::fs::remove_file(filename).expect("removing file");
         let exp = serde_json::from_str::<Exp>(&json)
             .unwrap_or_else(|exp| panic!("\n{:?} \nin \n{}", exp, &json));
-
         let verified = verify(&exp);
+        codegen::codegen(&verified, "../containerless-scaffold/src/containerless.rs");
+        let mut decontainerized = Command::new("cargo")
+            .args(["run", "ignored-arg", "--testing"].iter())
+            .current_dir("../containerless-scaffold")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+            .expect("starting decontainerized function (in Rust)");
+        decontainerized
+            .stdin
+            .as_mut()
+            .expect("opening stdin")
+            .write_all(rs_requests.as_bytes())
+            .expect("failed to write requests");
 
-        return verified;
+        let exit = decontainerized
+            .wait()
+            .expect("running decontainerized function");
+        assert!(exit.success(), "non-zero exit code from function");
+
+        let mut stdout = String::new();
+        decontainerized
+            .stdout
+            .unwrap()
+            .read_to_string(&mut stdout)
+            .expect("reading stdout");
+            
+        return stdout.split_terminator('\n').map(|s| s.to_string()).collect();
     }
 
     #[test]
-    pub fn try_test_1() {
-        let handle = test_harness(
+    pub fn trivial_fixed_response() {
+        let result = test_end_to_end(
             "try_test.js",
             r#"
             let containerless = require("../../javascript/containerless");
             containerless.listen(function(req) {
                 containerless.respond("Hello, world!");
-            });
-        "#,
-            "start
-        stop",
-        );
-
-        let goal = if_(
-            binop(&Op2::StrictEq, id("arg_cbid"), integer(1)),
-            vec![
-                let_(
-                    "clos",
-                    Some(t_ref(t_obj_2(&[]))),
-                    ref_(index(id("arg_cbargs"), integer(0))),
-                ),
-                let_(
-                    "request",
-                    Some(t_ref(t_obj_2(&[("path", t_ref(Typ::String))]))),
-                    ref_(index(id("arg_cbargs"), integer(1))),
-                ),
-                let_(
-                    "response_callback",
-                    Some(t_ref(Typ::ResponseCallback)),
-                    ref_(index(id("arg_cbargs"), integer(2))),
-                ),
-                label(
-                    "'ret",
-                    vec![
-                        let_(
-                            "req",
-                            Some(t_ref(t_obj_2(&[("path", t_ref(Typ::String))]))),
-                            ref_(deref(id("request"))),
-                        ),
-                        let_(
-                            "app100",
-                            Some(t_ref(Typ::Undefined)),
-                            ref_(block(vec![prim_app("send", vec![string("Hello, world!")])])),
-                        ),
-                    ],
-                ),
-            ],
-            vec![block(vec![
-                let_("fun000", Some(t_ref(t_obj_2(&[]))), ref_(obj_2(&[]))),
-                let_(
-                    "app000",
-                    Some(t_ref(Typ::Undefined)),
-                    ref_(block(vec![loopback(
-                        "listen",
-                        number(0.0),
-                        deref(id("fun000")),
-                        1,
-                    )])),
-                ),
-            ])],
-        );
-
-        assert_eq!(handle, goal);
+            });"#,
+            "input",
+            "input");
+        assert_eq!(result, vec!["Hello, world!"]);
     }
 
     #[test]
-    pub fn try_test_2() {
-        let handle = test_harness(
-            "try_test_2.js",
+    pub fn trivial_echo_path() {
+        let result = test_end_to_end(
+            "try_test.js",
             r#"
             let containerless = require("../../javascript/containerless");
-            let str = 'Got a response!';
             containerless.listen(function(req) {
-                // console.log(str);
-                console.error(str);
-                containerless.respond(req);
-            });
-        "#,
-            "request1
-        request2",
-        );
-
-        let goal = if_(
-            binop(&Op2::StrictEq, id("arg_cbid"), integer(1)),
-            vec![
-                let_(
-                    "clos",
-                    Some(t_ref(t_obj_2(&[("str00", t_ref(Typ::String))]))),
-                    ref_(index(id("arg_cbargs"), integer(0))),
-                ),
-                let_(
-                    "request",
-                    Some(t_ref(t_obj_2(&[("path", t_ref(Typ::String))]))),
-                    ref_(index(id("arg_cbargs"), integer(1))),
-                ),
-                let_(
-                    "response_callback",
-                    Some(t_ref(Typ::ResponseCallback)),
-                    ref_(index(id("arg_cbargs"), integer(2))),
-                ),
-                label(
-                    "'ret",
-                    vec![
-                        let_(
-                            "req",
-                            Some(t_ref(t_obj_2(&[("path", t_ref(Typ::String))]))),
-                            ref_(deref(id("request"))),
-                        ),
-                        prim_app("console.log", vec![deref(from(deref(id("clos")), "str00"))]),
-                        let_(
-                            "app200",
-                            Some(t_ref(Typ::Undefined)),
-                            ref_(block(vec![prim_app("send", vec![deref(id("req"))])])),
-                        ),
-                    ],
-                ),
-            ],
-            vec![block(vec![
-                let_(
-                    "str00",
-                    Some(t_ref(Typ::String)),
-                    ref_(string("Got a response!")),
-                ),
-                let_(
-                    "fun000",
-                    Some(t_ref(t_obj_2(&[("str00", t_ref(Typ::String))]))),
-                    ref_(obj_2(&[("str00", id("str00"))])),
-                ),
-                let_(
-                    "app000",
-                    Some(t_ref(Typ::Undefined)),
-                    ref_(block(vec![loopback(
-                        "listen",
-                        number(0.0),
-                        deref(id("fun000")),
-                        1,
-                    )])),
-                ),
-            ])],
-        );
-
-        assert_eq!(handle, goal);
+                containerless.respond(req.path);
+            });"#,
+            "/apath",
+            "/bpath");
+        assert_eq!(result, ["/bpath"]);
     }
 
     #[test]
-    pub fn trace_with_unknown() {
-        let handle = test_harness(
-            "trace_with_unknown.js",
+    pub fn trivial_conditional_with_unknown() {
+        let result = test_end_to_end(
+            "trivial_conditional_with_unknown.js",
             r#"
             let containerless = require("../../javascript/containerless");
             containerless.listen(function(req) {
-                if (req === 'hello') {
-                    containerless.respond("goodbye");
+                if (req.path === 'hello') {
+                    containerless.respond("correct");
                 }
                 else {
-                    containerless.respond("bad");
+                    containerless.respond("wrong");
                 }
             });
         "#,
             "hello",
+            "hello"
         );
 
-        let goal = if_(
-            binop(&Op2::StrictEq, id("arg_cbid"), integer(1)),
-            vec![
-                let_(
-                    "clos",
-                    Some(t_ref(t_obj_2(&[]))),
-                    ref_(index(id("arg_cbargs"), integer(0))),
-                ),
-                let_(
-                    "request",
-                    Some(t_ref(t_obj_2(&[("path", t_ref(Typ::String))]))),
-                    ref_(index(id("arg_cbargs"), integer(1))),
-                ),
-                let_(
-                    "response_callback",
-                    Some(t_ref(Typ::ResponseCallback)),
-                    ref_(index(id("arg_cbargs"), integer(2))),
-                ),
-                label(
-                    "'ret",
-                    vec![
-                        let_(
-                            "req",
-                            Some(t_ref(t_obj_2(&[("path", t_ref(Typ::String))]))),
-                            ref_(deref(id("request"))),
-                        ),
-                        if_(
-                            binop(&Op2::StrictEq, deref(id("req")), string("hello")),
-                            vec![let_(
-                                "app100",
-                                Some(t_ref(Typ::Undefined)),
-                                ref_(block(vec![prim_app("send", vec![string("goodbye")])])),
-                            )],
-                            vec![unknown()],
-                        ),
-                    ],
-                ),
-            ],
-            vec![block(vec![
-                let_("fun000", Some(t_ref(t_obj_2(&[]))), ref_(obj_2(&[]))),
-                let_(
-                    "app000",
-                    Some(t_ref(Typ::Undefined)),
-                    ref_(block(vec![loopback(
-                        "listen",
-                        number(0.0),
-                        deref(id("fun000")),
-                        1,
-                    )])),
-                ),
-            ])],
-        );
-
-        assert_eq!(handle, goal);
-    }
-
-    #[test]
-    pub fn multiple_callbacks_1() {
-        let handle = test_harness(
-            "multiple_callbacks_1.js",
-            r#"
-            let containerless = require('../../javascript/containerless');
-
-            let foo = 'start';
-
-            containerless.listen(function(req) {
-                console.error('Got a response');
-                foo = 42;
-                let bar = foo + 1;
-                containerless.respond(req);
-
-            });
-
-            foo = false;
-        "#,
-            "hello
-        goodbye
-        hello again",
-        );
-
-        let goal = if_(
-            binop(&Op2::StrictEq, id("arg_cbid"), integer(1)),
-            vec![
-                let_(
-                    "clos",
-                    Some(t_ref(t_obj_2(&[(
-                        "foo00",
-                        t_ref(t_union_2(&[Typ::String, Typ::F64, Typ::Bool])),
-                    )]))),
-                    ref_(index(id("arg_cbargs"), integer(0))),
-                ),
-                let_(
-                    "request",
-                    Some(t_ref(t_obj_2(&[("path", t_ref(Typ::String))]))),
-                    ref_(index(id("arg_cbargs"), integer(1))),
-                ),
-                let_(
-                    "response_callback",
-                    Some(t_ref(Typ::ResponseCallback)),
-                    ref_(index(id("arg_cbargs"), integer(2))),
-                ),
-                label(
-                    "'ret",
-                    vec![
-                        let_(
-                            "req",
-                            Some(t_ref(t_obj_2(&[("path", t_ref(Typ::String))]))),
-                            ref_(deref(id("request"))),
-                        ),
-                        prim_app("console.log", vec![string("Got a response")]),
-                        setref(from(deref(id("clos")), "foo00"), number(42.0)),
-                        let_(
-                            "bar00",
-                            Some(t_ref(t_union_2(&[Typ::String, Typ::F64, Typ::Bool]))),
-                            ref_(binop(
-                                &Op2::Add,
-                                deref(from(deref(id("clos")), "foo00")),
-                                number(1.0),
-                            )),
-                        ),
-                        let_(
-                            "app200",
-                            Some(t_ref(Typ::Undefined)),
-                            ref_(block(vec![prim_app("send", vec![deref(id("req"))])])),
-                        ),
-                    ],
-                ),
-            ],
-            vec![block(vec![
-                let_(
-                    "foo00",
-                    Some(t_ref(t_union_2(&[Typ::String, Typ::F64, Typ::Bool]))),
-                    ref_(string("start")),
-                ),
-                let_(
-                    "fun000",
-                    Some(t_ref(t_obj_2(&[(
-                        "foo00",
-                        t_ref(t_union_2(&[Typ::String, Typ::F64, Typ::Bool])),
-                    )]))),
-                    ref_(obj_2(&[("foo00", id("foo00"))])),
-                ),
-                let_(
-                    "app000",
-                    Some(t_ref(Typ::Undefined)),
-                    ref_(block(vec![loopback(
-                        "listen",
-                        number(0.0),
-                        deref(id("fun000")),
-                        1,
-                    )])),
-                ),
-                setref(id("foo00"), bool_(false)),
-            ])],
-        );
-
-        assert_eq!(handle, goal);
+        assert_eq!(result, ["correct"]);
     }
 }

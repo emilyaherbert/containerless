@@ -63,7 +63,8 @@ export function listen(
             // Skips the blank line at the end of input.
             continue;
         }
-        tracedCallback(line as any);
+        // TODO(arjun): Using "as any" is bad.
+        tracedCallback({ path: line } as any);
     }
     // setImmediate is necessary so that execution reaches the end of the
     // main body of the program. E.g., if the last function call in the program

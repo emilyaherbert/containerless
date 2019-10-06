@@ -67,29 +67,3 @@ fn main() {
         std::process::exit(1);
     }
 }
-
-#[cfg(test)]
-mod tests {
-
-    use crate::trace_js::to_exp;
-    use crate::{
-        gen::gen,
-        types::Exp,
-        verif::verify,
-    };
-
-    fn test_harness(filename: &str, code: &str, requests: &str) -> Exp {
-        // Turns a code string to Exp tree
-        let exp = to_exp(filename, code, requests);
-        // Checks assertions, calculates types
-        let mut exp2 = verify(&serde_json::from_str(&exp).unwrap());
-        // Translates typ's to RustType's, creates a usize -> Typ
-        let rust_types = gen(&mut exp2);
-
-        println!("{:?}", rust_types);
-        //println!("{:#?}", exp2);
-
-        return exp2;
-    }
-
-}

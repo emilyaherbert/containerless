@@ -9,13 +9,18 @@ pub mod trace_runtime;
 mod types;
 mod util;
 
+use std::io::{self, Read};
 use clap::{App, Arg};
 use config::Config;
 use futures::future::{self, Future};
+use futures::stream::Stream;
 
 pub fn main(containerless: Option<trace_runtime::Containerless>) {
-    println!("Starting Decontainerizer");
+    eprintln!("Starting Decontainerizer");
     let matches = App::new("decontainerizer-invoker")
+        .arg(Arg::with_name("testing")
+            .long("--testing")
+            .help("Set to run in test mode (input on stdin)"))
         .arg(
             Arg::with_name("image-name")
                 .takes_value(true)
@@ -85,6 +90,12 @@ pub fn main(containerless: Option<trace_runtime::Containerless>) {
             .default_value("utilization.log")
             .help("Log of CPU and memory utilization"))
         .get_matches();
+
+    if matches.is_present("testing") {
+        // Note that we are silently ignoring all the other options.
+        return testing_main(containerless.expect("need decontainerized function for testing"));
+    }
+
     let config = Config {
         utilization_log: matches.value_of("utilization-log").unwrap().to_string(),
         memory: matches.value_of("memory").unwrap().to_string(),
@@ -118,4 +129,25 @@ pub fn main(containerless: Option<trace_runtime::Containerless>) {
             return ();
         })
     }));
+}
+
+fn testing_main(containerless: trace_runtime::Containerless) {
+    use trace_runtime::Decontainer;
+    let mut raw_input = String::new();
+    io::stdin().read_to_string(&mut raw_input).expect("could not read stdin");
+    let lines = raw_input.split_terminator('\n');
+    for line in lines {
+        tokio::run(
+            Decontainer::new_from(containerless, line)
+            .map_err(|err| {
+                eprintln!("Error: {:?}", err);
+                std::process::exit(1);
+            })
+            .and_then(|resp| {
+                resp.into_body().concat2().map_err(|_err| ()).map(|chunk| {
+                    let v = chunk.to_vec();
+                    println!("{}", String::from_utf8_lossy(&v).to_string())
+                })
+            }));
+    }
 }
