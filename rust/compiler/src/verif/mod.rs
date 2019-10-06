@@ -48,6 +48,24 @@ mod tests {
     use std::io::prelude::*;
 
 
+    /// An "end-to-end" test of decontainerization that runs a program in JS,
+    /// extracts its traces, compiles to Rust, and then runs the Rust program.
+    /// However, note that we do not run the JS in a container or start a
+    /// real web server for any of this. All I/O is via stdin and stdout.
+    ///
+    /// # Arguments
+    ///
+    /// * `filename` - The filename to use for the JavaScript code. Good for
+    ///   debugging.
+    /// * `code` - The JavaScript code for the test.
+    /// * `js_requests` - The requests to make to JS, 1 request per line.
+    /// * `rs_requests` - The requests to make to Rust, 1 request per line.
+    ///
+    /// # Result
+    ///
+    /// The result is a vector of responses from the Rust code.
+    ///
+    /// *Note*: At the moment, the requests are just the path.
     fn test_end_to_end(
         filename: &str,
         code: &str,
