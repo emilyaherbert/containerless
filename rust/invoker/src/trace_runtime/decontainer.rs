@@ -52,12 +52,10 @@ pub struct Decontainer {
 }
 
 impl Decontainer {
-    pub fn new_from(func: Containerless,
-        path: &str) -> Decontainer {
+    pub fn new_from(func: Containerless, path: &str) -> Decontainer {
         let arena = Bump::new();
         let request = Dyn::object(&arena);
-        request.set_field("path", Dyn::str(&arena, path))
-            .unwrap();
+        request.set_field("path", Dyn::str(&arena, path)).unwrap();
         let request = unsafe { extend_lifetime(request) };
         return Decontainer {
             pinned: Box::pin(DecontainerImpl {
