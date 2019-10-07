@@ -7,7 +7,7 @@ use futures::{
     Future,
 };
 use hyper::service::service_fn;
-use hyper::{Client, Server, Response, Body};
+use hyper::{Body, Client, Response, Server};
 use std::sync::Arc;
 
 pub fn serve(config: Config) -> impl future::Future<Item = (), Error = Error> {

@@ -74,8 +74,7 @@ impl<'a> Dyn<'a> {
             }
             vec.push((key, value));
             return Ok(Dyn::Undefined);
-        }
-        else {
+        } else {
             return type_error("set_field");
         }
     }
@@ -91,7 +90,7 @@ impl<'a> Dyn<'a> {
                 }
                 return Ok(Dyn::Undefined);
             }
-            _ => return type_error("not an object")
+            _ => return type_error("not an object"),
         }
     }
 
@@ -114,9 +113,8 @@ impl<'a> Dyn<'a> {
                 println!("Other is {:?}", other);
                 println!("self is {:?}", self);
                 panic!("not working {:?} == {:?}", self, other)
-            }
-            // (that, other) => panic!("not working {:?}", other),
-            // panic!(format!("Trying {:?} === {:?}", that, other))
+            } // (that, other) => panic!("not working {:?}", other),
+              // panic!(format!("Trying {:?} === {:?}", that, other))
         }
     }
 
