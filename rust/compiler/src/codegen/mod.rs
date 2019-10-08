@@ -8,8 +8,15 @@ fn codegen_op(op: &Op2) -> TokenStream {
     match op {
         Op2::Add => quote! { add },
         Op2::Sub => quote! { sub },
-        Op2::GT => quote! { gt },
+        Op2::Mul => quote! { mul },
+        Op2::Div => quote! { div },
         Op2::StrictEq => quote! { strict_eq },
+        Op2::GT => quote! { gt },
+        Op2::LT => quote! { lt },
+        Op2::GTE => quote! { gte },
+        Op2::LTE => quote! { lte },
+        Op2::And => quote! { and },
+        Op2::Or => quote! { or }
     }
 }
 

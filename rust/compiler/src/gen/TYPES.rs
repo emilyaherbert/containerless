@@ -278,13 +278,14 @@ mod tests {
 
     use crate::gen::TYPES::*;
 
-    #[test]
+    //#[test]
     fn trying_types() {
         let a = F64(1.0);
         let b = F64(10.0);
         let c = Bool(true);
         let mut x = RustType0::f64(100.0).unwrap();
         let y = RustType1::f64(1000.0).unwrap();
+        let z = RustType1::i32(2).unwrap();
 
         let s1 = a.add(&b).unwrap();
         println!("{:?}", s1);
@@ -296,6 +297,8 @@ mod tests {
         println!("{:?}", s4);
         let s5 = y.add(&y).unwrap();
         println!("{:?}", s5);
+        let s6 = y.add(&z).unwrap();
+        println!("{:?}", s6);
         
         
         //let fail = a.add(&c).unwrap();

@@ -491,10 +491,31 @@ function reifyIfStatement(s: b.IfStatement, st: State): [b.Statement[], State] {
     return [[tTest, theIf, exitBlock], merge(merge(st1, st2), st3)];
 }
 
+/*
+
+Note: Turns `x++` into `t.traceSet(x, x - 1); x = x - 1;`
+
+*/
 function reifyExpressionStatement(s: b.ExpressionStatement, st: State): [b.Statement[], State] {
-    const [expression, st1] = reifyExpression(s.expression, st);
-    const above = b.expressionStatement(expression);
-    return [[above, s], st1];
+    switch (s.expression.type) {
+        case 'UpdateExpression': {
+            let e = s.expression;
+            if(!b.isIdentifier(e.argument)) {
+                throw new Error("Expected argument!");
+            } else if(e.operator !== '++') {
+                throw new Error("Found unimplemented case.");
+            }
+            const [id, st1] = reifyExpression(e.argument, st);
+            let ts = b.expressionStatement(traceSet(id, binop('+', id, number(1))));
+            let js = jsAssignment(e.argument, b.binaryExpression('+', e.argument, b.numericLiteral(1)));
+            return [[ts, js], st1];
+        }
+        default: {
+            const [expression, st1] = reifyExpression(s.expression, st);
+            const above = b.expressionStatement(expression);
+            return [[above, s], st1];
+        }
+    }
 }
 
 /**

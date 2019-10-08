@@ -189,4 +189,27 @@ mod tests {
 
         assert_eq!(result, ["correct"]);
     }
+
+    #[test]
+    pub fn nested_binops() {
+        let result = test_end_to_end(
+            "trivial_conditional_with_unknown.js",
+            r#"
+            let containerless = require("../../javascript/containerless");
+
+            containerless.listen(function(req) {
+                let x = 12;
+                if(x > 2 && x < 15) {
+                    containerless.respond("yay!");
+                } else {
+                    containerless.respond("boo!");
+                }
+            });
+        "#,
+            "hello",
+            "hello"
+        );
+
+        assert_eq!(result, ["yay!"]);
+    }
 }

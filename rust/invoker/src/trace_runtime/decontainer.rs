@@ -112,6 +112,7 @@ impl Future for Decontainer {
                     if let Ok(body) = resp {
                         return Result::Ok(Async::Ready(Response::new(hyper::Body::from(body))));
                     }
+
                 }
                 // The follow error is not due to optimistic trace compilation.
                 // It will re-occur if we re-execution in JavaScript, thus we
@@ -134,7 +135,7 @@ impl Future for Decontainer {
                     Result::Ok(Async::NotReady) => {
                         // Try next future
                     }
-                    Result::Ok(Async::Ready(n)) => {
+                    Result::Ok(Async::Ready(_n)) => {
                         event.completed = true;
                         any_completed = true;
                         let f = &self_.func;

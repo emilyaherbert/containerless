@@ -1,4 +1,4 @@
-export type BinOp = '+' | '-' | '>' | '&&' | '||' | '===';
+export type BinOp = '+' | '-' | '*' | '/' | '===' | '>' | '<' | '>=' | '<=' | '&&' | '||';
 
 export type BlockExp = { kind: 'block', body: Exp[] };
 

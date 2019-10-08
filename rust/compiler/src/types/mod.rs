@@ -270,10 +270,24 @@ pub enum Op2 {
     Add,
     #[serde(rename = "-")]
     Sub,
-    #[serde(rename = ">")]
-    GT,
+    #[serde(rename = "*")]
+    Mul,
+    #[serde(rename = "/")]
+    Div,
     #[serde(rename = "===")]
     StrictEq,
+    #[serde(rename = ">")]
+    GT,
+    #[serde(rename = "<")]
+    LT,
+    #[serde(rename = ">=")]
+    GTE,
+    #[serde(rename = "<=")]
+    LTE,
+    #[serde(rename = "&&")]
+    And,
+    #[serde(rename = "||")]
+    Or
 }
 
 #[derive(PartialEq, Debug, Deserialize, Clone)]

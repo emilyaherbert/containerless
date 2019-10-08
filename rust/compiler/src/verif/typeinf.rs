@@ -169,8 +169,25 @@ impl Typeinf {
                         self.constraints.push(Constraint::UnionMem(t2, u.clone()));
                         Ok(u)
                     }
-                    Op2::GT => Ok(Typ::Bool),
+                    Op2::Mul => {
+                        let u = self.fresh_unionvar();
+                        self.constraints.push(Constraint::UnionMem(t1, u.clone()));
+                        self.constraints.push(Constraint::UnionMem(t2, u.clone()));
+                        Ok(u)
+                    }
+                    Op2::Div => {
+                        let u = self.fresh_unionvar();
+                        self.constraints.push(Constraint::UnionMem(t1, u.clone()));
+                        self.constraints.push(Constraint::UnionMem(t2, u.clone()));
+                        Ok(u)
+                    }
                     Op2::StrictEq => Ok(Typ::Bool),
+                    Op2::GT => Ok(Typ::Bool),
+                    Op2::LT => Ok(Typ::Bool),
+                    Op2::GTE => Ok(Typ::Bool),
+                    Op2::LTE => Ok(Typ::Bool),
+                    Op2::And => Ok(Typ::Bool),
+                    Op2::Or => Ok(Typ::Bool),
                     _ => panic!(format!("not implemented: {:?}", op)),
                 }
             }
@@ -237,6 +254,7 @@ impl Typeinf {
                 Ok(t3)
             }
             Exp::Label { name: _, body } => self.exp_list(env, body),
+            Exp::Break { name:_, value } => self.exp(env, value),
             Exp::PrimApp {
                 event: _,
                 event_args,
@@ -346,6 +364,9 @@ impl Typeinf {
                 for e in body.iter_mut() {
                     Typeinf::subst_vars(subst, e);
                 }
+            },
+            Exp::Break { name: _, value } => {
+                Typeinf::subst_vars(subst, value);
             }
             Exp::PrimApp {
                 event: _,

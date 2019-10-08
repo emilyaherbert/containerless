@@ -120,6 +120,52 @@ impl<'a> Dyn<'a> {
         }
     }
 
+    pub fn gt(&self, other: Dyn<'a>) -> DynResult<'a> {
+        match (*self, other) {
+            (Dyn::Int(m), Dyn::Int(n)) => Ok(Dyn::Bool(m > n)),
+            (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Bool(x > y)),
+            _ => type_error("gt"),
+        }
+    }
+
+    pub fn lt(&self, other: Dyn<'a>) -> DynResult<'a> {
+        match (*self, other) {
+            (Dyn::Int(m), Dyn::Int(n)) => Ok(Dyn::Bool(m < n)),
+            (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Bool(x < y)),
+            _ => type_error("lt"),
+        }
+    }
+    
+    pub fn gte(&self, other: Dyn<'a>) -> DynResult<'a> {
+        match (*self, other) {
+            (Dyn::Int(m), Dyn::Int(n)) => Ok(Dyn::Bool(m >= n)),
+            (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Bool(x >= y)),
+            _ => type_error("gte"),
+        }
+    }
+
+    pub fn lte(&self, other: Dyn<'a>) -> DynResult<'a> {
+        match (*self, other) {
+            (Dyn::Int(m), Dyn::Int(n)) => Ok(Dyn::Bool(m <= n)),
+            (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Bool(x <= y)),
+            _ => type_error("lte"),
+        }
+    }
+    
+    pub fn and(&self, other: Dyn<'a>) -> DynResult<'a> {
+        match (*self, other) {
+            (Dyn::Bool(x), Dyn::Bool(y)) => Ok(Dyn::Bool(x && y)),
+            _ => type_error("and"),
+        }
+    }
+
+    pub fn or(&self, other: Dyn<'a>) -> DynResult<'a> {
+        match (*self, other) {
+            (Dyn::Bool(x), Dyn::Bool(y)) => Ok(Dyn::Bool(x || y)),
+            _ => type_error("or"),
+        }
+    }
+
     /** Array indexing. */
     pub fn index(&self, index: Dyn<'a>) -> DynResult<'a> {
         match (self, index) {

@@ -126,7 +126,7 @@ export class Callbacks {
     /**
      * Issues an HTTP POST request
      */
-    post(obj: any, callback: (response: undefined | string) => void) {
+    post(obj: string | any, callback: (response: undefined | string) => void) {
         let [_, $callbackClos] = this.trace.popArgs();
         let innerTrace = this.trace.traceCallback('post', defaultEventArg, ['clos', 'request'], $callbackClos);
 
@@ -144,9 +144,11 @@ export class Callbacks {
                 callback(String("{ message: 'GENERIC RESPONSE' }"));
             });
         } else {
-            // TODO(emily): fix this
+            // TODO(emily): Fix by creating a type for the argument that is either string | Type. Default arguments, the whole 9 yards.
             let obj2 = obj;
-            obj2.body = JSON.stringify(obj2.body);
+            if(typeof obj !== 'string') {
+                obj2.body = JSON.stringify(obj2.body);
+            }
             request.post(obj2, (error: any, resp: any) => {
                 this.withTrace(innerTrace, () => {
                     innerTrace.pushArgs([identifier('clos'), identifier('reponse')]);
@@ -233,7 +235,7 @@ export class Callbacks {
         let [_, $response] = this.trace.popArgs();
         this.trace.tracePrimApp('send', [$response]);
         if(this.response !== undefined) {
-            this.response.send(response + '\n');
+            this.response.send('' + response + '\n');
         } else if(state.getListenPort() !== 'test') {
             throw new Error("No express.Response found.");
         }
