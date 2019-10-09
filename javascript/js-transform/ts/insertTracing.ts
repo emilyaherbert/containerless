@@ -596,18 +596,22 @@ function reifyFunctionDeclaration(s: b.FunctionDeclaration, st: State): [b.State
     body = paramsBody.concat(body);
     body.unshift(jsLet(b.arrayPattern(funBodyLHS), traceFunctionBody()));
     body.push(exitBlock); // exit the label
-    const retSt = st.set(lvaltoName(id), false);
+    let retSt = st.set(lvaltoName(id), false);
     let fvs: b.ObjectProperty[] = [];
     myState.filter(v => v!)
         .keySeq().forEach(k => {
             if(retSt.has(k!)) {
                 if(retSt.get(k!)!) {
+                    // The one above me made this variable.
                     fvs.push(b.objectProperty(b.identifier(k!), from(b.identifier('$clos'), k!)));
                 } else {
+                    // I made this variable.
                     fvs.push(b.objectProperty(b.identifier(k!), identifier(k!)));
                 }
             } else {
-                throw new Error("Not found!");
+                // Someone above me made this variable.
+                retSt = retSt.set(k!, true);
+                fvs.push(b.objectProperty(b.identifier(k!), from(b.identifier('$clos'), k!)));
             }
         });
     const tClos = traceLet(lvaltoName(id), clos(fvs));
