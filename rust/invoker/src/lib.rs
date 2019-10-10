@@ -1,5 +1,7 @@
 mod config;
+mod container_handle;
 mod container_pool;
+mod decontainer_pool;
 mod error;
 mod mpmc;
 mod server;
@@ -127,6 +129,9 @@ pub fn main(containerless: Option<trace_runtime::Containerless>) {
         server::serve(config).map_err(|err| {
             println!("Error: {}", err);
             return ();
+        }).map(|()| {
+            println!("Graceful shutdown");
+            std::process::exit(0)
         })
     }));
 }

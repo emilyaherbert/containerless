@@ -39,6 +39,8 @@ struct ContainerPoolData {
     spawner: Mutex<ContainerSpawner>,
     time_keeper: TimeKeeper,
     last_container_start_time: atomic::AtomicU64,
+    shutting_down: atomic::AtomicBool,
+    tx_shutdown: Mutex<Option<futures::sync::oneshot::Sender<()>>>
 }
 
 #[derive(Clone)]
@@ -92,24 +94,30 @@ fn create_container(
 }
 
 impl ContainerPoolData {
-    pub fn new(config: Arc<Config>, client: Arc<HttpClient>) -> ContainerPoolData {
+    pub fn new(config: Arc<Config>, client: Arc<HttpClient>) -> (ContainerPoolData, futures::sync::oneshot::Receiver<()>) {
+        let (tx_shutdown, rx_shutdown) = futures::sync::oneshot::channel::<()>();
+        let tx_shutdown = Mutex::new(Some(tx_shutdown));
         let (idle, available) = Queue::new();
         let time_keeper = TimeKeeper::new(Duration::from_secs(30));
         let last_container_start_time = atomic::AtomicU64::new(util::unix_epoch_secs());
-        return ContainerPoolData {
+        let shutting_down = atomic::AtomicBool::new(false);
+        let data =  ContainerPoolData {
             num_containers: atomic::AtomicUsize::new(0),
             last_container_start_time,
+            tx_shutdown,
             time_keeper,
             available,
             idle,
             client,
             config,
+            shutting_down,
             spawner: Mutex::new(ContainerSpawner {
                 container_name_suffix: 0,
                 container_name_prefix: "vanilla".to_string(),
                 next_container_port: 3000,
             }),
         };
+        return (data, rx_shutdown);
     }
 
     fn get_num_containers(&self) -> usize {
@@ -161,10 +169,11 @@ impl ContainerPoolData {
 }
 
 impl ContainerPool {
-    pub fn new(config: Arc<Config>, client: Arc<HttpClient>) -> ContainerPool {
-        let data = Arc::new(ContainerPoolData::new(config.clone(), client));
+    pub fn new(config: Arc<Config>, client: Arc<HttpClient>) -> (ContainerPool, futures::sync::oneshot::Receiver<()>) {
+        let (data, rx_shutdown) = ContainerPoolData::new(config.clone(), client);
+        let data = Arc::new(data);
         ContainerPool::launch_container_killer(&config, data.clone());
-        ContainerPool { data }
+        (ContainerPool { data }, rx_shutdown)
     }
 
     fn launch_container_killer(config: &Config, data: Arc<ContainerPoolData>) {
@@ -190,39 +199,49 @@ impl ContainerPool {
         );
     }
 
-    pub fn request(&self, req: Request) -> impl Future<Item = Response, Error = Error> {
+    pub fn shutdown(&self) -> impl Future<Item = (), Error = Error> {
         let data = self.data.clone();
-        match data.available.recv_immediate() {
-            Some(container) => {
-                let fut = container
-                    .request(data.client.clone(), req)
-                    .from_err()
-                    .and_then(move |resp| {
-                        data.idle.send(container).from_err().map(move |()| {
-                            data.time_keeper.record_time(Duration::new(0, 0));
-                            resp
-                        })
+        self.data.tx_shutdown.lock().from_err().and_then(move |mut guard| {
+            let tx_shutdown = std::mem::replace(&mut *guard, None);
+            tx_shutdown.expect("already called shutdown").send(())
+                .unwrap();
+            data.shutting_down.store(true, SeqCst);
+            future::loop_fn((), move |()| {
+                let num_left = data.num_containers.fetch_sub(1, SeqCst);
+                if num_left == 0 {
+                    println!("num_left = {}", num_left);
+                    return future::Either::A(future::ok(future::Loop::Break(())));
+                } else {
+                    let fut = data.available.recv().map(|container| {
+                        container.stop();
+                        future::Loop::Continue(())
                     });
-                future::Either::B(fut)
-            }
+                    return future::Either::B(fut);
+                }
+            })
+        })
+    }
+
+    pub fn request(&self, req: Request) -> impl Future<Item = Response, Error = Error> {
+        let start = Instant::now();
+        let data = self.data.clone();
+        // Either immediately get a container, or try to create one and wait
+        // until it is available. Note that the create_containers function will
+        // not actually create a container if we are at the configured limit.
+        let container_fut = match data.available.recv_immediate() {
+            Some(container) => future::Either::A(future::ok(container)),
             None => {
-                let start = Instant::now();
-                let data2 = data.clone();
-                let fut = ContainerPoolData::create_containers(&data, 1)
-                    .and_then(move |()| data2.available.recv().from_err())
-                    .and_then(move |container| {
-                        container
-                            .request(data.client.clone(), req)
-                            .from_err()
-                            .and_then(move |resp| {
-                                data.idle.send(container).from_err().map(move |()| {
-                                    data.time_keeper.record_time(start.elapsed());
-                                    resp
-                                })
-                            })
-                    });
-                future::Either::A(fut)
+                let data = data.clone();
+                future::Either::B(ContainerPoolData::create_containers(&data, 1)
+                        .and_then(move |()| data.available.recv().from_err()))
             }
-        }
+        };
+        container_fut.and_then(move |container|
+            container.request(data.client.clone(), req)
+                .from_err()
+                .and_then(move |resp| {
+                    data.time_keeper.record_time(start.elapsed());
+                    data.idle.send(container).from_err().map(move |()| resp)
+                }))
     }
 }
