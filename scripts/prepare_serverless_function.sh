@@ -12,9 +12,11 @@ fi
 
 set -e
 
-cp $1 `dirname $0`/workspace_prepare_serverless_function/pkg/index.js
+D=workspace_prepare_serverless_function/pkg
+cp $1 `dirname $0`/$D/index.js
 cd `dirname $0`
+node ../javascript/js-transform/dist/index $D/index.js > $D/traced.js
 
-rsync -ad ../javascript/containerless workspace_prepare_serverless_function/pkg/node_modules
+rsync -ad ../javascript/containerless $D/node_modules
 cd workspace_prepare_serverless_function
 docker build -t serverless-function .
