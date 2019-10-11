@@ -10,11 +10,10 @@ use hyper::service::service_fn;
 use hyper::{Body, Client, Response, Server};
 use std::sync::Arc;
 
-pub fn serve(config: InvokerConfig, containerless: Option<Containerless>) -> impl future::Future<Item = (), Error = Error> {
+pub fn serve(config: Arc<InvokerConfig>, containerless: Option<Containerless>) -> impl future::Future<Item = (), Error = Error> {
     let addr = ([0, 0, 0, 0], config.bind_port).into();
 
     let client = Arc::new(Client::new());
-    let config = Arc::new(config);
 
     let (pool, rx_shutdown) = TracingPool::new(config.clone(), containerless, client);
 

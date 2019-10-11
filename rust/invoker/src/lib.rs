@@ -15,6 +15,9 @@ use clap::{App, Arg};
 use futures::future::{self, Future};
 use futures::stream::Stream;
 use std::io::{self, Read};
+use std::sync::Arc;
+use nix::sys::signal::{Signal, kill};
+use nix::unistd::Pid;
 
 pub fn main(containerless: Option<trace_runtime::Containerless>) {
     eprintln!("Starting Decontainerizer");
@@ -33,15 +36,18 @@ pub fn main(containerless: Option<trace_runtime::Containerless>) {
         return testing_main(containerless.expect("need decontainerized function for testing"));
     }
 
-    let config = InvokerConfig::from_string(matches.value_of("config").unwrap());
+    let config = Arc::new(InvokerConfig::from_string(matches.value_of("config").unwrap()));
 
     hyper::rt::run(future::lazy(move || {
         sysmon::sysmon(&config);
-        server::serve(config, containerless).map_err(|err| {
+        server::serve(config.clone(), containerless).map_err(|err| {
             println!("Error: {}", err);
             return ();
-        }).map(|()| {
+        }).map(move |()| {
             println!("Graceful shutdown");
+            if config.kill_parent {
+                kill(Pid::parent(), Signal::SIGUSR1);
+            }
             std::process::exit(0)
         })
     }));

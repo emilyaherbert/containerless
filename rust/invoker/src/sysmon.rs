@@ -6,8 +6,14 @@ use std::io::Write;
 use std::thread;
 use std::time::Duration;
 use systemstat::{Platform, System};
+use shared::OS;
 
 pub fn sysmon(config: &InvokerConfig) {
+    if OS::detect() != OS::Linux {
+        eprintln!("Utilization log requires Linux");
+        return;
+    }
+
     let utilization_log =
         File::create(&config.utilization_log).expect("could not create utilization log file");
     let mut utilization_writer = LineWriter::new(utilization_log);
