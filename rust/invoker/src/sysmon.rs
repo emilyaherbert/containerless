@@ -1,4 +1,4 @@
-use crate::config::Config;
+use shared::config::InvokerConfig;
 use std::convert::TryInto;
 use std::fs::File;
 use std::io::LineWriter;
@@ -7,7 +7,7 @@ use std::thread;
 use std::time::Duration;
 use systemstat::{Platform, System};
 
-pub fn sysmon(config: &Config) {
+pub fn sysmon(config: &InvokerConfig) {
     let utilization_log =
         File::create(&config.utilization_log).expect("could not create utilization log file");
     let mut utilization_writer = LineWriter::new(utilization_log);
