@@ -4,7 +4,7 @@ use super::container_handle::ContainerHandle;
 /// which redirects a request to an available container. If no container is
 /// immediately available, then `request` spawns a single new container upto
 /// the configured maximum number of containers (i.e., cold starts).
-use crate::config::Config;
+use shared::config::InvokerConfig;
 use crate::error::Error;
 use crate::mpmc::{Queue, Receiver, Sender};
 use crate::time_keeper::TimeKeeper;
@@ -35,7 +35,7 @@ struct ContainerPoolData {
     // it available to another thread.
     idle: Sender<ContainerHandle>,
     client: Arc<HttpClient>,
-    config: Arc<Config>,
+    config: Arc<InvokerConfig>,
     spawner: Mutex<ContainerSpawner>,
     time_keeper: TimeKeeper,
     last_container_start_time: atomic::AtomicU64,
@@ -49,7 +49,7 @@ pub struct ContainerPool {
 }
 
 fn create_container(
-    config: &Arc<Config>,
+    config: &Arc<InvokerConfig>,
     spawner: &mut MutexGuard<ContainerSpawner>,
 ) -> ContainerHandle {
     let name = format!(
@@ -94,7 +94,7 @@ fn create_container(
 }
 
 impl ContainerPoolData {
-    pub fn new(config: Arc<Config>, client: Arc<HttpClient>) -> (ContainerPoolData, futures::sync::oneshot::Receiver<()>) {
+    pub fn new(config: Arc<InvokerConfig>, client: Arc<HttpClient>) -> (ContainerPoolData, futures::sync::oneshot::Receiver<()>) {
         let (tx_shutdown, rx_shutdown) = futures::sync::oneshot::channel::<()>();
         let tx_shutdown = Mutex::new(Some(tx_shutdown));
         let (idle, available) = Queue::new();
@@ -169,14 +169,14 @@ impl ContainerPoolData {
 }
 
 impl ContainerPool {
-    pub fn new(config: Arc<Config>, client: Arc<HttpClient>) -> (ContainerPool, futures::sync::oneshot::Receiver<()>) {
+    pub fn new(config: Arc<InvokerConfig>, client: Arc<HttpClient>) -> (ContainerPool, futures::sync::oneshot::Receiver<()>) {
         let (data, rx_shutdown) = ContainerPoolData::new(config.clone(), client);
         let data = Arc::new(data);
         ContainerPool::launch_container_killer(&config, data.clone());
         (ContainerPool { data }, rx_shutdown)
     }
 
-    fn launch_container_killer(config: &Config, data: Arc<ContainerPoolData>) {
+    fn launch_container_killer(config: &InvokerConfig, data: Arc<ContainerPoolData>) {
         let max_container_buffer_delay = config.max_container_buffer_delay;
         let min_container_lifespan = config.min_container_lifespan;
         tokio::executor::spawn(

@@ -10,22 +10,23 @@
 /// can fall back to containers more quickly. However, we keep track of how many
 /// times we recompile the Rust code. If recompilation happens more than L times,
 /// we give up compiling to Rust.
-use super::config::Config;
+use shared::config::InvokerConfig;
 use super::container_handle::ContainerHandle;
 use super::container_pool::ContainerPool;
 use super::error::Error;
 use super::types;
+use super::trace_runtime::{Containerless, Decontainer};
 use atomic_enum::atomic_enum;
 use bytes::Bytes;
 use duct::cmd;
-use futures::future::{self, Future};
+use futures::future::Future;
 use futures::stream::Stream;
 use http::uri::Authority;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering::SeqCst};
 use std::sync::Arc;
 use futures_cpupool::CpuPool;
 use std::fs;
-use std::process::Command;
+use auto_enums::auto_enum;
 
 #[atomic_enum]
 #[derive(PartialEq)]
@@ -52,10 +53,11 @@ struct TracingPoolData {
     num_traced_requests: AtomicUsize,
     mode: AtomicTracingStatus,
     container_pool: ContainerPool,
-    config: Arc<Config>,
+    config: Arc<InvokerConfig>,
     container_handle: ContainerHandle,
     client: Arc<types::HttpClient>,
-    cpu_pool: CpuPool
+    cpu_pool: CpuPool,
+    containerless: Containerless
 }
 
 #[derive(Clone)]
@@ -67,11 +69,21 @@ static TRACING_CONTAINER_PORT: usize = 2999;
 static TRACING_CONTAINER_NAME: &'static str = "tracing";
 static MAX_TRACED: usize = 2;
 
+impl TracingStatus {
+    fn new(config: &InvokerConfig) -> Self {
+        use shared::config::InitialState;
+        match config.initial_state {
+            InitialState::Tracing => TracingStatus::NotStarted,
+            InitialState::Decontainerized => TracingStatus::Decontainerized
+        }
+    }
+}
+
 impl TracingPoolData {
-    fn new(config: Arc<Config>, client: Arc<types::HttpClient>) -> (TracingPoolData, futures::sync::oneshot::Receiver<()>) {
+    fn new(config: Arc<InvokerConfig>, containerless: Containerless, client: Arc<types::HttpClient>) -> (TracingPoolData, futures::sync::oneshot::Receiver<()>) {
         let tracing_container_available = AtomicBool::new(false);
         let num_traced_requests = AtomicUsize::new(0);
-        let mode = AtomicTracingStatus::new(TracingStatus::NotStarted);
+        let mode = AtomicTracingStatus::new(TracingStatus::new(&config));
         let (container_pool, rx_shutdown) = ContainerPool::new(config.clone(), client.clone());
         let cpu_pool = CpuPool::new(1);
         let authority = Authority::from_shared(Bytes::from(format!(
@@ -84,6 +96,7 @@ impl TracingPoolData {
             name: TRACING_CONTAINER_NAME.to_string(),
         };
         return (TracingPoolData {
+            containerless,
             tracing_container_available,
             num_traced_requests,
             mode,
@@ -130,8 +143,10 @@ impl TracingPoolData {
 
 impl TracingPool {
 
-    pub fn new(config: Arc<Config>, client: Arc<types::HttpClient>) -> (Self, futures::sync::oneshot::Receiver<()>) {
-        let (data, rx_shutdown) = TracingPoolData::new(config, client);
+    pub fn new(config: Arc<InvokerConfig>,
+    containerless: Option<Containerless>,
+    client: Arc<types::HttpClient>) -> (Self, futures::sync::oneshot::Receiver<()>) {
+        let (data, rx_shutdown) = TracingPoolData::new(config, containerless.unwrap(), client);
         let data = Arc::new(data);
         return (TracingPool { data }, rx_shutdown);
     }
@@ -154,7 +169,6 @@ impl TracingPool {
             .and_then(move |trace| data2.cpu_pool.spawn_fn(move || {
                 fs::write("trace.json", trace)
                 .expect("Failed to write trace.json");
-                // TODO(arjun): In a CPU pool?
                 cmd!("cargo", "run", "test-codegen", "-i", "../containerless-scaffold/trace.json", "-o", "../containerless-scaffold/src/containerless.rs")
                 .dir("../compiler")
                 .run()
@@ -176,6 +190,7 @@ impl TracingPool {
     /// Issues a request, starting a new tracing container if needed.
     /// If the tracing container is busy, sends the request to a
     /// ContainerPool
+    #[auto_enum(futures01::Future)]
     pub fn request(
         &self,
         req: types::Request,
@@ -185,12 +200,12 @@ impl TracingPool {
             let m = mode.load(SeqCst);
             match m {
                 TracingStatus::Aborted => {
-                    return future::Either::A(self.data.container_pool.request(req));
+                    return self.data.container_pool.request(req);
                 }
                 // Send request. If there is an error due to unknown, switch to
                 // NotStarted
                 TracingStatus::Decontainerized => {
-                    unimplemented!()
+                    return Decontainer::new(self.data.containerless, req);
                 },
                 // Try to set the mode to Tracing. If succcessful, this request is going
                 // to launch the tracing container. Either way, loop to try to request
@@ -207,14 +222,13 @@ impl TracingPool {
                     self.data.start_tracing_container();
                     let data = self.data.clone();
                     let data2 = self.data.clone();
-                    let fut = self.data.container_handle.test(data.client.clone())
+                    return self.data.container_handle.test(data.client.clone())
                         .from_err()
                         .and_then(move |()| data.container_handle.request(data.client.clone(), req).from_err())
                         .map(move |resp| {
                             data2.tracing_container_available.store(true, SeqCst);
                             return resp;
                         });
-                    return future::Either::B(future::Either::B(fut));
                 }
                 // Already tracing. Try to send the request to the tracing container.
                 // If it is unavailable, send it to the container pool instead.
@@ -232,7 +246,7 @@ impl TracingPool {
                             tokio::executor::spawn(self.extract_and_compile_trace());
                         }
                         let data = self.data.clone();
-                        let fut = data
+                        return data
                             .container_handle
                             .request(self.data.client.clone(), req)
                             .from_err()
@@ -245,16 +259,15 @@ impl TracingPool {
                                 }
                                 resp
                             });
-                        return future::Either::B(future::Either::A(fut));
                     } else {
-                        return future::Either::A(self.data.container_pool.request(req));
+                        return self.data.container_pool.request(req);
                     }
                 }
                 TracingStatus::Compiling => {
-                    return future::Either::A(self.data.container_pool.request(req));
+                    return self.data.container_pool.request(req);
                 },
                 TracingStatus::Draining => {
-                    return future::Either::A(self.data.container_pool.request(req));
+                    return self.data.container_pool.request(req);
                 },
 
             }
