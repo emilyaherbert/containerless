@@ -10,9 +10,9 @@ containerless.listen(function(req) {
                 containerless.respond(resp);
             });
         } else {
-            containerless.respond("No file to upload.\n");
+            containerless.respond("No file to upload.");
         }
     } else {
-        containerless.respond("Unknown command.\n");
+        containerless.respond("Unknown command.");
     }
 });

@@ -193,7 +193,6 @@ class Trace implements TracingInterface {
         }
         else if (exp.kind === 'let') {
             if (exp.name !== name) {
-                this.prettyPrint();
                 throw new Error(`Cannot merge let with name ${name} into let with
                     name ${exp.name}`);
             }
@@ -368,6 +367,7 @@ class Trace implements TracingInterface {
 
     traceBreak(name: string, value: Exp): void {
         let exp = this.getCurrentExp();
+        this.prettyPrint();
         if (exp.kind === 'unknown') {
             this.setExp(break_(name, value));
         }

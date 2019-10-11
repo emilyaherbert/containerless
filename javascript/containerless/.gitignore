@@ -1,4 +1,5 @@
 /dist
 /node_modules
 examples/transformed.js
-official/transformed.js
+benchmarks/transformed.js
+keys/
