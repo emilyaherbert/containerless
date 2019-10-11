@@ -101,23 +101,29 @@ function withdraw(req) {
             ]
           }
     }, function(resp) {
+        console.log(resp);
         let key = resp.found[0].entity.key;
         let baseVersion = resp.found[0].version;
-        let currentBalance = resp.found[0].entity.properties.Balance.integerValue;
-        let newBalance = currentBalance - req.query.amount;
-        let update = {
-            'update': {
-                'key': key,
-                'properties': {
-                    'Balance': {
-                        'integerValue': newBalance
+        let props = resp.found[0].entity.properties;
+        props.Balance.integerValue = props.Balance.integerValue - req.query.amount;
+        containerless.post({
+            'url':'https://datastore.googleapis.com/v1/projects/umass-plasma:commit?access_token=' + req.query.accessToken,
+            'body': {
+                "transaction": transaction,
+                "mode": "TRANSACTIONAL",
+                "mutations": [
+                    {
+                        'update': {
+                            'key': key,
+                            'properties': props
+                        },
+                        'baseVersion': baseVersion
                     }
-                }
-            },
-            'baseVersion': baseVersion
-        };
-        mutations.push(update);
-        containerless.respond("TODO!");
+                ]
+              }
+        }, function(resp2) {
+            containerless.respond(resp2);
+        });
     });
 }
 
