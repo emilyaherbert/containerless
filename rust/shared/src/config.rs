@@ -1,9 +1,9 @@
-use serde::{Serialize,Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum InitialState {
     Tracing,
-    Decontainerized
+    Decontainerized,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -24,24 +24,34 @@ pub struct InvokerConfig {
     #[serde(default = "InvokerConfig::default_min_container_lifespan")]
     pub min_container_lifespan: u64,
     #[serde(default = "InvokerConfig::default_cpus")]
-    pub cpus: String,   // string passed to Docker's --cpu flag
+    pub cpus: String, // string passed to Docker's --cpu flag
     #[serde(default = "InvokerConfig::default_memory")]
     pub memory: String, // string passed to Docker's -m flag
     #[serde(default = "InvokerConfig::default_utilization_log")]
-    pub utilization_log: String
+    pub utilization_log: String,
+    #[serde(default = "InvokerConfig::default_kill_parent")]
+    pub kill_parent: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MultiInvokerConfig {
+    pub bind_port: u16,
+    pub config_a: InvokerConfig,
+    pub config_b: InvokerConfig,
 }
 
 impl InvokerConfig {
-
     pub fn from_string(s: &str) -> Self {
-        serde_json::from_str(s)
-            .unwrap_or_else(|e| 
-                panic!("Error deserializing InvokerConfig. Error: {:?}. JSON string: {:?}", e, &s))
+        serde_json::from_str(s).unwrap_or_else(|e| {
+            panic!(
+                "Error deserializing InvokerConfig. Error: {:?}. JSON string: {:?}",
+                e, &s
+            )
+        })
     }
 
     pub fn to_string(&self) -> String {
-        serde_json::to_string(self)
-            .expect("could not serialize InvokerConfig")
+        serde_json::to_string(self).expect("could not serialize InvokerConfig")
     }
 
     fn default_initial_state() -> InitialState {
@@ -84,5 +94,18 @@ impl InvokerConfig {
         "utilization.log".to_string()
     }
 
+    fn default_kill_parent() -> bool {
+        false
+    }
+}
 
+impl MultiInvokerConfig {
+    pub fn from_string(s: &str) -> Self {
+        serde_json::from_str(s).unwrap_or_else(|e| {
+            panic!(
+                "Error deserializing MultiInvokerConfig. Error: {:?}. JSON string: {:?}",
+                e, &s
+            )
+        })
+    }
 }

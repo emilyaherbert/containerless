@@ -27,3 +27,4 @@ atomic_enum = "*"
 futures-cpupool = "*"
 shared = { path = "../shared" }
 auto_enums = { version = "*", features = [ "futures01" ] }
+nix = "*"
