@@ -422,10 +422,24 @@ function reifyVariableDeclaration(s: b.VariableDeclaration, st: State): [b.State
                         return [[ tPrimApp, s ], nextSt];
                     }
                     default: {
-                        theArgs.unshift(from(identifier(obj.name), prop.name));
                         break;
                     }
                 }
+                switch(prop.name) {
+                    case 'push': {
+                        const [obj2, st2] = reifyExpression(obj, nextSt);
+                        theArgs.unshift(obj2);
+                        const tPrimApp = tracePrimApp('push', theArgs);
+                        return [[ tPrimApp, s ], st2];
+                    }
+                    default: {
+                        break;
+                    }
+                }
+                theArgs.unshift(from(identifier(obj.name), prop.name));
+                //const [obj2, st2] = reifyExpression(obj, nextSt);
+                //nextSt = st2;
+                //theArgs.unshift(from(obj2, prop.name));
             }
 
             const tCall = traceFunctionCall(name, theArgs);

@@ -46,7 +46,6 @@ function commit(req) {
           }
     }, function(resp) {
         transaction = undefined;
-        console.log(resp);
         containerless.respond("Done!");
     });
 }
@@ -101,29 +100,19 @@ function withdraw(req) {
             ]
           }
     }, function(resp) {
-        console.log(resp);
         let key = resp.found[0].entity.key;
         let baseVersion = resp.found[0].version;
         let props = resp.found[0].entity.properties;
         props.Balance.integerValue = props.Balance.integerValue - req.query.amount;
-        containerless.post({
-            'url':'https://datastore.googleapis.com/v1/projects/umass-plasma:commit?access_token=' + req.query.accessToken,
-            'body': {
-                "transaction": transaction,
-                "mode": "TRANSACTIONAL",
-                "mutations": [
-                    {
-                        'update': {
-                            'key': key,
-                            'properties': props
-                        },
-                        'baseVersion': baseVersion
-                    }
-                ]
-              }
-        }, function(resp2) {
-            containerless.respond(resp2);
-        });
+        let mutation = {
+            'update': {
+                'key': key,
+                'properties': props
+            },
+            'baseVersion': baseVersion
+        };
+        mutations.push(mutation);
+        containerless.respond("Logged!");
     });
 }
 
