@@ -10,10 +10,12 @@ pub struct Forwarding {
 impl Drop for Forwarding {
     fn drop(&mut self) {
         match self.os {
-            OS::Mac => cmd!("sudo", "pfctl", "-F", "all", "-f", "/etc/pf.conf")
+            OS::Mac => {
+                cmd!("sudo", "pfctl", "-F", "all", "-f", "/etc/pf.conf")
                 .run()
-                .expect("could not flush rules"),
-            OS::Linux => unimplemented!(),
+                .expect("could not flush rules");
+            }
+            OS::Linux => unimplemented!()
         }
     }
 }
@@ -37,14 +39,16 @@ impl Forwarding {
 
     fn do_it(&mut self) {
         match self.os {
-            OS::Mac => cmd!("sudo", "pfctl", "-f", "-")
+            OS::Mac => {
+                cmd!("sudo", "pfctl", "-f", "-")
                 .stdin_bytes(format!(
                     "rdr pass inet proto tcp from any to any port {} -> 127.0.0.1 port {}\n",
                     self.src_port, self.dst_port
                 ))
                 .run()
-                .expect("Failed to reconfigure firewall"),
-            OS::Linux => unimplemented!(),
+                .expect("Failed to reconfigure firewall");
+            }
+            OS::Linux => unimplemented!()
         }
     }
 }
