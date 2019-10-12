@@ -17,3 +17,6 @@ program*.
 cargo run -- --config '{ "image_name": "serverless-function", "initial_state": "Decontainerized" }'
 curl localhost:8080/hello
 ```
+
+If compiling the JS trace fails, see `containerless_scaffold/trace.json` 
+IF compiling the Rust fails, see `/rust/containerless_scaffold/src/containerless.rs`
