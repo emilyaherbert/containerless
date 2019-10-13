@@ -54,6 +54,15 @@ function from(lhs: b.Expression, rhs: string): b.CallExpression {
     return b.callExpression(callee, theArgs);
 }
 
+function get(lhs: b.Expression, rhs: string): b.CallExpression {
+    const callee = b.memberExpression(
+        b.identifier('exp'),
+        b.identifier('get')
+    );
+    const theArgs = [lhs, b.stringLiteral(rhs)];
+    return b.callExpression(callee, theArgs);
+}
+
 // TODO(emily): Think about let x = 0; arr[x]; case.
 function index(lhs: b.Expression, rhs: b.CallExpression): b.CallExpression {
     const callee = b.memberExpression(
@@ -298,7 +307,7 @@ function reifyExpression(e: b.Expression, st: State): [b.Expression, State] {
 
             if((b.isIdentifier(obj) || b.isMemberExpression(obj)) && b.isIdentifier(prop)) {
                 const [lhs, st2] = reifyExpression(obj, st);
-                return [from(lhs, prop.name), st2];
+                return [get(lhs, prop.name), st2];
             } else if((b.isIdentifier(obj) || b.isMemberExpression(obj)) && b.isNumericLiteral(prop)) {
                 // TODO(emily): Think about { 0 : x } case.
                 const [lhs, st2] = reifyExpression(obj, st);

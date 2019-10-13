@@ -311,6 +311,10 @@ pub enum Exp {
         exp: Box<Exp>,
         field: String,
     },
+    Get {
+        exp: Box<Exp>,
+        field: String,
+    },
     #[serde(rename = "string")]
     Stringg {
         value: String,
@@ -428,6 +432,7 @@ impl fmt::Display for Exp {
             Exp::Bool { value } => write!(f, "Bool({})", value),
             Exp::Identifier { name } => write!(f, "Identifier({})", name),
             Exp::From { exp, field } => write!(f, "From({},{})", exp, field),
+            Exp::Get { exp, field } => write!(f, "Get({},{})", exp, field),
             Exp::Stringg { value } => write!(f, "Stringg({})", value),
             Exp::Undefined {} => write!(f, "Undefined"),
             Exp::BinOp { op, e1, e2 } => write!(f, "BinOp({:?}, {}, {})", op, e1, e2),
@@ -573,6 +578,13 @@ pub mod constructors {
 
     pub fn from(exp: Exp, field: &str) -> Exp {
         return From {
+            exp: Box::new(exp),
+            field: field.to_string(),
+        };
+    }
+
+    pub fn get(exp: Exp, field: &str) -> Exp {
+        return Get {
             exp: Box::new(exp),
             field: field.to_string(),
         };

@@ -20,7 +20,7 @@ pub fn verify(exp: &Exp) -> Exp {
     assertions.assert_all_options_are_none(&exp);
 
     let mut exp2 = transformer.transform(&exp);
-    crate::verif::typeinf::typeinf(&mut exp2).unwrap();
+    // crate::verif::typeinf::typeinf(&mut exp2).unwrap();
     let exp3 = lift_callbacks.lift(&exp2);
 
     return exp3;

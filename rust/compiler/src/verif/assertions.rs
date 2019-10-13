@@ -39,6 +39,7 @@ impl Assertions {
             From { exp, field: _ } => {
                 self.assert_exp(exp);
             }
+            Get { exp, field: _ } => self.assert_exp(exp),
             Stringg { value: _ } => {}
             Undefined {} => {}
             BinOp { op: _, e1, e2 } => {
@@ -274,7 +275,8 @@ impl Assertions {
             Identifier { name: _ } => {}
             From { exp, field: _ } => {
                 self.assert_all_options_are_none(exp);
-            }
+            },
+            Get { exp, field: _ } => self.assert_all_options_are_none(exp),
             Stringg { value: _ } => {}
             Undefined {} => {}
             BinOp { op: _, e1, e2 } => {

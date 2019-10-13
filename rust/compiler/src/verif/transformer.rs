@@ -22,7 +22,7 @@ impl Transformer {
         for (key, value) in exps.iter() {
             let new_value = match value {
                 Identifier { name } => id(name),
-                From { exp, field } => from(self.transform_exp(exp), field),
+                From { exp, field } => get(self.transform_exp(exp), field),
                 _ => self.transform_exp(value),
             };
             ret.insert(key.to_string(), new_value);
@@ -36,7 +36,8 @@ impl Transformer {
             Number { value } => return number(*value),
             Bool { value } => return bool_(*value),
             Identifier { name } => return deref(id(name)),
-            From { exp, field } => return from(self.transform_exp(exp), field),
+            Get { exp, field } => get(self.transform_exp(exp), field),
+            From { exp, field } => return deref(get(self.transform_exp(exp), field)),
             Stringg { value } => return string(value),
             Undefined {} => return undefined(),
             BinOp { op, e1, e2 } => {
@@ -68,7 +69,7 @@ impl Transformer {
                 named,
             } => {
                 return setref(
-                    from(self.transform_exp(exp), field),
+                    get(self.transform_exp(exp), field),
                     self.transform_exp(named),
                 );
             }

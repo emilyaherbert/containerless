@@ -29,7 +29,11 @@ type LabelExp = { kind: 'label', name: string, body: Exp[] };
 type BreakExp = { kind: 'break', name: string, value: Exp };
 
 type IdExp = { kind: 'identifier', name: string };
+
+/** A FromExp reads a value out of a closure, thus needs to be deferenced. */
 type FromExp = { kind: 'from', exp: Exp, field: string };
+/** A GetExp reads a value out of an object. */
+type GetExp = { kind: 'get', exp: Exp, field: string };
 
 type TEnv = { [key: string]: Exp };
 type ObjExp = { kind: 'object', properties: TEnv };
@@ -141,6 +145,10 @@ export function obj(properties: TEnv): ObjExp {
 
 export function array(exps: Exp[]): ArrayExp {
     return { kind: 'array', exps: exps };
+}
+
+export function get(exp: Exp, field: string): GetExp {
+    return { kind: 'get', exp, field };
 }
 
 export function from(exp: Exp, field: string): FromExp {

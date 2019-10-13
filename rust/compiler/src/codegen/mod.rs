@@ -61,7 +61,8 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             let q_id = Ident::new(&format!("{}", name), Span::call_site());
             quote! { #q_id }
         }
-        Exp::From { exp, field } => {
+        Exp::From { exp: _, field: _ } => panic!("Exp::From should be eliminated"),
+        Exp::Get { exp, field } => {
             let q_exp = codegen_exp(exp);
             quote! { #q_exp.get(#field)? }
         }

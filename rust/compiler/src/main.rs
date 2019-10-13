@@ -1,15 +1,15 @@
 #[macro_use]
-
 extern crate duct;
-
 use clap::{App, Arg, SubCommand};
-
 mod codegen;
 mod gen;
 mod trace_js;
 mod types;
 mod verif;
+#[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod test_runner;
 
 fn main() {
     let matches = App::new("decontainerization")

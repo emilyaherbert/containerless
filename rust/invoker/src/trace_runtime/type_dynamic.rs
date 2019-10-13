@@ -100,7 +100,7 @@ impl<'a> Dyn<'a> {
             (Dyn::Float(x), Dyn::Int(n)) => Ok(Dyn::Float(x + f64::from(n))),
             (Dyn::Int(n), Dyn::Float(x)) => Ok(Dyn::Float(f64::from(n) + x)),
             (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Float(x + y)),
-            _ => type_error("add"),
+            _ => type_error(&format!("add({:?}, {:?})", &self, &other)),
         }
     }
 
@@ -109,6 +109,7 @@ impl<'a> Dyn<'a> {
             (Dyn::Int(m), Dyn::Int(n)) => Ok(Dyn::Bool(m == n)),
             (Dyn::Str(s1), Dyn::Str(s2)) => Ok(Dyn::Bool(s1 == s2)),
             (Dyn::Str(_), other) => panic!("not working Dyn::Str(_) == {:?}", other),
+            (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Bool(x == y)),
             (_that, other) => {
                 println!("Other is {:?}", other);
                 println!("self is {:?}", self);
