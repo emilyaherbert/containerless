@@ -9,6 +9,7 @@ mod gen;
 mod trace_js;
 mod types;
 mod verif;
+mod tests;
 
 fn main() {
     let matches = App::new("decontainerization")
