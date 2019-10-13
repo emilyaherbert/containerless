@@ -31,14 +31,22 @@ fn codegen_block(block: &[Exp], to_break: Option<Lifetime>) -> TokenStream {
 
     let q_block_but_last = all_but_last.iter().map(|e| codegen_exp(e));
     let q_last = codegen_exp(last);
-    match to_break {
-        None => {
+    match (to_break, last) {
+        // If the last element is already a break, then don't introduce another
+        // break.
+        // TODO(arjun): Perhaps this transformatio should happen in rustify.rs.
+        (_, Exp::Break { name: _, value: _ }) => quote! {
+                #(#q_block_but_last)*
+                #q_last
+
+        },
+        (None, _) => {
             quote! {
                 #(#q_block_but_last)*
                 #q_last
             }
         }
-        Some(lifetime) => {
+        (Some(lifetime), _) => {
             quote! {
                 #(#q_block_but_last)*
                 break #lifetime #q_last;
@@ -203,7 +211,9 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
 pub fn codegen(e: &Exp, dest_file: &str) {
     let q_e = codegen_exp(e);
     let tokens = quote! {
-        use invoker::trace_runtime::{self as rt, Error, ExecutionContext, Dyn, DynResult};
+        // We generate names from JavaScript, so camelCase names are inevitable.
+        #![allow(non_snake_case)]        
+        use invoker::trace_runtime::{self as rt, ExecutionContext, Dyn, DynResult};
 
         pub fn containerless<'a>(
             arena: &'a bumpalo::Bump,
