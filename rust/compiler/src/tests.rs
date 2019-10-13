@@ -8,7 +8,7 @@ use crate::codegen;
 use std::process::Command;
 use std::process::Stdio;
 use std::io::prelude::*;
-
+use serial_test_derive::serial;
 
 /// An "end-to-end" test of decontainerization that runs a program in JS,
 /// extracts its traces, compiles to Rust, and then runs the Rust program.
@@ -69,6 +69,7 @@ fn test_end_to_end(
 }
 
 #[test]
+#[serial]
 pub fn trivial_fixed_response() {
     let result = test_end_to_end(
         "try_test.js",
@@ -83,6 +84,7 @@ pub fn trivial_fixed_response() {
 }
 
 #[test]
+#[serial]
 pub fn trivial_echo_path() {
     let result = test_end_to_end(
         "try_test.js",
@@ -97,6 +99,7 @@ pub fn trivial_echo_path() {
 }
 
 #[test]
+#[serial]
 pub fn trivial_conditional_with_unknown() {
     let result = test_end_to_end(
         "trivial_conditional_with_unknown.js",
@@ -119,6 +122,7 @@ pub fn trivial_conditional_with_unknown() {
 }
 
 #[test]
+#[serial]
 pub fn nested_binops() {
     let result = test_end_to_end(
         "trivial_conditional_with_unknown.js",

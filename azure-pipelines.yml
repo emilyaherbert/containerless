@@ -41,5 +41,5 @@ steps:
   displayName: Test JavaScript code
 - script: |
     cd rust/compiler
-    RUST_TEST_THREADS=1 cargo test
+    cargo test
   displayName: Test Rust code

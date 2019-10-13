@@ -12,4 +12,4 @@ yarn install
 yarn run build
 cd ../../rust/compiler
 cargo build
-RUST_TEST_THREADS=1 cargo test
+cargo test
