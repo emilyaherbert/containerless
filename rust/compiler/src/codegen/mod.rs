@@ -196,7 +196,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
         Exp::SetRef { e1, e2 } => {
             let q_e1 = codegen_exp(e1);
             let q_e2 = codegen_exp(e2);
-            quote! { Dyn::setref(#q_e1, #q_e2)? }
+            quote! { #q_e1.setref(#q_e2)?; }
         }
         Exp::PrimApp { event, event_args } => {
             let q_event_args = event_args.iter().map(|e| codegen_exp(e));

@@ -50,6 +50,14 @@ impl<'a> Dyn<'a> {
         Dyn::Ref(arena.alloc(Cell::new(value)))
     }
 
+    pub fn setref(&self, new_value: Dyn<'a>) -> DynResult<'a> {
+        if let Dyn::Ref(cell) = self {
+            cell.set(new_value);
+            return Ok(Dyn::Undefined);
+        }
+        panic!("setref on {:?}", self);
+    }
+
     pub fn object(arena: &'a Bump) -> Dyn<'a> {
         Dyn::Object(arena.alloc(RefCell::new(Vec::new_in(arena))))
     }
