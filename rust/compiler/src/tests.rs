@@ -56,6 +56,30 @@ pub fn trivial_conditional_with_unknown() {
 
 #[test]
 #[serial]
+pub fn conditional_return() {
+    let mut runner = TestRunner::new("conditional_return.js");
+    let result = runner.test(
+        r#"
+        let containerless = require("../../javascript/containerless");
+
+        function F(x) {
+            if (x === 10) {
+                return 'ok';
+            }
+            return 'error';
+        }
+
+        containerless.listen(function(req) {
+            F(0); // result is ignored
+            containerless.respond(F(10));
+        });
+        "#,
+        "ignored", "ignored");
+    assert_eq!(result, [ "ok" ]);
+}
+
+#[test]
+#[serial]
 pub fn make_adder() {
     let mut runner = TestRunner::new("make_adder.js");
     let result = runner.test(

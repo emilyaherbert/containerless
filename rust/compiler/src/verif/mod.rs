@@ -5,6 +5,8 @@ pub mod typeinf;
 pub mod assertions;
 pub mod lift_callbacks;
 
+use super::rustify::Rustify;
+
 use crate::{
     types::Exp,
     verif::{assertions::Assertions, lift_callbacks::LiftCallbacks, transformer::Transformer},
@@ -14,14 +16,15 @@ pub fn verify(exp: &Exp) -> Exp {
     let mut assertions = Assertions::new();
     let mut transformer = Transformer::new();
     let mut lift_callbacks = LiftCallbacks::new();
-
+    let mut rustify = Rustify::new();
     assertions.assert_supposed_grammar(&exp);
     assertions.assert_unique_names(&exp);
     assertions.assert_all_options_are_none(&exp);
 
-    let mut exp2 = transformer.transform(&exp);
+    let exp2 = transformer.transform(&exp);
     // crate::verif::typeinf::typeinf(&mut exp2).unwrap();
-    let exp3 = lift_callbacks.lift(&exp2);
+    let mut exp3 = lift_callbacks.lift(&exp2);
+    rustify.rustify(&mut exp3);
 
     return exp3;
 }

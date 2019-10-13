@@ -22,10 +22,11 @@ fn codegen_op(op: &Op2) -> TokenStream {
 
 fn codegen_block(block: &[Exp], to_break: Option<Lifetime>) -> TokenStream {
     let undef = Exp::Undefined {};
-    let (last, all_but_last) = match block.last().expect("received empty block") {
-        Exp::Let { name: _, named: _, typ: _ } =>
+    let (last, all_but_last) = match block.last() {
+        Some(Exp::Let { name: _, named: _, typ: _ }) =>
           (&undef, block),
-        _ => block.split_last().unwrap()
+        Some(_) => block.split_last().unwrap(),
+        None => (&undef, block)
     };
 
     let q_block_but_last = all_but_last.iter().map(|e| codegen_exp(e));

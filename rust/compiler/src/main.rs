@@ -6,6 +6,7 @@ mod gen;
 mod trace_js;
 mod types;
 mod verif;
+mod rustify;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
