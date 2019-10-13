@@ -40,7 +40,7 @@ fn test_end_to_end(
     let verified = verify(&exp);
     codegen::codegen(&verified, "../containerless-scaffold/src/containerless.rs");
     let mut decontainerized = Command::new("cargo")
-        .args(["run", "ignored-arg", "--testing"].iter())
+        .args(["run", "--", "--testing"].iter())
         .current_dir("../containerless-scaffold")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -119,6 +119,32 @@ pub fn trivial_conditional_with_unknown() {
     );
 
     assert_eq!(result, ["correct"]);
+}
+
+pub fn make_adder() {
+    let result = test_end_to_end(
+        "make_adder.js",
+        r#"
+        function makeAdder(x) {
+            return function(y) {
+                return x + y;
+            }
+        }
+
+        let addTen = makeAdder(10);
+
+        let containerless = require("../../javascript/containerless");
+        containerless.listen(function(req) {
+            if (addTen(1) === 11) {
+                containerless.respond("ok");
+            }
+            else {
+                containerless.respond("error");
+            }
+        });
+        "#,
+        "ignored", "ignored");
+    assert_eq!(result, [ "ok" ]);
 }
 
 #[test]
