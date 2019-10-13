@@ -36,17 +36,6 @@ const newTrace: b.ExpressionStatement =
         )
     );
 
-const getTrace: b.ExpressionStatement =
-    b.expressionStatement(
-        b.callExpression(
-            b.memberExpression(
-                t,
-                b.identifier('getTrace')
-            ),
-            []
-        )
-    );
-
 function identifier(s: string): b.CallExpression {
     const callee = b.memberExpression(
         b.identifier('exp'),
@@ -696,8 +685,7 @@ function reify(s: b.Statement[]): b.Statement[] {
     ];
 
     let tail: b.Statement[] = [
-        exitBlock,
-        getTrace
+        exitBlock
     ];
 
     return [req].concat(head).concat(prog).concat(tail);

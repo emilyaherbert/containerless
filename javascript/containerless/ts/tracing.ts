@@ -367,7 +367,6 @@ class Trace implements TracingInterface {
 
     traceBreak(name: string, value: Exp): void {
         let exp = this.getCurrentExp();
-        this.prettyPrint();
         if (exp.kind === 'unknown') {
             this.setExp(break_(name, value));
         }
