@@ -524,6 +524,14 @@ function mergeExp(e1: Exp, e2: Exp): Exp {
         e1.exp = mergeExp(e1.exp, e2.exp);
         return e1;
     }
+    else if (e1.kind === 'get' && e2.kind === 'get') {
+        if (e1.field !== e2.field) {
+            throw new Error(`Mismatched field names ${e1.field} and ${e2.field}
+                in from(...) expressions`);
+        }
+        e1.exp = mergeExp(e1.exp, e2.exp);
+        return e1;
+    }
     else if (e1.kind === 'clos' && e2.kind === 'clos') {
         // TODO(arjun): We *never* use for .. in loops. Use Object.keys.
         for (var prop in e1.tenv) {

@@ -62,6 +62,7 @@ export type Exp
     | { kind: 'boolean', value: boolean }
     | IdExp
     | FromExp
+    | GetExp
     | { kind: 'string', value: string }
     | { kind: 'undefined' }
     | { kind: 'binop', op: BinOp, e1: Exp, e2: Exp }
