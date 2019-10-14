@@ -202,7 +202,7 @@ impl TracingPool {
             match m {
                 TracingStatus::Aborted => {
                     return self.data.container_pool.request(req);
-                }
+                },
                 // Send request. If there is an error due to unknown, switch to
                 // NotStarted
                 TracingStatus::Decontainerized => {
@@ -230,7 +230,7 @@ impl TracingPool {
                             data2.tracing_container_available.store(true, SeqCst);
                             return resp;
                         });
-                }
+                },
                 // Already tracing. Try to send the request to the tracing container.
                 // If it is unavailable, send it to the container pool instead.
                 // If the tracing container has received enough requests, this
@@ -263,14 +263,13 @@ impl TracingPool {
                     } else {
                         return self.data.container_pool.request(req);
                     }
-                }
+                },
                 TracingStatus::Compiling => {
                     return self.data.container_pool.request(req);
                 },
                 TracingStatus::Draining => {
                     return self.data.container_pool.request(req);
-                },
-
+                }
             }
         }
     }

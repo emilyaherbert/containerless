@@ -157,8 +157,10 @@ impl ContainerPoolData {
 
             future::join_all(handles.into_iter().map(move |h| {
                 let idle = idle.clone();
-                h.clone()
-                    .test(client.clone())
+                // NOTE(emily): This used to be h.clone().test(...), which
+                // caused the old ones to be thrown out and drop(...) used. This
+                // takes down the containers in docker.
+                h.test(client.clone())
                     .from_err()
                     .and_then(move |()| idle.send(h).from_err())
             }))

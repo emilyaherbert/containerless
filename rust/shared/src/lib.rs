@@ -3,7 +3,7 @@ pub mod config;
 #[derive(Debug, PartialEq)]
 pub enum OS {
     Linux,
-    Mac,
+    Mac
 }
 
 impl OS {
@@ -13,6 +13,7 @@ impl OS {
         match info.os_type() {
             Type::Linux => OS::Linux,
             Type::Macos => OS::Mac,
+            Type::Ubuntu => OS::Linux,
             t => panic!("Unsupported operating system ({:?})", t),
         }
     }
