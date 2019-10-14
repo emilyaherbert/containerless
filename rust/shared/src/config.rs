@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 pub enum InitialState {
     Tracing,
     Decontainerized,
+    DisableTracing
 }
 
 #[derive(Debug, Serialize, Deserialize)]

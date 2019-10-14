@@ -74,7 +74,8 @@ impl TracingStatus {
         use shared::config::InitialState;
         match config.initial_state {
             InitialState::Tracing => TracingStatus::NotStarted,
-            InitialState::Decontainerized => TracingStatus::Decontainerized
+            InitialState::Decontainerized => TracingStatus::Decontainerized,
+            InitialState::DisableTracing => TracingStatus::Aborted
         }
     }
 }
