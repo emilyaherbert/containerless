@@ -5,7 +5,14 @@ use futures::{
 };
 use hyper::Client;
 use tokio;
-use std::time::{Duration, Instant};
+use std::{
+    time::{
+        Duration,
+        Instant
+    },
+    fs::File,
+    io::Read
+};
 use futures::future::{lazy};
 use clap::{App, Arg};
 
@@ -18,10 +25,13 @@ fn main() {
             Arg::with_name("config")
                 .long("--config")
                 .takes_value(true)
-                .help("Configuration JSON object (as a string)"),
+                .help("Configuration JSON file."),
         )
         .get_matches();
-    let config = TestConfig::from_string(matches.value_of("config").unwrap());
+    let mut config_file = File::open(matches.value_of("config").unwrap()).unwrap();
+    let mut data = String::new();
+    config_file.read_to_string(&mut data).unwrap();
+    let config = TestConfig::from_string(&data);
 
     let stop = Duration::from_secs(config.duration);
     let start = Instant::now();
