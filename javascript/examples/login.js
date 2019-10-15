@@ -1,8 +1,8 @@
-let containerless = require('../dist/index');
+let containerless = require('containerless');
 
 containerless.listen(function(req) {
     if(req.path === '/login') {
-        containerless.get("https://emilyaherbert.github.io/authorize.json", function(resp) {
+        containerless.get("https://emilyaherbert.github.io/files/authorize.json", function(resp) {
             if(resp.username === undefined || resp.password === undefined || req.body.username === undefined || req.body.password === undefined) {
                 containerless.respond("Username and password not found.");
             } else if(resp.username === req.body.username && resp.password === req.body.password) {
