@@ -98,7 +98,7 @@ export class Callbacks {
         let [_, $argRep, $callbackClos] = this.trace.popArgs();
         let innerTrace = this.trace.traceCallback('get', $argRep, ['clos', 'response'], $callbackClos);
         
-=        if (state.getListenPort() === 'test') {
+        if (state.getListenPort() === 'test') {
             this.withTrace(innerTrace, () => {
                 innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                 // TODO(arjun): We need to change this to test withot making
