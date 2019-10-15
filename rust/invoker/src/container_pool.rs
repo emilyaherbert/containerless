@@ -1,10 +1,4 @@
 use super::container_handle::ContainerHandle;
-/// Manages a pool of containers that can process requests. At the moment, the
-/// API is very straightforward and just has a single method called `request`,
-/// which redirects a request to an available container. If no container is
-/// immediately available, then `request` spawns a single new container upto
-/// the configured maximum number of containers (i.e., cold starts).
-use shared::config::InvokerConfig;
 use crate::error::Error;
 use crate::mpmc::{Queue, Receiver, Sender};
 use crate::time_keeper::TimeKeeper;
@@ -16,6 +10,12 @@ use duct::cmd;
 use futures::{future, Future};
 use futures_locks::{Mutex, MutexGuard};
 use http::uri::Authority;
+/// Manages a pool of containers that can process requests. At the moment, the
+/// API is very straightforward and just has a single method called `request`,
+/// which redirects a request to an available container. If no container is
+/// immediately available, then `request` spawns a single new container upto
+/// the configured maximum number of containers (i.e., cold starts).
+use shared::config::InvokerConfig;
 use std::sync::atomic;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -40,7 +40,7 @@ struct ContainerPoolData {
     time_keeper: TimeKeeper,
     last_container_start_time: atomic::AtomicU64,
     shutting_down: atomic::AtomicBool,
-    tx_shutdown: Mutex<Option<futures::sync::oneshot::Sender<()>>>
+    tx_shutdown: Mutex<Option<futures::sync::oneshot::Sender<()>>>,
 }
 
 #[derive(Clone)]
@@ -94,14 +94,17 @@ fn create_container(
 }
 
 impl ContainerPoolData {
-    pub fn new(config: Arc<InvokerConfig>, client: Arc<HttpClient>) -> (ContainerPoolData, futures::sync::oneshot::Receiver<()>) {
+    pub fn new(
+        config: Arc<InvokerConfig>,
+        client: Arc<HttpClient>,
+    ) -> (ContainerPoolData, futures::sync::oneshot::Receiver<()>) {
         let (tx_shutdown, rx_shutdown) = futures::sync::oneshot::channel::<()>();
         let tx_shutdown = Mutex::new(Some(tx_shutdown));
         let (idle, available) = Queue::new();
         let time_keeper = TimeKeeper::new(Duration::from_secs(30));
         let last_container_start_time = atomic::AtomicU64::new(util::unix_epoch_secs());
         let shutting_down = atomic::AtomicBool::new(false);
-        let data =  ContainerPoolData {
+        let data = ContainerPoolData {
             num_containers: atomic::AtomicUsize::new(0),
             last_container_start_time,
             tx_shutdown,
@@ -157,9 +160,6 @@ impl ContainerPoolData {
 
             future::join_all(handles.into_iter().map(move |h| {
                 let idle = idle.clone();
-                // NOTE(emily): This used to be h.clone().test(...), which
-                // caused the old ones to be thrown out and drop(...) used. This
-                // takes down the containers in docker.
                 h.test(client.clone())
                     .from_err()
                     .and_then(move |()| idle.send(h).from_err())
@@ -171,7 +171,10 @@ impl ContainerPoolData {
 }
 
 impl ContainerPool {
-    pub fn new(config: Arc<InvokerConfig>, client: Arc<HttpClient>) -> (ContainerPool, futures::sync::oneshot::Receiver<()>) {
+    pub fn new(
+        config: Arc<InvokerConfig>,
+        client: Arc<HttpClient>,
+    ) -> (ContainerPool, futures::sync::oneshot::Receiver<()>) {
         let (data, rx_shutdown) = ContainerPoolData::new(config.clone(), client);
         let data = Arc::new(data);
         ContainerPool::launch_container_killer(&config, data.clone());
@@ -203,25 +206,31 @@ impl ContainerPool {
 
     pub fn shutdown(&self) -> impl Future<Item = (), Error = Error> {
         let data = self.data.clone();
-        self.data.tx_shutdown.lock().from_err().and_then(move |mut guard| {
-            let tx_shutdown = std::mem::replace(&mut *guard, None);
-            tx_shutdown.expect("already called shutdown").send(())
-                .unwrap();
-            data.shutting_down.store(true, SeqCst);
-            future::loop_fn((), move |()| {
-                let num_left = data.num_containers.fetch_sub(1, SeqCst);
-                if num_left == 0 {
-                    println!("num_left = {}", num_left);
-                    return future::Either::A(future::ok(future::Loop::Break(())));
-                } else {
-                    let fut = data.available.recv().map(|container| {
-                        container.stop();
-                        future::Loop::Continue(())
-                    });
-                    return future::Either::B(fut);
-                }
+        self.data
+            .tx_shutdown
+            .lock()
+            .from_err()
+            .and_then(move |mut guard| {
+                let tx_shutdown = std::mem::replace(&mut *guard, None);
+                tx_shutdown
+                    .expect("already called shutdown")
+                    .send(())
+                    .unwrap();
+                data.shutting_down.store(true, SeqCst);
+                future::loop_fn((), move |()| {
+                    let num_left = data.num_containers.fetch_sub(1, SeqCst);
+                    if num_left == 0 {
+                        println!("num_left = {}", num_left);
+                        return future::Either::A(future::ok(future::Loop::Break(())));
+                    } else {
+                        let fut = data.available.recv().map(|container| {
+                            container.stop();
+                            future::Loop::Continue(())
+                        });
+                        return future::Either::B(fut);
+                    }
+                })
             })
-        })
     }
 
     pub fn request(&self, req: Request) -> impl Future<Item = Response, Error = Error> {
@@ -234,16 +243,20 @@ impl ContainerPool {
             Some(container) => future::Either::A(future::ok(container)),
             None => {
                 let data = data.clone();
-                future::Either::B(ContainerPoolData::create_containers(&data, 1)
-                        .and_then(move |()| data.available.recv().from_err()))
+                future::Either::B(
+                    ContainerPoolData::create_containers(&data, 1)
+                        .and_then(move |()| data.available.recv().from_err()),
+                )
             }
         };
-        container_fut.and_then(move |container|
-            container.request(data.client.clone(), req)
+        container_fut.and_then(move |container| {
+            container
+                .request(data.client.clone(), req)
                 .from_err()
                 .and_then(move |resp| {
                     data.time_keeper.record_time(start.elapsed());
                     data.idle.send(container).from_err().map(move |()| resp)
-                }))
+                })
+        })
     }
 }

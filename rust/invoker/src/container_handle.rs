@@ -4,7 +4,10 @@ use futures::Future;
 use http::uri::Authority;
 use std::sync::Arc;
 
-#[derive(Clone, Debug)]
+// NOTE(emily, arjun): ContainerHandle must not implement Clone, since containers
+// are shut down when dropped. If you really need multiple references to the
+// same container, use Arc<ContainerHandle>.
+#[derive(Debug)]
 pub struct ContainerHandle {
     pub name: String,
     pub authority: Authority, // localhost:port

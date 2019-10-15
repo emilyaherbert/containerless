@@ -1,3 +1,16 @@
+use super::container_handle::ContainerHandle;
+use super::container_pool::ContainerPool;
+use super::error::Error;
+use super::trace_runtime::{Containerless, Decontainer};
+use super::types;
+use atomic_enum::atomic_enum;
+use auto_enums::auto_enum;
+use bytes::Bytes;
+use duct::cmd;
+use futures::future::Future;
+use futures::stream::Stream;
+use futures_cpupool::CpuPool;
+use http::uri::Authority;
 /// *How should we switch between containers and Rust?*
 /// We assume that the container can be run in two modes, either vanilla or
 /// tracing. On the first request, we start a tracing container. If additional
@@ -11,22 +24,9 @@
 /// times we recompile the Rust code. If recompilation happens more than L times,
 /// we give up compiling to Rust.
 use shared::config::InvokerConfig;
-use super::container_handle::ContainerHandle;
-use super::container_pool::ContainerPool;
-use super::error::Error;
-use super::types;
-use super::trace_runtime::{Containerless, Decontainer};
-use atomic_enum::atomic_enum;
-use bytes::Bytes;
-use duct::cmd;
-use futures::future::Future;
-use futures::stream::Stream;
-use http::uri::Authority;
+use std::fs;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering::SeqCst};
 use std::sync::Arc;
-use futures_cpupool::CpuPool;
-use std::fs;
-use auto_enums::auto_enum;
 
 #[atomic_enum]
 #[derive(PartialEq)]
@@ -45,7 +45,7 @@ enum TracingStatus {
     /// The decontainerized code has been compiled to Rust and another process
     /// has started. Once all pending requests are serviced, we will shut down
     /// this process.
-    Draining
+    Draining,
 }
 
 struct TracingPoolData {
@@ -57,7 +57,7 @@ struct TracingPoolData {
     container_handle: ContainerHandle,
     client: Arc<types::HttpClient>,
     cpu_pool: CpuPool,
-    containerless: Containerless
+    containerless: Containerless,
 }
 
 #[derive(Clone)]
@@ -75,13 +75,17 @@ impl TracingStatus {
         match config.initial_state {
             InitialState::Tracing => TracingStatus::NotStarted,
             InitialState::Decontainerized => TracingStatus::Decontainerized,
-            InitialState::DisableTracing => TracingStatus::Aborted
+            InitialState::DisableTracing => TracingStatus::Aborted,
         }
     }
 }
 
 impl TracingPoolData {
-    fn new(config: Arc<InvokerConfig>, containerless: Containerless, client: Arc<types::HttpClient>) -> (TracingPoolData, futures::sync::oneshot::Receiver<()>) {
+    fn new(
+        config: Arc<InvokerConfig>,
+        containerless: Containerless,
+        client: Arc<types::HttpClient>,
+    ) -> (TracingPoolData, futures::sync::oneshot::Receiver<()>) {
         let tracing_container_available = AtomicBool::new(false);
         let num_traced_requests = AtomicUsize::new(0);
         let mode = AtomicTracingStatus::new(TracingStatus::new(&config));
@@ -96,17 +100,20 @@ impl TracingPoolData {
             authority,
             name: TRACING_CONTAINER_NAME.to_string(),
         };
-        return (TracingPoolData {
-            containerless,
-            tracing_container_available,
-            num_traced_requests,
-            mode,
-            container_pool,
-            config,
-            container_handle,
-            client,
-            cpu_pool
-        }, rx_shutdown);
+        return (
+            TracingPoolData {
+                containerless,
+                tracing_container_available,
+                num_traced_requests,
+                mode,
+                container_pool,
+                config,
+                container_handle,
+                client,
+                cpu_pool,
+            },
+            rx_shutdown,
+        );
     }
 
     fn start_tracing_container(&self) {
@@ -139,14 +146,14 @@ impl TracingPoolData {
         .run();
         run_result.unwrap();
     }
-
 }
 
 impl TracingPool {
-
-    pub fn new(config: Arc<InvokerConfig>,
-    containerless: Option<Containerless>,
-    client: Arc<types::HttpClient>) -> (Self, futures::sync::oneshot::Receiver<()>) {
+    pub fn new(
+        config: Arc<InvokerConfig>,
+        containerless: Option<Containerless>,
+        client: Arc<types::HttpClient>,
+    ) -> (Self, futures::sync::oneshot::Receiver<()>) {
         let (data, rx_shutdown) = TracingPoolData::new(config, containerless.unwrap(), client);
         let data = Arc::new(data);
         return (TracingPool { data }, rx_shutdown);
@@ -159,29 +166,42 @@ impl TracingPool {
                 .authority(self.data.container_handle.authority.clone())
                 .path_and_query("/trace")
                 .build()
-                .unwrap())
-            .body(hyper::Body::empty())
-            .unwrap();
+                .unwrap(),
+        )
+        .body(hyper::Body::empty())
+        .unwrap();
         let data = self.data.clone();
         let data2 = self.data.clone();
-        self.data.client.request(req).and_then(|resp| resp.into_body().concat2())
+        self.data
+            .client
+            .request(req)
+            .and_then(|resp| resp.into_body().concat2())
             .map(move |chunk| chunk.iter().cloned().collect::<Vec<u8>>())
             .from_err()
-            .and_then(move |trace| data2.cpu_pool.spawn_fn(move || {
-                fs::write("trace.json", trace)
-                .expect("Failed to write trace.json");
-                cmd!("cargo", "run", "test-codegen", "-i", "../containerless-scaffold/trace.json", "-o", "../containerless-scaffold/src/containerless.rs")
-                .dir("../compiler")
-                .run()
-                .expect("Failed to compile the trace to Rust");
-                cmd!("cargo", "build")
-                .run()
-                .expect("Failed to compile the Rust code generated by the trace compiler");
+            .and_then(move |trace| {
+                data2.cpu_pool.spawn_fn(move || {
+                    fs::write("trace.json", trace).expect("Failed to write trace.json");
+                    cmd!(
+                        "cargo",
+                        "run",
+                        "test-codegen",
+                        "-i",
+                        "../containerless-scaffold/trace.json",
+                        "-o",
+                        "../containerless-scaffold/src/containerless.rs"
+                    )
+                    .dir("../compiler")
+                    .run()
+                    .expect("Failed to compile the trace to Rust");
+                    cmd!("cargo", "build")
+                        .run()
+                        .expect("Failed to compile the Rust code generated by the trace compiler");
 
-                data.mode.store(TracingStatus::Draining, SeqCst);
-                return data.container_pool.shutdown();
-                // return future::ok(());
-            }))
+                    data.mode.store(TracingStatus::Draining, SeqCst);
+                    return data.container_pool.shutdown();
+                    // return future::ok(());
+                })
+            })
             .map_err(|err| {
                 println!("{:?}", err);
                 ()
@@ -202,12 +222,16 @@ impl TracingPool {
             match m {
                 TracingStatus::Aborted => {
                     return self.data.container_pool.request(req);
-                },
+                }
                 // Send request. If there is an error due to unknown, switch to
                 // NotStarted
                 TracingStatus::Decontainerized => {
-                    return Decontainer::new(self.data.containerless, req);
-                },
+                    return Decontainer::new(
+                        self.data.containerless,
+                        self.data.client.clone(),
+                        req,
+                    );
+                }
                 // Try to set the mode to Tracing. If succcessful, this request is going
                 // to launch the tracing container. Either way, loop to try to request
                 // again.
@@ -223,14 +247,21 @@ impl TracingPool {
                     self.data.start_tracing_container();
                     let data = self.data.clone();
                     let data2 = self.data.clone();
-                    return self.data.container_handle.test(data.client.clone())
+                    return self
+                        .data
+                        .container_handle
+                        .test(data.client.clone())
                         .from_err()
-                        .and_then(move |()| data.container_handle.request(data.client.clone(), req).from_err())
+                        .and_then(move |()| {
+                            data.container_handle
+                                .request(data.client.clone(), req)
+                                .from_err()
+                        })
                         .map(move |resp| {
                             data2.tracing_container_available.store(true, SeqCst);
                             return resp;
                         });
-                },
+                }
                 // Already tracing. Try to send the request to the tracing container.
                 // If it is unavailable, send it to the container pool instead.
                 // If the tracing container has received enough requests, this
@@ -254,8 +285,7 @@ impl TracingPool {
                             .map(move |resp| {
                                 if n == MAX_TRACED {
                                     data.container_handle.stop();
-                                }
-                                else {
+                                } else {
                                     data.tracing_container_available.store(true, SeqCst);
                                 }
                                 resp
@@ -263,10 +293,10 @@ impl TracingPool {
                     } else {
                         return self.data.container_pool.request(req);
                     }
-                },
+                }
                 TracingStatus::Compiling => {
                     return self.data.container_pool.request(req);
-                },
+                }
                 TracingStatus::Draining => {
                     return self.data.container_pool.request(req);
                 }
