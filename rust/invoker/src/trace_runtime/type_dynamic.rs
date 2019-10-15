@@ -211,6 +211,43 @@ impl<'a> Dyn<'a> {
             _ => panic!("invoked deref on {:?}", self),
         }
     }
+
+    fn from_json(arena: &'a Bump, json: serde_json::Value) -> Dyn<'a> {
+        use serde_json::Value;
+        match json {
+            Value::String(s) => Dyn::str(arena, &s),
+            Value::Number(n) => {
+                // TODO(arjun): do better!
+                Dyn::Float(n.as_f64().unwrap())
+            }
+            Value::Bool(b) => Dyn::Bool(b),
+            Value::Null => unimplemented!(),
+            Value::Array(vec) => {
+                let mut v = Vec::new_in(arena);
+                for item in vec.into_iter() {
+                    v.push(Self::from_json(arena, item));
+                }
+                // Why isn't this refcell immediate?
+                Dyn::Vec(arena.alloc(RefCell::new(v)))
+            }
+            Value::Object(key_value_pairs) => {
+                let mut obj = Vec::new_in(arena);
+                for (k, v) in key_value_pairs.into_iter() {
+                    obj.push((
+                        String::from_str_in(&k, arena).into_bump_str(),
+                        Self::from_json(arena, v),
+                    ))
+                }
+                Dyn::Object(arena.alloc(RefCell::new(obj)))
+            }
+        }
+    }
+
+    pub fn from_json_string(arena: &'a Bump, json_str: &str) -> DynResult<'a> {
+        let json_value = serde_json::from_str(json_str)
+            .map_err(|e| Error::TypeError(format!("JSON error: {}", e)))?;
+        Ok(Dyn::from_json(arena, json_value))
+    }
 }
 
 impl<'a> From<Dyn<'a>> for bool {

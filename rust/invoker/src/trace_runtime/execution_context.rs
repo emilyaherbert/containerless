@@ -39,8 +39,12 @@ impl AsyncOpOutcome {
             AsyncOpOutcome::GetResponse(body) => {
                 let args = Dyn::vec(arena);
                 args.push(clos);
-                // TODO(arjun): This needs to be parsed into JSON.
-                args.push(Dyn::str(arena, &String::from_utf8_lossy(&body)));
+                let resp = Dyn::from_json_string(arena, &String::from_utf8_lossy(&body))
+                    .unwrap_or_else(|err| {
+                        // TODO(arjun): Need DynResult as return type of this function
+                        panic!("JSON error {} reading string {:?}", err, body);
+                    });
+                args.push(resp);
                 return args;
             }
         }
