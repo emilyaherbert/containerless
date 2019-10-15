@@ -2,11 +2,11 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct TestConfig {
-    pub url: String,
     #[serde(default = "TestConfig::default_rate")]
     pub rate: u64,
     #[serde(default = "TestConfig::default_duration")]
-    pub duration: u64
+    pub duration: u64,
+    pub request: RequestConfig
 }
 
 impl TestConfig {
@@ -28,4 +28,13 @@ impl TestConfig {
         // 10 seconds
         return 10;
     }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct RequestConfig {
+    pub url: String,
+}
+
+impl RequestConfig {
+    
 }

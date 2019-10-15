@@ -21,6 +21,9 @@ use config::TestConfig;
 
 fn main() {
     let matches = App::new("testing-client")
+        .arg(Arg::with_name("output")
+            .long("--output")
+            .help("Prints output from request."))
         .arg(
             Arg::with_name("config")
                 .long("--config")
@@ -38,15 +41,25 @@ fn main() {
     let task = tokio::timer::Interval::new_interval(Duration::from_millis(config.rate))
         .take_while(move |_| ok(start.elapsed() < stop))
         .for_each(move |_| {
-            let config = config.clone();
+            let request = config.request.clone();
             tokio::spawn(lazy(move || {
                 let client = Client::new();
-                let uri = config.url.parse().unwrap();
+                let uri = request.url.parse().unwrap();
                 let now = Instant::now();
                 client.get(uri)
-                    .and_then(move |_| {
+                    .and_then(move |resp| {
+                        // For official testing
                         println!("{:?},{:?}", now.elapsed().as_millis(), start.elapsed().as_millis());
                         Ok(())
+    
+                        // // For debugging, making sure output is correct
+                        // resp.into_body().concat2().map_err(|_err| ()).map(|chunk| {
+                        //     let v = chunk.to_vec();
+                        //     String::from_utf8_lossy(&v).to_string()
+                        // }).and_then(move |s| {
+                        //     println!("{:?}", s);
+                        //     Ok(())
+                        // }).map_err(|e| panic!("{:?}", e))
                     })
                     .map_err(|e| panic!("{:?}", e))
             }));

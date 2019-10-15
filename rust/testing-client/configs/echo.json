@@ -1,5 +1,7 @@
 {
-    "url":"http://localhost:8080/hellooooo",
     "rate":5,
-    "duration":4
+    "duration":4,
+    "request": {
+        "url": "http://localhost:8080/helloooo"
+    }
 }
