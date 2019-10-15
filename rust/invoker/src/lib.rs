@@ -47,7 +47,7 @@ pub fn main(containerless: Option<trace_runtime::Containerless>) {
             println!("Graceful shutdown");
             // TODO(emily): Fix graceful shutdown
             if config.kill_parent {
-                kill(Pid::parent(), Signal::SIGUSR1);
+                kill(Pid::parent(), Signal::SIGUSR1).expect("Could not signal parent process");
             }
             std::process::exit(0)
         })
@@ -62,8 +62,10 @@ fn testing_main(containerless: trace_runtime::Containerless) {
         .expect("could not read stdin");
     let lines = raw_input.split_terminator('\n');
     for line in lines {
+        let https = hyper_rustls::HttpsConnector::new(4);
+        let client = Arc::new(hyper::Client::builder().build(https));
         tokio::run(
-            Decontainer::new_from(containerless, line)
+            Decontainer::new_from(containerless, client, line)
                 .map_err(|err| {
                     eprintln!("Error: {:?}", err);
                     std::process::exit(1);
