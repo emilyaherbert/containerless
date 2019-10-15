@@ -98,14 +98,14 @@ export class Callbacks {
         let [_, $argRep, $callbackClos] = this.trace.popArgs();
         let innerTrace = this.trace.traceCallback('get', $argRep, ['clos', 'response'], $callbackClos);
         
-        // TODO(emily): Bad. Fix.
-        if (state.getListenPort() === 'test') {
+=        if (state.getListenPort() === 'test') {
             this.withTrace(innerTrace, () => {
                 innerTrace.pushArgs([identifier('clos'), identifier('response')]);
-                callback(JSON.parse(String("{ message: 'GENERIC RESPONSE' }")));
+                // TODO(arjun): We need to change this to test withot making
+                // Internet connections.
+                callback(JSON.parse('{ "message": "GENERIC RESPONSE" }'));
             });
         } else {
-
             request.get(obj, undefined, (error, resp) => {
                 this.withTrace(innerTrace, () => {
                     innerTrace.pushArgs([identifier('clos'), identifier('reponse')]);
