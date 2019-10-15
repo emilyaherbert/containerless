@@ -1,4 +1,5 @@
 use shared::config::InvokerConfig;
+use shared::OS;
 use std::convert::TryInto;
 use std::fs::File;
 use std::io::LineWriter;
@@ -6,7 +7,6 @@ use std::io::Write;
 use std::thread;
 use std::time::Duration;
 use systemstat::{Platform, System};
-use shared::OS;
 
 pub fn sysmon(config: &InvokerConfig) {
     if OS::detect() != OS::Linux {

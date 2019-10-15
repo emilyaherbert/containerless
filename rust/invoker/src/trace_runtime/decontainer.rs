@@ -1,5 +1,6 @@
 use super::super::error::Error;
 use super::super::types::{self, HttpClient};
+use super::error::Error as JSError;
 use super::execution_context::*;
 use super::type_dynamic::Dyn;
 use super::Containerless;
@@ -9,7 +10,6 @@ use hyper::{Body, Response};
 use std::convert::TryInto;
 use std::pin::Pin;
 use std::sync::Arc;
-use super::error::{Error as JSError};
 
 // This structure owns an arena and has an unsafe implementation of `Send`.
 // In general, it is not safe to send `Bump` across threads without a mutex.
@@ -63,7 +63,8 @@ impl Decontainer {
         let initial_event = Event::new(
             unsafe { extend_lifetime(Dyn::Int(0)) },
             0,
-            Box::new(future::ok(AsyncOpOutcome::Initialize)));
+            Box::new(future::ok(AsyncOpOutcome::Initialize)),
+        );
 
         return Decontainer {
             pinned: Box::pin(DecontainerImpl {
@@ -119,7 +120,6 @@ impl Future for Decontainer {
                     if let Ok(body) = resp {
                         return Result::Ok(Async::Ready(Response::new(hyper::Body::from(body))));
                     }
-
                 }
                 // The follow error is not due to optimistic trace compilation.
                 // It will re-occur if we re-execution in JavaScript, thus we
@@ -147,11 +147,11 @@ impl Future for Decontainer {
                         any_completed = true;
                         let f = &self_.func;
                         let args = outcome.process(
-                            &self_.arena, 
+                            &self_.arena,
                             unsafe { shorten_invariant_lifetime2(self_.request) },
-                            unsafe { shorten_invariant_lifetime2(event.closure) });
-                        f(&self_.arena, &mut ec, Dyn::Int(event.indicator), args)
-                        .unwrap();
+                            unsafe { shorten_invariant_lifetime2(event.closure) },
+                        );
+                        f(&self_.arena, &mut ec, Dyn::Int(event.indicator), args).unwrap();
                     }
                 }
             }
@@ -163,8 +163,10 @@ impl Future for Decontainer {
             // Create a future for each new operation.
             for (op, indicator, clos) in ec.new_ops.drain(0..) {
                 self_.machine_state.push(Event::new(
-                    unsafe { extend_lifetime(clos) }, 
-                    indicator, Box::new(op.to_future(&self_.client))));
+                    unsafe { extend_lifetime(clos) },
+                    indicator,
+                    Box::new(op.to_future(&self_.client)),
+                ));
             }
         }
     }

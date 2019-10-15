@@ -1,16 +1,19 @@
-use shared::config::InvokerConfig;
 use super::decontainer_pool::TracingPool;
-use crate::error::Error;
 use super::trace_runtime::Containerless;
+use crate::error::Error;
 use futures::{
     future::{self, Either},
     Future,
 };
 use hyper::service::service_fn;
 use hyper::{Body, Client, Response, Server};
+use shared::config::InvokerConfig;
 use std::sync::Arc;
 
-pub fn serve(config: Arc<InvokerConfig>, containerless: Option<Containerless>) -> impl future::Future<Item = (), Error = Error> {
+pub fn serve(
+    config: Arc<InvokerConfig>,
+    containerless: Option<Containerless>,
+) -> impl future::Future<Item = (), Error = Error> {
     let addr = ([0, 0, 0, 0], config.bind_port).into();
 
     // TODO(arjun): The argumment 4 below is the number of threads. Why?
@@ -31,7 +34,8 @@ pub fn serve(config: Arc<InvokerConfig>, containerless: Option<Containerless>) -
         })
     };
 
-    Server::bind(&addr).serve(new_svc)
+    Server::bind(&addr)
+        .serve(new_svc)
         .with_graceful_shutdown(rx_shutdown)
         .from_err()
 }

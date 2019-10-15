@@ -142,7 +142,7 @@ impl<'a> Dyn<'a> {
             _ => type_error("lt"),
         }
     }
-    
+
     pub fn gte(&self, other: Dyn<'a>) -> DynResult<'a> {
         match (*self, other) {
             (Dyn::Int(m), Dyn::Int(n)) => Ok(Dyn::Bool(m >= n)),
@@ -158,7 +158,7 @@ impl<'a> Dyn<'a> {
             _ => type_error("lte"),
         }
     }
-    
+
     pub fn and(&self, other: Dyn<'a>) -> DynResult<'a> {
         match (*self, other) {
             (Dyn::Bool(x), Dyn::Bool(y)) => Ok(Dyn::Bool(x && y)),
