@@ -206,7 +206,7 @@ impl TracingPool {
                 // Send request. If there is an error due to unknown, switch to
                 // NotStarted
                 TracingStatus::Decontainerized => {
-                    return Decontainer::new(self.data.containerless, req);
+                    return Decontainer::new(self.data.containerless, self.data.client.clone(), req);
                 },
                 // Try to set the mode to Tracing. If succcessful, this request is going
                 // to launch the tracing container. Either way, loop to try to request

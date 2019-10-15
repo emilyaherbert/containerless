@@ -20,6 +20,7 @@ impl std::fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
-pub fn type_error<T>(message: &str) -> Result<T, Error> {
-    return Err(Error::TypeError(message.to_string()));
+pub fn type_error<T,S>(message: S) -> Result<T, Error>  where
+  S : Into<String> {
+    return Err(Error::TypeError(message.into()));
 }

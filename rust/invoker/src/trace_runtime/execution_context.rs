@@ -1,5 +1,10 @@
-// use super::error::Error;
+use std::sync::Arc;
 use super::type_dynamic::{Dyn, DynResult};
+use super::error::{Error, type_error};
+use std::convert::TryInto;
+use super::super::types::HttpClient;
+use futures::{future,Stream,Future};
+use auto_enums::auto_enum;
 
 /// An enumeration of the events that a decontainerized function can run
 /// within Rust.
@@ -10,6 +15,69 @@ pub enum AsyncOp {
     Immediate,
     Listen,
     Request(String),
+    Get(String),
+}
+
+pub enum AsyncOpOutcome {
+    Initialize,
+    Connected,
+    GetResponse(hyper::Chunk)
+}
+
+impl AsyncOpOutcome {
+    pub fn process<'a>(self, arena: &'a bumpalo::Bump, request: Dyn<'a>, clos: Dyn<'a>) -> Dyn<'a> {
+        match self {
+            AsyncOpOutcome::Initialize => {
+                return clos;
+            },
+            AsyncOpOutcome::Connected => {
+                let args = Dyn::vec(arena);
+                args.push(clos);
+                args.push(request);
+                return args;
+            },
+            AsyncOpOutcome::GetResponse(body) => {
+                let args = Dyn::vec(arena);
+                args.push(clos);
+                // TODO(arjun): This needs to be parsed into JSON.
+                args.push(Dyn::str(arena, &String::from_utf8_lossy(&body)));
+                return args;
+            }
+        }
+    }
+}
+
+impl AsyncOp {
+
+    #[auto_enum(futures01::Future)]
+    pub fn to_future<'a>(self, client: &Arc<HttpClient>) -> impl Future<Item = AsyncOpOutcome, Error = Error> + Send {
+        match self {
+            AsyncOp::Listen => {
+                future::ok(AsyncOpOutcome::Connected)
+            },
+            AsyncOp::Get(url) => {
+                use bytes::Bytes;
+                use hyper::{Uri, Request, Body};
+                let client = client.clone();
+                let req = Uri::from_shared(Bytes::from(url))
+                    .map_err(|_err| Error::TypeError("invalid URL in GET request".to_string()))
+                    .and_then(|uri| 
+                        Request::builder().uri(uri).body(Body::empty())
+                            .map_err(|_err| Error::TypeError("could not build request in GET".to_string()))); 
+                future::result(req)
+                    .and_then(move |req|
+                        client.request(req)
+                            .map_err(|err| 
+                                Error::TypeError(format!("GET failed: {:?}", err))))
+                    .and_then(|resp|
+                        resp.into_body().concat2()
+                            .map_err(|_err| Error::TypeError("Reading response body".to_string())))
+                    .map(move |body| AsyncOpOutcome::GetResponse(body))
+            },
+            _ => future::err(Error::TypeError("unimplemented".to_string()))
+        }
+    }
+
 }
 
 /// The execution context allows a callback to send new events. The lifetime
@@ -38,15 +106,25 @@ impl<'a> ExecutionContext<'a> {
     pub fn loopback(
         &mut self,
         event_name: &'static str,
-        _event_arg: Dyn<'a>,
+        event_arg: Dyn<'a>,
         event_clos: Dyn<'a>,
         indicator: i32,
     ) -> DynResult<'a> {
         if event_name == "listen" {
             self.loopback_int(AsyncOp::Listen, indicator, event_clos);
-            Ok(Dyn::int(0))
+            return Ok(Dyn::int(0));
+        } else if event_name == "get"  {
+            match event_arg.try_into() {
+                Ok(url) => {
+                     self.new_ops.push((AsyncOp::Get(url), indicator, event_clos));
+                     return Ok(Dyn::int(0));
+                },
+                Err(()) => {
+                    return type_error(format!("ec.loopback(\"get\", {:?}, ...)", event_arg));
+                }
+            }
         } else {
-            Ok(Dyn::int(0))
+            return type_error(format!("ec.loopback({}, ...)", event_name));
         }
     }
 

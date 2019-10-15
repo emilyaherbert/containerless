@@ -13,7 +13,9 @@ use std::sync::Arc;
 pub fn serve(config: Arc<InvokerConfig>, containerless: Option<Containerless>) -> impl future::Future<Item = (), Error = Error> {
     let addr = ([0, 0, 0, 0], config.bind_port).into();
 
-    let client = Arc::new(Client::new());
+    // TODO(arjun): The argumment 4 below is the number of threads. Why?
+    let https = hyper_rustls::HttpsConnector::new(4);
+    let client = Arc::new(Client::builder().build(https));
 
     let (pool, rx_shutdown) = TracingPool::new(config.clone(), containerless, client);
 

@@ -160,3 +160,32 @@ pub fn nested_binops() {
 
     assert_eq!(result, ["yay!"]);
 }
+
+// TODO(arjun): Enable with #[test]
+#[serial]
+pub fn login_benchmark() {
+    let mut runner = TestRunner::new("login_benchmark.js");
+    let result = runner.test(
+        r#"
+        let containerless = require("../../javascript/containerless");
+
+        containerless.listen(function(req) {
+            if(req.path === '/login') {
+                containerless.get("https://emilyaherbert.github.io/authorize.json", function(resp) {
+                    if(resp.username === undefined || resp.password === undefined || req.body.username === undefined || req.body.password === undefined) {
+                        containerless.respond("Username and password not found.");
+                    } else if(resp.username === req.body.username && resp.password === req.body.password) {
+                        containerless.respond("Login successful!");
+                    } else {
+                        containerless.respond("Invalid username or password.");
+                    }
+                });
+            } else {
+                containerless.respond("Unknown command.");
+            }
+        });        
+        "#,
+        "/login",
+        "/login");
+        assert_eq!(result, ["Login successful!"]);
+}
