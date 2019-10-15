@@ -1,22 +1,37 @@
-use futures::{Future, Stream}; // 0.1.25
-use hyper::Client; // 0.12.23
-use tokio; // 0.1.15
+use futures::{
+    Future,
+    Stream,
+    future::ok
+};
+use hyper::Client;
+use tokio;
 use std::time::{Duration, Instant};
 use futures::future::{lazy};
-use std::env;
+use clap::{App, Arg};
+
+mod config;
+use config::TestConfig;
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    let matches = App::new("testing-client")
+        .arg(
+            Arg::with_name("config")
+                .long("--config")
+                .takes_value(true)
+                .help("Configuration JSON object (as a string)"),
+        )
+        .get_matches();
+    let config = TestConfig::from_string(matches.value_of("config").unwrap());
 
-    //let num = ((duration * 1000) / interval) as
-
+    let stop = Duration::from_secs(config.duration);
     let start = Instant::now();
-    let task = tokio::timer::Interval::new_interval(Duration::from_millis(5))
-        .take(2600)
+    let task = tokio::timer::Interval::new_interval(Duration::from_millis(config.rate))
+        .take_while(move |_| ok(start.elapsed() < stop))
         .for_each(move |_| {
-            let client = Client::new();
+            let config = config.clone();
             tokio::spawn(lazy(move || {
-                let uri = "http://localhost:8080/hello".parse().unwrap();
+                let client = Client::new();
+                let uri = config.url.parse().unwrap();
                 let now = Instant::now();
                 client.get(uri)
                     .and_then(move |_| {
@@ -27,7 +42,7 @@ fn main() {
             }));
             Ok(())
         })
-        .map_err(|e| panic!("Something went wrong!"));
+        .map_err(|e| panic!("{:?}", e));
 
     tokio::run(task);
 }
