@@ -23,9 +23,16 @@ pub struct Queue<T> {
     pending_tasks: VecDeque<oneshot::Sender<T>>,
 }
 
-#[derive(Clone)]
 pub struct Sender<T> {
     queue: Mutex<Queue<T>>,
+}
+
+// TODO(arjun): This is apparently not the code that gets derived using
+// #[derive(Clone)]. The derived code required <T : Clone>.
+impl<T> Clone for Sender<T> {
+    fn clone(&self) -> Self {
+        Sender { queue: self.queue.clone() }
+    }
 }
 
 #[derive(Clone)]
