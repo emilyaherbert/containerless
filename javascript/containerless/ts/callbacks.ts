@@ -108,7 +108,7 @@ export class Callbacks {
         } else {
             request.get(obj, undefined, (error, resp) => {
                 this.withTrace(innerTrace, () => {
-                    innerTrace.pushArgs([identifier('clos'), identifier('reponse')]);
+                    innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                     if (error !== null) {
                         callback(undefined);
                     }
@@ -151,7 +151,7 @@ export class Callbacks {
             }
             request.post(obj2, (error: any, resp: any) => {
                 this.withTrace(innerTrace, () => {
-                    innerTrace.pushArgs([identifier('clos'), identifier('reponse')]);
+                    innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                     if (error !== null) {
                         callback(undefined);
                     }
