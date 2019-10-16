@@ -114,6 +114,9 @@ impl<'a> Dyn<'a> {
 
     pub fn strict_eq(&self, other: Dyn<'a>) -> DynResult<'a> {
         match (*self, other) {
+            (Dyn::Undefined, Dyn::Undefined) => Ok(Dyn::Bool(true)),
+            (Dyn::Undefined, _) => Ok(Dyn::Bool(false)),
+            (_, Dyn::Undefined) => Ok(Dyn::Bool(false)),
             (Dyn::Int(m), Dyn::Int(n)) => Ok(Dyn::Bool(m == n)),
             (Dyn::Str(s1), Dyn::Str(s2)) => Ok(Dyn::Bool(s1 == s2)),
             (Dyn::Str(_), other) => panic!("not working Dyn::Str(_) == {:?}", other),

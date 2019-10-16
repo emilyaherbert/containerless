@@ -73,7 +73,7 @@ fn testing_main(containerless: trace_runtime::Containerless) {
         let https = hyper_rustls::HttpsConnector::new(4);
         let client = Arc::new(hyper::Client::builder().build(https));
         tokio::run(
-            Decontainer::new_from(containerless, client, line)
+            Decontainer::new_from(containerless, client, line, "{}")
                 .map_err(|err| {
                     eprintln!("Error: {:?}", err);
                     std::process::exit(1);
