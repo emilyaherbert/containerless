@@ -5,22 +5,14 @@ let containerless = require('../dist/index');
 // 1. gcloud auth activate-service-account --key-file keys/umass-plasma-980eb8bee293.json
 // 2. gcloud auth print-access-token
 
-/*
-Cannot use functions in object ?
-*/
+// TODO(emily): Fix bug where you can't call functions from inside objects.
 
-let transaction = undefined;
-let mutations = [];
-
-function checkTransaction(req, next) {
-    if(transaction === undefined) {
-        containerless.respond("You must begin a transaction first.");
-    } else {
-        next(req);
-    }
-}
-
-function begin(req) {
+/**
+ * Begins a request.
+ * 
+ * `next(req, transaction)`
+ */
+function begin(req, next) {
     containerless.post({
         'url':"https://datastore.googleapis.com/v1/projects/umass-plasma:beginTransaction?access_token=" + req.body.accessToken,
         'body':{
@@ -32,34 +24,39 @@ function begin(req) {
           }
     }, function(resp) {
         if(resp.error !== undefined) {
-            containerless.respond("error");
+            containerless.respond("error\n");
         } else {
-            transaction = resp.transaction;
-            containerless.respond("Begin transaction. Commit transaction with /commit.");
+            next(req, resp.transaction);
         }
     });
 }
 
-function commit(req) {
+/**
+ * Commits a request.
+ */
+function commit(req, transaction, mutation) {
     containerless.post({
         'url':'https://datastore.googleapis.com/v1/projects/umass-plasma:commit?access_token=' + req.body.accessToken,
         'body': {
             "transaction": transaction,
             "mode": "TRANSACTIONAL",
-            "mutations": mutations
+            "mutations": [mutation]
           }
     }, function(resp) {
         if(resp.error !== undefined) {
-            containerless.respond("error");
+            containerless.respond("error\n");
         } else {
-            transaction = undefined;
-            mutations = [];
-            containerless.respond("Done!");
+            containerless.respond("Done!\n");
         }
     });
 }
 
-function balance(req, next) {
+/**
+ * Finds the current balance.
+ * 
+ * `next(resp);`
+ */
+function balance(req, transaction, next) {
     containerless.post({
         'url':'https://datastore.googleapis.com/v1/projects/umass-plasma:lookup?access_token=' + req.body.accessToken,
         'body': {
@@ -83,65 +80,65 @@ function balance(req, next) {
           }
     }, function(resp) {
         if(resp.error !== undefined) {
-            containerless.respond("error");
+            containerless.respond("error\n");
         } else {
             next(resp);
         }
     });
 }
 
-function withdraw(req) {
-    balance(req, function(resp) {
+/**
+ * Performs a withdrawl.
+ */
+function withdraw(req, transaction) {
+    balance(req, transaction, function(resp) {
         let key = resp.found[0].entity.key;
         let baseVersion = resp.found[0].version;
         let props = resp.found[0].entity.properties;
         props.Balance.integerValue = props.Balance.integerValue - req.query.amount;
-        let mutation = {
+        commit(req, transaction,
+            {
             'update': {
                 'key': key,
                 'properties': props
             },
             'baseVersion': baseVersion
-        };
-        mutations.push(mutation);
-        containerless.respond("Withdraw logged!");
+        });
     });
 }
 
-function deposit(req) {
-    balance(req, function(resp) {
+/**
+ * Performs a deposit.
+ */
+function deposit(req, transaction) {
+    balance(req, transaction, function(resp) {
         let key = resp.found[0].entity.key;
         let baseVersion = resp.found[0].version;
         let props = resp.found[0].entity.properties;
         props.Balance.integerValue = props.Balance.integerValue - (req.query.amount - (req.query.amount * 2));
-        let mutation = {
-            'update': {
-                'key': key,
-                'properties': props
-            },
-            'baseVersion': baseVersion
-        };
-        mutations.push(mutation);
-        containerless.respond("Deposit logged!");
+        commit(req, transaction,
+            {
+                'update': {
+                    'key': key,
+                    'properties': props
+                },
+                'baseVersion': baseVersion
+            });
     });
 }
 
 containerless.listen(function(req) {
-    if(req.path === '/begin') {
-        begin(req);
-    } else if(req.path === '/commit') {
-        checkTransaction(req, commit);
-    } else if(req.path === '/balance') {
-        checkTransaction(req, function(req) {
-            balance(req, function(resp) {
-                containerless.respond(resp.found[0].entity.properties.Balance.integerValue);
+    if(req.path === '/balance') {
+        begin(req, function(req, transaction) {
+            balance(req, transaction, function(resp) {
+                containerless.respond(resp.found[0].entity.properties.Balance.integerValue + '\n');
             });
         });
     } else if(req.path === '/withdraw') {
-        checkTransaction(req, withdraw);
+        begin(req, withdraw);
     } else if(req.path === '/deposit') {
-        checkTransaction(req, deposit);
+        begin(req, deposit);
     } else {
-        containerless.respond("Unknown command.");
+        containerless.respond("Unknown command.\n");
     }
 });
