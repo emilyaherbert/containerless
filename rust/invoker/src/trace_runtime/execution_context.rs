@@ -1,4 +1,4 @@
-use super::super::types::HttpClient;
+use super::super::types::{HttpClient, JsonValue};
 use super::error::{type_error, Error};
 use super::type_dynamic::{Dyn, DynResult};
 use auto_enums::auto_enum;
@@ -22,6 +22,7 @@ pub enum AsyncOpOutcome {
     Initialize,
     Connected,
     GetResponse(hyper::Chunk),
+    MockGetResponse(JsonValue)
 }
 
 impl AsyncOpOutcome {
@@ -36,6 +37,12 @@ impl AsyncOpOutcome {
                 args.push(request);
                 return args;
             }
+            AsyncOpOutcome::MockGetResponse(json_value) => {
+                let args = Dyn::vec(arena);
+                args.push(clos);
+                args.push(Dyn::from_json(arena, json_value));
+                return args;
+            },
             AsyncOpOutcome::GetResponse(body) => {
                 let args = Dyn::vec(arena);
                 args.push(clos);
@@ -60,6 +67,12 @@ impl AsyncOp {
         match self {
             AsyncOp::Listen => future::ok(AsyncOpOutcome::Connected),
             AsyncOp::Get(url) => {
+                if url.starts_with("data:") {
+                    return future::ok(
+                        AsyncOpOutcome::MockGetResponse(
+                            serde_json::from_str(&url[5..])
+                                .expect("malformed JSON in data: URL to GET")));
+                }
                 use bytes::Bytes;
                 use hyper::{Body, Request, Uri};
                 let client = client.clone();
@@ -73,7 +86,7 @@ impl AsyncOp {
                                 Error::TypeError("could not build request in GET".to_string())
                             })
                     });
-                future::result(req)
+                return future::result(req)
                     .and_then(move |req| {
                         client
                             .request(req)
