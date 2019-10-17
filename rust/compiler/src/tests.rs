@@ -200,6 +200,7 @@ pub fn nested_binops() {
 
 // TODO(arjun): Enable with #[test]
 #[serial]
+#[test]
 pub fn login_benchmark() {
     let mut runner = TestRunner::new("login_benchmark.js");
     let result = runner.test(
@@ -208,7 +209,7 @@ pub fn login_benchmark() {
 
         containerless.listen(function(req) {
             if(req.path === '/login') {
-                containerless.get("https://emilyaherbert.github.io/authorize.json", function(resp) {
+                containerless.get('data:{ "username": "u", "password": "p" }', function(resp) {
                     if(resp.username === undefined || resp.password === undefined || req.body.username === undefined || req.body.password === undefined) {
                         containerless.respond("Username and password not found.");
                     } else if(resp.username === req.body.username && resp.password === req.body.password) {
@@ -220,13 +221,17 @@ pub fn login_benchmark() {
             } else {
                 containerless.respond("Unknown command.");
             }
-        });        
+        });
         "#,
         json!([
-            { "path": "/login", "query": {}, "body": {} }
+            { "path": "/login",
+              "query": {},
+              "body": { "username": "u", "password": "p" }  }
         ]),
         json!([
-            { "path": "/login", "query": {}, "body": {} }
+            { "path": "/login",
+              "query": {},
+              "body": { "username": "u", "password": "p" }  }
         ]));
     assert_eq!(result, ["Login successful!"]);
 }

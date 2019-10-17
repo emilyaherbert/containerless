@@ -29,7 +29,7 @@ export class Callbacks {
 
     /**
      * Executes a callback body in the context of its callback trace.
-     * 
+     *
      * @param trace Callback trace.
      * @param body Callback body.
      */
@@ -46,11 +46,11 @@ export class Callbacks {
 
     /**
      * Mock callback function used for testing.
-     * 
+     *
      * 1. Creates a callback trace.
      * 2. Wraps the callback trace with the callback body.
      * 3. Returns 2 as a function.
-     * 
+     *
      * @param callback
      */
     mockCallback(callback: (value: any) => void, arg: any): ((value: any) => void) {
@@ -66,11 +66,11 @@ export class Callbacks {
 
     /**
      * Passes a callback to setImmediate().
-     * 
+     *
      * 1. Creates a callback trace.
      * 2. Wraps the callback trace with the callback body.
      * 3. Passes 2 as a callback to setImmediate().
-     * 
+     *
      * @param eventArgStr
      * @param callback
      */
@@ -86,18 +86,29 @@ export class Callbacks {
     }
 
     /**
-     * Issues an HTTP GET request
-     * @param uri URL for the request
+     * Issues an HTTP GET request.
+     *
+     * @param uri URL for the request. If the URL begins with "data:", then we
+     *            use the rest of the string is as the JSON response, and do not
+     *            issue a GET request.
      * @param callback receives the request body or undefined if request failed
      */
     get(
-        obj: any,
+        uri: string,
         callback: (response: undefined | JSON) => void) {
         // TODO(arjun): string(uri) is not right. This needs to be the expression
         // passed to the function.
         let [_, $argRep, $callbackClos] = this.trace.popArgs();
         let innerTrace = this.trace.traceCallback('get', $argRep, ['clos', 'response'], $callbackClos);
-        
+
+        if (uri.startsWith('data:')) {
+            this.withTrace(innerTrace, () => {
+                innerTrace.pushArgs([identifier('clos'), identifier('response')]);
+                callback(JSON.parse(uri.substr(5)));
+            });
+            return;
+        }
+
         if (state.getListenPort() === 'test') {
             this.withTrace(innerTrace, () => {
                 innerTrace.pushArgs([identifier('clos'), identifier('response')]);
@@ -106,7 +117,7 @@ export class Callbacks {
                 callback(JSON.parse('{ "message": "GENERIC RESPONSE" }'));
             });
         } else {
-            request.get(obj, undefined, (error, resp) => {
+            request.get(uri, undefined, (error, resp) => {
                 this.withTrace(innerTrace, () => {
                     innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                     if (error !== null) {
@@ -116,8 +127,6 @@ export class Callbacks {
                         // TODO(arjun): Test case with nested closures
                         callback(JSON.parse(String(resp.body)));
                     }
-
-                    //innerTrace.traceReturn(number(0));
                 });
             });
         }
