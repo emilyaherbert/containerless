@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 // These type definitions must be consistent with the definitions in TypeScript,
 // which are found in /containerless/ts/exp.ts.
 //
@@ -17,7 +18,7 @@
 //
 // - I could not find documentation for the #[serde(rename = "+")] directive.
 //   Instead, I guessed that it existed and it worked!
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{collections::HashMap};
 
 use im_rc::{HashMap as ImHashMap, HashSet as ImHashSet};
 

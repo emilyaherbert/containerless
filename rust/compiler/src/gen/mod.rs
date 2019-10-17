@@ -1,4 +1,4 @@
-pub mod TYPES;
+#![allow(dead_code)]
 pub mod gen_types;
 pub mod rust_types;
 

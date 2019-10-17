@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 use crate::types::{constructors::*, Arg, Exp, Op2, Typ, LVal};
 
 use std::collections::HashMap;
@@ -188,7 +191,6 @@ impl Typeinf {
                     Op2::LTE => Ok(Typ::Bool),
                     Op2::And => Ok(Typ::Bool),
                     Op2::Or => Ok(Typ::Bool),
-                    _ => panic!(format!("not implemented: {:?}", op)),
                 }
             }
             Exp::Object { properties } => {
@@ -636,8 +638,8 @@ mod tests {
         match e.clone() {
             Exp::Block { body } => match &body[..] {
                 [Exp::Let {
-                    name,
-                    named,
+                    name: _,
+                    named: _,
                     typ: Some(t),
                 }, _] => {
                     assert!(*t == t_ref(t_union(Typ::F64, Typ::String)));

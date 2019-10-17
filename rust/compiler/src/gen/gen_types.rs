@@ -1,3 +1,4 @@
+#![allow(unused)]
 use im_rc::{HashMap as ImHashMap, HashSet as ImHashSet};
 use proc_macro2::Span;
 use quote::{__rt::TokenStream, *};
@@ -156,7 +157,7 @@ fn quote_union(rt_enum: RustTypeEnum) -> TokenStream {
         });
     });
 
-    let mut q_muls: HashMap<Typ, Vec<TokenStream>> = HashMap::new();
+    let q_muls: HashMap<Typ, Vec<TokenStream>> = HashMap::new();
     rt_enum.muls.iter().for_each(|v| {
         let q_variant_name = v.name.to_owned();
         let q_variant_typ = v.typ.to_owned();
@@ -351,7 +352,7 @@ mod tests {
             .expect("Compiling to Rust failed.");
     }
 
-    #[test]
+    #[allow(unused)]
     fn types_1() {
         let mut types = HashMap::new();
         types.insert(0, t_union_2(&[Typ::F64, Typ::Bool]));
