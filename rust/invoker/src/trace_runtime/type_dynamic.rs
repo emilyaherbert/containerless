@@ -277,6 +277,9 @@ impl<'a> TryFrom<Dyn<'a>> for std::string::String {
     fn try_from(value: Dyn<'a>) -> Result<Self, ()> {
         match value {
             Dyn::Str(s) => Ok(s.to_string()),
+            Dyn::Float(n) => Ok(n.to_string()),
+            Dyn::Int(n) => Ok(n.to_string()),
+            //Dyn::Object(_) => Ok("[object Object]".to_string()),
             _ => Err(()),
         }
     }
