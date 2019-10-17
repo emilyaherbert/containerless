@@ -55,10 +55,17 @@ pub struct Decontainer {
 }
 
 impl Decontainer {
-    pub fn new_from(func: Containerless, client: Arc<HttpClient>, path: &str) -> Decontainer {
+    pub fn new_from(
+        func: Containerless,
+        client: Arc<HttpClient>,
+        path: &str,
+        body: &str,
+    ) -> Decontainer {
         let arena = Bump::new();
         let request = Dyn::object(&arena);
         request.set_field("path", Dyn::str(&arena, path)).unwrap();
+        let body_json = Dyn::from_json_string(&arena, body).unwrap(); // TODO
+        request.set_field("body", body_json).unwrap();
         let request = unsafe { extend_lifetime(request) };
         let initial_event = Event::new(
             unsafe { extend_lifetime(Dyn::Int(0)) },
@@ -78,9 +85,14 @@ impl Decontainer {
         };
     }
 
-    pub fn new(func: Containerless, client: Arc<HttpClient>, req: types::Request) -> Decontainer {
-        let (parts, _body) = req.into_parts();
-        Decontainer::new_from(func, client, parts.uri.path())
+    pub fn new(
+        func: Containerless,
+        client: Arc<HttpClient>,
+        parts: http::request::Parts,
+        body: Vec<u8>,
+    ) -> Decontainer {
+        let body = String::from_utf8_lossy(&body);
+        Decontainer::new_from(func, client, parts.uri.path(), &body)
     }
 }
 
