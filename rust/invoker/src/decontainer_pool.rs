@@ -67,7 +67,7 @@ pub struct TracingPool {
 
 static TRACING_CONTAINER_PORT: usize = 2999;
 static TRACING_CONTAINER_NAME: &'static str = "tracing";
-static MAX_TRACED: usize = 2;
+static MAX_TRACED: usize = 100;
 
 impl TracingStatus {
     fn new(config: &InvokerConfig) -> Self {
