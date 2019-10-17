@@ -1,19 +1,23 @@
-use super::verif::verify;
 use super::codegen;
+use super::verif::verify;
+use serde_json::Value as JsonValue;
+use std::fs::{self, File};
+use std::io::prelude::*;
 use std::process::Command;
 use std::process::Stdio;
-use std::io::prelude::*;
-use std::fs::{self, File};
 
 pub struct TestRunner {
     tracing_js: String,
-    trace_json: String
+    trace_json: String,
 }
 
 impl Drop for TestRunner {
     fn drop(&mut self) {
         if std::thread::panicking() {
-            eprintln!("Remember to delete the files {} and {}.", &self.tracing_js, &self.trace_json);
+            eprintln!(
+                "Remember to delete the files {} and {}.",
+                &self.tracing_js, &self.trace_json
+            );
             return;
         }
         fs::remove_file(&self.tracing_js).unwrap();
@@ -43,11 +47,21 @@ impl TestRunner {
     pub fn new(tracing_js: &str) -> Self {
         TestRunner {
             tracing_js: tracing_js.to_string(),
-            trace_json: format!("{}.json", tracing_js)
+            trace_json: format!("{}.json", tracing_js),
         }
     }
 
-    pub fn test(&mut self, code: &str, js_requests: &str, rs_requests: &str) -> Vec<String> {
+    pub fn test(
+        &mut self,
+        code: &str,
+        js_requests: JsonValue,
+        rs_requests: JsonValue,
+    ) -> Vec<String> {
+        let js_requests = serde_json::to_string_pretty(&js_requests)
+            .expect("could not produce JSON string from js_requests");
+        let rs_requests = serde_json::to_string_pretty(&rs_requests)
+            .expect("could not produce JSON string from rs_requests");
+
         let mut js_transform = Command::new("node")
             .arg("../../javascript/js-transform")
             .stdin(Stdio::piped())
@@ -89,10 +103,12 @@ impl TestRunner {
             .unwrap()
             .read_to_end(&mut trace_json)
             .expect("reading stdout");
-        File::create(&self.trace_json).unwrap().write(&trace_json).unwrap();
+        File::create(&self.trace_json)
+            .unwrap()
+            .write(&trace_json)
+            .unwrap();
 
-        let exp = serde_json::from_slice(&trace_json)
-            .expect("deserializing JSON trace");
+        let exp = serde_json::from_slice(&trace_json).expect("deserializing JSON trace");
 
         let verified = verify(&exp);
         codegen::codegen(&verified, "../containerless-scaffold/src/containerless.rs");
@@ -121,7 +137,10 @@ impl TestRunner {
             .unwrap()
             .read_to_string(&mut stdout)
             .expect("reading stdout");
-            
-        return stdout.split_terminator('\n').map(|s| s.to_string()).collect();
+
+        return stdout
+            .split_terminator('\n')
+            .map(|s| s.to_string())
+            .collect();
     }
 }

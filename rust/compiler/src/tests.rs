@@ -1,5 +1,6 @@
-use serial_test_derive::serial;
 use super::test_runner::TestRunner;
+use serde_json::json;
+use serial_test_derive::serial;
 
 #[test]
 #[serial]
@@ -11,8 +12,13 @@ pub fn trivial_fixed_response() {
         containerless.listen(function(req) {
             containerless.respond("Hello, world!");
         });"#,
-        "input",
-        "input");
+        json!([
+            { "path": "/hello", "query": {}, "body": {} }
+        ]),
+        json!([
+            { "path": "/hello", "query": {}, "body": {} }
+        ]),
+    );
     assert_eq!(result, vec!["Hello, world!"]);
 }
 
@@ -26,8 +32,13 @@ pub fn trivial_echo_path() {
         containerless.listen(function(req) {
             containerless.respond(req.path);
         });"#,
-        "/apath",
-        "/bpath");
+        json!([
+            { "path": "/apath", "query": {}, "body": {} }
+        ]),
+        json!([
+            { "path": "/bpath", "query": {}, "body": {} }
+        ]),
+    );
     assert_eq!(result, ["/bpath"]);
 }
 
@@ -47,8 +58,12 @@ pub fn trivial_conditional_with_unknown() {
             }
         });
     "#,
-        "hello",
-        "hello"
+        json!([
+            { "path": "hello", "query": {}, "body": {} }
+        ]),
+        json!([
+            { "path": "hello", "query": {}, "body": {} }
+        ]),
     );
 
     assert_eq!(result, ["correct"]);
@@ -74,8 +89,14 @@ pub fn conditional_return() {
             containerless.respond(F(10));
         });
         "#,
-        "ignored", "ignored");
-    assert_eq!(result, [ "ok" ]);
+        json!([
+            { "path": "/ignored", "query": {}, "body": {} }
+        ]),
+        json!([
+            { "path": "/ignored", "query": {}, "body": {} }
+        ]),
+    );
+    assert_eq!(result, ["ok"]);
 }
 
 #[test]
@@ -103,8 +124,14 @@ pub fn make_adder() {
             }
         });
         "#,
-        "ignored", "ignored");
-    assert_eq!(result, [ "ok" ]);
+        json!([
+            { "path": "/ignored", "query": {}, "body": {} }
+        ]),
+        json!([
+            { "path": "/ignored", "query": {}, "body": {} }
+        ]),
+    );
+    assert_eq!(result, ["ok"]);
 }
 
 #[test]
@@ -134,8 +161,14 @@ pub fn crazy_make_adder() {
             }
         });
         "#,
-        "ignored", "ignored");
-    assert_eq!(result, [ "ok" ]);
+        json!([
+            { "path": "/ignored", "query": {}, "body": {} }
+        ]),
+        json!([
+            { "path": "/ignored", "query": {}, "body": {} }
+        ]),
+    );
+    assert_eq!(result, ["ok"]);
 }
 #[test]
 #[serial]
@@ -154,8 +187,12 @@ pub fn nested_binops() {
             }
         });
     "#,
-        "hello",
-        "hello"
+        json!([
+            { "path": "/ignored", "query": {}, "body": {} }
+        ]),
+        json!([
+            { "path": "/ignored", "query": {}, "body": {} }
+        ]),
     );
 
     assert_eq!(result, ["yay!"]);
@@ -185,7 +222,11 @@ pub fn login_benchmark() {
             }
         });        
         "#,
-        "/login",
-        "/login");
-        assert_eq!(result, ["Login successful!"]);
+        json!([
+            { "path": "/login", "query": {}, "body": {} }
+        ]),
+        json!([
+            { "path": "/login", "query": {}, "body": {} }
+        ]));
+    assert_eq!(result, ["Login successful!"]);
 }

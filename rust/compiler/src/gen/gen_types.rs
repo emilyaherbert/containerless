@@ -1,4 +1,5 @@
 #![allow(unused)]
+#![recursion_limit="256"]
 use im_rc::{HashMap as ImHashMap, HashSet as ImHashSet};
 use proc_macro2::Span;
 use quote::{__rt::TokenStream, *};

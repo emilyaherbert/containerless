@@ -7,6 +7,7 @@ use super::Containerless;
 use bumpalo::Bump;
 use futures::{future, Async, Future, Poll};
 use hyper::{Body, Response};
+use serde_json::Value as JsonValue;
 use std::convert::TryInto;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -59,12 +60,12 @@ impl Decontainer {
         func: Containerless,
         client: Arc<HttpClient>,
         path: &str,
-        body: &str,
+        body: JsonValue,
     ) -> Decontainer {
         let arena = Bump::new();
         let request = Dyn::object(&arena);
         request.set_field("path", Dyn::str(&arena, path)).unwrap();
-        let body_json = Dyn::from_json_string(&arena, body).unwrap(); // TODO
+        let body_json = Dyn::from_json(&arena, body);
         request.set_field("body", body_json).unwrap();
         let request = unsafe { extend_lifetime(request) };
         let initial_event = Event::new(
@@ -91,8 +92,8 @@ impl Decontainer {
         parts: http::request::Parts,
         body: Vec<u8>,
     ) -> Decontainer {
-        let body = String::from_utf8_lossy(&body);
-        Decontainer::new_from(func, client, parts.uri.path(), &body)
+        let body_json = serde_json::from_slice(&body).unwrap(); // TODO
+        Decontainer::new_from(func, client, parts.uri.path(), body_json)
     }
 }
 

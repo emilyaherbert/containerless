@@ -215,7 +215,7 @@ impl<'a> Dyn<'a> {
         }
     }
 
-    fn from_json(arena: &'a Bump, json: serde_json::Value) -> Dyn<'a> {
+    pub fn from_json(arena: &'a Bump, json: serde_json::Value) -> Dyn<'a> {
         use serde_json::Value;
         match json {
             Value::String(s) => Dyn::str(arena, &s),

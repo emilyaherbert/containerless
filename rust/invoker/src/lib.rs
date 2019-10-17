@@ -2,6 +2,7 @@ mod container_handle;
 mod container_pool;
 mod decontainer_pool;
 mod error;
+mod mock;
 mod mpmc;
 mod server;
 mod sysmon;
@@ -68,12 +69,12 @@ fn testing_main(containerless: trace_runtime::Containerless) {
     io::stdin()
         .read_to_string(&mut raw_input)
         .expect("could not read stdin");
-    let lines = raw_input.split_terminator('\n');
-    for line in lines {
+    let requests = mock::Request::from_string_vec(&raw_input);
+    for request in requests.into_iter() {
         let https = hyper_rustls::HttpsConnector::new(4);
         let client = Arc::new(hyper::Client::builder().build(https));
         tokio::run(
-            Decontainer::new_from(containerless, client, line, "{}")
+            Decontainer::new_from(containerless, client, &request.path, request.body)
                 .map_err(|err| {
                     eprintln!("Error: {:?}", err);
                     std::process::exit(1);

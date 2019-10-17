@@ -47,6 +47,20 @@ export function post(obj: any, callback: (response: undefined | string) => void)
     return cb.post(obj, callback);
 }
 
+function validateRequests(requests: unknown): requests is callbacks.Request[] {
+    // NOTE(arjun): TS doesn't let us statically check this function in any
+    // meaningful way.
+    let requests_ = requests as any;
+    if (requests_ instanceof Array === false) {
+        return false;
+    }
+    return requests_.every((r: any) =>
+        typeof r === 'object' &&
+        typeof r.path === 'string' &&
+        typeof r.body !== 'undefined' &&
+        typeof r.query !== 'undefined');
+}
+
 export function listen(
     callback: (request: callbacks.Request) => void) {
     if (state.getListenPort() !== 'test') {
@@ -55,24 +69,22 @@ export function listen(
 
     state.setListening();
     let tracedCallback = cb.tracedListenCallback(callback);
-    let lines = fs.readFileSync(0, { encoding: 'utf-8' }).split('\n');
-
-    // TODO(arjun): Perhaps the for loop should be in the setImmediate
-    for (let line of lines) {
-        if (line.length === 0) {
-            // Skips the blank line at the end of input.
-            continue;
-        }
-        // TODO(arjun): Using "as any" is bad.
-        tracedCallback({ path: line } as any);
+    let requests =
+        JSON.parse(fs.readFileSync(0, { encoding: 'utf-8' })) as unknown;
+    if (!validateRequests(requests)) {
+        throw new Error(`Expected an array of mock requests from stdin`);
     }
+    for (let request of requests) {
+        tracedCallback(request as callbacks.Request);
+    }
+
     // setImmediate is necessary so that execution reaches the end of the
     // main body of the program. E.g., if the last function call in the program
     // is the listen, the end of the main body calls exitBlock to exit the
     // main body of the program. If we call getTrace immediately, then the
     // trace for the main body will end with 'unknown'.
     setImmediate(() => {
-        console.log(JSON.stringify(cb.trace.getTrace()))
+        console.log(JSON.stringify(cb.trace.getTrace()));
     });
 }
 

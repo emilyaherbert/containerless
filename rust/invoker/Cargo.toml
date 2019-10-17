@@ -30,3 +30,4 @@ auto_enums = { version = "*", features = [ "futures01" ] }
 nix = "*"
 hyper-rustls = "*"
 serde_json = "*"
+serde = "*"
