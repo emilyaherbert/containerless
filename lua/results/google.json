@@ -1,1 +1,0 @@
-{"latency":{"max":997553,"stdev":103032.55213366,"mean":231148.96150309,"min":139118,"percentiles":{"99.999%":997553,"99%":683678,"50%":192472,"90%":320840}},"errors":{"write":0,"read":0,"status":0,"timeout":242,"connect":0},"duration":10032994,"requests":7626,"bytes":361626060}

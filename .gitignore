@@ -10,3 +10,5 @@ native/artifacts.json
 
 *.so
 *.dylib
+
+wrk
