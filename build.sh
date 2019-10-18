@@ -13,3 +13,12 @@ yarn run build
 cd ../../rust/compiler
 cargo build
 cargo test
+cd ../invoker
+cargo build
+cargo test
+cd ..shared
+cargo build
+cargo test
+cd ../trace-runtime
+cargo build
+cargo test
