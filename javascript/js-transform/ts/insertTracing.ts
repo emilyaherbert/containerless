@@ -709,15 +709,7 @@ function reify(s: b.Statement[]): b.Statement[] {
         exitBlock
     ];
 
-    return [req].concat(head).concat(prog).concat(tail);
-}
-
-export function transform(inputCode: string): string {
-    let normalized = n.normalize(inputCode);
-    let ast = parser.parse(normalized);
-
-    ast.program.body = reify(ast.program.body);
-    return generator(ast.program).code;
+    return [req, ...head, ...prog, ...tail];
 }
 
 /*
@@ -758,3 +750,10 @@ function lvaltoName(lval: b.LVal): string {
     2. Else, use `identifier('foo')`
 
 */
+
+export function transform(inputCode: string): string {
+    let normalized = n.normalize(inputCode);
+    let ast = parser.parse(normalized);
+    ast.program.body = reify(ast.program.body);
+    return generator(ast.program).code;
+}
