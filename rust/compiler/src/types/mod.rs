@@ -266,6 +266,14 @@ impl Typ {
 }
 
 #[derive(PartialEq, Debug, Deserialize, Clone)]
+pub enum Op1 {
+    #[serde(rename = "void")]
+    Void,
+    #[serde(rename = "typeof")]
+    Typeof
+}
+
+#[derive(PartialEq, Debug, Deserialize, Clone)]
 pub enum Op2 {
     #[serde(rename = "+")]
     Add,
@@ -277,6 +285,8 @@ pub enum Op2 {
     Div,
     #[serde(rename = "===")]
     StrictEq,
+    #[serde(rename = "!==")]
+    StrictNotEq,
     #[serde(rename = ">")]
     GT,
     #[serde(rename = "<")]
@@ -326,6 +336,11 @@ pub enum Exp {
         op: Op2,
         e1: Box<Exp>,
         e2: Box<Exp>,
+    },
+    #[serde(rename = "op1")]
+    Op1 {
+        op: Op1,
+        e: Box<Exp>,
     },
     If {
         cond: Box<Exp>,
@@ -437,6 +452,7 @@ impl fmt::Display for Exp {
             Exp::Stringg { value } => write!(f, "Stringg({})", value),
             Exp::Undefined {} => write!(f, "Undefined"),
             Exp::BinOp { op, e1, e2 } => write!(f, "BinOp({:?}, {}, {})", op, e1, e2),
+            Exp::Op1 { op, e } => write!(f, "Op1({:?}, {})", op, e),
             Exp::If {
                 cond,
                 true_part,
@@ -606,6 +622,13 @@ pub mod constructors {
             op: op.clone(),
             e1: Box::new(e1),
             e2: Box::new(e2),
+        };
+    }
+
+    pub fn op1(op: &crate::types::Op1, e: Exp) -> Exp {
+        return Op1 {
+            op: op.clone(),
+            e: Box::new(e)
         };
     }
 

@@ -1,4 +1,5 @@
 export type BinOp = '+' | '-' | '*' | '/' | '===' | '>' | '<' | '>=' | '<=' | '&&' | '||';
+export type Op1 = "typeof" | "void"; // TODO(arjun): More required
 
 export type BlockExp = { kind: 'block', body: Exp[] };
 
@@ -66,6 +67,7 @@ export type Exp
     | { kind: 'string', value: string }
     | { kind: 'undefined' }
     | { kind: 'binop', op: BinOp, e1: Exp, e2: Exp }
+    | { kind: 'op1', op: Op1, e: Exp }
     | IfExp
     | WhileExp
     | LetExp
@@ -102,6 +104,10 @@ export function string(value: string): Exp {
 
 export function binop(op: BinOp, e1: Exp, e2: Exp): Exp {
     return { kind: 'binop', op, e1, e2 };
+}
+
+export function op1(op: Op1, e: Exp): Exp {
+    return { kind: 'op1', op, e };
 }
 
 export function if_(cond: Exp, truePart: Exp[], falsePart: Exp[]): IfExp {

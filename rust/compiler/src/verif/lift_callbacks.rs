@@ -113,6 +113,7 @@ impl LiftCallbacks {
             Stringg { value } => return string(value),
             Undefined {} => return undefined(),
             BinOp { op, e1, e2 } => return binop(op, self.lift_exp(e1), self.lift_exp(e2)),
+            Op1 { op, e } => return op1(op, self.lift_exp(e)),
             If {
                 cond,
                 true_part,

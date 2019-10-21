@@ -185,6 +185,7 @@ impl Typeinf {
                         Ok(u)
                     }
                     Op2::StrictEq => Ok(Typ::Bool),
+                    Op2::StrictNotEq => Ok(Typ::Bool),
                     Op2::GT => Ok(Typ::Bool),
                     Op2::LT => Ok(Typ::Bool),
                     Op2::GTE => Ok(Typ::Bool),

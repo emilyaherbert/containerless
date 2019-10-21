@@ -112,6 +112,13 @@ impl<'a> Dyn<'a> {
         }
     }
 
+    pub fn strict_neq(&self, other: Dyn<'a>) -> DynResult<'a> {
+        self.strict_eq(other).map(|r| match r {
+            Dyn::Bool(x) => Dyn::Bool(!x),
+            r => panic!(".strict_eq produced {:?}", r)
+        })
+    }
+
     pub fn strict_eq(&self, other: Dyn<'a>) -> DynResult<'a> {
         match (*self, other) {
             (Dyn::Undefined, Dyn::Undefined) => Ok(Dyn::Bool(true)),
@@ -212,6 +219,23 @@ impl<'a> Dyn<'a> {
             // This should never occur, since we insert refs and derefs in the
             // right places.
             _ => panic!("invoked deref on {:?}", self),
+        }
+    }
+
+    pub fn void(&self, _arena: &'a Bump) -> DynResult<'a> {
+        return Ok(Dyn::Undefined);
+    }
+
+    pub fn typeof_(&self, arena: &'a Bump) -> DynResult<'a> {
+        match self {
+            Dyn::Str(_) => Ok(Dyn::str(arena, "string")),
+            Dyn::Bool(_) => Ok(Dyn::str(arena, "boolean")),
+            Dyn::Int(_) => Ok(Dyn::str(arena, "number")),
+            Dyn::Float(_) => Ok(Dyn::str(arena, "number")),
+            Dyn::Undefined => Ok(Dyn::str(arena, "undefined")),
+            Dyn::Vec(_) => Ok(Dyn::str(arena, "object")),
+            Dyn::Object(_) => Ok(Dyn::str(arena, "object")),
+            Dyn::Ref(_) => panic!("typeof_ applied to a ref")
         }
     }
 
