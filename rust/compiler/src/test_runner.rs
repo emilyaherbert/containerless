@@ -110,7 +110,7 @@ impl TestRunner {
 
         let exp = serde_json::from_slice(&trace_json).expect("deserializing JSON trace");
 
-        let verified = verify(&exp);
+        let verified = verify(exp);
         codegen::codegen(&verified, "../containerless-scaffold/src/containerless.rs");
         let mut decontainerized = Command::new("cargo")
             .args(["run", "--", "--testing"].iter())

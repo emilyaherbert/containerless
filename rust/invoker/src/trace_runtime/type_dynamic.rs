@@ -10,6 +10,61 @@ pub fn unknown<'a>() -> DynResult<'a> {
     Err(Error::Unknown)
 }
 
+#[derive(Debug, Copy, Clone)]
+pub struct DynObject<'a> {
+  fields: &'a RefCell<Vec<'a, (&'a str, Dyn<'a>)>>
+}
+
+impl<'a> DynObject<'a> {
+
+    pub fn new(arena: &'a Bump) -> DynObject<'a> {
+        DynObject { fields: arena.alloc(RefCell::new(Vec::new_in(arena))) }
+    }
+
+    pub fn from(arena: &'a Bump, fields: std::vec::Vec<(&'static str, Dyn<'a>)>) -> DynObject<'a> {
+        let obj = Self::new(arena);
+        for (k, v) in fields.into_iter() {
+            // TODO(arjun): very naive
+            obj.set(k, v);
+        }
+        return obj;
+    }
+
+    pub fn set(&self, key: &'static str, value: Dyn<'a>) {
+        // This is a pretty bad implementation. We are scanning a vector!
+        let mut vec = self.fields.borrow_mut();
+        for (k, v) in vec.iter_mut() {
+            if *k == key {
+                *v = value;
+                return;
+            }
+        }
+        vec.push((key, value));
+    }
+
+    pub fn get(&self, key: &str) -> Dyn<'a> {
+        let vec = self.fields.borrow();
+        for (k, v) in vec.iter() {
+            if *k == key {
+                return *v;
+            }
+        }
+        return Dyn::Undefined;
+    }
+
+    pub fn to_json(&self) -> serde_json::Value {
+        use serde_json::Map;
+        let mut map = Map::new();
+        for (k, v) in self.fields.borrow().iter() {
+            if let Some(v_json) = v.to_json() {
+                map.insert(k.to_string(), v_json);
+            }
+        }
+        return serde_json::Value::Object(map);
+    }
+
+}
+
 /**
  * This is an implementation of "type dynamic" for traces.
  */
@@ -22,7 +77,7 @@ pub enum Dyn<'a> {
     Undefined,
     Ref(&'a Cell<Dyn<'a>>),
     Vec(&'a RefCell<Vec<'a, Dyn<'a>>>),
-    Object(&'a RefCell<Vec<'a, (&'a str, Dyn<'a>)>>),
+    Object(DynObject<'a>),
 }
 
 pub type DynResult<'a> = Result<Dyn<'a>, Error>;
@@ -59,28 +114,17 @@ impl<'a> Dyn<'a> {
     }
 
     pub fn object(arena: &'a Bump) -> Dyn<'a> {
-        Dyn::Object(arena.alloc(RefCell::new(Vec::new_in(arena))))
+        Dyn::Object(DynObject::new(arena))
     }
 
     pub fn object_with(arena: &'a Bump, fields: std::vec::Vec<(&'static str, Dyn<'a>)>) -> Dyn<'a> {
-        let obj = Dyn::object(arena);
-        for (k, v) in fields.into_iter() {
-            obj.set_field(k, v).unwrap();
-        }
-        return obj;
+        Dyn::Object(DynObject::from(arena, fields))
     }
 
     pub fn set_field(&self, key: &'static str, value: Dyn<'a>) -> DynResult<'a> {
         // This is a pretty bad implementation. We are scanning a vector!
-        if let Dyn::Object(cell) = self {
-            let mut vec = cell.borrow_mut();
-            for (k, v) in vec.iter_mut() {
-                if *k == key {
-                    *v = value;
-                    return Ok(Dyn::Undefined);
-                }
-            }
-            vec.push((key, value));
+        if let Dyn::Object(o) = self {
+            o.set(key, value);
             return Ok(Dyn::Undefined);
         } else {
             return type_error("set_field");
@@ -89,16 +133,8 @@ impl<'a> Dyn<'a> {
 
     pub fn get(&self, key: &str) -> DynResult<'a> {
         match self {
-            Dyn::Object(cell) => {
-                let vec = cell.borrow();
-                for (k, v) in vec.iter() {
-                    if *k == key {
-                        return Ok(*v);
-                    }
-                }
-                return Ok(Dyn::Undefined);
-            }
-            _ => return type_error("not an object"),
+            Dyn::Object(o) => Ok(o.get(key)),
+            _ => type_error("not an object"),
         }
     }
 
@@ -239,6 +275,20 @@ impl<'a> Dyn<'a> {
         }
     }
 
+    pub fn to_json(&self) -> Option<serde_json::Value> {
+        use serde_json::Value;
+        match self {
+            Dyn::Str(s) => Some(Value::String(s.to_string())),
+            Dyn::Bool(b) => Some(Value::Bool(*b)),
+            Dyn::Int(n) => unimplemented!(), // Value::Number(*n.into()),
+            Dyn::Float(x) => serde_json::Number::from_f64(*x).map(|num| Value::Number(num)),
+            Dyn::Undefined => None,
+            Dyn::Vec(vec_cell) => Some(Value::Array(vec_cell.borrow().iter().filter_map(|x| x.to_json()).collect())),
+            Dyn::Object(o) => Some(o.to_json()),
+            Dyn::Ref(_) => panic!("typeof_ applied to a ref")
+        }
+    }
+
     pub fn from_json(arena: &'a Bump, json: serde_json::Value) -> Dyn<'a> {
         use serde_json::Value;
         match json {
@@ -265,7 +315,7 @@ impl<'a> Dyn<'a> {
                         Self::from_json(arena, v),
                     ))
                 }
-                Dyn::Object(arena.alloc(RefCell::new(obj)))
+                Dyn::Object(DynObject { fields: arena.alloc(RefCell::new(obj)) })
             }
         }
     }
@@ -304,6 +354,17 @@ impl<'a> TryFrom<Dyn<'a>> for std::string::String {
             Dyn::Float(n) => Ok(n.to_string()),
             Dyn::Int(n) => Ok(n.to_string()),
             //Dyn::Object(_) => Ok("[object Object]".to_string()),
+            _ => Err(()),
+        }
+    }
+}
+
+impl<'a> TryFrom<Dyn<'a>> for DynObject<'a> {
+    type Error = ();
+
+    fn try_from(value: Dyn<'a>) -> Result<Self, ()> {
+        match value {
+            Dyn::Object(o) => Ok(o),
             _ => Err(()),
         }
     }

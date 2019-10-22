@@ -101,7 +101,7 @@ pub fn conditional_return() {
 
 #[test]
 #[serial]
-pub fn make_adder() {
+pub fn make_adder_normal() {
     let mut runner = TestRunner::new("make_adder.js");
     let result = runner.test(
         r#"
@@ -198,7 +198,6 @@ pub fn nested_binops() {
     assert_eq!(result, ["yay!"]);
 }
 
-// TODO(arjun): Enable with #[test]
 #[serial]
 #[test]
 pub fn login_benchmark() {
@@ -234,4 +233,71 @@ pub fn login_benchmark() {
               "body": { "username": "u", "password": "p" }  }
         ]));
     assert_eq!(result, ["Login successful!"]);
+}
+
+#[serial]
+#[test]
+pub fn benchmark_status() {
+    let mut runner = TestRunner::new("benchmark_status.js");
+    let result = runner.test(
+        r#"
+        let containerless = require("../../javascript/containerless");
+
+        containerless.listen(function(req) {
+            let x = 200;
+            if(req.path === '/status') {
+                if (typeof req.body.username !== 'string') {
+                    containerless.respond('Username missing');
+                    return;
+                }
+                if (typeof req.body.token !== 'string') {
+                    containerless.respond('Token missing');
+                    return;
+                }
+                if (typeof req.body.state !== 'string') {
+                    containerless.respond('State missing');
+                    return;
+                }
+
+                containerless.get('data:{ "commit": { "sha": "0ce90df7101cb82aa194bad39b614097e30b92ed" } }',
+                  function(resp1) {
+                    x = x + 1;
+                    let y = 200;
+                    if (typeof resp1.commit.sha !== 'string') {
+                        containerless.respond('SHA missing in resp1');
+                        return;
+                    }
+                    containerless.post({
+                        'url': 'data:{}', // 'https://api.github.com/repos/plasma-umass/decontainerization/statuses/' + resp1.commit.sha,
+                        'headers': {
+                            'User-Agent': req.body.username
+                        },
+                        'auth': {
+                            'username': req.body.username,
+                            'password': req.body.token
+                        },
+                        'body': {
+                            'state': req.body.state
+                        }
+                    }, function(resp2) {
+                        let z = x + y;
+                        containerless.respond("Done!");
+                    });
+                });
+            } else {
+                containerless.respond("Unknown command.");
+            }
+        });
+        "#,
+        json!([
+            { "path": "/status",
+              "query": {},
+              "body": { "username": "u", "token": "t", "state": "q" }  }
+        ]),
+        json!([
+            { "path": "/status",
+              "query": {},
+              "body": { "username": "u", "token": "t", "state": "q" }  }
+        ]));
+    assert_eq!(result, ["Done!"]);
 }
