@@ -1,5 +1,5 @@
 [package]
-name = "invoker-manager"
+name = "multi-invoker"
 version = "0.1.0"
 authors = ["Arjun Guha <arjun@cs.umass.edu>"]
 edition = "2018"

@@ -15,7 +15,16 @@ impl Drop for Forwarding {
                 .run()
                 .expect("could not flush rules");
             }
-            OS::Linux => unimplemented!()
+            OS::Linux => {
+                cmd!("sudo", "iptables", "-P", "INPUT", "ACCEPT").run()
+                .and_then(|_| cmd!("sudo", "iptables", "-P", "FORWARD", "ACCEPT").run())
+                .and_then(|_| cmd!("sudo", "iptables", "-P", "OUTPUT", "ACCEPT").run())
+                .and_then(|_| cmd!("sudo", "iptables", "-t", "nat", "-F").run())
+                .and_then(|_| cmd!("sudo", "iptables", "-t", "mangle", "-F").run())
+                .and_then(|_| cmd!("sudo", "iptables", "-F").run())
+                .and_then(|_| cmd!("sudo", "iptables", "-X").run())
+                .expect("could not flush rules");
+            }
         }
     }
 }
@@ -48,7 +57,12 @@ impl Forwarding {
                 .run()
                 .expect("Failed to reconfigure firewall");
             }
-            OS::Linux => unimplemented!()
+            OS::Linux => {
+                cmd!("sudo", "iptables", "-t", "nat", "-A", "PREROUTING", "-s", "127.0.0.1", "-p", "tcp", "--dport", self.src_port.to_string(), "-j", "REDIRECT", "--to", self.dst_port.to_string())
+                .run()
+                .and_then(|_| cmd!("sudo", "iptables", "-t", "nat", "-A", "OUTPUT", "-s", "127.0.0.1", "-p", "tcp", "--dport", self.src_port.to_string(), "-j", "REDIRECT", "--to", self.dst_port.to_string()).run())
+                .expect("Failed to reconfigure firewall");
+            }
         }
     }
 }

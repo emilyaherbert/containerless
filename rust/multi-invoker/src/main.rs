@@ -6,7 +6,7 @@ use signal_hook::iterator::Signals;
 
 mod forwarding;
 
-fn main() {
+pub fn main() {
     let matches = App::new("decontainerizer")
         .arg(
             Arg::with_name("config")

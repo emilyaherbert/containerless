@@ -71,16 +71,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "invoker-manager"
-version = "0.1.0"
-dependencies = [
- "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "duct 0.13.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "shared 0.1.0",
- "signal-hook 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "itoa"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -116,6 +106,16 @@ dependencies = [
 name = "memchr"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "multi-invoker"
+version = "0.1.0"
+dependencies = [
+ "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "duct 0.13.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "shared 0.1.0",
+ "signal-hook 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "nix"
