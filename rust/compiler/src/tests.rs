@@ -301,3 +301,40 @@ pub fn benchmark_status() {
         ]));
     assert_eq!(result, ["Done!"]);
 }
+
+#[serial]
+#[test]
+pub fn benchmark_upload() {
+    let mut runner = TestRunner::new("benchmark_upload.js");
+    let result = runner.test(
+        r#"
+        let containerless = require("../../javascript/containerless");
+
+        containerless.listen(function(req) {
+            if(req.path === '/upload') {
+                if(req.body !== undefined) {
+                    containerless.post({
+                        url: 'data:{}',
+                        body: req.body
+                    }, function(resp) {
+                        containerless.respond('Uploaded');
+                    });
+                } else {
+                    containerless.respond("No file to upload.");
+                }
+            } else {
+                containerless.respond("Unknown command.");
+            }
+        });"#,
+        json!([
+            { "path": "/upload",
+              "query": {},
+              "body": "This a a plain text file"  }
+        ]),
+        json!([
+            { "path": "/upload",
+              "query": {},
+              "body": "This is another file"  }
+        ]));
+    assert_eq!(result, ["Uploaded"]);
+}
