@@ -50,6 +50,7 @@ impl Rustify {
             Exp::Identifier { name: _ } => (),
             Exp::From { exp, field: _ } => self.rustify(exp),
             Exp::Get { exp, field: _ } => self.rustify(exp),
+            Exp::Op1 { op: _, e } => self.rustify(e),
             Exp::BinOp { op: _, e1, e2 } => {
                 self.rustify(e1);
                 self.rustify(e2);

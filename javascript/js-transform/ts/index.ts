@@ -19,5 +19,4 @@ function inputFile(): string | number {
 }
 
 let inputCode = fs.readFileSync(inputFile(), { encoding: 'utf-8' });
-let normalized = n.normalize(inputCode);
-console.log(r.transform(normalized));
+console.log(r.transform(inputCode));

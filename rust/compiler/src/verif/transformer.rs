@@ -42,7 +42,8 @@ impl Transformer {
             Undefined {} => return undefined(),
             BinOp { op, e1, e2 } => {
                 return binop(op, self.transform_exp(e1), self.transform_exp(e2))
-            }
+            },
+            Op1 { op, e } => op1(op, self.transform_exp(e)),
             If {
                 cond,
                 true_part,

@@ -7,7 +7,7 @@ containerless.listen(function(req) {
                 url: 'http://localhost:3000/upload',
                 body: req.body
             }, function(resp) {
-                containerless.respond(resp);
+                containerless.respond('Uploaded');
             });
         } else {
             containerless.respond("No file to upload.");

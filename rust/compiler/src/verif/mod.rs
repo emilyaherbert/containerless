@@ -12,7 +12,7 @@ use crate::{
     verif::{assertions::Assertions, lift_callbacks::LiftCallbacks, transformer::Transformer},
 };
 
-pub fn verify(exp: &Exp) -> Exp {
+pub fn verify(exp: Exp) -> Exp {
     let mut assertions = Assertions::new();
     let mut transformer = Transformer::new();
     let mut lift_callbacks = LiftCallbacks::new();
@@ -34,5 +34,5 @@ pub fn verify_from_file(filename: &str) -> Exp {
         .expect(&format!("could not read file {}", filename));
     let exp = serde_json::from_str::<Exp>(&json)
         .unwrap_or_else(|exp| panic!("\n{:?} \nin \n{}", exp, &json));
-    return verify(&exp);
+    return verify(exp);
 }

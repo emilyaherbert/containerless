@@ -1,8 +1,15 @@
-use crate::types::{Exp, Op2};
+use crate::types::{Exp, Op2, Op1};
 use proc_macro2::Span;
 use quote::__rt::TokenStream;
 use quote::*;
 use syn::{Ident, Lifetime};
+
+fn codegen_op1(op: &Op1) -> TokenStream {
+    match op {
+        Op1::Void => quote! { void },
+        Op1::Typeof => quote! { typeof_ }
+    }
+}
 
 fn codegen_op(op: &Op2) -> TokenStream {
     match op {
@@ -16,7 +23,8 @@ fn codegen_op(op: &Op2) -> TokenStream {
         Op2::GTE => quote! { gte },
         Op2::LTE => quote! { lte },
         Op2::And => quote! { and },
-        Op2::Or => quote! { or }
+        Op2::Or => quote! { or },
+        Op2::StrictNotEq => quote! { strict_neq }
     }
 }
 
@@ -82,6 +90,11 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             let q_e1 = codegen_exp(e1);
             let q_e2 = codegen_exp(e2);
             quote! { (#q_e1).#q_op(#q_e2)? }
+        }
+        Exp::Op1 { op, e } => {
+            let q_op = codegen_op1(op);
+            let q_e = codegen_exp(e);
+            quote! { (#q_e).#q_op(arena)? }
         }
         Exp::If {
             cond,
@@ -212,7 +225,7 @@ pub fn codegen(e: &Exp, dest_file: &str) {
     let q_e = codegen_exp(e);
     let tokens = quote! {
         // We generate names from JavaScript, so camelCase names are inevitable.
-        #![allow(non_snake_case)]        
+        #![allow(non_snake_case)]
         use invoker::trace_runtime::{self as rt, ExecutionContext, Dyn, DynResult};
 
         pub fn containerless<'a>(

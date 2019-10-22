@@ -81,7 +81,9 @@ export function assertNormalized<T extends t.Node>(node: T):
     }
     else if (t.isReturnStatement(node)) {
         if(node.argument === null) {
-            throw new Error('return without a return value');
+            // NOTE(arjun): I think it is a little hacky that assertNormalized
+            // also performs some normalization.
+            node.argument = t.unaryExpression('void', t.numericLiteral(0));
         }
         return node as any;
     }

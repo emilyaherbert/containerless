@@ -1,10 +1,11 @@
 use super::super::types::{HttpClient, JsonValue};
 use super::error::{type_error, Error};
-use super::type_dynamic::{Dyn, DynResult};
+use super::type_dynamic::{Dyn, DynObject, DynResult};
 use auto_enums::auto_enum;
 use futures::{future, Future, Stream};
 use std::convert::TryInto;
 use std::sync::Arc;
+use bytes::Bytes;
 
 /// An enumeration of the events that a decontainerized function can run
 /// within Rust.
@@ -16,6 +17,7 @@ pub enum AsyncOp {
     Listen,
     Request(String),
     Get(String),
+    Post(String, Bytes)
 }
 
 pub enum AsyncOpOutcome {
@@ -66,6 +68,38 @@ impl AsyncOp {
     ) -> impl Future<Item = AsyncOpOutcome, Error = Error> + Send {
         match self {
             AsyncOp::Listen => future::ok(AsyncOpOutcome::Connected),
+            AsyncOp::Post(url, body) => {
+                if url.starts_with("data:") {
+                    return future::ok(
+                        AsyncOpOutcome::MockGetResponse(
+                            serde_json::from_str(&url[5..])
+                                .expect("malformed JSON in data: URL to POST")));
+                }
+                use hyper::{Body, Request, Uri};
+                let client = client.clone();
+                let req = Uri::from_shared(Bytes::from(url))
+                    .map_err(|_err| Error::TypeError("invalid URL in POST request".to_string()))
+                    .and_then(|uri| {
+                        Request::builder()
+                            .uri(uri)
+                            .body(Body::from(body))
+                            .map_err(|_err| {
+                                Error::TypeError("could not build request in POST".to_string())
+                            })
+                    });
+                return future::result(req)
+                    .and_then(move |req| {
+                        client
+                            .request(req)
+                            .map_err(|err| Error::TypeError(format!("POST failed: {:?}", err)))
+                    })
+                    .and_then(|resp| {
+                        resp.into_body()
+                            .concat2()
+                            .map_err(|_err| Error::TypeError("Reading response body".to_string()))
+                    })
+                    .map(move |body| AsyncOpOutcome::GetResponse(body))
+            }
             AsyncOp::Get(url) => {
                 if url.starts_with("data:") {
                     return future::ok(
@@ -148,8 +182,22 @@ impl<'a> ExecutionContext<'a> {
                     return type_error(format!("ec.loopback(\"get\", {:?}, ...)", event_arg));
                 }
             }
+        } else if event_name == "post" {
+            match TryInto::<DynObject<'a>>::try_into(event_arg) {
+                Ok(obj) => match (TryInto::<String>::try_into(obj.get("url")), obj.get("body").to_json()) {
+                    (Ok(url), Some(body)) => {
+                        let body = Bytes::from(serde_json::to_vec(&body).expect("JSON serialization failed"));
+                        self.new_ops
+                            .push((AsyncOp::Post(url, body), indicator, event_clos));
+                        return Ok(Dyn::int(0));
+                    },
+                    _ => type_error("missing body/url to post")
+                },
+                Err(()) => type_error(format!("ec.loopback(\"post\", {:?}, ...)", event_arg))
+            }
+
         } else {
-            return type_error(format!("ec.loopback({}, ...)", event_name));
+            return type_error(format!("unknown event name in ec.loopback({}, ...)", event_name));
         }
     }
 

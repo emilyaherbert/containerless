@@ -142,6 +142,14 @@ function binop(op: string, e1: b.Expression, e2: b.Expression): b.CallExpression
     return b.callExpression(callee, theArgs);
 }
 
+function op1(op: string, e: b.Expression): b.Expression {
+    const callee = b.memberExpression(
+        b.identifier('exp'),
+        b.identifier('op1')
+    );
+    return b.callExpression(callee, [b.stringLiteral(op), e]);
+}
+
 function traceLet(lhs: string, rhs: b.Expression): b.ExpressionStatement {
     const memberExpression = b.memberExpression(t, b.identifier('traceLet'));
     const callExpression = b.callExpression(memberExpression, [b.stringLiteral(lhs), rhs]);
@@ -244,28 +252,28 @@ const exitBlock: b.ExpressionStatement =
  * ```
  * x
  * ```
- * 
+ *
  * ```
  * identifier(x)
  * ```
- * 
+ *
  * ```
  * number(1)
  * ```
- * 
+ *
  * ```
  * boolean(true)
  * ```
- * 
+ *
  * ```
  * binop('+', number(1), number(2))
  * ```
  * ---
- * 
+ *
  * ```
  * foo = 12;
  * ```
- * 
+ *
  * ```
  * b.traceSet('foo', number(12));
  * foo = 12;
@@ -350,6 +358,10 @@ function reifyExpression(e: b.Expression, st: State): [b.Expression, State] {
             const [right, st2] = reifyExpression(e.right, st);
             return [binop(e.operator, left, right), merge(st1, st2)];
         }
+        case 'UnaryExpression': {
+            let [e1, st1] = reifyExpression(e.argument, st);
+            return [op1(e.operator, e1), st1];
+        }
         default: {
             throw new Error('TODO: ' + e.type);
         }
@@ -357,18 +369,18 @@ function reifyExpression(e: b.Expression, st: State): [b.Expression, State] {
 }
 
 /**
- * 
+ *
  * ```
  * b.traceLet('foo', number(1));
  * let foo = 1;
  * ```
- * 
+ *
  * ```
  * b.traceFunctionCall('foo', [identifier('F'), number(1)]);
  * let foo = F(1);
  * b.exitBlock();
  * ```
- * 
+ *
  * ```
  * b.traceLet('a', number(1));
  * let a = 1;
@@ -377,7 +389,7 @@ function reifyExpression(e: b.Expression, st: State): [b.Expression, State] {
  *  let [$clos, $x] = b.traceFunctionBody('$return');
  *  b.traceLet('x', $x);
  *  b.traceBreak('$return', binop('+', from($clos, 'a'), identifier('x')));
- *  return a + x; * 
+ *  return a + x; *
  *  b.exitBlock();
  * }
  * ```
@@ -475,7 +487,7 @@ function reifyWhileStatement(s: b.WhileStatement, st: State): [b.Statement[], St
 }
 
 /**
- * 
+ *
  * ```
  * let $test = identifier(c);
  * if(c) {
@@ -486,7 +498,7 @@ function reifyWhileStatement(s: b.WhileStatement, st: State): [b.Statement[], St
  * }
  * b.exitBlock();
  * ```
- * 
+ *
  */
 function reifyIfStatement(s: b.IfStatement, st: State): [b.Statement[], State] {
     const [test, st1] = reifyExpression(s.test, st);
@@ -531,7 +543,7 @@ function reifyExpressionStatement(s: b.ExpressionStatement, st: State): [b.State
 }
 
 /**
- * 
+ *
  * ```
  * b.traceLabel('l');
  * l: {
@@ -569,7 +581,7 @@ function reifyBreakStatement(s: b.BreakStatement, st: State): [b.Statement[], St
 }
 
 /**
- * 
+ *
  * ```
  * b.traceLet('a', number(1));
  * let a = 1;
@@ -578,7 +590,7 @@ function reifyBreakStatement(s: b.BreakStatement, st: State): [b.Statement[], St
  *  let [$clos, $x] = b.traceFunctionBody('$return');
  *  b.traceLet('x', $x);
  *  b.traceBreak('$return', binop('+', from($clos, 'a'), identifier('x')));
- *  return a + x; * 
+ *  return a + x; *
  *  b.exitBlock();
  * }
  * ```
@@ -685,7 +697,7 @@ function reify(s: b.Statement[]): b.Statement[] {
     if(req === undefined) {
         throw new Error("Undefined program.");
     }
-    
+
     let head: b.Statement[] = [
         jsLet(b.identifier('cb'), b.memberExpression(b.identifier('containerless00'), b.identifier('cb'))),
         jsLet(b.identifier('exp'), b.memberExpression(b.identifier('containerless00'), b.identifier('exp'))),
@@ -697,15 +709,7 @@ function reify(s: b.Statement[]): b.Statement[] {
         exitBlock
     ];
 
-    return [req].concat(head).concat(prog).concat(tail);
-}
-
-export function transform(inputCode: string): string {
-    let normalized = n.normalize(inputCode);
-    let ast = parser.parse(normalized);
-
-    ast.program.body = reify(ast.program.body);
-    return generator(ast.program).code;
+    return [req, ...head, ...prog, ...tail];
 }
 
 /*
@@ -746,3 +750,10 @@ function lvaltoName(lval: b.LVal): string {
     2. Else, use `identifier('foo')`
 
 */
+
+export function transform(inputCode: string): string {
+    let normalized = n.normalize(inputCode);
+    let ast = parser.parse(normalized);
+    ast.program.body = reify(ast.program.body);
+    return generator(ast.program).code;
+}

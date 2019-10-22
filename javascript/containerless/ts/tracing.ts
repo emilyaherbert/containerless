@@ -124,7 +124,7 @@ class Trace implements TracingInterface {
         }
         return a.exps;
     }
-    
+
     getTrace(): Exp {
         return this.trace;
     }
@@ -289,11 +289,11 @@ class Trace implements TracingInterface {
 
     /**
      * Traces a callback.
-     * 
+     *
      * 1. Creates a new callback trace.
      * 2. Sets a CallbackExp in that trace.
      * 3. Returns the trace.
-     * 
+     *
      * @param event
      * @param eventArg argument for the event, e.g. the URL to get
      * @param callbackArg name of the argument passed to the callback
@@ -497,6 +497,13 @@ function mergeExp(e1: Exp, e2: Exp): Exp {
         }
         e1.e1 = mergeExp(e1.e1, e2.e1);
         e1.e2 = mergeExp(e1.e2, e2.e2);
+        return e1;
+    }
+    else if (e1.kind === 'op1' && e2.kind === 'op1') {
+        if (e1.op !== e2.op) {
+            throw new Error(`Cannot merge operations ${e1.op} and ${e2.op}`);
+        }
+        e1.e = mergeExp(e1.e, e2.e);
         return e1;
     }
     else if (e1.kind === 'block' && e2.kind === 'block') {

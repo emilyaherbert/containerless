@@ -135,9 +135,17 @@ export class Callbacks {
     /**
      * Issues an HTTP POST request
      */
-    post(obj: string | any, callback: (response: undefined | string) => void) {
-        let [_, $callbackClos] = this.trace.popArgs();
-        let innerTrace = this.trace.traceCallback('post', defaultEventArg, ['clos', 'request'], $callbackClos);
+    post(uri: { url: string, body: JSON | string }, callback: (response: undefined | string) => void) {
+        let [_, $argRep, $callbackClos] = this.trace.popArgs();
+        let innerTrace = this.trace.traceCallback('post', $argRep, ['clos', 'response'], $callbackClos);
+
+        if (uri.url.startsWith('data:')) {
+            this.withTrace(innerTrace, () => {
+                innerTrace.pushArgs([identifier('clos'), identifier('response')]);
+                callback(JSON.parse(uri.url.substr(5)));
+            });
+            return;
+        }
 
         /*
         // https://stackoverflow.com/questions/37870594/how-to-post-with-request-in-express
@@ -153,12 +161,10 @@ export class Callbacks {
                 callback(String("{ message: 'GENERIC RESPONSE' }"));
             });
         } else {
-            // TODO(emily): Fix by creating a type for the argument that is either string | Type. Default arguments, the whole 9 yards.
-            let obj2 = obj;
-            if(typeof obj !== 'string') {
-                obj2.body = JSON.stringify(obj2.body);
+            if (typeof uri.body !== 'string') {
+                uri.body = JSON.stringify(uri.body);
             }
-            request.post(obj2, (error: any, resp: any) => {
+            request.post(uri, (error: any, resp: any) => {
                 this.withTrace(innerTrace, () => {
                     innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                     if (error !== null) {
