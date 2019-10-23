@@ -73,6 +73,7 @@ impl Forwarding {
                         cmd!("sudo", "iptables", "-t", "nat", "-A", "PREROUTING", "-p", "tcp", "--dport", self.src_port.to_string(), "-j", "REDIRECT", "--to", self.dst_port.to_string())
                         .run()
                         .expect("Failed to reconfigure firewall");
+                        self.linux_state = LinuxState::Alive;
                     },
                     LinuxState::Alive => {
                         cmd!("sudo", "iptables", "-t", "nat", "-A", "PREROUTING", "-p", "tcp", "--dport", self.src_port.to_string(), "-j", "REDIRECT", "--to", self.dst_port.to_string())
