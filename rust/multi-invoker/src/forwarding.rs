@@ -5,6 +5,8 @@ pub struct Forwarding {
     src_port: u16,
     dst_port: u16,
     os: shared::OS,
+    linux_flag: bool,
+    prev_dst_port: u16
 }
 
 impl Drop for Forwarding {
@@ -16,14 +18,16 @@ impl Drop for Forwarding {
                 .expect("could not flush rules");
             }
             OS::Linux => {
-                cmd!("sudo", "iptables", "-P", "INPUT", "ACCEPT").run()
-                .and_then(|_| cmd!("sudo", "iptables", "-P", "FORWARD", "ACCEPT").run())
-                .and_then(|_| cmd!("sudo", "iptables", "-P", "OUTPUT", "ACCEPT").run())
-                .and_then(|_| cmd!("sudo", "iptables", "-t", "nat", "-F").run())
-                .and_then(|_| cmd!("sudo", "iptables", "-t", "mangle", "-F").run())
-                .and_then(|_| cmd!("sudo", "iptables", "-F").run())
-                .and_then(|_| cmd!("sudo", "iptables", "-X").run())
-                .expect("could not flush rules");
+                if self.linux_flag {
+                    cmd!("sudo", "iptables", "-t", "nat", "-D", "PREROUTING", "-p", "tcp", "--dport", self.src_port.to_string(), "-j", "REDIRECT", "--to", self.dst_port.to_string())
+                    .run()
+                    .and_then(|_| {
+                        cmd!("sudo", "iptables", "-t", "nat", "-D", "OUTPUT", "-p", "tcp", "--dport", self.src_port.to_string(), "-j", "REDIRECT", "--to", self.dst_port.to_string())
+                        .run()
+                    })
+                    .expect("Failed to drop previous rules.");
+                    self.linux_flag = false;
+                }
             }
         }
     }
@@ -36,12 +40,15 @@ impl Forwarding {
             src_port,
             dst_port,
             os,
+            linux_flag: false,
+            prev_dst_port: dst_port
         };
         result.do_it();
         return result;
     }
 
     pub fn change_destination(&mut self, dst_port: u16) {
+        self.prev_dst_port = self.dst_port.clone();
         self.dst_port = dst_port;
         self.do_it();
     }
@@ -58,10 +65,24 @@ impl Forwarding {
                 .expect("Failed to reconfigure firewall");
             }
             OS::Linux => {
-                cmd!("sudo", "iptables", "-t", "nat", "-A", "PREROUTING", "-s", "127.0.0.1", "-p", "tcp", "--dport", self.src_port.to_string(), "-j", "REDIRECT", "--to", self.dst_port.to_string())
+                cmd!("sudo", "iptables", "-t", "nat", "-A", "PREROUTING", "-p", "tcp", "--dport", self.src_port.to_string(), "-j", "REDIRECT", "--to", self.dst_port.to_string())
                 .run()
-                .and_then(|_| cmd!("sudo", "iptables", "-t", "nat", "-A", "OUTPUT", "-s", "127.0.0.1", "-p", "tcp", "--dport", self.src_port.to_string(), "-j", "REDIRECT", "--to", self.dst_port.to_string()).run())
+                .and_then(|_| {
+                    cmd!("sudo", "iptables", "-t", "nat", "-A", "OUTPUT", "-p", "tcp", "--dport", self.src_port.to_string(), "-j", "REDIRECT", "--to", self.dst_port.to_string())
+                    .run()
+                })
                 .expect("Failed to reconfigure firewall");
+                if self.linux_flag {
+                    cmd!("sudo", "iptables", "-t", "nat", "-D", "PREROUTING", "-p", "tcp", "--dport", self.src_port.to_string(), "-j", "REDIRECT", "--to", self.prev_dst_port.to_string())
+                    .run()
+                    .and_then(|_| {
+                        cmd!("sudo", "iptables", "-t", "nat", "-D", "OUTPUT", "-p", "tcp", "--dport", self.src_port.to_string(), "-j", "REDIRECT", "--to", self.prev_dst_port.to_string())
+                        .run()
+                    })
+                    .expect("Failed to drop previous rules.");
+                    self.linux_flag = false;
+                }
+                self.linux_flag = true;
             }
         }
     }
