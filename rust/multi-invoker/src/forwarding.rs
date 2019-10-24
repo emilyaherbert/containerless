@@ -27,6 +27,10 @@ impl Drop for Forwarding {
                     LinuxState::Alive => {
                         cmd!("sudo", "iptables", "-t", "nat", "-D", "PREROUTING", "-p", "tcp", "--dport", self.src_port.to_string(), "-j", "REDIRECT", "--to", self.dst_port.to_string())
                         .run()
+                        .and_then(|_| {
+                            cmd!("sudo", "iptables", "-t", "nat", "-D", "OUTPUT", "-p", "tcp", "--dport", self.src_port.to_string(), "-j", "REDIRECT", "--to", self.dst_port.to_string())
+                            .run()
+                        })
                         .expect("could not flush rules");
                     },
                     LinuxState::First => panic!("Did not expect to see this here!")
@@ -72,6 +76,10 @@ impl Forwarding {
                     LinuxState::First => {
                         cmd!("sudo", "iptables", "-t", "nat", "-A", "PREROUTING", "-p", "tcp", "--dport", self.src_port.to_string(), "-j", "REDIRECT", "--to", self.dst_port.to_string())
                         .run()
+                        .and_then(|_| {
+                            cmd!("sudo", "iptables", "-t", "nat", "-A", "OUTPUT", "-p", "tcp", "--dport", self.src_port.to_string(), "-j", "REDIRECT", "--to", self.dst_port.to_string())
+                            .run()
+                        })
                         .expect("Failed to reconfigure firewall");
                         self.linux_state = LinuxState::Alive;
                     },
@@ -79,7 +87,15 @@ impl Forwarding {
                         cmd!("sudo", "iptables", "-t", "nat", "-A", "PREROUTING", "-p", "tcp", "--dport", self.src_port.to_string(), "-j", "REDIRECT", "--to", self.dst_port.to_string())
                         .run()
                         .and_then(|_| {
+                            cmd!("sudo", "iptables", "-t", "nat", "-A", "OUTPUT", "-p", "tcp", "--dport", self.src_port.to_string(), "-j", "REDIRECT", "--to", self.dst_port.to_string())
+                            .run()
+                        })
+                        .and_then(|_| {
                             cmd!("sudo", "iptables", "-t", "nat", "-D", "PREROUTING", "-p", "tcp", "--dport", self.src_port.to_string(), "-j", "REDIRECT", "--to", self.prev_dst_port.to_string())
+                            .run()
+                        })
+                        .and_then(|_| {
+                            cmd!("sudo", "iptables", "-t", "nat", "-D", "OUTPUT", "-p", "tcp", "--dport", self.src_port.to_string(), "-j", "REDIRECT", "--to", self.prev_dst_port.to_string())
                             .run()
                         })
                         .expect("Failed to reconfigure firewall");
