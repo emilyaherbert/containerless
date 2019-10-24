@@ -27,6 +27,8 @@ use shared::config::InvokerConfig;
 use std::fs;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering::SeqCst};
 use std::sync::Arc;
+use nix::sys::signal::{kill, Signal};
+use nix::unistd::Pid;
 
 #[atomic_enum]
 #[derive(PartialEq)]
@@ -289,6 +291,9 @@ impl TracingPool {
                             .from_err()
                             .map(move |resp| {
                                 if n == MAX_TRACED {
+                                    //if data.config.kill_parent {
+                                    //    kill(Pid::parent(), Signal::SIGUSR1).expect("Could not signal parent process");
+                                    //}
                                     data.container_handle.stop();
                                 } else {
                                     data.tracing_container_available.store(true, SeqCst);
