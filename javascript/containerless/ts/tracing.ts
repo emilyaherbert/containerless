@@ -139,15 +139,20 @@ class Trace implements TracingInterface {
             throw new Error(`called exitBlock on a complete trace`);
         }
         let cursor = this.cursor;
-        if (cursor.index !== cursor.body.length - 1) {
-            console.log(cursor.index);
-            console.log(this.getCurrentExp());
-            throw new Error('Exiting block too early');
+        if (cursor.body.length == 0) {
+            // Then there is nothing in this block. (e.g. empty else block)
+            this.cursor = this.cursorStack.pop();
+        } else {
+            if (cursor.index !== cursor.body.length - 1) {
+                console.log(cursor.index);
+                console.log(this.getCurrentExp());
+                throw new Error('Exiting block too early');
+            }
+            if (this.cursor.body[cursor.index].kind === 'unknown') {
+                this.cursor.body.pop();
+            }
+            this.cursor = this.cursorStack.pop();
         }
-        if (this.cursor.body[cursor.index].kind === 'unknown') {
-            this.cursor.body.pop();
-        }
-        this.cursor = this.cursorStack.pop();
     }
 
     private quietExitBlock() {

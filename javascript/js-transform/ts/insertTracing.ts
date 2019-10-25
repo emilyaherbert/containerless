@@ -64,7 +64,7 @@ function get(lhs: b.Expression, rhs: string): b.CallExpression {
 }
 
 // TODO(emily): Think about let x = 0; arr[x]; case.
-function index(lhs: b.Expression, rhs: b.CallExpression): b.CallExpression {
+function index(lhs: b.Expression, rhs: b.Expression): b.CallExpression {
     const callee = b.memberExpression(
         b.identifier('exp'),
         b.identifier('index')
@@ -309,19 +309,16 @@ function reifyExpression(e: b.Expression, st: State): [b.Expression, State] {
             return [traceSet(left, right), merge(st1, st2)];
         }
         case 'MemberExpression': {
-            // TODO(emily): It could be the case that obj is a FV.
             const obj = e.object;
+            const [lhs, st2] = reifyExpression(obj, st);
             const prop = e.property;
 
             if((b.isIdentifier(obj) || b.isMemberExpression(obj)) && b.isIdentifier(prop)) {
-                const [lhs, st2] = reifyExpression(obj, st);
                 return [get(lhs, prop.name), st2];
-            } else if((b.isIdentifier(obj) || b.isMemberExpression(obj)) && b.isNumericLiteral(prop)) {
-                // TODO(emily): Think about { 0 : x } case.
-                const [lhs, st2] = reifyExpression(obj, st);
-                return [index(lhs, number(prop.value)), st2];
+            } else {
+                const [rhs, st3] = reifyExpression(prop, st);
+                return [index(lhs, rhs), merge(st2, st3)];
             }
-            throw new Error("Cannot chain member expressions!");
         }
         case 'ObjectExpression': {
             const e2 = assertNormalized(e);
@@ -442,6 +439,14 @@ function reifyVariableDeclaration(s: b.VariableDeclaration, st: State): [b.State
                         const tPrimApp = tracePrimApp('push', theArgs);
                         return [[ tPrimApp, s ], st2];
                     }
+                    /*
+                    case 'length': {
+                        const [obj2, st2] = reifyExpression(obj, nextSt);
+                        theArgs.unshift(obj2);
+                        const tPrimApp = tracePrimApp('length', theArgs);
+                        return [[ tPrimApp, s ], st2];
+                    }
+                    */
                     default: {
                         break;
                     }
