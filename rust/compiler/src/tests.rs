@@ -454,10 +454,9 @@ pub fn benchmark_autocomplete() {
             let matches = [];
             for(let i=0; i<words.length; i = i + 1) {
                 let word = words[i];
-                if(word.length >= (req.path.length - 1)) {
+                if((req.path.length > 1) && word.length >= (req.path.length - 1)) {
                     let j = 0;
                     let match = true;
-                    /*
                     while(j < (req.path.length - 1)) {
                         if(word[j] !== req.path[j+1]) {
                             match = false;
@@ -466,7 +465,6 @@ pub fn benchmark_autocomplete() {
                             j = j + 1;
                         }
                     }
-                    */
                     if(match) {
                         matches.push(word);
                     }
@@ -479,14 +477,14 @@ pub fn benchmark_autocomplete() {
             }
         });"#,
         json!([
-            { "path": "/b",
+            { "path": "/a",
               "query": {},
               "body": ""  }
         ]),
         json!([
-            { "path": "/b",
+            { "path": "/a",
               "query": {},
               "body": ""  }
         ]));
-    assert_eq!(result, ["Uploaded"]);
+    assert_eq!(result, ["area,art,air,", ""]);
 }

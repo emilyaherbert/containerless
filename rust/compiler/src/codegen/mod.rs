@@ -89,7 +89,10 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             let q_op = codegen_op(op);
             let q_e1 = codegen_exp(e1);
             let q_e2 = codegen_exp(e2);
-            quote! { (#q_e1).#q_op(#q_e2)? }
+            match op {
+                Op2::Add => quote! { (#q_e1).#q_op(arena, #q_e2)? },
+                _ => quote! { (#q_e1).#q_op(#q_e2)? }
+            }
         }
         Exp::Op1 { op, e } => {
             let q_op = codegen_op1(op);
@@ -206,7 +209,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
         Exp::Index { e1, e2 } => {
             let q_e1 = codegen_exp(e1);
             let q_e2 = codegen_exp(e2);
-            quote! { (#q_e1).index(#q_e2)? }
+            quote! { (#q_e1).index(arena, #q_e2)? }
         }
         Exp::Ref { e } => {
             let q_e = codegen_exp(e);

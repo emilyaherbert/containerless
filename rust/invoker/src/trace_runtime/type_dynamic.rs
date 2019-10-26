@@ -111,6 +111,11 @@ impl<'a> DynVec<'a> {
         use serde_json::Value;
         Value::Array(self.elems.borrow().iter().filter_map(|x| x.to_json()).collect())
     }
+
+    pub fn to_string(&self) -> std::string::String {
+        // https://stackoverflow.com/a/42661287
+        return self.elems.borrow().iter().fold(std::string::String::new(), |acc, num| acc + &num.to_string() + ",");
+    }
 }
 
 /**
@@ -197,12 +202,13 @@ impl<'a> Dyn<'a> {
         }
     }
 
-    pub fn add(&self, other: Dyn<'a>) -> DynResult<'a> {
+    pub fn add(&self, arena: &'a Bump, other: Dyn<'a>) -> DynResult<'a> {
         match (*self, other) {
             (Dyn::Int(m), Dyn::Int(n)) => Ok(Dyn::Int(m + n)),
             (Dyn::Float(x), Dyn::Int(n)) => Ok(Dyn::Float(x + f64::from(n))),
             (Dyn::Int(n), Dyn::Float(x)) => Ok(Dyn::Float(f64::from(n) + x)),
             (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Float(x + y)),
+            (Dyn::Vec(v), Dyn::Str(s)) => Ok(Dyn::str(arena, &(v.to_string() + s))),
             _ => type_error(&format!("add({:?}, {:?})", &self, &other)),
         }
     }
@@ -246,6 +252,8 @@ impl<'a> Dyn<'a> {
         match (*self, other) {
             (Dyn::Int(m), Dyn::Int(n)) => Ok(Dyn::Bool(m > n)),
             (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Bool(x > y)),
+            (Dyn::Int(m), Dyn::Float(n)) => Ok(Dyn::Bool((m as f64) > n)),
+            (Dyn::Float(m), Dyn::Int(n)) => Ok(Dyn::Bool(m > (n as f64))),
             _ => type_error("gt"),
         }
     }
@@ -254,6 +262,8 @@ impl<'a> Dyn<'a> {
         match (*self, other) {
             (Dyn::Int(m), Dyn::Int(n)) => Ok(Dyn::Bool(m < n)),
             (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Bool(x < y)),
+            (Dyn::Int(m), Dyn::Float(n)) => Ok(Dyn::Bool((m as f64) < n)),
+            (Dyn::Float(m), Dyn::Int(n)) => Ok(Dyn::Bool(m < (n as f64))),
             _ => type_error("lt"),
         }
     }
@@ -293,11 +303,12 @@ impl<'a> Dyn<'a> {
     }
 
     /** Array indexing. */
-    pub fn index(&self, index: Dyn<'a>) -> DynResult<'a> {
+    pub fn index(&self, arena: &'a Bump, index: Dyn<'a>) -> DynResult<'a> {
         match (self, index) {
             (Dyn::Vec(vec_cell), Dyn::Int(index)) => Ok(vec_cell.index(index)),
             (Dyn::Vec(vec_cell), Dyn::Float(index)) => Ok(vec_cell.index(index as i32)),
-            _ => type_error("array indexing"),
+            (Dyn::Str(s), Dyn::Float(index)) => Ok(Dyn::str(arena, &s.chars().nth(index as usize).unwrap().to_string())),
+            _ => type_error(format!("index {:?} {:?}", self, index)),
         }
     }
 
@@ -394,6 +405,14 @@ impl<'a> Dyn<'a> {
         let json_value = serde_json::from_str(json_str)
             .map_err(|e| Error::TypeError(format!("JSON error: {}", e)))?;
         Ok(Dyn::from_json(arena, json_value))
+    }
+
+    pub fn to_string(&self) -> std::string::String {
+        match self {
+            Dyn::Str(s) => s.to_string(),
+            Dyn::Vec(v) => v.to_string(),
+            _ => unimplemented!()
+        }
     }
 }
 
