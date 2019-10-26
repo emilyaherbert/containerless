@@ -137,6 +137,14 @@ impl Assertions {
             } => {
                 self.assert_exp(event_arg);
                 self.assert_exp(callback_clos);
+            },
+            MethodCall {
+                e,
+                method:_,
+                method_call_args
+            } => {
+                self.assert_exp(e);
+                self.assert_exps(method_call_args);
             }
             _ => {
                 panic!("Did not expect to find {:?} here.", exp);
@@ -374,6 +382,10 @@ impl Assertions {
             SetRef { e1, e2 } => {
                 self.assert_all_options_are_none(e1);
                 self.assert_all_options_are_none(e2);
+            },
+            MethodCall { e, method:_, method_call_args } => {
+                self.assert_all_options_are_none(e);
+                self.assert_all_options_are_none_vec(method_call_args);
             }
             _ => {
                 panic!("Not implemented.");

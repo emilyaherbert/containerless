@@ -425,6 +425,12 @@ pub enum Exp {
         #[serde(rename = "eventArgs")]
         event_args: Vec<Exp>,
     },
+    MethodCall {
+        e: Box<Exp>,
+        method: String,
+        #[serde(rename = "methodCallArgs")]
+        method_call_args: Vec<Exp>
+    }
 }
 
 #[derive(PartialEq, Debug, Deserialize, Clone)]
@@ -508,6 +514,9 @@ impl fmt::Display for Exp {
             Exp::SetRef { e1, e2 } => write!(f, "SetRef({}, {})", e1, e2),
             Exp::PrimApp { event, event_args } => {
                 write!(f, "PrimApp({}, {})", event, vec_to_string(event_args))
+            }
+            Exp::MethodCall { e, method, method_call_args } => {
+                write!(f, "MethodCall({}, {}, {:?})", e, method, method_call_args)
             }
         }
     }
@@ -748,6 +757,14 @@ pub mod constructors {
         return PrimApp {
             event: event.to_string(),
             event_args: event_args,
+        };
+    }
+
+    pub fn method_call(e: Exp, method: &str, method_call_args: Vec<Exp>) -> Exp {
+        return MethodCall {
+            e: Box::new(e),
+            method: method.to_string(),
+            method_call_args: method_call_args
         };
     }
 

@@ -144,6 +144,7 @@ impl LiftCallbacks {
             Ref { e } => return ref_(self.lift_exp(e)),
             Deref { e } => return deref(self.lift_exp(e)),
             SetRef { e1, e2 } => return setref(self.lift_exp(e1), self.lift_exp(e2)),
+            MethodCall { e, method, method_call_args } => return method_call(self.lift_exp(e), method, self.lift_exps(method_call_args)),
             Set { name: _, named: _ } => panic!("Did not expect to find this here."),
             Loopback {
                 event: _,

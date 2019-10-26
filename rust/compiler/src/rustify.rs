@@ -119,17 +119,25 @@ impl Rustify {
             Exp::Index { e1, e2 } => {
                 self.rustify(e1);
                 self.rustify(e2);
-            }
+            },
             Exp::Ref { e } => self.rustify(e),
             Exp::Deref { e } => self.rustify(e),
             Exp::SetRef { e1, e2 } => {
                 self.rustify(e1);
                 self.rustify(e2);
-            }
+            },
             Exp::PrimApp {
                 event: _,
                 event_args,
             } => event_args.iter_mut().for_each(|e| self.rustify(e)),
+            Exp::MethodCall {
+                e,
+                method:_,
+                method_call_args
+            } => {
+                self.rustify(e);
+                method_call_args.iter_mut().for_each(|e| self.rustify(e));
+            }
         }
     }
 }

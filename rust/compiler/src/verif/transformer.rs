@@ -112,7 +112,10 @@ impl Transformer {
             }
             Array { exps } => return array(self.transform_exps(exps)),
             PrimApp { event, event_args } => {
-                return prim_app(event, self.transform_exps(event_args))
+                return prim_app(event, self.transform_exps(event_args));
+            },
+            MethodCall { e, method, method_call_args } => {
+                return method_call(self.transform_exp(e), method, self.transform_exps(method_call_args));
             }
             Loopback {
                 event: _,

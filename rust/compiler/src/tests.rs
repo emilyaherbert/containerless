@@ -452,7 +452,7 @@ pub fn benchmark_autocomplete() {
 
         containerless.listen(function(req) {
             let matches = [];
-            for(let i=0; i<10; i = i + 1) {
+            for(let i=0; i<words.length; i = i + 1) {
                 let word = words[i];
                 if(word.length >= (req.path.length - 1)) {
                     let j = 0;

@@ -227,7 +227,16 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             quote! {
                 ec.#q_event(#(#q_event_args),*)?
             }
+        },
+        Exp::MethodCall { e, method, method_call_args } => {
+            let q_e = codegen_exp(e);
+            let q_method_call_args = method_call_args.iter().map(|e| codegen_exp(e));
+            let q_method = Ident::new(&format!("{}", method), Span::call_site());
+            quote! {
+                #q_e.#q_method(#(#q_method_call_args),*)?
+            }
         }
+
     }
 }
 

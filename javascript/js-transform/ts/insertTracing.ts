@@ -237,6 +237,13 @@ function tracePrimApp(event: string, eventArgs: b.Expression[]): b.ExpressionSta
     return b.expressionStatement(callExpression);
 }
 
+function traceMethodCall(exp: b.Expression, method: string, methodCallArgs: b.Expression[]): b.ExpressionStatement {
+    const memberExpression = b.memberExpression(t, b.identifier('traceMethodCall'));
+    const memberArgs = [exp, b.stringLiteral(method), b.arrayExpression(methodCallArgs)];
+    const callExpression = b.callExpression(memberExpression, memberArgs);
+    return b.expressionStatement(callExpression);
+}
+
 const exitBlock: b.ExpressionStatement =
     b.expressionStatement(
         b.callExpression(
@@ -435,18 +442,9 @@ function reifyVariableDeclaration(s: b.VariableDeclaration, st: State): [b.State
                 switch(prop.name) {
                     case 'push': {
                         const [obj2, st2] = reifyExpression(obj, nextSt);
-                        theArgs.unshift(obj2);
-                        const tPrimApp = tracePrimApp('push', theArgs);
-                        return [[ tPrimApp, s ], st2];
+                        const tMethod = traceMethodCall(obj2, 'push', theArgs);
+                        return [[ tMethod, s ], st2];
                     }
-                    /*
-                    case 'length': {
-                        const [obj2, st2] = reifyExpression(obj, nextSt);
-                        theArgs.unshift(obj2);
-                        const tPrimApp = tracePrimApp('length', theArgs);
-                        return [[ tPrimApp, s ], st2];
-                    }
-                    */
                     default: {
                         break;
                     }

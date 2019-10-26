@@ -311,11 +311,12 @@ impl<'a> Dyn<'a> {
     }
 
     /** push an element into a vector. */
-    pub fn push(self, value: Dyn<'a>) {
+    pub fn push(self, value: Dyn<'a>) -> DynResult<'a> {
         match self {
             Dyn::Vec(vec_cell) => vec_cell.push(value),
             _ => panic!(""),
         }
+        return Ok(Dyn::Undefined);
     }
 
     pub fn deref(self) -> Dyn<'a> {

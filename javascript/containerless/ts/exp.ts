@@ -43,6 +43,9 @@ type ClosExp = { kind: 'clos', tenv: TEnv };
 type ArrayExp = { kind: 'array', exps: Exp[] };
 type IndexExp = { kind: 'index', exp: Exp, index: Exp };
 
+/** Calls a method of exp. */
+type MethodCallExp = { kind: 'methodCall', e: Exp, method: string, methodCallArgs: Exp[] };
+
 /**
  * NOTE(arjun): We do not make a distinction between statements and expressions.
  * However, we do use blocks instead of deeply nesting let expressions. We do
@@ -80,7 +83,8 @@ export type Exp
     | ClosExp
     | ArrayExp
     | IndexExp
-    | PrimAppExp;
+    | PrimAppExp
+    | MethodCallExp ;
 
 export type LVal = IdExp | FromExp | IndexExp
 
@@ -176,6 +180,10 @@ export function index(exp: Exp, index: Exp): IndexExp {
 
 export function primApp(event: string, eventArgs: Exp[]): PrimAppExp {
     return { kind: 'primApp', event: event, eventArgs: eventArgs };
+}
+
+export function methodCall(e: Exp, method: string, methodCallArgs: Exp[]): MethodCallExp {
+    return { kind: 'methodCall', e: e, method: method, methodCallArgs: methodCallArgs };
 }
 
 export function clos(tenv: TEnv): ClosExp {

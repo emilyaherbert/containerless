@@ -21,7 +21,7 @@
 import { TracingInterface } from './types';
 import {
     while_, break_, label, block, let_, set, if_, callback,
-    Exp, BlockExp, LVal, primApp, unknown
+    Exp, BlockExp, LVal, primApp, unknown, methodCall
 } from './exp';
 
 type Cursor = { body: Exp[], index: number };
@@ -344,6 +344,25 @@ class Trace implements TracingInterface {
                     name ${exp.event}`);
             }
             exp.eventArgs = mergeExpArray(exp.eventArgs, eventArgs);
+            this.mayIncrementCursor();
+        }
+        else {
+            throw new Error(`expected primApp, got ${exp.kind}`);
+        }
+    }
+
+    traceMethodCall(e: Exp, method: string, methodCallArgs: Exp[]) {
+        let exp = this.getCurrentExp();
+        if (exp.kind === 'unknown') {
+            this.setExp(methodCall(e, method, methodCallArgs));
+        }
+        else if (exp.kind === 'methodCall') {
+            if (exp.method !== method) {
+                throw new Error(`Cannot merge method with name ${method} into methodcCall with
+                    method ${exp.method}`);
+            }
+            exp.e = mergeExp(exp.e, e);
+            exp.methodCallArgs = mergeExpArray(exp.methodCallArgs, methodCallArgs);
             this.mayIncrementCursor();
         }
         else {
