@@ -42,18 +42,17 @@ fn codegen_block(block: &[Exp], to_break: Option<Lifetime>) -> TokenStream {
     match (to_break, last) {
         // If the last element is already a break, then don't introduce another
         // break.
-        // TODO(arjun): Perhaps this transformatio should happen in rustify.rs.
+        // TODO(arjun): Perhaps this transformation should happen in rustify.rs.
         (_, Exp::Break { name: _, value: _ }) => quote! {
                 #(#q_block_but_last)*
                 #q_last
-
         },
         (None, _) => {
             quote! {
                 #(#q_block_but_last)*
                 #q_last
             }
-        }
+        },
         (Some(lifetime), _) => {
             quote! {
                 #(#q_block_but_last)*
@@ -85,6 +84,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
         }
         Exp::Stringg { value } => quote! { Dyn::str(arena, #value) },
         Exp::Undefined {} => quote! { Dyn::undef() },
+        Exp::Unit {} => quote! { () },
         Exp::BinOp { op, e1, e2 } => {
             let q_op = codegen_op(op);
             let q_e1 = codegen_exp(e1);
@@ -110,9 +110,9 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
         }
         Exp::While { cond, body } => {
             let q_cond = codegen_exp(cond);
-            let q_body = codegen_exp(body);
+            let q_body = codegen_block(body, None);
             quote! {
-                while #q_cond {
+                while (#q_cond).into() {
                     #q_body
                 }
             }
@@ -165,7 +165,17 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             }
         }
         Exp::Label { name, body } => {
-            let q_name = Lifetime::new(&format!("{}", name), Span::call_site());
+            let mut q_name = Lifetime::new(&format!("{}", "'a"), Span::call_site());
+            match name.chars().next() {
+                Some(s) => {
+                    if s == '\'' {
+                        q_name = Lifetime::new(&format!("{}", name), Span::call_site());
+                    } else {
+                        q_name = Lifetime::new(&format!("'{}", name), Span::call_site());
+                    }
+                },
+                None => panic!("This should not happen.")
+            }
             let q_body = codegen_block(body, Some(q_name.clone()));
             quote! {
                 // NOTE(arjun): Unfortunately, labelled blocks are a nightly-only
@@ -191,7 +201,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
         }
         Exp::Array { exps } => {
             let q_exps = exps.iter().map(|e| codegen_exp(e));
-            quote! { Dyn::array(#(#q_exps),*) }
+            quote! { Dyn::vec_with(arena, vec![#(#q_exps),*]) }
         }
         Exp::Index { e1, e2 } => {
             let q_e1 = codegen_exp(e1);

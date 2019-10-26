@@ -34,6 +34,17 @@ impl Rustify {
                         typ: None,
                         named: Box::new(inner),
                     };
+                } else if let Exp::Label {
+                    name: _,
+                    body
+                } = e
+                {
+                    let inner = std::mem::replace(e, Exp::Undefined {});
+                    *e = Exp::Let {
+                        name: "l".to_string(),
+                        typ: None,
+                        named: Box::new(inner)
+                    };
                 }
             }
         }
@@ -47,6 +58,7 @@ impl Rustify {
             Exp::Bool { value: _ } => (),
             Exp::Stringg { value: _ } => (),
             Exp::Undefined {} => (),
+            Exp::Unit {} => (),
             Exp::Identifier { name: _ } => (),
             Exp::From { exp, field: _ } => self.rustify(exp),
             Exp::Get { exp, field: _ } => self.rustify(exp),
@@ -66,7 +78,7 @@ impl Rustify {
             }
             Exp::While { cond, body } => {
                 self.rustify(cond);
-                self.rustify(body);
+                self.rustify_block(body);
             }
             Exp::Let {
                 name: _,
@@ -94,9 +106,9 @@ impl Rustify {
             Exp::Label { name: _, body } => self.rustify_block(body),
             // Generating `break 'a break 'b e` produces an unreachable code
             // warning. This simplifies it to `break 'b e`.
-            Exp::Break { name: _, value } => match **value {
+            Exp::Break { name:_, value } => match **value {
                 Exp::Break { name: _, value: _ } => {
-                    let inner = std::mem::replace(&mut **value, Exp::Undefined {});
+                    let inner = std::mem::replace(&mut **value, Exp::Unit {});
                     *exp = inner;
                 }
                 _ => self.rustify(value),

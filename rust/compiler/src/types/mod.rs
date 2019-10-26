@@ -331,6 +331,7 @@ pub enum Exp {
         value: String,
     },
     Undefined {},
+    Unit {},
     #[serde(rename = "binop")]
     BinOp {
         op: Op2,
@@ -351,7 +352,7 @@ pub enum Exp {
     },
     While {
         cond: Box<Exp>,
-        body: Box<Exp>,
+        body: Vec<Exp>,
     },
     Let {
         name: String,
@@ -401,7 +402,9 @@ pub enum Exp {
         exps: Vec<Exp>,
     },
     Index {
+        #[serde(rename = "exp")]
         e1: Box<Exp>,
+        #[serde(rename = "index")]
         e2: Box<Exp>,
     },
     #[serde(skip)]
@@ -451,6 +454,7 @@ impl fmt::Display for Exp {
             Exp::Get { exp, field } => write!(f, "Get({},{})", exp, field),
             Exp::Stringg { value } => write!(f, "Stringg({})", value),
             Exp::Undefined {} => write!(f, "Undefined"),
+            Exp::Unit {} => write!(f, "()"),
             Exp::BinOp { op, e1, e2 } => write!(f, "BinOp({:?}, {}, {})", op, e1, e2),
             Exp::Op1 { op, e } => write!(f, "Op1({:?}, {})", op, e),
             Exp::If {
@@ -464,7 +468,7 @@ impl fmt::Display for Exp {
                 vec_to_string(true_part),
                 vec_to_string(false_part)
             ),
-            Exp::While { cond, body } => write!(f, "While({}, {})", cond, body),
+            Exp::While { cond, body } => write!(f, "While({}, {:?})", cond, body),
             Exp::Let { name, typ, named } => write!(f, "Let({} : {:?}, {})", name, typ, named),
             Exp::Set { name, named } => write!(f, "Set({:?}, {})", name, named),
             Exp::Block { body } => write!(f, "Block(\n[{}])", vec_to_string(body)),
@@ -640,10 +644,10 @@ pub mod constructors {
         };
     }
 
-    pub fn while_(cond: Exp, body: Exp) -> Exp {
+    pub fn while_(cond: Exp, body: Vec<Exp>) -> Exp {
         return While {
             cond: Box::new(cond),
-            body: Box::new(body),
+            body,
         };
     }
 

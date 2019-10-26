@@ -61,6 +61,7 @@ class Trace implements TracingInterface {
     private getPrevExp() {
         let cursor = this.getValidCursor();
         if (cursor.index == 0) {
+            console.log(cursor);
             throw new Error(`No previous exp.`);
         }
         return cursor.body[cursor.index - 1];
@@ -572,7 +573,7 @@ function mergeExp(e1: Exp, e2: Exp): Exp {
     }
     else if (e1.kind === 'index' && e2.kind === 'index') {
         e1.exp = mergeExp(e1.exp, e2.exp);
-        e1.i = mergeExp(e1.i, e2.i);
+        e1.index = mergeExp(e1.index, e2.index);
         return e1;
     }
     else {

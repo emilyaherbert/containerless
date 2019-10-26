@@ -1,5 +1,5 @@
 export type BinOp = '+' | '-' | '*' | '/' | '===' | '>' | '<' | '>=' | '<=' | '&&' | '||';
-export type Op1 = "typeof" | "void"; // TODO(arjun): More required
+export type Op1 = "typeof" | "void" ; // TODO(arjun): More required
 
 export type BlockExp = { kind: 'block', body: Exp[] };
 
@@ -41,7 +41,7 @@ type ObjExp = { kind: 'object', properties: TEnv };
 type ClosExp = { kind: 'clos', tenv: TEnv };
 
 type ArrayExp = { kind: 'array', exps: Exp[] };
-type IndexExp = { kind: 'index', exp: Exp, i: Exp };
+type IndexExp = { kind: 'index', exp: Exp, index: Exp };
 
 /**
  * NOTE(arjun): We do not make a distinction between statements and expressions.
@@ -170,8 +170,8 @@ export function froms(clos: Exp, ids: string[]): FromExp[] {
     return ret;
 }
 
-export function index(exp: Exp, i: Exp): IndexExp {
-    return { kind: 'index', exp: exp, i: i };
+export function index(exp: Exp, index: Exp): IndexExp {
+    return { kind: 'index', exp: exp, index: index };
 }
 
 export function primApp(event: string, eventArgs: Exp[]): PrimAppExp {

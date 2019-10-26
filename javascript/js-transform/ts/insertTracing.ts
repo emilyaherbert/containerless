@@ -313,7 +313,7 @@ function reifyExpression(e: b.Expression, st: State): [b.Expression, State] {
             const [lhs, st2] = reifyExpression(obj, st);
             const prop = e.property;
 
-            if((b.isIdentifier(obj) || b.isMemberExpression(obj)) && b.isIdentifier(prop)) {
+            if((b.isIdentifier(obj) || b.isMemberExpression(obj)) && b.isIdentifier(prop) && e.computed == false) {
                 return [get(lhs, prop.name), st2];
             } else {
                 const [rhs, st3] = reifyExpression(prop, st);

@@ -38,6 +38,7 @@ impl Transformer {
             Identifier { name } => return deref(id(name)),
             Get { exp, field } => get(self.transform_exp(exp), field),
             From { exp, field } => return deref(get(self.transform_exp(exp), field)),
+            Index { e1, e2 } => return index(self.transform_exp(e1), self.transform_exp(e2)),
             Stringg { value } => return string(value),
             Undefined {} => return undefined(),
             BinOp { op, e1, e2 } => {
@@ -56,7 +57,7 @@ impl Transformer {
                 );
             }
             While { cond, body } => {
-                return while_(self.transform_exp(cond), self.transform_exp(body))
+                return while_(self.transform_exp(cond), self.transform_exps(body))
             }
             Let { name, typ, named } => {
                 return let_(name, typ.clone(), ref_(self.transform_exp(named)))

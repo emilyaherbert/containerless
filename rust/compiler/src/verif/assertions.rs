@@ -33,15 +33,19 @@ impl Assertions {
 
     fn assert_exp(&self, exp: &Exp) {
         match exp {
-            Number { value: _ } => {}
-            Bool { value: _ } => {}
-            Identifier { name: _ } => {}
+            Number { value: _ } => {},
+            Bool { value: _ } => {},
+            Identifier { name: _ } => {},
             From { exp, field: _ } => {
                 self.assert_exp(exp);
-            }
+            },
+            Index { e1, e2 } => {
+                self.assert_exp(e1);
+                self.assert_exp(e2);
+            },
             Get { exp, field: _ } => self.assert_exp(exp),
-            Stringg { value: _ } => {}
-            Undefined {} => {}
+            Stringg { value: _ } => {},
+            Undefined {} => {},
             BinOp { op: _, e1, e2 } => {
                 self.assert_exp(e1);
                 self.assert_exp(e2);
@@ -49,20 +53,20 @@ impl Assertions {
             Op1 { op: _, e } => self.assert_exp(e),
             Block { body } => {
                 self.assert_stmts(body);
-            }
+            },
             Object { properties } => {
                 self.assert_tenv(properties);
-            }
+            },
             Clos { tenv } => self.assert_tenv(tenv),
             Array { exps } => {
                 self.assert_exps(exps);
-            }
+            },
             Ref { e } => {
                 self.assert_exp(e);
-            }
+            },
             Deref { e } => {
                 self.assert_exp(e);
-            }
+            },
             _ => {
                 panic!("Did not expect to find {:?} here.", exp);
             }
@@ -83,7 +87,7 @@ impl Assertions {
             }
             While { cond, body } => {
                 self.assert_exp(cond);
-                self.assert_exp(body);
+                self.assert_stmts(body);
             }
             Let {
                 name: _,
@@ -180,7 +184,7 @@ impl Assertions {
                 self.assert_unique_names_vec(false_part);
             }
             While { cond: _, body } => {
-                self.assert_unique_names(body);
+                self.assert_unique_names_vec(body);
             }
             Let {
                 name,
@@ -277,6 +281,10 @@ impl Assertions {
             From { exp, field: _ } => {
                 self.assert_all_options_are_none(exp);
             },
+            Index { e1, e2 } => {
+                self.assert_all_options_are_none(e1);
+                self.assert_all_options_are_none(e2);
+            }
             Get { exp, field: _ } => self.assert_all_options_are_none(exp),
             Stringg { value: _ } => {}
             Undefined {} => {}
@@ -294,7 +302,7 @@ impl Assertions {
                 self.assert_all_options_are_none_vec(false_part);
             }
             While { cond: _, body } => {
-                self.assert_all_options_are_none(body);
+                self.assert_all_options_are_none_vec(body);
             }
             Let {
                 name: _,

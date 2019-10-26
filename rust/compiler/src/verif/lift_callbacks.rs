@@ -109,6 +109,7 @@ impl LiftCallbacks {
             Bool { value } => return bool_(*value),
             Identifier { name } => return id(name),
             From { exp: _, field: _ } => panic!("Exp::From should be eliminated"),
+            Index { e1, e2 } => return index(self.lift_exp(e1), self.lift_exp(e2)),
             Get { exp, field } => return get(self.lift_exp(exp), field),
             Stringg { value } => return string(value),
             Undefined {} => return undefined(),
@@ -125,7 +126,7 @@ impl LiftCallbacks {
                     self.lift_exps(false_part),
                 )
             }
-            While { cond, body } => return while_(self.lift_exp(cond), self.lift_exp(body)),
+            While { cond, body } => return while_(self.lift_exp(cond), self.lift_exps(body)),
             Let { name, typ, named } => return let_(name, typ.clone(), self.lift_exp(named)),
             Block { body } => return block(self.lift_exps(body)),
             Callback {

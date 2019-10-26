@@ -62,7 +62,55 @@ impl<'a> DynObject<'a> {
         }
         return serde_json::Value::Object(map);
     }
+}
 
+#[derive(Debug, Copy, Clone)]
+pub struct DynVec<'a> {
+  elems: &'a RefCell<Vec<'a, Dyn<'a>>>
+}
+
+impl<'a> DynVec<'a> {
+
+    pub fn new(arena: &'a Bump) -> DynVec<'a> {
+        DynVec { elems: arena.alloc(RefCell::new(Vec::new_in(arena))) }
+    }
+
+    pub fn from(arena: &'a Bump, elems: std::vec::Vec<Dyn<'a>>) -> DynVec<'a> {
+        let v = arena.alloc(RefCell::new(Vec::new_in(arena)));
+        for e in elems.into_iter() {
+            v.borrow_mut().push(e);   
+        }
+        DynVec { elems: v }
+    }
+
+    pub fn get(&self, prop: &str) -> Dyn<'a> {
+        match prop {
+            "length" => Dyn::float(self.elems.borrow().len() as f64),
+            p => unimplemented!("{:?}", p)
+        }
+    }
+
+    pub fn index(&self, index: i32) -> Dyn<'a> {
+        match usize::try_from(index) {
+            Err(_) => Dyn::Undefined,
+            Ok(index) => {
+                let vec = self.elems.borrow();
+                if index >= vec.len() {
+                    return Dyn::Undefined;
+                }
+                return vec[index];
+            }
+        }
+    }
+
+    pub fn push(self, value: Dyn<'a>) {
+        self.elems.borrow_mut().push(value);
+    }
+
+    pub fn to_json(&self) -> serde_json::Value {
+        use serde_json::Value;
+        Value::Array(self.elems.borrow().iter().filter_map(|x| x.to_json()).collect())
+    }
 }
 
 /**
@@ -76,7 +124,7 @@ pub enum Dyn<'a> {
     Str(&'a String<'a>),
     Undefined,
     Ref(&'a Cell<Dyn<'a>>),
-    Vec(&'a RefCell<Vec<'a, Dyn<'a>>>),
+    Vec(DynVec<'a>),
     Object(DynObject<'a>),
 }
 
@@ -99,6 +147,10 @@ impl<'a> Dyn<'a> {
     /** Wraps a floating-point number in type `Dyn`. */
     pub fn float(x: f64) -> Dyn<'a> {
         Dyn::Float(x)
+    }
+
+    pub fn bool(b: bool) -> Dyn<'a> {
+        Dyn::Bool(b)
     }
 
     pub fn ref_(arena: &'a Bump, value: Dyn<'a>) -> Dyn<'a> {
@@ -134,6 +186,13 @@ impl<'a> Dyn<'a> {
     pub fn get(&self, key: &str) -> DynResult<'a> {
         match self {
             Dyn::Object(o) => Ok(o.get(key)),
+            Dyn::Vec(v) => Ok(v.get(key)),
+            Dyn::Str(s) => {
+                match key {
+                    "length" => Ok(Dyn::int(s.len() as i32)),
+                    _ => unimplemented!()
+                }
+            }
             _ => type_error("not an object"),
         }
     }
@@ -144,6 +203,16 @@ impl<'a> Dyn<'a> {
             (Dyn::Float(x), Dyn::Int(n)) => Ok(Dyn::Float(x + f64::from(n))),
             (Dyn::Int(n), Dyn::Float(x)) => Ok(Dyn::Float(f64::from(n) + x)),
             (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Float(x + y)),
+            _ => type_error(&format!("add({:?}, {:?})", &self, &other)),
+        }
+    }
+
+    pub fn sub(&self, other: Dyn<'a>) -> DynResult<'a> {
+        match (*self, other) {
+            (Dyn::Int(m), Dyn::Int(n)) => Ok(Dyn::Int(m - n)),
+            (Dyn::Float(x), Dyn::Int(n)) => Ok(Dyn::Float(x - f64::from(n))),
+            (Dyn::Int(n), Dyn::Float(x)) => Ok(Dyn::Float(f64::from(n) - x)),
+            (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Float(x - y)),
             _ => type_error(&format!("add({:?}, {:?})", &self, &other)),
         }
     }
@@ -193,6 +262,8 @@ impl<'a> Dyn<'a> {
         match (*self, other) {
             (Dyn::Int(m), Dyn::Int(n)) => Ok(Dyn::Bool(m >= n)),
             (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Bool(x >= y)),
+            (Dyn::Int(m), Dyn::Float(n)) => Ok(Dyn::Bool((m as f64) >= n)),
+            (Dyn::Float(m), Dyn::Int(n)) => Ok(Dyn::Bool(m >= (n as f64))),
             _ => type_error("gte"),
         }
     }
@@ -201,6 +272,8 @@ impl<'a> Dyn<'a> {
         match (*self, other) {
             (Dyn::Int(m), Dyn::Int(n)) => Ok(Dyn::Bool(m <= n)),
             (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Bool(x <= y)),
+            (Dyn::Int(m), Dyn::Float(n)) => Ok(Dyn::Bool((m as f64) <= n)),
+            (Dyn::Float(m), Dyn::Int(n)) => Ok(Dyn::Bool(m <= (n as f64))),
             _ => type_error("lte"),
         }
     }
@@ -222,29 +295,25 @@ impl<'a> Dyn<'a> {
     /** Array indexing. */
     pub fn index(&self, index: Dyn<'a>) -> DynResult<'a> {
         match (self, index) {
-            (Dyn::Vec(vec_cell), Dyn::Int(index)) => match usize::try_from(index) {
-                Err(_) => Ok(Dyn::Undefined),
-                Ok(index) => {
-                    let vec = vec_cell.borrow();
-                    if index >= vec.len() {
-                        return Ok(Dyn::Undefined);
-                    }
-                    return Ok(vec[index]);
-                }
-            },
+            (Dyn::Vec(vec_cell), Dyn::Int(index)) => Ok(vec_cell.index(index)),
+            (Dyn::Vec(vec_cell), Dyn::Float(index)) => Ok(vec_cell.index(index as i32)),
             _ => type_error("array indexing"),
         }
     }
 
     /** Allocate a vector. */
     pub fn vec(arena: &'a Bump) -> Dyn<'a> {
-        Dyn::Vec(arena.alloc(RefCell::new(Vec::new_in(arena))))
+        Dyn::Vec(DynVec::new(arena))
+    }
+
+    pub fn vec_with(arena: &'a Bump, elems: std::vec::Vec<Dyn<'a>>) -> Dyn<'a> {
+        Dyn::Vec(DynVec::from(arena, elems))
     }
 
     /** push an element into a vector. */
     pub fn push(self, value: Dyn<'a>) {
         match self {
-            Dyn::Vec(vec_cell) => vec_cell.borrow_mut().push(value),
+            Dyn::Vec(vec_cell) => vec_cell.push(value),
             _ => panic!(""),
         }
     }
@@ -283,7 +352,7 @@ impl<'a> Dyn<'a> {
             Dyn::Int(n) => unimplemented!(), // Value::Number(*n.into()),
             Dyn::Float(x) => serde_json::Number::from_f64(*x).map(|num| Value::Number(num)),
             Dyn::Undefined => None,
-            Dyn::Vec(vec_cell) => Some(Value::Array(vec_cell.borrow().iter().filter_map(|x| x.to_json()).collect())),
+            Dyn::Vec(vec_cell) => Some(vec_cell.to_json()),
             Dyn::Object(o) => Some(o.to_json()),
             Dyn::Ref(_) => panic!("typeof_ applied to a ref")
         }
@@ -305,7 +374,7 @@ impl<'a> Dyn<'a> {
                     v.push(Self::from_json(arena, item));
                 }
                 // Why isn't this refcell immediate?
-                Dyn::Vec(arena.alloc(RefCell::new(v)))
+                Dyn::Vec(DynVec { elems: arena.alloc(RefCell::new(v)) })
             }
             Value::Object(key_value_pairs) => {
                 let mut obj = Vec::new_in(arena);

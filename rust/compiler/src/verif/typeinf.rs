@@ -267,7 +267,7 @@ impl Typeinf {
             }
             Exp::While { cond, body } => {
                 self.exp(env, cond)?;
-                self.exp(env, body)?;
+                self.exp_list(env, body)?;
                 return Ok(Typ::Undefined);
             }
             Exp::Array { exps } => {
@@ -401,7 +401,9 @@ impl Typeinf {
             }
             Exp::While { cond, body } => {
                 Typeinf::subst_vars(subst, cond);
-                Typeinf::subst_vars(subst, body);
+                for e in body.iter_mut() {
+                    Typeinf::subst_vars(subst, e);
+                }
             }
             Exp::Array { exps } => {
                 for e in exps.iter_mut() {
@@ -809,7 +811,7 @@ mod tests {
             let_("y", None, ref_(deref(id("z")))),
             while_(
                 binop(&Op2::GT, deref(id("x")), number(0.0)),
-                block(vec![
+                vec![
                     setref(id("y"), deref(id("z"))),
                     if_(
                         binop(&Op2::StrictEq, deref(id("x")), number(5.0)),
@@ -817,7 +819,7 @@ mod tests {
                         vec![],
                     ),
                     setref(id("x"), binop(&Op2::Sub, deref(id("x")), number(1.0))),
-                ]),
+                ],
             ),
         ]);
 
@@ -837,7 +839,7 @@ mod tests {
             ),
             while_(
                 binop(&Op2::GT, deref(id("x")), number(0.0)),
-                block(vec![
+                vec![
                     setref(id("y"), deref(id("z"))),
                     if_(
                         binop(&Op2::StrictEq, deref(id("x")), number(5.0)),
@@ -845,7 +847,7 @@ mod tests {
                         vec![],
                     ),
                     setref(id("x"), binop(&Op2::Sub, deref(id("x")), number(1.0))),
-                ]),
+                ],
             ),
         ]);
 

@@ -109,7 +109,7 @@ impl RustTypes {
             }
             While { cond, body } => {
                 self.exp(cond);
-                self.exp(body);
+                self.exps(body);
             }
             Let {
                 name: _,
