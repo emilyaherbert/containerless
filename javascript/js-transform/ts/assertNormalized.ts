@@ -56,6 +56,8 @@ export function assertNormalized<T extends t.Node>(node: T):
             throw new Error('expected exactly one declaration');
         }
         if (node.declarations[0].init === null) {
+            console.log(node.declarations[0]);
+            console.log(node.declarations[0].id);
             throw new Error('expected initialized variable');
         }
         // Unfortunately, TypeScript's type checker cannot ensure that this is

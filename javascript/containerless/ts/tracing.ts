@@ -60,11 +60,16 @@ class Trace implements TracingInterface {
 
     private getPrevExp() {
         let cursor = this.getValidCursor();
-        if (cursor.index == 0) {
-            console.log(cursor);
+        if (cursor.index === 0 && cursor.body.length > 1) {
             throw new Error(`No previous exp.`);
+        } else if(cursor.index === 0 && cursor.body.length === 1) {
+            // If you call a function inside of a loop...
+            //  the first time, there will be an unknown at the end of the body
+            //  the next time, there will not be        
+            return cursor.body[cursor.index];
+        } else {
+            return cursor.body[cursor.index - 1];
         }
-        return cursor.body[cursor.index - 1];
     }
 
     private mayIncrementCursor() {
@@ -100,6 +105,7 @@ class Trace implements TracingInterface {
         if(this.argsBuf === undefined) {
             this.argsBuf = e;
         } else {
+            console.log(this.argsBuf);
             throw new Error("Already something in the args buffer.");
         }
     }

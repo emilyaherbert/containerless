@@ -440,10 +440,12 @@ function reifyVariableDeclaration(s: b.VariableDeclaration, st: State): [b.State
                     }
                 }
                 switch(prop.name) {
+                    case 'shift':
                     case 'push': {
                         const [obj2, st2] = reifyExpression(obj, nextSt);
-                        const tMethod = traceMethodCall(obj2, 'push', theArgs);
-                        return [[ tMethod, s ], st2];
+                        const tMethod = traceMethodCall(obj2, prop.name, theArgs);
+                        return [[ tMethod, s ], st2.set(name, false)];
+                        break;
                     }
                     default: {
                         break;
