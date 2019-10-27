@@ -81,6 +81,7 @@ impl AsyncOp {
                     .map_err(|_err| Error::TypeError("invalid URL in POST request".to_string()))
                     .and_then(|uri| {
                         Request::builder()
+                            .method("POST")
                             .uri(uri)
                             .body(Body::from(body))
                             .map_err(|_err| {
