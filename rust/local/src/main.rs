@@ -33,7 +33,7 @@ fn echo(req: Request<Body>) -> BoxFut {
                     future::ok(body)
                 }).then(|_| {
                     Box::new(future::ok(
-                        Response::new(Body::from("Done uploading!\n"))
+                        Response::new(Body::from(r#"{ "body": "Done uploading!\n" }"#))
                     ))
                 })
             );
@@ -47,7 +47,7 @@ fn echo(req: Request<Body>) -> BoxFut {
 }
 
 fn main() {
-    let addr = ([127, 0, 0, 1], 3000).into();
+    let addr = ([127, 0, 0, 1], 7999).into();
 
     let server = Server::bind(&addr)
         .serve(|| service_fn(echo))
