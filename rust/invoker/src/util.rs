@@ -11,6 +11,15 @@ pub fn unix_epoch_secs() -> u64 {
     since_the_epoch.as_secs()
 }
 
+/// Milliseconds since Jan 1, 1970. This takes more than 1 line in Rust.
+pub fn unix_epoch_ms() -> u128 {
+    let start = SystemTime::now();
+    let since_the_epoch = start
+        .duration_since(UNIX_EPOCH)
+        .expect("current time is earlier than Jan 1, 1970");
+    since_the_epoch.as_millis()
+}
+
 /// Running a function periodically with Tokio is a bit convoluted, since we
 /// get a stream that needs to turn into a future. Example use:
 ///
