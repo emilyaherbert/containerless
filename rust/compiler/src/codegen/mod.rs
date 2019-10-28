@@ -7,7 +7,8 @@ use syn::{Ident, Lifetime};
 fn codegen_op1(op: &Op1) -> TokenStream {
     match op {
         Op1::Void => quote! { void },
-        Op1::Typeof => quote! { typeof_ }
+        Op1::Typeof => quote! { typeof_ },
+        Op1::Negative => quote! { neg }
     }
 }
 

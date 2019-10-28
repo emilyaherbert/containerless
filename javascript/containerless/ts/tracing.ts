@@ -357,25 +357,6 @@ class Trace implements TracingInterface {
         }
     }
 
-    traceMethodCall(e: Exp, method: string, methodCallArgs: Exp[]) {
-        let exp = this.getCurrentExp();
-        if (exp.kind === 'unknown') {
-            this.setExp(methodCall(e, method, methodCallArgs));
-        }
-        else if (exp.kind === 'methodCall') {
-            if (exp.method !== method) {
-                throw new Error(`Cannot merge method with name ${method} into methodcCall with
-                    method ${exp.method}`);
-            }
-            exp.e = mergeExp(exp.e, e);
-            exp.methodCallArgs = mergeExpArray(exp.methodCallArgs, methodCallArgs);
-            this.mayIncrementCursor();
-        }
-        else {
-            throw new Error(`expected primApp, got ${exp.kind}`);
-        }
-    }
-
     traceLabel(name: string): void {
         let exp = this.getCurrentExp();
         if (exp.kind === 'unknown') {
@@ -599,6 +580,15 @@ function mergeExp(e1: Exp, e2: Exp): Exp {
     else if (e1.kind === 'index' && e2.kind === 'index') {
         e1.exp = mergeExp(e1.exp, e2.exp);
         e1.index = mergeExp(e1.index, e2.index);
+        return e1;
+    }
+    else if (e1.kind === 'methodCall' && e2.kind === 'methodCall') {
+        if (e1.method !== e2.method) {
+            throw new Error(`Mismatched method names ${e1.method} and ${e2.method}
+                in methodCall(...) expressions`);
+        }
+        e1.e = mergeExp(e1.e, e2.e);
+        e1.methodCallArgs = mergeExpArray(e1.methodCallArgs, e2.methodCallArgs);
         return e1;
     }
     else {

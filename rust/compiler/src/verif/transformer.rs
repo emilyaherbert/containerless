@@ -38,7 +38,7 @@ impl Transformer {
             Identifier { name } => return deref(id(name)),
             Get { exp, field } => get(self.transform_exp(exp), field),
             From { exp, field } => return deref(get(self.transform_exp(exp), field)),
-            Index { e1, e2 } => return index(self.transform_exp(e1), self.transform_exp(e2)),
+            Index { e1, e2 } => return index_(self.transform_exp(e1), self.transform_exp(e2)),
             Stringg { value } => return string(value),
             Undefined {} => return undefined(),
             BinOp { op, e1, e2 } => {
@@ -76,11 +76,11 @@ impl Transformer {
                 );
             }
             Set {
-                name: LVal::Index { exp, i },
+                name: LVal::Index { exp, index },
                 named,
             } => {
-                return set(
-                    lval_index(self.transform_exp(exp), self.transform_exp(i)),
+                return setref(
+                    index_(self.transform_exp(exp), self.transform_exp(index)),
                     self.transform_exp(named),
                 );
             }

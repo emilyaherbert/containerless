@@ -270,7 +270,9 @@ pub enum Op1 {
     #[serde(rename = "void")]
     Void,
     #[serde(rename = "typeof")]
-    Typeof
+    Typeof,
+    #[serde(rename = "-")]
+    Negative
 }
 
 #[derive(PartialEq, Debug, Deserialize, Clone)]
@@ -438,7 +440,7 @@ pub enum Exp {
 pub enum LVal {
     Identifier { name: String },
     From { exp: Box<Exp>, field: String },
-    Index { exp: Box<Exp>, i: Box<Exp> },
+    Index { exp: Box<Exp>, index: Box<Exp> },
 }
 
 // https://stackoverflow.com/a/42661287
@@ -746,7 +748,7 @@ pub mod constructors {
         return Array { exps: exps };
     }
 
-    pub fn index(e1: Exp, e2: Exp) -> Exp {
+    pub fn index_(e1: Exp, e2: Exp) -> Exp {
         return Index {
             e1: Box::new(e1),
             e2: Box::new(e2),
@@ -780,10 +782,10 @@ pub mod constructors {
         return Object { properties: hm };
     }
 
-    pub fn lval_index(exp: Exp, i: Exp) -> LVal {
+    pub fn lval_index(exp: Exp, index: Exp) -> LVal {
         return LVal::Index {
             exp: Box::new(exp),
-            i: Box::new(i)
+            index: Box::new(index)
         };
     }
 

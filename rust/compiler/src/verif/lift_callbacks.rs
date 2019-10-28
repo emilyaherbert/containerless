@@ -38,7 +38,7 @@ impl LiftCallbacks {
             lifted_body.push(let_(
                 name,
                 typ.clone(),
-                ref_(index(id(&self.cbargs), integer(i as i32))),
+                ref_(index_(id(&self.cbargs), integer(i as i32))),
             ));
         }
         lifted_body.append(&mut self.lift_exps(body));
@@ -109,7 +109,7 @@ impl LiftCallbacks {
             Bool { value } => return bool_(*value),
             Identifier { name } => return id(name),
             From { exp: _, field: _ } => panic!("Exp::From should be eliminated"),
-            Index { e1, e2 } => return index(self.lift_exp(e1), self.lift_exp(e2)),
+            Index { e1, e2 } => return index_(self.lift_exp(e1), self.lift_exp(e2)),
             Get { exp, field } => return get(self.lift_exp(exp), field),
             Stringg { value } => return string(value),
             Undefined {} => return undefined(),

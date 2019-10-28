@@ -67,6 +67,14 @@ impl Assertions {
             Deref { e } => {
                 self.assert_exp(e);
             },
+            MethodCall {
+                e,
+                method:_,
+                method_call_args
+            } => {
+                self.assert_exp(e);
+                self.assert_exps(method_call_args);
+            },
             _ => {
                 panic!("Did not expect to find {:?} here.", exp);
             }
@@ -138,14 +146,6 @@ impl Assertions {
                 self.assert_exp(event_arg);
                 self.assert_exp(callback_clos);
             },
-            MethodCall {
-                e,
-                method:_,
-                method_call_args
-            } => {
-                self.assert_exp(e);
-                self.assert_exps(method_call_args);
-            }
             _ => {
                 panic!("Did not expect to find {:?} here.", exp);
             }

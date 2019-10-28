@@ -35,8 +35,8 @@ impl Rustify {
                         named: Box::new(inner),
                     };
                 } else if let Exp::Label {
-                    name: _,
-                    body
+                    name,
+                    body: _
                 } = e
                 {
                     let inner = std::mem::replace(e, Exp::Undefined {});
@@ -46,6 +46,25 @@ impl Rustify {
                         named: Box::new(inner)
                     };
                 }
+            } else {
+                // Weird hack
+                /*
+                if let Exp::Label {
+                    name,
+                    body: _
+                } = e
+                {
+                    let inner = std::mem::replace(e, Exp::Undefined {});
+                    *e = Exp::Block { body: vec![
+                        Exp::Let {
+                            name: "l".to_string(),
+                            typ: None,
+                            named: Box::new(inner)
+                        },
+                        Exp::Identifier { name: "l".to_string() }
+                    ]};
+                }
+                */
             }
         }
     }

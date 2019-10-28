@@ -49,8 +49,15 @@ containerless.listen(function(req) {
     let y1 = req.body.y1;
     let x2 = req.body.x2;
     let y2 = req.body.y2;
-    if(isValidMove(x1, y1, 0) && isValidMove(x2, y2, 0)) {
-        containerless.respond(findShortestPath(1, 1, 7, 9) + "\n");
+    // TODO(emily): Fix bug in normalize/ assertNormalize.
+    // let and;
+    if(maze[y1][x1] > 0 && maze[y2][x2] > 0) {
+        let len = findShortestPath(x1, y1, x2, y2);
+        if(len === -1) {
+            containerless.respond("No such path exists!\n");
+        } else {
+            containerless.respond(len + "\n");
+        }
     } else {
         containerless.respond("Invalid starting conditions.\n");
     }

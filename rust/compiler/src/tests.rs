@@ -488,3 +488,295 @@ pub fn benchmark_autocomplete() {
         ]));
     assert_eq!(result, ["area,art,air,", ""]);
 }
+
+/*
+#[serial]
+#[test]
+pub fn benchmark_banking() {
+    let mut runner = TestRunner::new("benchmark_banking.js");
+    let result = runner.test(
+        r#"
+        let containerless = require("../../javascript/containerless");
+
+        // 1. gcloud auth activate-service-account --key-file keys/umass-plasma-980eb8bee293.json
+        // 2. gcloud auth print-access-token
+
+        /**
+         * Begins a request.
+         * 
+         * `next(req, transaction)`
+         */
+        function begin(req, next) {
+            let o = {
+                'url':"https://datastore.googleapis.com/v1/projects/umass-plasma:beginTransaction?access_token=" + req.body.accessToken,
+                'body':{
+                    "transactionOptions": {
+                        "readWrite": {
+                            "previousTransaction": ""
+                        }
+                    }
+                }
+            };
+            containerless.post(o, function(resp) {
+                if(resp.error !== undefined) {
+                    containerless.respond("error\n");
+                } else {
+                    next(req, resp.transaction);
+                }
+            });
+        }
+
+        /**
+         * Commits a request.
+         */
+        function commit(req, transaction, mutation) {
+            let o = {
+                'url':'https://datastore.googleapis.com/v1/projects/umass-plasma:commit?access_token=' + req.body.accessToken,
+                'body': {
+                    "transaction": transaction,
+                    "mode": "TRANSACTIONAL",
+                    "mutations": [mutation]
+                }
+            };
+            containerless.post(o, function(resp) {
+                if(resp.error !== undefined) {
+                    containerless.respond("error\n");
+                } else {
+                    containerless.respond("Done!\n");
+                }
+            });
+        }
+
+        /**
+         * Finds the current balance.
+         * 
+         * `next(resp);`
+         */
+        function balance(req, transaction, next) {
+            let o = {
+                'url':'https://datastore.googleapis.com/v1/projects/umass-plasma:lookup?access_token=' + req.body.accessToken,
+                'body': {
+                    "readOptions": {
+                    "transaction": transaction
+                    },
+                    "keys": [
+                    {
+                        "partitionId": {
+                        "namespaceId": "",
+                        "projectId": "umass-plasma"
+                        },
+                        "path": [
+                        {
+                            "id": req.body.id,
+                            "kind":"Account"
+                        }
+                        ]
+                    }
+                    ]
+                }
+            };
+            containerless.post(o, function(resp) {
+                if(resp.error !== undefined) {
+                    containerless.respond("error\n");
+                } else {
+                    next(resp);
+                }
+            });
+        }
+
+        /**
+         * Performs a withdrawl.
+         */
+        function withdraw(req, transaction) {
+            balance(req, transaction, function(resp) {
+                let key = resp.found[0].entity.key;
+                let baseVersion = resp.found[0].version;
+                let props = resp.found[0].entity.properties;
+                props.Balance.integerValue = props.Balance.integerValue - req.query.amount;
+                let o = {
+                    'update': {
+                        'key': key,
+                        'properties': props
+                    },
+                    'baseVersion': baseVersion
+                };
+                commit(req, transaction, o);
+            });
+        }
+
+        /**
+         * Performs a deposit.
+         */
+        function deposit(req, transaction) {
+            balance(req, transaction, function(resp) {
+                let key = resp.found[0].entity.key;
+                let baseVersion = resp.found[0].version;
+                let props = resp.found[0].entity.properties;
+                props.Balance.integerValue = props.Balance.integerValue - (req.query.amount - (req.query.amount * 2));
+                let o = {
+                    'update': {
+                        'key': key,
+                        'properties': props
+                    },
+                    'baseVersion': baseVersion
+                };
+                commit(req, transaction, o);
+            });
+        }
+
+        containerless.listen(function(req) {
+            if(req.path === '/balance') {
+                begin(req, function(req, transaction) {
+                    balance(req, transaction, function(resp) {
+                        //containerless.respond("Got here!");
+                        containerless.respond(resp.found + "\n");
+                        //containerless.respond(resp.found[0].entity.properties.Balance.integerValue + '\n');
+                    });
+                });
+            }
+            /*
+            } else if(req.path === '/withdraw') {
+                begin(req, withdraw);
+            } else if(req.path === '/deposit') {
+                begin(req, deposit);
+            } else {
+                containerless.respond("Unknown command.\n");
+            }
+            */
+        });"#,
+        json!([
+            { "path": "/balance",
+              "query": {},
+              "body": {
+                    "accessToken": "ya29.c.KmOpB1qy-f9d8fq3J4lNQk-n_8PXZt7LCv1BzFMCFJ4IFvrG_boHYv5EHDzJwVkC4lX57hkH2LzHv4O0xMn2AaNgi6gI3Ta-OOcf_XUkNbAp3KQfSRxgFakMEqxiJYGyYzdPgwU",
+                    "id": "5638535449149440"
+                }
+            }
+        ]),
+        json!([
+            { "path": "/balance",
+              "query": {},
+              "body": {
+                    "accessToken": "ya29.c.KmOpB1qy-f9d8fq3J4lNQk-n_8PXZt7LCv1BzFMCFJ4IFvrG_boHYv5EHDzJwVkC4lX57hkH2LzHv4O0xMn2AaNgi6gI3Ta-OOcf_XUkNbAp3KQfSRxgFakMEqxiJYGyYzdPgwU",
+                    "id": "5638535449149440"
+                }
+            }
+        ]));
+    assert_eq!(result, ["819"]);
+}
+*/
+
+#[serial]
+#[test]
+pub fn benchmark_maze() {
+    let mut runner = TestRunner::new("benchmark_maze.js");
+    let result = runner.test(
+        r#"
+        let containerless = require("../../javascript/containerless");
+
+        let maze = 
+        [
+            [999,   0, 999, 999,   0,   0,   0, 999, 999, 999, 999,   0, 999, 999, 999, 999, 999, 999, 999,   0, 999, 999, 999, 999, 999,   0, 999,   0, 999, 999],
+            [999,   0,   0, 999, 999, 999, 999, 999,   0,   0, 999, 999,   0,   0,   0, 999,   0,   0, 999,   0,   0, 999,   0,   0, 999,   0, 999, 999, 999,   0],
+            [999, 999,   0, 999,   0,   0,   0,   0,   0,   0,   0, 999, 999, 999,   0, 999,   0,   0, 999,   0,   0, 999,   0, 999, 999,   0, 999,   0, 999,   0],
+            [  0, 999,   0, 999, 999, 999,   0, 999, 999,   0, 999, 999,   0, 999,   0, 999, 999,   0, 999,   0, 999, 999,   0, 999,   0,   0, 999,   0, 999, 999],
+            [999, 999,   0,   0,   0, 999,   0, 999,   0,   0, 999,   0,   0, 999,   0,   0, 999,   0, 999, 999, 999,   0,   0, 999, 999,   0, 999,   0,   0,   0],
+            [999,   0, 999, 999, 999, 999,   0, 999, 999, 999, 999, 999,   0, 999,   0,   0, 999,   0,   0,   0, 999, 999, 999,   0, 999,   0, 999, 999, 999,   0],
+            [999,   0, 999,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 999, 999,   0, 999, 999, 999,   0,   0,   0,   0,   0, 999,   0,   0,   0, 999, 999],
+            [999, 999, 999,   0,   0, 999, 999, 999, 999, 999, 999, 999, 999,   0, 999,   0,   0,   0, 999, 999, 999, 999, 999,   0, 999, 999, 999,   0,   0, 999],
+            [  0,   0,   0, 999, 999, 999,   0,   0,   0,   0,   0,   0,   0,   0, 999, 999, 999, 999,   0,   0,   0,   0, 999,   0,   0,   0, 999, 999,   0, 999],
+            [999, 999,   0, 999,   0, 999,   0, 999,   0, 999, 999, 999, 999, 999,   0,   0,   0, 999,   0, 999, 999, 999, 999,   0, 999,   0,   0, 999,   0, 999],
+            [  0, 999,   0, 999,   0, 999, 999, 999,   0, 999,   0, 999,   0,   0,   0,   0, 999, 999,   0,   0,   0, 999,   0,   0, 999, 999,   0, 999,   0, 999],
+            [999, 999,   0, 999,   0,   0,   0,   0, 999, 999,   0, 999,   0, 999, 999, 999, 999,   0,   0,   0, 999, 999,   0,   0, 999,   0,   0, 999, 999, 999],
+            [999,   0,   0, 999,   0,   0, 999, 999, 999,   0,   0, 999, 999, 999,   0,   0,   0,   0, 999, 999, 999,   0, 999, 999, 999,   0,   0,   0, 999,   0],
+            [999, 999,   0, 999,   0, 999, 999,   0,   0,   0,   0,   0,   0,   0,   0,   0, 999, 999, 999,   0,   0,   0,   0,   0, 999,   0, 999, 999, 999,   0],
+            [  0, 999,   0, 999,   0, 999,   0, 999, 999, 999, 999, 999, 999, 999,   0, 999, 999,   0, 999, 999,   0, 999, 999, 999, 999,   0, 999,   0,   0, 999],
+            [999, 999, 999, 999,   0, 999,   0,   0,   0, 999,   0,   0,   0, 999,   0,   0,   0,   0,   0, 999,   0,   0,   0, 999,   0,   0, 999,   0,   0, 999],
+            [999,   0, 999,   0,   0, 999, 999, 999,   0, 999, 999, 999,   0, 999, 999, 999, 999, 999,   0, 999,   0, 999, 999, 999,   0, 999, 999,   0,   0, 999],
+            [  0,   0, 999, 999, 999,   0,   0, 999, 999,   0,   0, 999,   0,   0,   0,   0,   0, 999, 999, 999,   0,   0, 999,   0,   0, 999,   0,   0, 999, 999],
+            [999, 999, 999,   0, 999,   0,   0,   0, 999, 999,   0, 999, 999,   0, 999, 999,   0,   0,   0,   0, 999, 999, 999, 999, 999, 999, 999, 999, 999,   0],
+            [999,   0,   0,   0, 999,   0,   0,   0,   0, 999,   0,   0, 999, 999, 999,   0,   0, 999,   0,   0, 999,   0,   0,   0,   0,   0,   0,   0, 999, 999],
+            [999, 999, 999,   0,   0, 999, 999, 999,   0, 999, 999, 999,   0,   0, 999, 999,   0, 999, 999, 999, 999,   0, 999, 999, 999, 999,   0,   0,   0, 999],
+            [999,   0, 999,   0,   0, 999,   0, 999,   0,   0,   0, 999,   0, 999,   0, 999, 999,   0,   0,   0,   0, 999, 999,   0,   0, 999,   0, 999, 999, 999],
+            [999,   0, 999,   0, 999, 999,   0, 999, 999, 999,   0, 999,   0, 999,   0,   0, 999, 999,   0, 999, 999, 999,   0,   0,   0, 999,   0, 999,   0,   0],
+            [999,   0, 999, 999, 999,   0, 999, 999,   0,   0,   0, 999,   0, 999,   0,   0,   0, 999, 999, 999,   0, 999, 999,   0, 999, 999,   0, 999,   0, 999],
+            [999,   0,   0,   0,   0,   0, 999,   0, 999, 999, 999, 999,   0, 999,   0,   0,   0,   0,   0,   0,   0,   0, 999,   0, 999,   0,   0, 999, 999, 999],
+            [999,   0, 999,   0, 999, 999, 999,   0,   0,   0, 999,   0,   0, 999, 999, 999, 999,   0, 999, 999, 999,   0, 999,   0, 999, 999,   0,   0,   0, 999],
+            [999, 999, 999,   0, 999,   0, 999, 999,   0, 999, 999,   0,   0, 999,   0,   0, 999, 999, 999,   0, 999, 999,   0,   0,   0, 999, 999, 999,   0, 999],
+            [  0, 999,   0,   0, 999,   0,   0,   0,   0, 999,   0, 999, 999, 999, 999, 999,   0,   0,   0,   0,   0, 999, 999, 999,   0, 999,   0, 999,   0, 999],
+            [999, 999, 999,   0, 999, 999,   0, 999, 999, 999,   0, 999,   0,   0,   0,   0,   0, 999, 999, 999,   0,   0,   0, 999,   0,   0,   0, 999,   0, 999],
+            [999,   0, 999,   0,   0, 999, 999, 999,   0, 999, 999, 999,   0, 999, 999, 999, 999, 999,   0, 999, 999, 999, 999, 999, 999, 999, 999, 999,   0, 999],
+        ];
+
+        function isValidMove(x, y, turn) {
+            return (x > -1) && (y > -1) && (x < maze[0].length) && (y < maze.length) && (maze[y][x] > 0) && (turn < maze[y][x]);
+        }
+
+        function findShortestPath(x1, y1, x2, y2) {
+            let shortest = -1;
+
+            let moves = [[x1, y1, 0], [x1-1, y1, 0], [x1+1, y1, 0], [x1, y1-1, 0], [x1, y1+1, 0]];
+
+            while(moves.length > 0) {
+                let nextMove = moves.shift();
+                let x = nextMove[0];
+                let y = nextMove[1];
+                let turn = nextMove[2] + 1;
+                if(isValidMove(x, y, turn)) {
+                    if(x === x2 && y === y2) {
+                        shortest = turn;
+                    } else {
+                        maze[y][x] = turn;
+                        moves.push([x-1, y, turn]);
+                        moves.push([x+1, y, turn]);
+                        moves.push([x, y-1, turn]);
+                        moves.push([x, y+1, turn]);
+                    }
+                }
+            }
+
+            return shortest;
+        }
+
+        containerless.listen(function(req) {
+            let x1 = req.body.x1;
+            let y1 = req.body.y1;
+            let x2 = req.body.x2;
+            let y2 = req.body.y2;
+            // TODO(emily): Fix bug in normalize/ assertNormalize.
+            // let and;
+            if(maze[y1][x1] > 0 && maze[y2][x2] > 0) {
+                let len = findShortestPath(x1, y1, x2, y2);
+                if(len === -1) {
+                    containerless.respond("No such path exists!\n");
+                } else {
+                    containerless.respond(len + "\n");
+                }
+            } else {
+                containerless.respond("Invalid starting conditions.\n");
+            }
+        });"#,
+        json!([
+            { "path": "/a",
+              "query": {},
+              "body": {
+                    "x1": 7,
+                    "y1": 28,
+                    "x2": 24,
+                    "y2": 4
+                }
+            }
+        ]),
+        json!([
+            { "path": "/a",
+              "query": {},
+              "body": {
+                    "x1": 7,
+                    "y1": 28,
+                    "x2": 24,
+                    "y2": 4
+                }
+            }
+        ]));
+    assert_eq!(result, ["area,art,air,", ""]);
+}

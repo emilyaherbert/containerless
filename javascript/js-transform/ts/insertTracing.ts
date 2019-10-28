@@ -142,6 +142,15 @@ function binop(op: string, e1: b.Expression, e2: b.Expression): b.CallExpression
     return b.callExpression(callee, theArgs);
 }
 
+function methodCall(exp: b.Expression, method: string, methodCallArgs: b.Expression[]): b.CallExpression {
+    const callee = b.memberExpression(
+        b.identifier('exp'),
+        b.identifier('methodCall')
+    );
+    const theArgs = [exp, b.stringLiteral(method), b.arrayExpression(methodCallArgs)];
+    return b.callExpression(callee, theArgs);
+}
+
 function op1(op: string, e: b.Expression): b.Expression {
     const callee = b.memberExpression(
         b.identifier('exp'),
@@ -233,13 +242,6 @@ function traceBreak(name: string, value : b.Expression = undefined_): b.Expressi
 function tracePrimApp(event: string, eventArgs: b.Expression[]): b.ExpressionStatement {
     const memberExpression = b.memberExpression(t, b.identifier('tracePrimApp'));
     const memberArgs = [b.stringLiteral(event), b.arrayExpression(eventArgs)];
-    const callExpression = b.callExpression(memberExpression, memberArgs);
-    return b.expressionStatement(callExpression);
-}
-
-function traceMethodCall(exp: b.Expression, method: string, methodCallArgs: b.Expression[]): b.ExpressionStatement {
-    const memberExpression = b.memberExpression(t, b.identifier('traceMethodCall'));
-    const memberArgs = [exp, b.stringLiteral(method), b.arrayExpression(methodCallArgs)];
     const callExpression = b.callExpression(memberExpression, memberArgs);
     return b.expressionStatement(callExpression);
 }
@@ -420,7 +422,9 @@ function reifyVariableDeclaration(s: b.VariableDeclaration, st: State): [b.State
                         return [[ s ], nextSt];
                     }
                     default: {
-                        theArgs.unshift(identifier(init1.callee.name));
+                        const [callE, st2] = reifyExpression(init1.callee, nextSt);
+                        nextSt = merge(nextSt, st2);
+                        theArgs.unshift(callE);
                         break;
                     }
                 }
@@ -443,8 +447,9 @@ function reifyVariableDeclaration(s: b.VariableDeclaration, st: State): [b.State
                     case 'shift':
                     case 'push': {
                         const [obj2, st2] = reifyExpression(obj, nextSt);
-                        const tMethod = traceMethodCall(obj2, prop.name, theArgs);
-                        return [[ tMethod, s ], st2.set(name, false)];
+                        const tMethod = methodCall(obj2, prop.name, theArgs);
+                        const tLet = traceLet(name, tMethod);
+                        return [[ tLet, s ], st2.set(name, false)];
                         break;
                     }
                     default: {
@@ -452,9 +457,6 @@ function reifyVariableDeclaration(s: b.VariableDeclaration, st: State): [b.State
                     }
                 }
                 theArgs.unshift(from(identifier(obj.name), prop.name));
-                //const [obj2, st2] = reifyExpression(obj, nextSt);
-                //nextSt = st2;
-                //theArgs.unshift(from(obj2, prop.name));
             }
 
             const tCall = traceFunctionCall(name, theArgs);

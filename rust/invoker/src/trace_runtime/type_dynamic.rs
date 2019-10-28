@@ -107,6 +107,10 @@ impl<'a> DynVec<'a> {
         self.elems.borrow_mut().push(value);
     }
 
+    pub fn shift(self) -> Dyn<'a> {
+        return self.elems.borrow_mut().pop().unwrap_or(Dyn::Undefined);
+    }
+
     pub fn to_json(&self) -> serde_json::Value {
         use serde_json::Value;
         Value::Array(self.elems.borrow().iter().filter_map(|x| x.to_json()).collect())
@@ -209,6 +213,7 @@ impl<'a> Dyn<'a> {
             (Dyn::Int(n), Dyn::Float(x)) => Ok(Dyn::Float(f64::from(n) + x)),
             (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Float(x + y)),
             (Dyn::Vec(v), Dyn::Str(s)) => Ok(Dyn::str(arena, &(v.to_string() + s))),
+            (Dyn::Str(a), Dyn::Str(b)) => Ok(Dyn::str(arena, &(a.to_string() + b))),
             _ => type_error(&format!("add({:?}, {:?})", &self, &other)),
         }
     }
@@ -330,6 +335,13 @@ impl<'a> Dyn<'a> {
         return Ok(Dyn::Undefined);
     }
 
+    pub fn shift(self) -> DynResult<'a> {
+        match self {
+            Dyn::Vec(v) => Ok(v.shift()),
+            _ => unimplemented!()
+        }
+    }
+
     pub fn deref(self) -> Dyn<'a> {
         match self {
             Dyn::Ref(cell) => cell.get(),
@@ -353,6 +365,13 @@ impl<'a> Dyn<'a> {
             Dyn::Vec(_) => Ok(Dyn::str(arena, "object")),
             Dyn::Object(_) => Ok(Dyn::str(arena, "object")),
             Dyn::Ref(_) => panic!("typeof_ applied to a ref")
+        }
+    }
+
+    pub fn neg(&self, arena: &'a Bump) -> DynResult<'a> {
+        match self {
+            Dyn::Float(n) => Ok(Dyn::float(-n)),
+            _ => unimplemented!()
         }
     }
 
@@ -411,7 +430,7 @@ impl<'a> Dyn<'a> {
         match self {
             Dyn::Str(s) => s.to_string(),
             Dyn::Vec(v) => v.to_string(),
-            _ => unimplemented!()
+            _ => unimplemented!("{:?}", self)
         }
     }
 }

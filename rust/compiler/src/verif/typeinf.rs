@@ -72,8 +72,8 @@ impl Typeinf {
 
     fn lval(&mut self, env: &TypEnv, lval: &mut LVal) -> Result<Typ, Error> {
         match lval {
-            LVal::Index { exp, i } => {
-                let mut exp = index(*exp.to_owned(), *i.to_owned());
+            LVal::Index { exp, index } => {
+                let mut exp = index_(*exp.to_owned(), *index.to_owned());
                 return self.exp(env, &mut exp);
             },
             _ => unimplemented!()
@@ -297,9 +297,9 @@ impl Typeinf {
 
     fn subst_vars_lval(subst: &Subst, lval: &mut LVal) {
         match lval {
-            LVal::Index { exp, i } => {
+            LVal::Index { exp, index } => {
                 Typeinf::subst_vars(subst, exp);
-                Typeinf::subst_vars(subst, i);
+                Typeinf::subst_vars(subst, index);
             },
             _ => unimplemented!()
         }
