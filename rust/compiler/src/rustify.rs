@@ -16,12 +16,28 @@ impl Rustify {
         for (ix, e) in block.iter_mut().enumerate() {
             self.rustify(e);
             if ix < len - 1 {
+                if let Exp::Let {
+                    name:_,
+                    typ:_,
+                    named:_
+                } = e {
+                    // empty body
+                } else {
+                    let inner = std::mem::replace(e, Exp::Undefined {});
+                    *e = Exp::Let {
+                        name: "_".to_string(),
+                        typ: None,
+                        named: Box::new(inner),
+                    };
+                }
+
                 // We treat `if` as expressions in our IR. Conveniently, `if`
                 // in Rust is an expression too! However, when an `if` is in
                 // a block and *not* the last expression in the block, Rust
                 // requires both branches of the `if` to return `()`. This is
                 // a hack that transforms `if ...` into `let _ = if ...`, which
                 // is enough to satisfy the Rust type checker.
+                /*
                 if let Exp::If {
                     cond: _,
                     true_part: _,
@@ -46,9 +62,8 @@ impl Rustify {
                         named: Box::new(inner)
                     };
                 }
+                */
             } else {
-                // Weird hack
-                /*
                 if let Exp::Label {
                     name,
                     body: _
@@ -64,7 +79,6 @@ impl Rustify {
                         Exp::Identifier { name: "l".to_string() }
                     ]};
                 }
-                */
             }
         }
     }
@@ -98,6 +112,11 @@ impl Rustify {
             Exp::While { cond, body } => {
                 self.rustify(cond);
                 self.rustify_block(body);
+                let inner = std::mem::replace(&mut *exp, Exp::Undefined {});
+                *exp = Exp::Block { body: vec! [
+                    inner,
+                    Exp::Undefined {}
+                ]};
             }
             Exp::Let {
                 name: _,
