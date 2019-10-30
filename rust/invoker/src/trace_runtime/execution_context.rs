@@ -35,25 +35,25 @@ impl AsyncOpOutcome {
             }
             AsyncOpOutcome::Connected => {
                 let args = Dyn::vec(arena);
-                args.push(clos).unwrap();
-                args.push(request).unwrap();
+                args.push(clos);
+                args.push(request);
                 return args;
             }
             AsyncOpOutcome::MockGetResponse(json_value) => {
                 let args = Dyn::vec(arena);
-                args.push(clos).unwrap();
-                args.push(Dyn::from_json(arena, json_value)).unwrap();
+                args.push(clos);
+                args.push(Dyn::from_json(arena, json_value));
                 return args;
             },
             AsyncOpOutcome::GetResponse(body) => {
                 let args = Dyn::vec(arena);
-                args.push(clos).unwrap();
+                args.push(clos);
                 let resp = Dyn::from_json_string(arena, &String::from_utf8_lossy(&body))
                     .unwrap_or_else(|err| {
                         // TODO(arjun): Need DynResult as return type of this function
                         panic!("JSON error {} reading string {:?}", err, body);
                     });
-                args.push(resp).unwrap();
+                args.push(resp);
                 return args;
             }
         }

@@ -214,6 +214,7 @@ impl<'a> Dyn<'a> {
             (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Float(x + y)),
             (Dyn::Vec(v), Dyn::Str(s)) => Ok(Dyn::str(arena, &(v.to_string() + s))),
             (Dyn::Str(a), Dyn::Str(b)) => Ok(Dyn::str(arena, &(a.to_string() + b))),
+            (Dyn::Undefined, Dyn::Str(s)) => Ok(Dyn::str(arena, &(self.to_string() + s))),
             _ => type_error(&format!("add({:?}, {:?})", &self, &other)),
         }
     }
@@ -430,6 +431,7 @@ impl<'a> Dyn<'a> {
         match self {
             Dyn::Str(s) => s.to_string(),
             Dyn::Vec(v) => v.to_string(),
+            Dyn::Undefined => "undefined".to_string(),
             _ => unimplemented!("{:?}", self)
         }
     }
