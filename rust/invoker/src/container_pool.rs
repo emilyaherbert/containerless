@@ -127,7 +127,7 @@ impl ContainerPoolData {
         self.num_containers.load(SeqCst)
     }
 
-    fn stop_container(this: &Arc<Self>) -> impl Future<Item = (), Error = Error> {
+    pub fn stop_containers(this: &Arc<Self>) -> impl Future<Item = (), Error = Error> {
         let this2 = this.clone();
         this.available.recv().map(move |handle| {
             handle.stop();
@@ -187,12 +187,13 @@ impl ContainerPool {
         tokio::executor::spawn(
             util::set_interval(Duration::from_secs(1), move |_t| {
                 let t = util::unix_epoch_secs();
-                if t - data.last_container_start_time.load(SeqCst) < min_container_lifespan {
+                let n = data.last_container_start_time.load(SeqCst);
+                let m = data.time_keeper.mean();
+                let c = data.get_num_containers();
+                if t - n < min_container_lifespan {
                     future::Either::B(future::ok(()))
-                } else if data.time_keeper.mean() < max_container_buffer_delay
-                    && data.get_num_containers() > 0
-                {
-                    future::Either::A(ContainerPoolData::stop_container(&data))
+                } else if m < max_container_buffer_delay && c > 0 {
+                    future::Either::A(ContainerPoolData::stop_containers(&data))
                 } else {
                     future::Either::B(future::ok(()))
                 }
