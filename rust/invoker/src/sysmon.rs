@@ -19,7 +19,7 @@ pub fn sysmon(config: &InvokerConfig) {
         File::create(&config.utilization_log).expect("could not create utilization log file");
     let mut utilization_writer = LineWriter::new(utilization_log);
             utilization_writer
-                .write_fmt(format_args!("Time,CPU,Memory"))
+                .write_fmt(format_args!("Time,CPU,Memory\n"))
                 .unwrap();
 
     // NOTE(arjun): trying to do this with Tokio and futures_locks runs into
