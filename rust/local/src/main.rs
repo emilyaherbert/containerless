@@ -47,7 +47,7 @@ fn echo(req: Request<Body>) -> BoxFut {
 }
 
 fn main() {
-    let addr = ([127, 0, 0, 1], 7999).into();
+    let addr = ([10, 200, 0, 1], 7999).into();
 
     let server = Server::bind(&addr)
         .serve(|| service_fn(echo))
