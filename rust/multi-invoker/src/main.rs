@@ -41,7 +41,7 @@ pub fn main() {
                 println!("Starting new invoker as a child processes.");
                 use_config_b = !use_config_b;
                 let config_str = if use_config_b { &config_b } else { &config_a };
-                child_handle = cmd!("cargo", "run", "--", "--config", config_str)
+                child_handle = cmd!("cargo", "run", "--release", "--", "--config", config_str)
                     .dir("../containerless-scaffold")
                     .start()
                     .expect("Could not start child process");
