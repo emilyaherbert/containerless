@@ -2,3 +2,5 @@
 /src/lib.rs
 results/
 keys/
+trace.json
+utilization.log
