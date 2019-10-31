@@ -12,4 +12,4 @@ JS_FILE=$3
 OUTPUT_PATH="./results/${JS_FILE}/${RUN_TYPE}"
 mkdir --parents $OUTPUT_PATH
 CONFIG="{\"image_name\":\"serverless-function\",\"max_containers\":6,\"initial_state\":\"${RUN_TYPE}\",\"utilization_log\":\"${OUTPUT_PATH}/${OPEN_CONNECTIONS}.log\"}"
-cargo run -- --config ${CONFIG}
+cargo run --release -- --config ${CONFIG}

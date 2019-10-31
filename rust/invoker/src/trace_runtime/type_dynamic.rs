@@ -5,7 +5,6 @@ use bumpalo::{
 };
 use std::cell::{Cell, RefCell};
 use std::convert::{From, TryFrom};
-use std::collections::VecDeque;
 
 pub fn unknown<'a>() -> DynResult<'a> {
     Err(Error::Unknown)
@@ -67,19 +66,19 @@ impl<'a> DynObject<'a> {
 
 #[derive(Debug, Copy, Clone)]
 pub struct DynVec<'a> {
-  elems: &'a RefCell<VecDeque<Dyn<'a>>>
+  elems: &'a RefCell<Vec<'a, Dyn<'a>>>
 }
 
 impl<'a> DynVec<'a> {
 
     pub fn new(arena: &'a Bump) -> DynVec<'a> {
-        DynVec { elems: arena.alloc(RefCell::new(VecDeque::new())) }
+        DynVec { elems: arena.alloc(RefCell::new(Vec::new_in(arena))) }
     }
 
     pub fn from(arena: &'a Bump, elems: std::vec::Vec<Dyn<'a>>) -> DynVec<'a> {
-        let v = arena.alloc(RefCell::new(VecDeque::new()));
+        let v = arena.alloc(RefCell::new(Vec::new_in(arena)));
         for e in elems.into_iter() {
-            v.borrow_mut().push_back(e);
+            v.borrow_mut().push(e);
         }
         DynVec { elems: v }
     }
@@ -107,12 +106,17 @@ impl<'a> DynVec<'a> {
     }
 
     pub fn push(self, value: Dyn<'a>) {
-        self.elems.borrow_mut().push_back(value);
+        self.elems.borrow_mut().push(value);
     }
 
     pub fn shift(self) -> Dyn<'a> {
-        let e = self.elems.borrow_mut().pop_front().unwrap_or(Dyn::Undefined);
-        return e;
+        let mut ret = Dyn::Undefined;
+        match self.elems.borrow().first() {
+            Some(e) => ret = e.to_owned(),
+            None => return ret
+        }
+        self.elems.borrow_mut().remove(0);
+        return ret.to_owned();
     }
 
     pub fn to_json(&self) -> serde_json::Value {
@@ -427,9 +431,9 @@ impl<'a> Dyn<'a> {
             Value::Bool(b) => Dyn::Bool(b),
             Value::Null => unimplemented!(),
             Value::Array(vec) => {
-                let mut v = VecDeque::new();
+                let mut v = Vec::new_in(arena);
                 for item in vec.into_iter() {
-                    v.push_back(Self::from_json(arena, item));
+                    v.push(Self::from_json(arena, item));
                 }
                 // Why isn't this refcell immediate?
                 Dyn::Vec(DynVec { elems: arena.alloc(RefCell::new(v)) })

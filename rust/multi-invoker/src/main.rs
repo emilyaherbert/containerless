@@ -26,7 +26,7 @@ pub fn main() {
     let mut use_config_b = false;
 
     let mut forwarding = Forwarding::new(config.bind_port, config.config_a.bind_port);
-    let mut child_handle = cmd!("cargo", "run", "--", "--config", &config_a)
+    let mut child_handle = cmd!("cargo", "run", "--release", "--", "--config", &config_a)
         .dir("../containerless-scaffold")
         .start()
         .unwrap();
