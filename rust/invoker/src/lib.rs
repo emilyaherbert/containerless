@@ -55,6 +55,11 @@ pub fn main(containerless: Option<trace_runtime::Containerless>) {
             .map(move |()| {
                 println!("Graceful shutdown");
                 // TODO(emily): Fix graceful shutdown
+                /*
+                if config.kill_parent {
+                    kill(Pid::parent(), Signal::SIGUSR1).expect("Could not signal parent process");
+                }
+                */
                 std::process::exit(0)
             })
     }));

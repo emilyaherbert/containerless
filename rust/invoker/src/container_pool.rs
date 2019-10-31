@@ -19,6 +19,9 @@ use shared::config::InvokerConfig;
 use std::sync::atomic;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use std::thread;
+use nix::sys::signal::{kill, Signal};
+use nix::unistd::Pid;
 
 struct ContainerSpawner {
     container_name_suffix: usize,
@@ -135,6 +138,14 @@ impl ContainerPoolData {
         })
     }
 
+    pub fn force_stop_containers(this: &Arc<Self>) {
+        let this2 = this.clone();
+        this.available.recv_immediate().map(move |handle| {
+            handle.stop();
+            this2.num_containers.fetch_sub(1, SeqCst);
+        });
+    }
+
     // Starts `n` new containers.
     pub fn create_containers(this: &Arc<Self>, n: usize) -> impl Future<Item = (), Error = Error> {
         let idle = this.idle.clone();
@@ -207,6 +218,41 @@ impl ContainerPool {
 
     pub fn shutdown(&self) -> impl Future<Item = (), Error = Error> {
         let data = self.data.clone();
+        self.data
+            .tx_shutdown
+            .lock()
+            .from_err()
+            .and_then(move |mut guard| {
+                let tx_shutdown = std::mem::replace(&mut *guard, None);
+                tx_shutdown
+                    .expect("already called shutdown")
+                    .send(())
+                    .unwrap();
+                data.shutting_down.store(true, SeqCst);
+                future::loop_fn((), move |()| {
+                    let num_left = data.num_containers.fetch_sub(1, SeqCst);
+                    if num_left == 0 {
+                        println!("num_left = {}", num_left);
+                        return future::Either::A(future::ok(future::Loop::Break(())));
+                    } else {
+                        let fut = data.available.recv().map(|container| {
+                            container.stop();
+                            future::Loop::Continue(())
+                        });
+                        return future::Either::B(fut);
+                    }
+                })
+            })
+    }
+
+    pub fn shutdown_with_parent(&self) -> impl Future<Item = (), Error = Error> {
+        let data = self.data.clone();
+        kill(Pid::parent(), Signal::SIGUSR1).expect("Could not signal parent process");
+        let goodnight = Duration::from_secs(2);
+        thread::sleep(goodnight);
+        //ContainerPoolData::force_stop_containers(&data);
+        let goodnight = Duration::from_secs(2);
+        thread::sleep(goodnight);
         self.data
             .tx_shutdown
             .lock()
