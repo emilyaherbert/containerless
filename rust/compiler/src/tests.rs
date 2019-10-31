@@ -478,15 +478,8 @@ pub fn benchmark_autocomplete() {
                 let word = words[i];
                 if((req.path.length > 1) && word.length >= (req.path.length - 1)) {
                     let j = 0;
-                    let match = true;
-                    while(j < (req.path.length - 1)) {
-                        if(word[j] !== req.path[j+1]) {
-                            match = false;
-                            j = req.path.length;
-                        } else {
-                            j = j + 1;
-                        }
-                    }
+                    let x = "/" + words[i];
+                    let match = x.startsWith(req.path);
                     if(match) {
                         matches.push(word);
                     }
@@ -525,7 +518,7 @@ pub fn benchmark_banking() {
 
         /**
          * Begins a request.
-         * 
+         *
          * `next(req, transaction)`
          */
         function begin(req, next) {
@@ -571,7 +564,7 @@ pub fn benchmark_banking() {
 
         /**
          * Finds the current balance.
-         * 
+         *
          * `next(resp);`
          */
         function balance(req, transaction, next) {
@@ -696,7 +689,7 @@ pub fn benchmark_maze() {
         r#"
         let containerless = require("../../javascript/containerless");
 
-        let maze = 
+        let maze =
         [
             [999,   0, 999, 999,   0,   0,   0, 999, 999, 999, 999,   0, 999, 999, 999, 999, 999, 999, 999,   0, 999, 999, 999, 999, 999,   0, 999,   0, 999, 999],
             [999,   0,   0, 999, 999, 999, 999, 999,   0,   0, 999, 999,   0,   0,   0, 999,   0,   0, 999,   0,   0, 999,   0,   0, 999,   0, 999, 999, 999,   0],

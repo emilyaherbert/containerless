@@ -79,7 +79,7 @@ impl<'a> DynVec<'a> {
     pub fn from(arena: &'a Bump, elems: std::vec::Vec<Dyn<'a>>) -> DynVec<'a> {
         let v = arena.alloc(RefCell::new(VecDeque::new()));
         for e in elems.into_iter() {
-            v.borrow_mut().push_back(e);  
+            v.borrow_mut().push_back(e);
         }
         DynVec { elems: v }
     }
@@ -352,6 +352,14 @@ impl<'a> Dyn<'a> {
             _ => panic!(""),
         }
         return Ok(Dyn::Undefined);
+    }
+
+    #[allow(non_snake_case)]
+    pub fn startsWith(&self, value: Dyn<'a>) -> DynResult<'a> {
+        match (self, value) {
+            (Dyn::Str(s), Dyn::Str(prefix)) => Ok(Dyn::Bool(s.starts_with(prefix.as_str()))),
+            _ => unimplemented!()
+        }
     }
 
     pub fn shift(self) -> DynResult<'a> {

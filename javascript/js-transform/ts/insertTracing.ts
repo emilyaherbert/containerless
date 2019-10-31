@@ -444,6 +444,8 @@ function reifyVariableDeclaration(s: b.VariableDeclaration, st: State): [b.State
                     }
                 }
                 switch(prop.name) {
+                    // TODO(arjun): Total hack. Do better.
+                    case 'startsWith':
                     case 'shift':
                     case 'push': {
                         const [obj2, st2] = reifyExpression(obj, nextSt);
