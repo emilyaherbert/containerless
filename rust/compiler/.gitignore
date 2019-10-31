@@ -1,2 +1,5 @@
 /target
 keys/
+TYPES.rs
+*.js
+*.json
