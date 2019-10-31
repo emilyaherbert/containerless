@@ -34,6 +34,16 @@ let maze =
     [999,   0, 999,   0,   0, 999, 999, 999,   0, 999, 999, 999,   0, 999, 999, 999, 999, 999,   0, 999, 999, 999, 999, 999, 999, 999, 999, 999,   0, 999],
 ];
 
+function resetMaze() {
+    for(let i=0; i<maze.length; i++) {
+        for(let j=0; j<maze.length; j++) {
+            if(maze[i][j] > 0) {
+                maze[i][j] = 999;
+            }
+        }
+    }
+}
+
 function isValidMove(x, y, turn) {
     if ((x > -1) && (y > -1) && (x < maze[0].length) && (y < maze.length)) {
         return (maze[y][x] > 0) && (turn < maze[y][x]);
@@ -65,6 +75,7 @@ function findShortestPath(x1, y1, x2, y2) {
         }
     }
 
+    resetMaze();
     return shortest;
 }
 

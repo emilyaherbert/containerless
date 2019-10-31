@@ -730,6 +730,16 @@ pub fn benchmark_maze() {
             [999,   0, 999,   0,   0, 999, 999, 999,   0, 999, 999, 999,   0, 999, 999, 999, 999, 999,   0, 999, 999, 999, 999, 999, 999, 999, 999, 999,   0, 999],
         ];
 
+        function resetMaze() {
+            for(let i=0; i<maze.length; i++) {
+                for(let j=0; j<maze.length; j++) {
+                    if(maze[i][j] > 0) {
+                        maze[i][j] = 999;
+                    }
+                }
+            }
+        }
+
         function isValidMove(x, y, turn) {
             if ((x > -1) && (y > -1) && (x < maze[0].length) && (y < maze.length)) {
                 return (maze[y][x] > 0) && (turn < maze[y][x]);
@@ -761,6 +771,7 @@ pub fn benchmark_maze() {
                 }
             }
 
+            resetMaze();
             return shortest;
         }
 
@@ -791,6 +802,15 @@ pub fn benchmark_maze() {
                     "x2": 1,
                     "y2": 2
                 }
+            },
+            { "path": "/a",
+              "query": {},
+              "body": {
+                    "x1": 0,
+                    "y1": 0,
+                    "x2": 1,
+                    "y2": 2
+                }
             }
         ]),
         json!([
@@ -802,7 +822,16 @@ pub fn benchmark_maze() {
                     "x2": 1,
                     "y2": 2
                 }
+            },
+            { "path": "/a",
+              "query": {},
+              "body": {
+                    "x1": 0,
+                    "y1": 0,
+                    "x2": 1,
+                    "y2": 2
+                }
             }
         ]));
-    assert_eq!(result, ["3", ""]);
+    assert_eq!(result, ["3", "", "3", ""]);
 }
