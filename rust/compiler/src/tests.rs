@@ -24,6 +24,28 @@ pub fn trivial_fixed_response() {
 
 #[test]
 #[serial]
+pub fn trivial_index_set() {
+    let mut runner = TestRunner::new("trivial_fixed_response.js");
+    let result = runner.test(
+        r#"
+        let containerless = require("../../javascript/containerless");
+        containerless.listen(function(req) {
+            let a = [1, 2, 3];
+            a[0] = 5;
+            containerless.respond(a + "\n");
+        });"#,
+        json!([
+            { "path": "/hello", "query": {}, "body": {} }
+        ]),
+        json!([
+            { "path": "/hello", "query": {}, "body": {} }
+        ]),
+    );
+    assert_eq!(result, vec!["5,2,3,", ""]);
+}
+
+#[test]
+#[serial]
 pub fn trivial_echo_path() {
     let mut runner = TestRunner::new("trivial_echo_path.js");
     let result = runner.test(
@@ -317,13 +339,13 @@ pub fn benchmark_upload() {
                         url: 'data:{}',
                         body: req.body
                     }, function(resp) {
-                        containerless.respond('Uploaded');
+                        containerless.respond("Uploaded!");
                     });
                 } else {
-                    containerless.respond("No file to upload.");
+                    containerless.respond("No file to upload.\n");
                 }
             } else {
-                containerless.respond("Unknown command.");
+                containerless.respond("Unknown command.\n");
             }
         });"#,
         json!([
@@ -336,7 +358,7 @@ pub fn benchmark_upload() {
               "query": {},
               "body": "This is another file"  }
         ]));
-    assert_eq!(result, ["Uploaded"]);
+    assert_eq!(result, ["Uploaded!"]);
 }
 
 #[serial]
@@ -709,7 +731,11 @@ pub fn benchmark_maze() {
         ];
 
         function isValidMove(x, y, turn) {
-            return (x > -1) && (y > -1) && (x < maze[0].length) && (y < maze.length) && (maze[y][x] > 0) && (turn < maze[y][x]);
+            if ((x > -1) && (y > -1) && (x < maze[0].length) && (y < maze.length)) {
+                return (maze[y][x] > 0) && (turn < maze[y][x]);
+            } else {
+                return false;
+            }
         }
 
         function findShortestPath(x1, y1, x2, y2) {
@@ -760,10 +786,10 @@ pub fn benchmark_maze() {
             { "path": "/a",
               "query": {},
               "body": {
-                    "x1": 7,
-                    "y1": 28,
-                    "x2": 24,
-                    "y2": 4
+                    "x1": 0,
+                    "y1": 0,
+                    "x2": 1,
+                    "y2": 2
                 }
             }
         ]),
@@ -771,12 +797,12 @@ pub fn benchmark_maze() {
             { "path": "/a",
               "query": {},
               "body": {
-                    "x1": 7,
-                    "y1": 28,
-                    "x2": 24,
-                    "y2": 4
+                    "x1": 0,
+                    "y1": 0,
+                    "x2": 1,
+                    "y2": 2
                 }
             }
         ]));
-    assert_eq!(result, ["area,art,air,", ""]);
+    assert_eq!(result, ["3", ""]);
 }

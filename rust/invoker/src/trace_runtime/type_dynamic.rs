@@ -5,6 +5,7 @@ use bumpalo::{
 };
 use std::cell::{Cell, RefCell};
 use std::convert::{From, TryFrom};
+use std::collections::VecDeque;
 
 pub fn unknown<'a>() -> DynResult<'a> {
     Err(Error::Unknown)
@@ -66,19 +67,19 @@ impl<'a> DynObject<'a> {
 
 #[derive(Debug, Copy, Clone)]
 pub struct DynVec<'a> {
-  elems: &'a RefCell<Vec<'a, Dyn<'a>>>
+  elems: &'a RefCell<VecDeque<Dyn<'a>>>
 }
 
 impl<'a> DynVec<'a> {
 
     pub fn new(arena: &'a Bump) -> DynVec<'a> {
-        DynVec { elems: arena.alloc(RefCell::new(Vec::new_in(arena))) }
+        DynVec { elems: arena.alloc(RefCell::new(VecDeque::new())) }
     }
 
     pub fn from(arena: &'a Bump, elems: std::vec::Vec<Dyn<'a>>) -> DynVec<'a> {
-        let v = arena.alloc(RefCell::new(Vec::new_in(arena)));
+        let v = arena.alloc(RefCell::new(VecDeque::new()));
         for e in elems.into_iter() {
-            v.borrow_mut().push(e);   
+            v.borrow_mut().push_back(e);  
         }
         DynVec { elems: v }
     }
@@ -92,7 +93,9 @@ impl<'a> DynVec<'a> {
 
     pub fn index(&self, index: i32) -> Dyn<'a> {
         match usize::try_from(index) {
-            Err(_) => Dyn::Undefined,
+            Err(_) => {
+                Dyn::Undefined
+            },
             Ok(index) => {
                 let vec = self.elems.borrow();
                 if index >= vec.len() {
@@ -104,11 +107,12 @@ impl<'a> DynVec<'a> {
     }
 
     pub fn push(self, value: Dyn<'a>) {
-        self.elems.borrow_mut().push(value);
+        self.elems.borrow_mut().push_back(value);
     }
 
     pub fn shift(self) -> Dyn<'a> {
-        return self.elems.borrow_mut().pop().unwrap_or(Dyn::Undefined);
+        let e = self.elems.borrow_mut().pop_front().unwrap_or(Dyn::Undefined);
+        return e;
     }
 
     pub fn to_json(&self) -> serde_json::Value {
@@ -174,6 +178,16 @@ impl<'a> Dyn<'a> {
         panic!("setref on {:?}", self);
     }
 
+    pub fn set(&mut self, index: Dyn<'a>, new_value: Dyn<'a>) -> DynResult<'a> {
+        match (self, index) {
+            (Dyn::Vec(v), Dyn::Float(n)) => {
+                std::mem::replace(&mut v.elems.borrow_mut()[n as usize], new_value);
+            },
+            _ => panic!("Should only use index on a vec!")
+        }
+        return Ok(Dyn::Undefined);
+    }
+
     pub fn object(arena: &'a Bump) -> Dyn<'a> {
         Dyn::Object(DynObject::new(arena))
     }
@@ -212,7 +226,9 @@ impl<'a> Dyn<'a> {
             (Dyn::Float(x), Dyn::Int(n)) => Ok(Dyn::Float(x + f64::from(n))),
             (Dyn::Int(n), Dyn::Float(x)) => Ok(Dyn::Float(f64::from(n) + x)),
             (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Float(x + y)),
+            (Dyn::Float(x), Dyn::Str(s)) => Ok(Dyn::str(arena, &(x.to_string() + s))),
             (Dyn::Vec(v), Dyn::Str(s)) => Ok(Dyn::str(arena, &(v.to_string() + s))),
+            (Dyn::Str(s), Dyn::Vec(v)) => Ok(Dyn::str(arena, &(s.to_string() + &v.to_string()))),
             (Dyn::Str(a), Dyn::Str(b)) => Ok(Dyn::str(arena, &(a.to_string() + b))),
             (Dyn::Undefined, Dyn::Str(s)) => Ok(Dyn::str(arena, &(self.to_string() + s))),
             _ => type_error(&format!("add({:?}, {:?})", &self, &other)),
@@ -244,7 +260,9 @@ impl<'a> Dyn<'a> {
             (Dyn::Int(m), Dyn::Int(n)) => Ok(Dyn::Bool(m == n)),
             (Dyn::Str(s1), Dyn::Str(s2)) => Ok(Dyn::Bool(s1 == s2)),
             (Dyn::Str(_), other) => panic!("not working Dyn::Str(_) == {:?}", other),
-            (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Bool(x == y)),
+            (Dyn::Float(x), Dyn::Float(y)) => {
+                Ok(Dyn::Bool(x == y))
+            },
             (_that, other) => {
                 println!("Other is {:?}", other);
                 println!("self is {:?}", self);
@@ -401,9 +419,9 @@ impl<'a> Dyn<'a> {
             Value::Bool(b) => Dyn::Bool(b),
             Value::Null => unimplemented!(),
             Value::Array(vec) => {
-                let mut v = Vec::new_in(arena);
+                let mut v = VecDeque::new();
                 for item in vec.into_iter() {
-                    v.push(Self::from_json(arena, item));
+                    v.push_back(Self::from_json(arena, item));
                 }
                 // Why isn't this refcell immediate?
                 Dyn::Vec(DynVec { elems: arena.alloc(RefCell::new(v)) })
@@ -430,6 +448,7 @@ impl<'a> Dyn<'a> {
     pub fn to_string(&self) -> std::string::String {
         match self {
             Dyn::Str(s) => s.to_string(),
+            Dyn::Float(n) => n.to_string(),
             Dyn::Vec(v) => v.to_string(),
             Dyn::Undefined => "undefined".to_string(),
             _ => unimplemented!("{:?}", self)

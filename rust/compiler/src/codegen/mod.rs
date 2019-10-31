@@ -1,4 +1,4 @@
-use crate::types::{Exp, Op2, Op1};
+use crate::types::{Exp, Op2, Op1, LVal};
 use proc_macro2::Span;
 use quote::__rt::TokenStream;
 use quote::*;
@@ -131,7 +131,17 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             quote! {
                 let #q_name = #q_named;
             }
-        }
+        },
+        Exp::Set {
+            name: LVal::Index { exp, index },
+            named,
+        } => {
+            let q_exp = codegen_exp(exp);
+            let q_index = codegen_exp(index);
+            let q_named = codegen_exp(named);
+            quote! { #q_exp.set(#q_index, #q_named)? }
+            //quote! { #q_exp.index(arena, #q_index)?.set(#q_named)? }
+        },
         Exp::Set { name: _, named: _ } =>
         // NOTE(arjun): This should have been turned into SetRef.
         {
@@ -227,9 +237,18 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
         }
         Exp::PrimApp { event, event_args } => {
             let q_event_args = event_args.iter().map(|e| codegen_exp(e));
-            let q_event = Ident::new(&format!("{}", event), Span::call_site());
-            quote! {
-                ec.#q_event(#(#q_event_args),*)?
+            match event.as_str() {
+                "console.log" => {
+                    quote! {
+                        eprintln!("{:?}", #(#q_event_args),*)
+                    }
+                },
+                e => {
+                    let q_event = Ident::new(&format!("{}", event), Span::call_site());
+                    quote! {
+                        ec.#q_event(#(#q_event_args),*)?
+                    }
+                }
             }
         },
         Exp::MethodCall { e, method, method_call_args } => {
