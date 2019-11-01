@@ -8,6 +8,9 @@ use futures::future;
 use futures::Stream;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use rand::Rng;
+use std::time;
+use std::thread;
 
 #[derive(Serialize, Deserialize)]
 struct User {
@@ -15,14 +18,9 @@ struct User {
     password: String
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 struct Commit {
     sha: String
-}
-
-#[derive(Serialize, Deserialize)]
-struct Sha {
-    value: String
 }
 
 #[derive(Serialize, Deserialize)]
@@ -33,13 +31,18 @@ struct Status {
 type BoxFut = Box<dyn Future<Item=Response<Body>, Error=hyper::Error> + Send>;
 
 fn echo(req: Request<Body>) -> BoxFut {
+    //let mut rng = rand::thread_rng();
+    //let goodnight = time::Duration::from_millis(rng.gen_range(0, 10));
+    //thread::sleep(goodnight);
+
     let mut users = HashMap::new();
     users.insert("javascript".to_string(), User { username: "javascript".to_string(), password: "rust".to_string() });
     users.insert("emily".to_string(), User { username: "emily".to_string(), password: "herbert".to_string() });
 
     let commits = vec![
         Commit { sha: "1234567890".to_string() },
-        Commit { sha: "qwerty".to_string() }
+        Commit { sha: "qwerty".to_string() },
+        Commit { sha: "z".to_string() },
     ];
 
     match (req.method(), req.uri().path()) {
@@ -79,20 +82,28 @@ fn echo(req: Request<Body>) -> BoxFut {
                 })
             );
         },
-        (&Method::GET, "/status") => {
+        /*
+        (&Method::POST, "/status1") => {
             return Box::new(
                 req.into_body()
                 .concat2()
                 .and_then(move |body| {
-                    let resp = match commits.first() {
-                        Some(commit) => Response::new(Body::from(format!("{}", serde_json::to_string(&commit).expect("Could not create string from JSON.")))),
+                    let mut rng = rand::thread_rng();
+                    let resp = match commits.get(rng.gen_range(0, commits.len())) {
+                        Some(commit) => {
+                            if commit.sha.len() > 1 {
+                                Response::new(Body::from(format!("{}", serde_json::to_string(&commit.sha).expect("Could not create string from JSON."))))
+                            } else {
+                                Response::new(Body::from("{ \"body\": \"Sha not available.\" }"))
+                            }
+                        }
                         None => Response::new(Body::from("{ \"body\": \"No shas available.\" }"))
                     };
                     Box::new(future::ok(resp))
                 })
             );
         },
-        (&Method::POST, "/status") => {
+        (&Method::POST, "/status2") => {
             return Box::new(
                 req.into_body()
                 .concat2()
@@ -110,8 +121,9 @@ fn echo(req: Request<Body>) -> BoxFut {
                 })
             );
         },
+        */
         _ => {
-            let mut response = Response::new(Body::empty());
+            let mut response = Response::new(Body::from("... something is wrong... "));
             *response.status_mut() = StatusCode::NOT_FOUND;
             return Box::new(future::ok(response));
         },

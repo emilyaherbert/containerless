@@ -9,3 +9,4 @@ hyper = "0.12"
 futures = "0.1" 
 serde = { version = "*", features = ["derive"] }
 serde_json = "*"
+rand = "*"
