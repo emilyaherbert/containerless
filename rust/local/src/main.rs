@@ -22,10 +22,15 @@ fn echo(req: Request<Body>) -> BoxFut {
     users.insert("javascript".to_string(), User { username: "javascript".to_string(), password: "rust".to_string() });
     users.insert("emily".to_string(), User { username: "emily".to_string(), password: "herbert".to_string() });
 
+    let shas = vec![
+        "1234567890",
+        "qwerty"
+    ];
+
     match (req.method(), req.uri().path()) {
         (&Method::GET, "/") => {
             return Box::new(future::ok(
-                Response::new(Body::from("Try POSTing a file to /upload.\n"))
+                Response::new(Body::from("I don't understand this...\n"))
             ));
         },
         (&Method::POST, "/upload") => {
@@ -53,11 +58,30 @@ fn echo(req: Request<Body>) -> BoxFut {
                     let b: User = serde_json::from_slice(&body).expect("Could not parse JSON body.");
                     let resp = match users.get(&b.username) {
                         Some(user) => Response::new(Body::from(format!("{}", serde_json::to_string(&user).expect("Could not create string from JSON.")))),
-                        None => Response::new(Body::from(r#"{ "body": "User not found." }"#))
+                        None => Response::new(Body::from("{ \"body\": \"User not found.\" }"))
                     };
                     Box::new(future::ok(resp))
                 })
             );
+        },
+        (&Method::GET, "/status") => {
+            let resp = match req.uri().query() {
+                Some(q) => {
+                    if q.len() == 0 {
+                        Response::new(Body::from("No query provided.\n"))
+                    } else {
+                        match shas.first() {
+                            Some(s) => Response::new(Body::from(format!("{}", s))),
+                            None => Response::new(Body::from("No shas."))
+                        }
+                    }
+                }
+                None => Response::new(Body::from("No query provided.\n"))
+            };
+            return Box::new(future::ok(resp));
+        },
+        (&Method::POST, "/status") => {
+            unimplemented!();
         },
         _ => {
             let mut response = Response::new(Body::empty());

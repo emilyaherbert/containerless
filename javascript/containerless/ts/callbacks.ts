@@ -121,6 +121,7 @@ export class Callbacks {
                 this.withTrace(innerTrace, () => {
                     innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                     if (error !== null) {
+                        console.error(error);
                         callback(undefined);
                     }
                     else {
@@ -140,9 +141,11 @@ export class Callbacks {
         let innerTrace = this.trace.traceCallback('post', $argRep, ['clos', 'response'], $callbackClos);
 
         if (uri.url.startsWith('data:')) {
+            console.error('data');
             this.withTrace(innerTrace, () => {
                 innerTrace.pushArgs([identifier('clos'), identifier('response')]);
-                callback(JSON.parse(uri.url.substr(5)));
+                let json = JSON.parse(String('{ "body": "User not found." }'));
+                callback(json);
             });
             return;
         }
@@ -158,7 +161,7 @@ export class Callbacks {
             this.withTrace(innerTrace, () => {
                 innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                 // TODO(emily): This is probably wrong.
-                callback(JSON.parse(String('{ "username": "javascript", "password": "rust"}')));
+                callback(JSON.parse(String('{ "body": "User not found."}')));
             });
         } else {
             if (typeof uri.body !== 'string') {
@@ -168,6 +171,7 @@ export class Callbacks {
                 this.withTrace(innerTrace, () => {
                     innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                     if (error !== null) {
+                        console.error(error);
                         callback(undefined);
                     }
                     else {
