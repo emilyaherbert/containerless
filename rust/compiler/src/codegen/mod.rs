@@ -243,7 +243,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
                         eprintln!("{:?}", #(#q_event_args),*)
                     }
                 },
-                e => {
+                _ => {
                     let q_event = Ident::new(&format!("{}", event), Span::call_site());
                     quote! {
                         ec.#q_event(#(#q_event_args),*)?

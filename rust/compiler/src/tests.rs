@@ -231,7 +231,7 @@ pub fn benchmark_login() {
         containerless.listen(function(req) {
             if(req.path === '/login') {
                 containerless.post({
-                        url: 'http://localhost:7999/login',
+                        url: 'data:{}', //'http://localhost:7999/login',
                         body: req.body
                     }, function(resp) {
                     if(resp.username === undefined || resp.password === undefined || req.body.username === undefined || req.body.password === undefined) {
@@ -258,7 +258,7 @@ pub fn benchmark_login() {
               "query": {},
               "body": { "username": "javascript", "password": "rust" }  }
         ]));
-    assert_eq!(result, ["Login successful!"]);
+    assert_eq!(result, ["Username and password not found."]);
 }
 
 #[serial]
@@ -270,7 +270,6 @@ pub fn benchmark_status() {
         let containerless = require("../../javascript/containerless");
 
         containerless.listen(function(req) {
-            let x = 200;
             if(req.path === '/status') {
                 if (typeof req.body.username !== 'string') {
                     containerless.respond('Username missing');
@@ -287,8 +286,6 @@ pub fn benchmark_status() {
 
                 containerless.get('data:{ "commit": { "sha": "0ce90df7101cb82aa194bad39b614097e30b92ed" } }',
                   function(resp1) {
-                    x = x + 1;
-                    let y = 200;
                     if (typeof resp1.commit.sha !== 'string') {
                         containerless.respond('SHA missing in resp1');
                         return;
@@ -306,7 +303,6 @@ pub fn benchmark_status() {
                             'state': req.body.state
                         }
                     }, function(resp2) {
-                        let z = x + y;
                         containerless.respond("Done!");
                     });
                 });
@@ -481,7 +477,6 @@ pub fn benchmark_autocomplete() {
             for(let i=0; i<words.length; i = i + 1) {
                 let word = words[i];
                 if((req.path.length > 1) && word.length >= (req.path.length - 1)) {
-                    let j = 0;
                     let x = "/" + words[i];
                     let match = x.startsWith(req.path);
                     if(match) {

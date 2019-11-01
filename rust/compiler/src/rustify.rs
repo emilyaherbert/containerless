@@ -65,8 +65,8 @@ impl Rustify {
                 */
             } else {
                 if let Exp::Label {
-                    name,
-                    body: _
+                    name:_,
+                    body:_
                 } = e
                 {
                     let inner = std::mem::replace(e, Exp::Undefined {});

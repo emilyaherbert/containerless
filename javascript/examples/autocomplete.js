@@ -108,14 +108,13 @@ containerless.listen(function(req) {
     for(let i=0; i<words.length; i = i + 1) {
         let word = words[i];
         if((req.path.length > 1) && word.length >= (req.path.length - 1)) {
-            let j = 0;
             let x = "/" + words[i];
             let match = x.startsWith(req.path);
             if(match) {
                 matches.push(word);
             }
         }
-}
+    }
     if(matches.length === 0) {
         containerless.respond("No matches found!\n");
     } else {
