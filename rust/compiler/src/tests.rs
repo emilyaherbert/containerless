@@ -318,14 +318,20 @@ pub fn benchmark_status() {
         json!([
             { "path": "/status",
               "query": {},
-              "body": { "username": "u", "token": "t", "state": "q" }  }
+              "body": { "username": "u", "token": "t", "state": "q" }  },
+            { "path": "/status",
+              "query": {},
+              "body": { "username": "u", "token": "t" }  }
         ]),
         json!([
             { "path": "/status",
               "query": {},
-              "body": { "username": "u", "token": "t", "state": "q" }  }
+              "body": { "username": "u", "token": "t", "state": "q" }  },
+            { "path": "/status",
+              "query": {},
+              "body": { "username": "u", "token": "t" }  }
         ]));
-    assert_eq!(result, ["Done!"]);
+    assert_eq!(result, ["Done!", "State missing"]);
 }
 
 #[serial]

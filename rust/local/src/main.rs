@@ -15,6 +15,21 @@ struct User {
     password: String
 }
 
+#[derive(Serialize, Deserialize)]
+struct Commit {
+    sha: String
+}
+
+#[derive(Serialize, Deserialize)]
+struct Sha {
+    value: String
+}
+
+#[derive(Serialize, Deserialize)]
+struct Status {
+    state: String
+}
+
 type BoxFut = Box<dyn Future<Item=Response<Body>, Error=hyper::Error> + Send>;
 
 fn echo(req: Request<Body>) -> BoxFut {
@@ -22,9 +37,9 @@ fn echo(req: Request<Body>) -> BoxFut {
     users.insert("javascript".to_string(), User { username: "javascript".to_string(), password: "rust".to_string() });
     users.insert("emily".to_string(), User { username: "emily".to_string(), password: "herbert".to_string() });
 
-    let shas = vec![
-        "1234567890",
-        "qwerty"
+    let commits = vec![
+        Commit { sha: "1234567890".to_string() },
+        Commit { sha: "qwerty".to_string() }
     ];
 
     match (req.method(), req.uri().path()) {
@@ -65,23 +80,35 @@ fn echo(req: Request<Body>) -> BoxFut {
             );
         },
         (&Method::GET, "/status") => {
-            let resp = match req.uri().query() {
-                Some(q) => {
-                    if q.len() == 0 {
-                        Response::new(Body::from("No query provided.\n"))
-                    } else {
-                        match shas.first() {
-                            Some(s) => Response::new(Body::from(format!("{}", s))),
-                            None => Response::new(Body::from("No shas."))
-                        }
-                    }
-                }
-                None => Response::new(Body::from("No query provided.\n"))
-            };
-            return Box::new(future::ok(resp));
+            return Box::new(
+                req.into_body()
+                .concat2()
+                .and_then(move |body| {
+                    let resp = match commits.first() {
+                        Some(commit) => Response::new(Body::from(format!("{}", serde_json::to_string(&commit).expect("Could not create string from JSON.")))),
+                        None => Response::new(Body::from("{ \"body\": \"No shas available.\" }"))
+                    };
+                    Box::new(future::ok(resp))
+                })
+            );
         },
         (&Method::POST, "/status") => {
-            unimplemented!();
+            return Box::new(
+                req.into_body()
+                .concat2()
+                .and_then(move |body| {
+                    let s: Result<Status, serde_json::Error> = serde_json::from_slice(&body);
+                    let resp = s
+                        .map(|_| {
+                            Response::new(Body::from("{ \"body\": \"Done!\" }"))
+                        })
+                        .map_err(|_| {
+                            Response::new(Body::from("{ \"body\": \"Sha not found.\" }"))
+                        })
+                        .expect("Something went wrong.");
+                    Box::new(future::ok(resp))
+                })
+            );
         },
         _ => {
             let mut response = Response::new(Body::empty());
