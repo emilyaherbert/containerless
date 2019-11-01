@@ -213,7 +213,8 @@ export class Callbacks {
         }
         state.setListening();
 
-        this.app.get('/', (req, resp) => {
+	this.app.get('/', (req, resp) => {
+	    console.error("Hello world!\n");
             resp.send('Hello world!\n');
         });
 
