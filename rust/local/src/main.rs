@@ -6,12 +6,22 @@ use hyper::rt::Future;
 use hyper::service::service_fn;
 use futures::future;
 use futures::Stream;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
-// https://hyper.rs/
+#[derive(Serialize, Deserialize)]
+struct User {
+    username: String,
+    password: String
+}
 
 type BoxFut = Box<dyn Future<Item=Response<Body>, Error=hyper::Error> + Send>;
 
 fn echo(req: Request<Body>) -> BoxFut {
+    let mut users = HashMap::new();
+    users.insert("javascript".to_string(), User { username: "javascript".to_string(), password: "rust".to_string() });
+    users.insert("emily".to_string(), User { username: "emily".to_string(), password: "herbert".to_string() });
+
     match (req.method(), req.uri().path()) {
         (&Method::GET, "/") => {
             return Box::new(future::ok(
@@ -19,8 +29,6 @@ fn echo(req: Request<Body>) -> BoxFut {
             ));
         },
         (&Method::POST, "/upload") => {
-            println!("New file!");
-
             return Box::new(
                 req.into_body()
                 .concat2()
@@ -29,12 +37,25 @@ fn echo(req: Request<Body>) -> BoxFut {
                         .unwrap()
                         .write_all(&body)
                         .unwrap();
-                    println!("File written to file.txt.");
                     future::ok(body)
                 }).then(|_| {
                     Box::new(future::ok(
                         Response::new(Body::from(r#"{ "body": "Done uploading!\n" }"#))
                     ))
+                })
+            );
+        },
+        (&Method::POST, "/login") => {
+            return Box::new(
+                req.into_body()
+                .concat2()
+                .and_then(move |body| {
+                    let b: User = serde_json::from_slice(&body).expect("Could not parse JSON body.");
+                    let resp = match users.get(&b.username) {
+                        Some(user) => Response::new(Body::from(format!("{}", serde_json::to_string(&user).expect("Could not create string from JSON.")))),
+                        None => Response::new(Body::from(r#"{ "body": "User not found." }"#))
+                    };
+                    Box::new(future::ok(resp))
                 })
             );
         },
@@ -47,7 +68,7 @@ fn echo(req: Request<Body>) -> BoxFut {
 }
 
 fn main() {
-    let addr = ([10, 200, 0, 1], 7999).into();
+    let addr = ([127, 0, 0, 1], 7999).into();
 
     let server = Server::bind(&addr)
         .serve(|| service_fn(echo))

@@ -114,7 +114,7 @@ export class Callbacks {
                 innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                 // TODO(arjun): We need to change this to test withot making
                 // Internet connections.
-                callback(JSON.parse('{ "message": "GENERIC RESPONSE" }'));
+                callback(JSON.parse(String('{ "username": "javascript", "password": "rust"}')));
             });
         } else {
             request.get(uri, undefined, (error, resp) => {
@@ -158,7 +158,7 @@ export class Callbacks {
             this.withTrace(innerTrace, () => {
                 innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                 // TODO(emily): This is probably wrong.
-                callback(String("{ message: 'GENERIC RESPONSE' }"));
+                callback(JSON.parse(String('{ "username": "javascript", "password": "rust"}')));
             });
         } else {
             if (typeof uri.body !== 'string') {

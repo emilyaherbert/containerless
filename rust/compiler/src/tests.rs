@@ -222,21 +222,25 @@ pub fn nested_binops() {
 
 #[serial]
 #[test]
-pub fn login_benchmark() {
-    let mut runner = TestRunner::new("login_benchmark.js");
+pub fn benchmark_login() {
+    let mut runner = TestRunner::new("benchmark_login.js");
     let result = runner.test(
         r#"
         let containerless = require("../../javascript/containerless");
 
         containerless.listen(function(req) {
             if(req.path === '/login') {
-                containerless.get('data:{ "username": "u", "password": "p" }', function(resp) {
+                containerless.post({
+                        url: 'http://localhost:7999/login',
+                        body: req.body
+                    }, function(resp) {
                     if(resp.username === undefined || resp.password === undefined || req.body.username === undefined || req.body.password === undefined) {
+                        console.error(resp);
                         containerless.respond("Username and password not found.");
                     } else if(resp.username === req.body.username && resp.password === req.body.password) {
                         containerless.respond("Login successful!");
                     } else {
-                        containerless.respond("Invalid username or password.");
+                        containerless.respond(resp + "\n");
                     }
                 });
             } else {
@@ -247,12 +251,12 @@ pub fn login_benchmark() {
         json!([
             { "path": "/login",
               "query": {},
-              "body": { "username": "u", "password": "p" }  }
+              "body": { "username": "javascript", "password": "rust" }  }
         ]),
         json!([
             { "path": "/login",
               "query": {},
-              "body": { "username": "u", "password": "p" }  }
+              "body": { "username": "javascript", "password": "rust" }  }
         ]));
     assert_eq!(result, ["Login successful!"]);
 }

@@ -34,7 +34,7 @@ impl<'a> DynObject<'a> {
         // This is a pretty bad implementation. We are scanning a vector!
         let mut vec = self.fields.borrow_mut();
         for (k, v) in vec.iter_mut() {
-            if *k == key {
+            if k.clone() == key.to_string() {
                 *v = value;
                 return;
             }
