@@ -121,7 +121,6 @@ export class Callbacks {
                 this.withTrace(innerTrace, () => {
                     innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                     if (error !== null) {
-                        console.error(error);
                         callback(undefined);
                     }
                     else {

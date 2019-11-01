@@ -82,8 +82,7 @@ fn echo(req: Request<Body>) -> BoxFut {
                 })
             );
         },
-        /*
-        (&Method::POST, "/status1") => {
+        (&Method::GET, "/status") => {
             return Box::new(
                 req.into_body()
                 .concat2()
@@ -92,7 +91,7 @@ fn echo(req: Request<Body>) -> BoxFut {
                     let resp = match commits.get(rng.gen_range(0, commits.len())) {
                         Some(commit) => {
                             if commit.sha.len() > 1 {
-                                Response::new(Body::from(format!("{}", serde_json::to_string(&commit.sha).expect("Could not create string from JSON."))))
+                                Response::new(Body::from(format!("{}", serde_json::to_string(&commit).expect("Could not create string from JSON."))))
                             } else {
                                 Response::new(Body::from("{ \"body\": \"Sha not available.\" }"))
                             }
@@ -103,7 +102,7 @@ fn echo(req: Request<Body>) -> BoxFut {
                 })
             );
         },
-        (&Method::POST, "/status2") => {
+        (&Method::POST, "/status") => {
             return Box::new(
                 req.into_body()
                 .concat2()
@@ -121,9 +120,8 @@ fn echo(req: Request<Body>) -> BoxFut {
                 })
             );
         },
-        */
         _ => {
-            let mut response = Response::new(Body::from("... something is wrong... "));
+            let mut response = Response::new(Body::from("{ \"body\": \"... something is wrong...\" }"));
             *response.status_mut() = StatusCode::NOT_FOUND;
             return Box::new(future::ok(response));
         },
