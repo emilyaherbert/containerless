@@ -7,7 +7,7 @@ containerless.listen(function(req) {
                 url: 'http://10.200.0.1:7999/upload',
                 body: req.body
             }, function(resp) {
-                containerless.respond("Uploaded!");
+                containerless.respond(resp.body);
             });
         } else {
             containerless.respond("No file to upload.\n");
