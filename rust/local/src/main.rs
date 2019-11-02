@@ -36,9 +36,15 @@ struct AccountName {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct Account {
+struct InternalAccount {
     name: String,
     balance: AtomicI64
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Account {
+    name: String,
+    balance: f64
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -49,7 +55,7 @@ struct AccountTransaction {
 
 type BoxFut = Box<dyn Future<Item=Response<Body>, Error=hyper::Error> + Send>;
 
-fn echo(req: Request<Body>, accounts: std::sync::Arc<HashMap<String, Account>>) -> BoxFut {
+fn echo(req: Request<Body>, accounts: std::sync::Arc<HashMap<String, InternalAccount>>) -> BoxFut {
     println!("entered");
 
     let mut rng = rand::thread_rng();
@@ -159,7 +165,8 @@ fn echo(req: Request<Body>, accounts: std::sync::Arc<HashMap<String, Account>>) 
                             match accounts.get(&commit.mutation.name) {
                                 None => Response::new(Body::from("{ \"body\": \"Account not found.\" }")),
                                 Some(account) => {
-                                    account.balance.store(commit.mutation.balance.into_inner(), Ordering::SeqCst);
+                                    let new_amount: i64 = (commit.mutation.balance / 100.0) as i64;
+                                    account.balance.store(new_amount, Ordering::SeqCst);
                                     Response::new(Body::from("{ \"body\": \"Done!\" }"))
                                 }
                             }
@@ -205,9 +212,9 @@ fn echo(req: Request<Body>, accounts: std::sync::Arc<HashMap<String, Account>>) 
 fn main() {
 
     let mut accounts = HashMap::new();
-    accounts.insert("coffee".to_string(), Account { name: "coffee".to_string(), balance: AtomicI64::new(10000) });
-    accounts.insert("tea".to_string(), Account { name: "tea".to_string(), balance: AtomicI64::new(1234500) });
-    accounts.insert("milk".to_string(), Account { name: "milk".to_string(), balance: AtomicI64::new(66600) });
+    accounts.insert("coffee".to_string(), InternalAccount { name: "coffee".to_string(), balance: AtomicI64::new(10000) });
+    accounts.insert("tea".to_string(), InternalAccount { name: "tea".to_string(), balance: AtomicI64::new(1234500) });
+    accounts.insert("milk".to_string(), InternalAccount { name: "milk".to_string(), balance: AtomicI64::new(66600) });
     let arc_accounts = Arc::new(accounts);
 
     let addr = ([127, 0, 0, 1], 7999).into();
