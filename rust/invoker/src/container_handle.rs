@@ -53,15 +53,20 @@ impl ContainerHandle {
         client: Arc<HttpClient>,
         mut req: Request,
     ) -> impl Future<Item = Response, Error = hyper::Error> {
-        let pq = (req.uri().path().to_string() + "?").to_string() + req.uri().query().unwrap_or("");
+        let pq = (req.uri().path().to_string() + "?").to_string()
+            + req.uri()
+            .query()
+            .map(move |q| {
+                "?".to_string() + q.clone()
+            })
+            .unwrap_or("".to_string()).as_str();
         let new_uri = hyper::Uri::builder()
             .scheme("http")
             .authority(self.authority.clone())
-            .path_and_query(pq.as_str())
+            .path_and_query(req.uri().path())
             .build()
             .unwrap();
         *req.uri_mut() = new_uri;
-        //println!("{:?}", req);
         client.request(req)
     }
 

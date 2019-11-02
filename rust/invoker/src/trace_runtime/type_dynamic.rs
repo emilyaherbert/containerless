@@ -249,6 +249,20 @@ impl<'a> Dyn<'a> {
         }
     }
 
+    pub fn mul(&self, other: Dyn<'a>) -> DynResult<'a> {
+        match (*self, other) {
+            (Dyn::Float(m), Dyn::Float(n)) => Ok(Dyn::Float(n * m)),
+            _ => unimplemented!()
+        }
+    }
+
+    pub fn div(&self, other: Dyn<'a>) -> DynResult<'a> {
+        match (*self, other) {
+            (Dyn::Float(m), Dyn::Float(n)) => Ok(Dyn::Float(n / m)),
+            _ => unimplemented!()
+        }
+    }
+
     pub fn strict_neq(&self, other: Dyn<'a>) -> DynResult<'a> {
         self.strict_eq(other).map(|r| match r {
             Dyn::Bool(x) => Dyn::Bool(!x),

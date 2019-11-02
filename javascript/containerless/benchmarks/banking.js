@@ -1,33 +1,22 @@
 let containerless = require('../dist/index');
 
-// https://cloud.google.com/datastore/docs/reference/data/rest/v1/projects/commit
-
-// 1. gcloud auth activate-service-account --key-file keys/umass-plasma-980eb8bee293.json
-// 2. gcloud auth print-access-token
-
-// TODO(emily): Fix bug where you can't call functions from inside objects.
-
 /**
  * Begins a request.
- * 
+ *
  * `next(req, transaction)`
  */
 function begin(req, next) {
-    containerless.post({
-        'url':"https://datastore.googleapis.com/v1/projects/umass-plasma:beginTransaction?access_token=" + req.body.accessToken,
-        'body':{
-            "transactionOptions": {
-              "readWrite": {
-                "previousTransaction": ""
-              }
-            }
-          }
-    }, function(resp) {
-        if(resp.error !== undefined) {
-            containerless.respond("error\n");
-        } else {
-            next(req, resp.transaction);
+    containerless.get('http://10.200.0.1:7999/begin', function(resp) {
+        if(resp === undefined) {
+            console.log(resp);
+            containerless.respond("No response. 1");
+            return;
         }
+        if(resp.transaction === undefined) {
+            containerless.respond("No transaction 1.");
+            return;
+        }
+        next(req, resp.transaction);
     });
 }
 
@@ -35,55 +24,44 @@ function begin(req, next) {
  * Commits a request.
  */
 function commit(req, transaction, mutation) {
-    containerless.post({
-        'url':'https://datastore.googleapis.com/v1/projects/umass-plasma:commit?access_token=' + req.body.accessToken,
+    let o = {
+        'url': 'http://10.200.0.1:7999/commit',
         'body': {
             "transaction": transaction,
-            "mode": "TRANSACTIONAL",
-            "mutations": [mutation]
-          }
-    }, function(resp) {
-        if(resp.error !== undefined) {
-            containerless.respond("error\n");
-        } else {
-            containerless.respond("Done!\n");
+            "mutation": mutation
         }
+    };
+    containerless.post(o, function(resp) {
+        if(resp === undefined) {
+            containerless.respond("No response 2.");
+            return;
+        }
+        if(resp.body !== undefined) {
+            containerless.respond(resp.body);
+            return;
+        }
+        containerless.respond("Something happened but not sure what.");
     });
 }
 
 /**
  * Finds the current balance.
- * 
+ *
  * `next(resp);`
  */
 function balance(req, transaction, next) {
-    containerless.post({
-        'url':'https://datastore.googleapis.com/v1/projects/umass-plasma:lookup?access_token=' + req.body.accessToken,
+    let o = {
+        'url': 'http://10.200.0.1:7999/balance',
         'body': {
-            "readOptions": {
-              "transaction": transaction
-            },
-            "keys": [
-              {
-                "partitionId": {
-                  "namespaceId": "",
-                  "projectId": "umass-plasma"
-                },
-                "path": [
-                  {
-                    "id": req.body.id,
-                    "kind":"Account"
-                  }
-                ]
-              }
-            ]
-          }
-    }, function(resp) {
-        if(resp.error !== undefined) {
-            containerless.respond("error\n");
-        } else {
-            next(resp);
+            'name': req.body.account
         }
+    };
+    containerless.post(o, function(resp) {
+        if(resp === undefined) {
+            containerless.respond("No response 3.");
+            return;
+        }
+        next(resp);
     });
 }
 
@@ -92,18 +70,20 @@ function balance(req, transaction, next) {
  */
 function withdraw(req, transaction) {
     balance(req, transaction, function(resp) {
-        let key = resp.found[0].entity.key;
-        let baseVersion = resp.found[0].version;
-        let props = resp.found[0].entity.properties;
-        props.Balance.integerValue = props.Balance.integerValue - req.query.amount;
-        commit(req, transaction,
-            {
-            'update': {
-                'key': key,
-                'properties': props
-            },
-            'baseVersion': baseVersion
-        });
+        if(resp === undefined) {
+            containerless.respond("No response 4.");
+            return;
+        }
+        if(resp.balance === undefined) {
+            containerless.respond("No balance 4.");
+            return;
+        }
+        let newBalance = resp.balance - (100 * req.query.amount);
+        let o = {
+            'name': req.body.account,
+            'balance': newBalance
+        };
+        commit(req, transaction, o);
     });
 }
 
@@ -112,32 +92,76 @@ function withdraw(req, transaction) {
  */
 function deposit(req, transaction) {
     balance(req, transaction, function(resp) {
-        let key = resp.found[0].entity.key;
-        let baseVersion = resp.found[0].version;
-        let props = resp.found[0].entity.properties;
-        props.Balance.integerValue = props.Balance.integerValue - (req.query.amount - (req.query.amount * 2));
-        commit(req, transaction,
-            {
-                'update': {
-                    'key': key,
-                    'properties': props
-                },
-                'baseVersion': baseVersion
-            });
+        if(resp === undefined) {
+            containerless.respond("No response 5.");
+            return;
+        }
+        if(resp.balance === undefined) {
+            containerless.respond("No balance 5.");
+            return;
+        }
+        let newBalance = resp.balance - (-100 * req.query.amount);
+        let o = {
+            'name': req.body.account,
+            'balance': newBalance
+        };
+        commit(req, transaction, o);
     });
 }
 
+let i = 0;
+
 containerless.listen(function(req) {
+    console.error(i);
+    i = i+1;
+    if(req.body === undefined) {
+        containerless.respond("Undefined body.");
+        return;
+    }
+    if(req.body.account === undefined) {
+        containerless.respond("Account undefined.");
+        return;
+    }
     if(req.path === '/balance') {
         begin(req, function(req, transaction) {
             balance(req, transaction, function(resp) {
-                containerless.respond(resp.found[0].entity.properties.Balance.integerValue + '\n');
+                if(resp.balance === undefined) {
+                    containerless.respond("No balance 6.");
+                    return;
+                }
+                containerless.respond(resp.balance / 100.0);
             });
         });
     } else if(req.path === '/withdraw') {
+        if(req.query === undefined) {
+            containerless.respond("Query undefined 1.");
+            return;
+        }
+        if(req.query.amount === undefined) {
+            containerless.respond("Amount undefined 1.");
+            return;
+        }
         begin(req, withdraw);
+        /*
+        begin(req, function(req, transaction) {
+            withdraw(req, transaction);
+        });
+        */
     } else if(req.path === '/deposit') {
+        if(req.query === undefined) {
+            containerless.respond("Query undefined 2.");
+            return;
+        }
+        if(req.query.amount === undefined) {
+            containerless.respond("Amount undefined 2.");
+            return;
+        }
         begin(req, deposit);
+        /*
+        begin(req, function(req, transaction) {
+            deposit(req, transaction);
+        });
+        */
     } else {
         containerless.respond("Unknown command.\n");
     }

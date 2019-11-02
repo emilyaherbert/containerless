@@ -8,15 +8,12 @@ let containerless = require('containerless');
 function begin(req, next) {
     containerless.get('http://10.200.0.1:7999/begin', function(resp) {
         if(resp === undefined) {
-            console.log(resp);
             containerless.respond("No response. 1");
-            return;
-        }
-        if(resp.transaction === undefined) {
+        } else if(resp.transaction === undefined) {
             containerless.respond("No transaction 1.");
-            return;
+        } else {
+            next(req, resp.transaction);
         }
-        next(req, resp.transaction);
     });
 }
 
@@ -34,13 +31,11 @@ function commit(req, transaction, mutation) {
     containerless.post(o, function(resp) {
         if(resp === undefined) {
             containerless.respond("No response 2.");
-            return;
-        }
-        if(resp.body !== undefined) {
+        } else if(resp.body !== undefined) {
             containerless.respond(resp.body);
-            return;
+        } else {
+            containerless.respond("Something happened but not sure what.");
         }
-        containerless.respond("Something happened but not sure what.");
     });
 }
 
@@ -59,9 +54,9 @@ function balance(req, transaction, next) {
     containerless.post(o, function(resp) {
         if(resp === undefined) {
             containerless.respond("No response 3.");
-            return;
+        } else {
+            next(resp);
         }
-        next(resp);
     });
 }
 
@@ -72,18 +67,16 @@ function withdraw(req, transaction) {
     balance(req, transaction, function(resp) {
         if(resp === undefined) {
             containerless.respond("No response 4.");
-            return;
-        }
-        if(resp.balance === undefined) {
+        } else if(resp.balance === undefined) {
             containerless.respond("No balance 4.");
-            return;
+        } else {
+            let newBalance = resp.balance - req.body.amount;
+            let o = {
+                'name': req.body.account,
+                'balance': newBalance
+            };
+            commit(req, transaction, o);
         }
-        let newBalance = resp.balance - (100 * req.query.amount);
-        let o = {
-            'name': req.body.account,
-            'balance': newBalance
-        };
-        commit(req, transaction, o);
     });
 }
 
@@ -94,60 +87,46 @@ function deposit(req, transaction) {
     balance(req, transaction, function(resp) {
         if(resp === undefined) {
             containerless.respond("No response 5.");
-            return;
-        }
-        if(resp.balance === undefined) {
+        } else if(resp.balance === undefined) {
             containerless.respond("No balance 5.");
-            return;
+        } else {
+            let newBalance = resp.balance - (-1 * req.body.amount);
+            let o = {
+                'name': req.body.account,
+                'balance': newBalance
+            };
+            commit(req, transaction, o);
         }
-        let newBalance = resp.balance - (-100 * req.query.amount);
-        let o = {
-            'name': req.body.account,
-            'balance': newBalance
-        };
-        commit(req, transaction, o);
     });
 }
 
 containerless.listen(function(req) {
     if(req.body === undefined) {
         containerless.respond("Undefined body.");
-        return;
-    }
-    if(req.body.account === undefined) {
+    } else if(req.body.account === undefined) {
         containerless.respond("Account undefined.");
-        return;
-    }
-    if(req.path === '/balance') {
+    } else if(req.path === '/balance') {
         begin(req, function(req, transaction) {
             balance(req, transaction, function(resp) {
                 if(resp.balance === undefined) {
                     containerless.respond("No balance 6.");
-                    return;
+                } else {
+                    containerless.respond(resp.balance);
                 }
-                containerless.respond(resp.balance / 100.0);
             });
         });
     } else if(req.path === '/withdraw') {
-        if(req.query === undefined) {
-            containerless.respond("Query undefined 1.");
-            return;
-        }
-        if(req.query.amount === undefined) {
+        if(req.body.amount === undefined) {
             containerless.respond("Amount undefined 1.");
-            return;
+        } else {
+            begin(req, withdraw);
         }
-        begin(req, withdraw);
     } else if(req.path === '/deposit') {
-        if(req.query === undefined) {
-            containerless.respond("Query undefined 2.");
-            return;
-        }
-        if(req.query.amount === undefined) {
+        if(req.body.amount === undefined) {
             containerless.respond("Amount undefined 2.");
-            return;
+        } else {
+            begin(req, deposit);
         }
-        begin(req, deposit);
     } else {
         containerless.respond("Unknown command.\n");
     }
