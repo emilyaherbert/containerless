@@ -3,7 +3,6 @@ let containerless = require('containerless');
 containerless.listen(function(req) {
     if(req.path === '/status') {
         if (typeof req.body.username !== 'string') {
-            containerless.respond(req.body + "\n");
             containerless.respond('Username missing');
             return;
         }
@@ -16,17 +15,19 @@ containerless.listen(function(req) {
             return;
         }
 
-        containerless.get('http://localhost:7999/status',
+        containerless.get('http://10.200.0.1:7999/status',
           function(resp1) {
-            if (typeof resp1.commit === 'object' && typeof resp1.commit.sha !== 'string') {
-                containerless.respond('SHA missing in resp1');
-                return;
-            } else if (typeof resp1.body !== 'undefined') {
-                containerless.respond(resp1.body);
-                return;
+	    if (typeof resp1.commit !== 'object') {
+		containerless.respond("No commit.");
+		return;
+	    }
+            if (typeof resp1.commit.sha !== 'string') {
+                containerless.respond('No SHA.');
+		return;
             }
+		  
             containerless.post({
-                'url': 'http://localhost:7999/status',
+                'url': 'http://10.200.0.1:7999/status?sha=' + resp1.commit.sha,
                 'headers': {
                     'User-Agent': req.body.username
                 },
