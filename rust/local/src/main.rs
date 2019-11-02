@@ -11,6 +11,8 @@ use std::collections::HashMap;
 use rand::Rng;
 use std::time;
 use std::thread;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicI64, Ordering};
 
 #[derive(Serialize, Deserialize)]
 struct User {
@@ -28,12 +30,31 @@ struct Status {
     state: String
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+struct AccountName {
+    name: String
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Account {
+    name: String,
+    balance: AtomicI64
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct AccountTransaction {
+    transaction: String,
+    mutation: Account
+}
+
 type BoxFut = Box<dyn Future<Item=Response<Body>, Error=hyper::Error> + Send>;
 
-fn echo(req: Request<Body>) -> BoxFut {
-    //let mut rng = rand::thread_rng();
-    //let goodnight = time::Duration::from_millis(rng.gen_range(0, 10));
-    //thread::sleep(goodnight);
+fn echo(req: Request<Body>, accounts: std::sync::Arc<HashMap<String, Account>>) -> BoxFut {
+    println!("entered");
+
+    let mut rng = rand::thread_rng();
+    let goodnight = time::Duration::from_millis(rng.gen_range(0, 10));
+    thread::sleep(goodnight);
 
     let mut users = HashMap::new();
     users.insert("javascript".to_string(), User { username: "javascript".to_string(), password: "rust".to_string() });
@@ -120,6 +141,59 @@ fn echo(req: Request<Body>) -> BoxFut {
                 })
             );
         },
+        (&Method::GET, "/begin") => {
+            println!("begin");
+            return Box::new(future::ok(
+                Response::new(Body::from("{ \"transaction\": \"135798642\" }"))
+            ));
+        },
+        (&Method::POST, "/commit") => {
+            println!("commit");
+            return Box::new(
+                req.into_body()
+                .concat2()
+                .and_then(move |body| {
+                    let s: Result<AccountTransaction, serde_json::Error> = serde_json::from_slice(&body);
+                    let resp = s
+                        .map(|commit| {
+                            match accounts.get(&commit.mutation.name) {
+                                None => Response::new(Body::from("{ \"body\": \"Account not found.\" }")),
+                                Some(account) => {
+                                    account.balance.store(commit.mutation.balance.into_inner(), Ordering::SeqCst);
+                                    Response::new(Body::from("{ \"body\": \"Done!\" }"))
+                                }
+                            }
+                        })
+                        .map_err(|_| {
+                            Response::new(Body::from("{ \"body\": \"No account number provided.\" }"))
+                        })
+                        .expect("Something went wrong.");
+                    Box::new(future::ok(resp))
+                })
+            );
+        },
+        (&Method::POST, "/balance") => {
+            println!("balance");
+            return Box::new(
+                req.into_body()
+                .concat2()
+                .and_then(move |body| {
+                    let s: Result<AccountName, serde_json::Error> = serde_json::from_slice(&body);
+                    let resp = s
+                        .map(|name| {
+                            match accounts.get(&name.name) {
+                                None => Response::new(Body::from("{ \"body\": \"Account not found.\" }")),
+                                Some(account) => Response::new(Body::from(format!("{{ \"balance\": {} }}", serde_json::to_string(&account.balance).expect("Could not create string from JSON."))))
+                            }
+                        })
+                        .map_err(|_| {
+                            Response::new(Body::from("{ \"body\": \"No account number provided.\" }"))
+                        })
+                        .expect("Something went wrong.");
+                    Box::new(future::ok(resp))
+                })
+            );
+        },
         _ => {
             let mut response = Response::new(Body::from("{ \"body\": \"... something is wrong...\" }"));
             *response.status_mut() = StatusCode::NOT_FOUND;
@@ -129,10 +203,19 @@ fn echo(req: Request<Body>) -> BoxFut {
 }
 
 fn main() {
-    let addr = ([127, 0, 0, 1], 7999).into();
 
+    let mut accounts = HashMap::new();
+    accounts.insert("coffee".to_string(), Account { name: "coffee".to_string(), balance: AtomicI64::new(10000) });
+    accounts.insert("tea".to_string(), Account { name: "tea".to_string(), balance: AtomicI64::new(1234500) });
+    accounts.insert("milk".to_string(), Account { name: "milk".to_string(), balance: AtomicI64::new(66600) });
+    let arc_accounts = Arc::new(accounts);
+
+    let addr = ([127, 0, 0, 1], 7999).into();
     let server = Server::bind(&addr)
-        .serve(|| service_fn(echo))
+        .serve(move || {
+            let inner = Arc::clone(&arc_accounts);
+            service_fn(move |req| echo(req, Arc::clone(&inner)))
+        })
         .map_err(|e| eprintln!("server error: {}", e));
 
     hyper::rt::run(server);
