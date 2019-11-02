@@ -165,7 +165,7 @@ fn echo(req: Request<Body>, accounts: std::sync::Arc<HashMap<String, InternalAcc
                             match accounts.get(&commit.mutation.name) {
                                 None => Response::new(Body::from("{ \"body\": \"Account not found.\" }")),
                                 Some(account) => {
-                                    let new_amount: i64 = (commit.mutation.balance / 100.0) as i64;
+                                    let new_amount: i64 = (commit.mutation.balance * 100.0) as i64;
                                     account.balance.store(new_amount, Ordering::SeqCst);
                                     Response::new(Body::from("{ \"body\": \"Done!\" }"))
                                 }
@@ -190,7 +190,9 @@ fn echo(req: Request<Body>, accounts: std::sync::Arc<HashMap<String, InternalAcc
                         .map(|name| {
                             match accounts.get(&name.name) {
                                 None => Response::new(Body::from("{ \"body\": \"Account not found.\" }")),
-                                Some(account) => Response::new(Body::from(format!("{{ \"balance\": {} }}", serde_json::to_string(&account.balance).expect("Could not create string from JSON."))))
+                                Some(account) => {
+                                    Response::new(Body::from(format!("{{ \"balance\": {} }}", (account.balance.load(Ordering::SeqCst) / 100) as f64)))
+                                }
                             }
                         })
                         .map_err(|_| {
