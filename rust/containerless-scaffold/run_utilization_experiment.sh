@@ -6,7 +6,6 @@
 
 RUN_TYPE=$1
 PER_SEC="$2"
-JS_FILE=$3
 
 # Run the invoker
 OUTPUT_PATH="./results/wrk2/${RUN_TYPE}"
