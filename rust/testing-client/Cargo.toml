@@ -12,3 +12,4 @@ serde = { version = "*", features = ["derive"] }
 serde_json = "*"
 clap = "*"
 rand = "*"
+time = "*"
