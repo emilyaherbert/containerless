@@ -140,7 +140,8 @@ impl Future for Decontainer {
                 return Result::Ok(Async::Ready(
                     Response::builder()
                         .status(500)
-                        .body(Body::from("Could not convert response to string"))
+                        .body(Body::from(format!("{:?}", ec.response)))
+                        //.body(Body::from("Could not convert response to string (... from inside Rust...)"))
                         .unwrap(),
                 ));
             }

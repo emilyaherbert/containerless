@@ -117,6 +117,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             let q_body = codegen_block(body, None);
             quote! {
                 while (#q_cond).into() {
+                    ec.count()?;
                     #q_body;
                 }
             }

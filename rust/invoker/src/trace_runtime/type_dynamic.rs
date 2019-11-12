@@ -44,12 +44,19 @@ impl<'a> DynObject<'a> {
 
     pub fn get(&self, key: &str) -> Dyn<'a> {
         let vec = self.fields.borrow();
+        let mut proto = None;
         for (k, v) in vec.iter() {
             if *k == key {
                 return *v;
             }
+            if *k == "__proto__" {
+                proto = Some(*v);
+            }
         }
-        return Dyn::Undefined;
+        match proto {
+            Some(Dyn::Object(p)) => return p.get(key),
+            _ => return Dyn::Undefined
+        }
     }
 
     pub fn to_json(&self) -> serde_json::Value {
@@ -246,6 +253,20 @@ impl<'a> Dyn<'a> {
             (Dyn::Int(n), Dyn::Float(x)) => Ok(Dyn::Float(f64::from(n) - x)),
             (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Float(x - y)),
             _ => type_error(&format!("add({:?}, {:?})", &self, &other)),
+        }
+    }
+
+    pub fn mul(&self, other: Dyn<'a>) -> DynResult<'a> {
+        match (*self, other) {
+            (Dyn::Float(m), Dyn::Float(n)) => Ok(Dyn::Float(n * m)),
+            _ => unimplemented!()
+        }
+    }
+
+    pub fn div(&self, other: Dyn<'a>) -> DynResult<'a> {
+        match (*self, other) {
+            (Dyn::Float(m), Dyn::Float(n)) => Ok(Dyn::Float(n / m)),
+            _ => unimplemented!()
         }
     }
 

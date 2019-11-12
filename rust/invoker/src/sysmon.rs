@@ -8,6 +8,7 @@ use std::thread;
 use std::time::Duration;
 use systemstat::{Platform, System};
 use super::util;
+use std::io::stdout;
 
 pub fn sysmon(config: &InvokerConfig) {
     if OS::detect() != OS::Linux {
@@ -15,12 +16,12 @@ pub fn sysmon(config: &InvokerConfig) {
         return;
     }
 
-    let utilization_log =
-        File::create(&config.utilization_log).expect("could not create utilization log file");
-    let mut utilization_writer = LineWriter::new(utilization_log);
-            utilization_writer
-                .write_fmt(format_args!("Time,CPU,Memory\n"))
-                .unwrap();
+    let mut utilization_writer : LineWriter<Box<Write + Send>> = LineWriter::new(
+        if &config.utilization_log == "stdout" { 
+            Box::new(stdout())
+        } else {
+            Box::new(File::create(&config.utilization_log).unwrap())
+        });
 
     // NOTE(arjun): trying to do this with Tokio and futures_locks runs into
     // Send + 'static issues that I don't feel like debugging.
