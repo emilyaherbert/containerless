@@ -145,13 +145,15 @@ impl AsyncOp {
 pub struct ExecutionContext<'a> {
     pub new_ops: Vec<(AsyncOp, i32, Dyn<'a>)>,
     pub response: Option<Dyn<'a>>,
+    counter: usize
 }
 
 impl<'a> ExecutionContext<'a> {
     pub fn new() -> Self {
         let response = None;
         let new_ops = vec![];
-        ExecutionContext { response, new_ops }
+        let counter = 0;
+        ExecutionContext { response, new_ops, counter }
     }
 
     /// Send a new event. The argument `indicator` is sent back with the
@@ -205,5 +207,15 @@ impl<'a> ExecutionContext<'a> {
     pub fn send(&mut self, value: Dyn<'a>) -> DynResult<'a> {
         self.response = Some(value);
         Ok(Dyn::int(0))
+    }
+
+    pub fn count(&mut self) -> Result<(), Error>  {
+        if self.counter == 10000 {
+            Err(Error::OutOfGas)
+        }
+        else {
+            self.counter += 1;
+            Ok(())
+        }
     }
 }
