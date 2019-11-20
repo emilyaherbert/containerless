@@ -4,6 +4,8 @@ pub enum Error {
     TypeError(String),
     /** Result of reaching an unknown portion of the trace. */
     Unknown,
+    /** Run out of gas. */
+    OutOfGas
 }
 
 impl std::fmt::Display for Error {
@@ -14,6 +16,7 @@ impl std::fmt::Display for Error {
                 fmt.write_str(s)
             }
             Error::Unknown => fmt.write_str("Unknown"),
+            Error::OutOfGas => fmt.write_str("OutOfGas")
         }
     }
 }

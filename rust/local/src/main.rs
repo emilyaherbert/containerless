@@ -56,7 +56,6 @@ struct AccountTransaction {
 type BoxFut = Box<dyn Future<Item=Response<Body>, Error=hyper::Error> + Send>;
 
 fn echo(req: Request<Body>, accounts: std::sync::Arc<HashMap<String, InternalAccount>>) -> BoxFut {
-    println!("entered");
 
     let mut rng = rand::thread_rng();
     let goodnight = time::Duration::from_millis(rng.gen_range(0, 10));
@@ -148,13 +147,11 @@ fn echo(req: Request<Body>, accounts: std::sync::Arc<HashMap<String, InternalAcc
             );
         },
         (&Method::GET, "/begin") => {
-            println!("begin");
             return Box::new(future::ok(
                 Response::new(Body::from("{ \"transaction\": \"135798642\" }"))
             ));
         },
         (&Method::POST, "/commit") => {
-            println!("commit");
             return Box::new(
                 req.into_body()
                 .concat2()
@@ -180,7 +177,6 @@ fn echo(req: Request<Body>, accounts: std::sync::Arc<HashMap<String, InternalAcc
             );
         },
         (&Method::POST, "/balance") => {
-            println!("balance");
             return Box::new(
                 req.into_body()
                 .concat2()
@@ -219,7 +215,7 @@ fn main() {
     accounts.insert("milk".to_string(), InternalAccount { name: "milk".to_string(), balance: AtomicI64::new(66600) });
     let arc_accounts = Arc::new(accounts);
 
-    let addr = ([127, 0, 0, 1], 7999).into();
+    let addr = ([10, 200, 0, 1], 7999).into();
     let server = Server::bind(&addr)
         .serve(move || {
             let inner = Arc::clone(&arc_accounts);
