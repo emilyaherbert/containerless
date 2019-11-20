@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import * as fs from 'fs';
 import * as r from './insertTracing';
-import * as n from '@stopify/normalize-js';
 
 function inputFile(): string | number {
     if (process.argv.length === 2) {

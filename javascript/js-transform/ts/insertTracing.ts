@@ -404,6 +404,10 @@ function reifyVariableDeclaration(s: b.VariableDeclaration, st: State): [b.State
     let s1 = assertNormalized(s);
     const name = lvaltoName(s1.declarations[0].id);
     const init = s1.declarations[0].init;
+    if(init === null) {
+        const tLet = traceLet(name, undefined_);
+        return [[s1, tLet], st.set(name, false)];
+    }
     switch(init.type) {
         case 'CallExpression': {
             let init1 = assertNormalized(init);

@@ -24,6 +24,35 @@ pub fn trivial_fixed_response() {
 
 #[test]
 #[serial]
+pub fn and_bug() {
+    let mut runner = TestRunner::new("and_bug.js");
+    let result = runner.test(
+        r#"
+        let containerless = require("../../javascript/containerless");
+
+        function same(b) {
+            return b;
+        }
+
+        containerless.listen(function(req) {
+            if(same(true) && same(true)) {
+                containerless.respond("good path");
+            } else {
+                containerless.respond("bad path");
+            }
+        });"#,
+        json!([
+            { "path": "/hello", "query": {}, "body": {} }
+        ]),
+        json!([
+            { "path": "/hello", "query": {}, "body": {} }
+        ]),
+    );
+    assert_eq!(result, vec!["good path"]);
+}
+
+#[test]
+#[serial]
 pub fn for_() {
     let mut runner = TestRunner::new("for_.js");
     let result = runner.test(
