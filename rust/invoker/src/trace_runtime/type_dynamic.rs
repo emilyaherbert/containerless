@@ -109,6 +109,10 @@ impl<'a> DynVec<'a> {
         self.elems.borrow_mut().push(value);
     }
 
+    pub fn pop(self) -> Dyn<'a> {
+        self.elems.borrow_mut().pop().unwrap_or(Dyn::Undefined)
+    }
+
     pub fn shift(self) -> Dyn<'a> {
         let mut ret = Dyn::Undefined;
         match self.elems.borrow().first() {
@@ -220,7 +224,7 @@ impl<'a> Dyn<'a> {
                     _ => unimplemented!()
                 }
             }
-            _ => type_error("not an object"),
+            _ => type_error(format!("{:?} is not an object", self)),
         }
     }
 
@@ -306,7 +310,7 @@ impl<'a> Dyn<'a> {
             (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Bool(x < y)),
             (Dyn::Int(m), Dyn::Float(n)) => Ok(Dyn::Bool((m as f64) < n)),
             (Dyn::Float(m), Dyn::Int(n)) => Ok(Dyn::Bool(m < (n as f64))),
-            _ => type_error("lt"),
+            _ => type_error(format!("({:?}).lt({:?})", self, other)),
         }
     }
 
@@ -366,10 +370,19 @@ impl<'a> Dyn<'a> {
     /** push an element into a vector. */
     pub fn push(self, value: Dyn<'a>) -> DynResult<'a> {
         match self {
-            Dyn::Vec(vec_cell) => vec_cell.push(value),
-            _ => panic!(""),
+            Dyn::Vec(vec_cell) => {
+                vec_cell.push(value);
+                Ok(Dyn::Undefined)
+            },
+            _ => type_error(format!("Called .pop() on {:?}", self))
         }
-        return Ok(Dyn::Undefined);
+    }
+
+    pub fn pop(self) -> DynResult<'a> {
+        match self {
+            Dyn::Vec(vec_cell) => Ok(vec_cell.pop()),
+            _ => type_error(format!("Called .pop() on {:?}", self))
+        }
     }
 
     #[allow(non_snake_case)]

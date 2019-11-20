@@ -447,6 +447,8 @@ function reifyVariableDeclaration(s: b.VariableDeclaration, st: State): [b.State
                     // TODO(arjun): Total hack. Do better.
                     case 'startsWith':
                     case 'shift':
+                    case 'unshift':
+                    case 'pop':
                     case 'push': {
                         const [obj2, st2] = reifyExpression(obj, nextSt);
                         const tMethod = methodCall(obj2, prop.name, theArgs);

@@ -24,6 +24,84 @@ pub fn trivial_fixed_response() {
 
 #[test]
 #[serial]
+pub fn for_() {
+    let mut runner = TestRunner::new("for_.js");
+    let result = runner.test(
+        r#"
+        let containerless = require("../../javascript/containerless");
+        containerless.listen(function(req) {
+            let n = req.body.n;
+            let x = 0;
+            for(let i=0; i<n; i++) {
+                x = x + 1;
+            }
+            containerless.respond("Done!");
+        });"#,
+        json!([
+            { "path": "/hello", "query": {}, "body": {"n": 2 } }
+        ]),
+        json!([
+            { "path": "/hello", "query": {}, "body": { "n": 2 } }
+        ]),
+    );
+    assert_eq!(result, vec!["Done!"]);
+}
+
+#[test]
+#[serial]
+pub fn the_while() {
+    let mut runner = TestRunner::new("for_.js");
+    let result = runner.test(
+        r#"
+        let containerless = require("../../javascript/containerless");
+        containerless.listen(function(req) {
+            let n = req.body.n;
+            let x = 0;
+            while(n > 0) {
+                console.error(n);
+                x = x + 1;
+                n = n - 1;
+            }
+            containerless.respond("Done!");
+        });"#,
+        json!([
+            { "path": "/hello", "query": {}, "body": { "n": 2 } }
+        ]),
+        json!([
+            { "path": "/hello", "query": {}, "body": { "n": 2 } }
+        ]),
+    );
+    assert_eq!(result, vec!["Done!"]);
+}
+
+#[test]
+#[serial]
+pub fn pop() {
+    let mut runner = TestRunner::new("for_.js");
+    let result = runner.test(
+        r#"
+        let containerless = require("../../javascript/containerless");
+
+        containerless.listen(function(req) {
+            let x = [0];
+            for(let i=0; i<x.length; i++) {
+                x.pop();
+            }
+            containerless.respond("Done!");
+        });
+        "#,
+        json!([
+            { "path": "/hello", "query": {}, "body": {} }
+        ]),
+        json!([
+            { "path": "/hello", "query": {}, "body": {} }
+        ]),
+    );
+    assert_eq!(result, vec!["Done!"]);
+}
+
+#[test]
+#[serial]
 pub fn else_before_if() {
     let mut runner = TestRunner::new("else_before_if.js");
     let result = runner.test(
