@@ -1,5 +1,5 @@
-export type BinOp = '+' | '-' | '*' | '/' | '===' | '>' | '<' | '>=' | '<=' | '&&' | '||';
-export type Op1 = "typeof" | "void" ; // TODO(arjun): More required
+export type BinOp = '+' | '-' | '*' | '/' | '===' | '!==' | '>' | '<' | '>=' | '<=' | '&&' | '||';
+export type Op1 = "typeof" | "void" | '-'; // TODO(arjun): More required
 
 export type BlockExp = { kind: 'block', body: Exp[] };
 
@@ -188,13 +188,4 @@ export function methodCall(e: Exp, method: string, methodCallArgs: Exp[]): Metho
 
 export function clos(tenv: TEnv): ClosExp {
     return { kind: 'clos', tenv: tenv };
-}
-
-let nextId = 0;
-export function* freshId(): IterableIterator<string> {
-    while(true) {
-        let ret = '$w' + nextId;
-        nextId++;
-        yield ret;
-    }
 }
