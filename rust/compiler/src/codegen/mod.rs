@@ -98,7 +98,10 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
         Exp::Op1 { op, e } => {
             let q_op = codegen_op1(op);
             let q_e = codegen_exp(e);
-            quote! { (#q_e).#q_op(arena)? }
+            match op {
+                Op1::Negative => quote! { (#q_e).#q_op()? },
+                _ => quote! { (#q_e).#q_op(arena)? }
+            }
         }
         Exp::If {
             cond,

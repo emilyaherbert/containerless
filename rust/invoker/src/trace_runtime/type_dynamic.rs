@@ -1,4 +1,4 @@
-use super::error::{type_error, Error};
+use super::error::{type_error, Error, not_a_function};
 use bumpalo::{
     collections::{String, Vec},
     Bump,
@@ -93,7 +93,7 @@ impl<'a> DynVec<'a> {
     pub fn get(&self, prop: &str) -> Dyn<'a> {
         match prop {
             "length" => Dyn::float(self.elems.borrow().len() as f64),
-            p => unimplemented!("{:?}", p)
+            _ => Dyn::Undefined
         }
     }
 
@@ -190,17 +190,17 @@ impl<'a> Dyn<'a> {
             cell.set(new_value);
             return Ok(Dyn::Undefined);
         }
-        panic!("setref on {:?}", self);
+        return type_error(format!("setref on {:?}", self));
     }
 
     pub fn set(&mut self, index: Dyn<'a>, new_value: Dyn<'a>) -> DynResult<'a> {
         match (self, index) {
             (Dyn::Vec(v), Dyn::Float(n)) => {
                 std::mem::replace(&mut v.elems.borrow_mut()[n as usize], new_value);
+                return Ok(Dyn::Undefined);
             },
-            _ => panic!("Should only use index on a vec!")
+            _ => type_error("Should only use index on a vec!")
         }
-        return Ok(Dyn::Undefined);
     }
 
     pub fn object(arena: &'a Bump) -> Dyn<'a> {
@@ -228,7 +228,7 @@ impl<'a> Dyn<'a> {
             Dyn::Str(s) => {
                 match key {
                     "length" => Ok(Dyn::int(s.len() as i32)),
-                    _ => unimplemented!()
+                    k => not_a_function(k)
                 }
             }
             _ => type_error(format!("{:?} is not an object", self)),
@@ -246,7 +246,7 @@ impl<'a> Dyn<'a> {
             (Dyn::Str(s), Dyn::Vec(v)) => Ok(Dyn::str(arena, &(s.to_string() + &v.to_string()))),
             (Dyn::Str(a), Dyn::Str(b)) => Ok(Dyn::str(arena, &(a.to_string() + b))),
             (Dyn::Undefined, Dyn::Str(s)) => Ok(Dyn::str(arena, &(self.to_string() + s))),
-            _ => type_error(&format!("add({:?}, {:?})", &self, &other)),
+            _ => type_error(&format!("({:?}).add({:?})", &self, &other)),
         }
     }
 
@@ -256,29 +256,28 @@ impl<'a> Dyn<'a> {
             (Dyn::Float(x), Dyn::Int(n)) => Ok(Dyn::Float(x - f64::from(n))),
             (Dyn::Int(n), Dyn::Float(x)) => Ok(Dyn::Float(f64::from(n) - x)),
             (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Float(x - y)),
-            _ => type_error(&format!("add({:?}, {:?})", &self, &other)),
+            _ => type_error(&format!("({:?}).sub({:?})", &self, &other)),
         }
     }
 
     pub fn mul(&self, other: Dyn<'a>) -> DynResult<'a> {
         match (*self, other) {
-            (Dyn::Float(m), Dyn::Float(n)) => Ok(Dyn::Float(n * m)),
-            _ => unimplemented!()
+            (Dyn::Int(m), Dyn::Int(n)) => Ok(Dyn::Int(m * n)),
+            (Dyn::Float(x), Dyn::Int(n)) => Ok(Dyn::Float(x * f64::from(n))),
+            (Dyn::Int(n), Dyn::Float(x)) => Ok(Dyn::Float(f64::from(n) * x)),
+            (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Float(x * y)),
+            _ => type_error(&format!("({:?}).mul({:?})", &self, &other)),
         }
     }
 
     pub fn div(&self, other: Dyn<'a>) -> DynResult<'a> {
         match (*self, other) {
-            (Dyn::Float(m), Dyn::Float(n)) => Ok(Dyn::Float(n / m)),
-            _ => unimplemented!()
+            (Dyn::Int(m), Dyn::Int(n)) => Ok(Dyn::Int(m / n)),
+            (Dyn::Float(x), Dyn::Int(n)) => Ok(Dyn::Float(x / f64::from(n))),
+            (Dyn::Int(n), Dyn::Float(x)) => Ok(Dyn::Float(f64::from(n) / x)),
+            (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Float(x / y)),
+            _ => type_error(&format!("({:?}).div({:?})", &self, &other)),
         }
-    }
-
-    pub fn strict_neq(&self, other: Dyn<'a>) -> DynResult<'a> {
-        self.strict_eq(other).map(|r| match r {
-            Dyn::Bool(x) => Dyn::Bool(!x),
-            r => panic!(".strict_eq produced {:?}", r)
-        })
     }
 
     pub fn strict_eq(&self, other: Dyn<'a>) -> DynResult<'a> {
@@ -288,16 +287,20 @@ impl<'a> Dyn<'a> {
             (_, Dyn::Undefined) => Ok(Dyn::Bool(false)),
             (Dyn::Int(m), Dyn::Int(n)) => Ok(Dyn::Bool(m == n)),
             (Dyn::Str(s1), Dyn::Str(s2)) => Ok(Dyn::Bool(s1 == s2)),
-            (Dyn::Str(_), other) => panic!("not working Dyn::Str(_) == {:?}", other),
-            (Dyn::Float(x), Dyn::Float(y)) => {
-                Ok(Dyn::Bool(x == y))
-            },
-            (_that, other) => {
-                println!("Other is {:?}", other);
-                println!("self is {:?}", self);
-                panic!("not working {:?} == {:?}", self, other)
-            } // (that, other) => panic!("not working {:?}", other),
-              // panic!(format!("Trying {:?} === {:?}", that, other))
+            (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Bool(x == y)),
+            _ => type_error(&format!("({:?}).strict_eq({:?})", &self, &other)),
+        }
+    }
+
+    pub fn strict_neq(&self, other: Dyn<'a>) -> DynResult<'a> {
+        match (*self, other) {
+            (Dyn::Undefined, Dyn::Undefined) => Ok(Dyn::Bool(false)),
+            (Dyn::Undefined, _) => Ok(Dyn::Bool(true)),
+            (_, Dyn::Undefined) => Ok(Dyn::Bool(true)),
+            (Dyn::Int(m), Dyn::Int(n)) => Ok(Dyn::Bool(m != n)),
+            (Dyn::Str(s1), Dyn::Str(s2)) => Ok(Dyn::Bool(s1 != s2)),
+            (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Bool(x != y)),
+            _ => type_error(&format!("({:?}).strict_neq({:?})", &self, &other)),
         }
     }
 
@@ -307,7 +310,7 @@ impl<'a> Dyn<'a> {
             (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Bool(x > y)),
             (Dyn::Int(m), Dyn::Float(n)) => Ok(Dyn::Bool((m as f64) > n)),
             (Dyn::Float(m), Dyn::Int(n)) => Ok(Dyn::Bool(m > (n as f64))),
-            _ => type_error("gt"),
+            _ => type_error(&format!("({:?}).gt({:?})", &self, &other)),
         }
     }
 
@@ -327,7 +330,7 @@ impl<'a> Dyn<'a> {
             (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Bool(x >= y)),
             (Dyn::Int(m), Dyn::Float(n)) => Ok(Dyn::Bool((m as f64) >= n)),
             (Dyn::Float(m), Dyn::Int(n)) => Ok(Dyn::Bool(m >= (n as f64))),
-            _ => type_error("gte"),
+            _ => type_error(&format!("({:?}).gte({:?})", &self, &other)),
         }
     }
 
@@ -337,21 +340,21 @@ impl<'a> Dyn<'a> {
             (Dyn::Float(x), Dyn::Float(y)) => Ok(Dyn::Bool(x <= y)),
             (Dyn::Int(m), Dyn::Float(n)) => Ok(Dyn::Bool((m as f64) <= n)),
             (Dyn::Float(m), Dyn::Int(n)) => Ok(Dyn::Bool(m <= (n as f64))),
-            _ => type_error("lte"),
+            _ => type_error(&format!("({:?}).lte({:?})", &self, &other)),
         }
     }
 
     pub fn and(&self, other: Dyn<'a>) -> DynResult<'a> {
         match (*self, other) {
             (Dyn::Bool(x), Dyn::Bool(y)) => Ok(Dyn::Bool(x && y)),
-            _ => type_error("and"),
+            _ => type_error(&format!("({:?}).and({:?})", &self, &other)),
         }
     }
 
     pub fn or(&self, other: Dyn<'a>) -> DynResult<'a> {
         match (*self, other) {
             (Dyn::Bool(x), Dyn::Bool(y)) => Ok(Dyn::Bool(x || y)),
-            _ => type_error("or"),
+            _ => type_error(&format!("({:?}).or({:?})", &self, &other)),
         }
     }
 
@@ -361,7 +364,7 @@ impl<'a> Dyn<'a> {
             (Dyn::Vec(vec_cell), Dyn::Int(index)) => Ok(vec_cell.index(index)),
             (Dyn::Vec(vec_cell), Dyn::Float(index)) => Ok(vec_cell.index(index as i32)),
             (Dyn::Str(s), Dyn::Float(index)) => Ok(Dyn::str(arena, &s.chars().nth(index as usize).unwrap().to_string())),
-            _ => type_error(format!("index {:?} {:?}", self, index)),
+            _ => type_error(&format!("({:?}).index({:?})", &self, &index)),
         }
     }
 
@@ -381,14 +384,14 @@ impl<'a> Dyn<'a> {
                 vec_cell.push(value);
                 Ok(Dyn::Undefined)
             },
-            _ => type_error(format!("Called .pop() on {:?}", self))
+            _ => not_a_function("push")
         }
     }
 
     pub fn pop(self) -> DynResult<'a> {
         match self {
             Dyn::Vec(vec_cell) => Ok(vec_cell.pop()),
-            _ => type_error(format!("Called .pop() on {:?}", self))
+            _ => not_a_function("pop")
         }
     }
 
@@ -396,14 +399,14 @@ impl<'a> Dyn<'a> {
     pub fn startsWith(&self, value: Dyn<'a>) -> DynResult<'a> {
         match (self, value) {
             (Dyn::Str(s), Dyn::Str(prefix)) => Ok(Dyn::Bool(s.starts_with(prefix.as_str()))),
-            _ => unimplemented!()
+            _ => not_a_function("startsWith")
         }
     }
 
     pub fn shift(self) -> DynResult<'a> {
         match self {
             Dyn::Vec(v) => Ok(v.shift()),
-            _ => unimplemented!()
+            _ => not_a_function("shift")
         }
     }
 
@@ -433,10 +436,11 @@ impl<'a> Dyn<'a> {
         }
     }
 
-    pub fn neg(&self, arena: &'a Bump) -> DynResult<'a> {
+    pub fn neg(&self) -> DynResult<'a> {
         match self {
+            Dyn::Int(n) => Ok(Dyn::int(-n)),
             Dyn::Float(n) => Ok(Dyn::float(-n)),
-            _ => unimplemented!()
+            _ => type_error(&format!("({:?}).neg()", &self)),
         }
     }
 
@@ -493,11 +497,14 @@ impl<'a> Dyn<'a> {
 
     pub fn to_string(&self) -> std::string::String {
         match self {
-            Dyn::Str(s) => s.to_string(),
+            Dyn::Int(n) => n.to_string(),
             Dyn::Float(n) => n.to_string(),
-            Dyn::Vec(v) => v.to_string(),
+            Dyn::Bool(b) => b.to_string(),
+            Dyn::Str(s) => s.to_string(),
             Dyn::Undefined => "undefined".to_string(),
-            _ => unimplemented!("{:?}", self)
+            Dyn::Ref(cell) => format!("&{}", cell.get().to_string()),
+            Dyn::Vec(v) => v.to_string(),
+            Dyn::Object(_) => "[object Object]".to_string()
         }
     }
 }
@@ -509,7 +516,7 @@ impl<'a> From<Dyn<'a>> for bool {
             Dyn::Int(0) => false,
             Dyn::Int(_) => true,
             Dyn::Undefined => false,
-            _ => unimplemented!(),
+            _ => panic!("Could not convert to bool.")
         }
     }
 }
@@ -524,13 +531,7 @@ impl<'a> TryFrom<Dyn<'a>> for std::string::String {
     type Error = ();
 
     fn try_from(value: Dyn<'a>) -> Result<Self, ()> {
-        match value {
-            Dyn::Str(s) => Ok(s.to_string()),
-            Dyn::Float(n) => Ok(n.to_string()),
-            Dyn::Int(n) => Ok(n.to_string()),
-            //Dyn::Object(_) => Ok("[object Object]".to_string()),
-            _ => Err(()),
-        }
+        Ok(value.to_string())
     }
 }
 

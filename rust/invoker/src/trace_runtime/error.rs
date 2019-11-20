@@ -29,3 +29,10 @@ where
 {
     return Err(Error::TypeError(message.into()));
 }
+
+pub fn not_a_function<T, S>(fun: S) -> Result<T, Error>
+where
+    S: Into<String>,
+{
+    return Err(Error::TypeError(format!("{} is not a function.", fun.into())));
+}
