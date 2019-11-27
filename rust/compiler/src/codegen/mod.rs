@@ -272,6 +272,8 @@ pub fn codegen(e: &Exp, dest_file: &str) {
     let tokens = quote! {
         // We generate names from JavaScript, so camelCase names are inevitable.
         #![allow(non_snake_case)]
+        #![forbid(unsafe_code)]
+        
         use invoker::trace_runtime::{self as rt, ExecutionContext, Dyn, DynResult};
 
         pub fn containerless<'a>(

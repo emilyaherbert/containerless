@@ -2,7 +2,6 @@
 extern crate duct;
 use clap::{App, Arg, SubCommand};
 mod codegen;
-mod gen;
 mod trace_js;
 mod types;
 mod verif;
