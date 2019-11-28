@@ -288,7 +288,7 @@ const exitBlock: b.ExpressionStatement =
  * foo = 12;
  * ```
  */
-function reifyExpression(e: b.Expression, st: State): [b.Expression, State] {
+function transformExpression(e: b.Expression, st: State): [b.Expression, State] {
     switch(e.type) {
         case 'Identifier': {
             if(e.name === 'undefined') {
@@ -307,25 +307,25 @@ function reifyExpression(e: b.Expression, st: State): [b.Expression, State] {
         case 'BooleanLiteral': return [boolean(e.value), st];
         case 'StringLiteral': return [string(e.value), st];
         case 'BinaryExpression': {
-            const [left, st1] = reifyExpression(e.left, st);
-            const [right, st2] = reifyExpression(e.right, st);
+            const [left, st1] = transformExpression(e.left, st);
+            const [right, st2] = transformExpression(e.right, st);
             return [binop(e.operator, left, right), merge(st1, st2)];
         }
         case 'AssignmentExpression': {
             const e2 = assertNormalized(e);
-            const [right, st1] = reifyExpression(e2.right, st);
-            const [left, st2] = reifyExpression(e2.left, st);
+            const [right, st1] = transformExpression(e2.right, st);
+            const [left, st2] = transformExpression(e2.left, st);
             return [traceSet(left, right), merge(st1, st2)];
         }
         case 'MemberExpression': {
             const obj = e.object;
-            const [lhs, st2] = reifyExpression(obj, st);
+            const [lhs, st2] = transformExpression(obj, st);
             const prop = e.property;
 
             if((b.isIdentifier(obj) || b.isMemberExpression(obj)) && b.isIdentifier(prop) && e.computed == false) {
                 return [get(lhs, prop.name), st2];
             } else {
-                const [rhs, st3] = reifyExpression(prop, st);
+                const [rhs, st3] = transformExpression(prop, st);
                 return [index(lhs, rhs), merge(st2, st3)];
             }
         }
@@ -338,7 +338,7 @@ function reifyExpression(e: b.Expression, st: State): [b.Expression, State] {
                 if(!b.isObjectProperty(p) || !(b.isIdentifier(p.key) || b.isStringLiteral(p.key)) || b.isRestElement(p.value)) {
                     throw new Error("Found something unexpected.");
                 } else {
-                    let [rhs, st1] = reifyExpression(p.value, st);
+                    let [rhs, st1] = transformExpression(p.value, st);
                     str = merge(str, st1);
                     props.push(b.objectProperty(p.key, rhs));
                 }
@@ -353,19 +353,19 @@ function reifyExpression(e: b.Expression, st: State): [b.Expression, State] {
                 if(e == null || b.isNullLiteral(e) || b.isSpreadElement(e)) {
                     throw new Error("Found unexpected array element.");
                 }
-                let [e2, st3] = reifyExpression(e, st);
+                let [e2, st3] = transformExpression(e, st);
                 elems2.push(e2);
                 st2 = st2.merge(st3);
             });
             return [array(elems2), st2];
         }
         case 'LogicalExpression': {
-            const [left, st1] = reifyExpression(e.left, st);
-            const [right, st2] = reifyExpression(e.right, st);
+            const [left, st1] = transformExpression(e.left, st);
+            const [right, st2] = transformExpression(e.right, st);
             return [binop(e.operator, left, right), merge(st1, st2)];
         }
         case 'UnaryExpression': {
-            let [e1, st1] = reifyExpression(e.argument, st);
+            let [e1, st1] = transformExpression(e.argument, st);
             return [op1(e.operator, e1), st1];
         }
         default: {
@@ -400,7 +400,7 @@ function reifyExpression(e: b.Expression, st: State): [b.Expression, State] {
  * }
  * ```
  */
-function reifyVariableDeclaration(s: b.VariableDeclaration, st: State): [b.Statement[], State] {
+function transformVariableDeclaration(s: b.VariableDeclaration, st: State): [b.Statement[], State] {
     let s1 = assertNormalized(s);
     const name = lvaltoName(s1.declarations[0].id);
     const init = s1.declarations[0].init;
@@ -414,7 +414,7 @@ function reifyVariableDeclaration(s: b.VariableDeclaration, st: State): [b.State
             let theArgs: b.Expression[] = [];
             let nextSt = st;
             init1.arguments.forEach(a => {
-                const [a1, st1] = reifyExpression(a, st);
+                const [a1, st1] = transformExpression(a, st);
                 theArgs.push(a1);
                 nextSt = merge(st1, nextSt);
             });
@@ -426,7 +426,7 @@ function reifyVariableDeclaration(s: b.VariableDeclaration, st: State): [b.State
                         return [[ s ], nextSt];
                     }
                     default: {
-                        const [callE, st2] = reifyExpression(init1.callee, nextSt);
+                        const [callE, st2] = transformExpression(init1.callee, nextSt);
                         nextSt = merge(nextSt, st2);
                         theArgs.unshift(callE);
                         break;
@@ -454,7 +454,7 @@ function reifyVariableDeclaration(s: b.VariableDeclaration, st: State): [b.State
                     case 'unshift':
                     case 'pop':
                     case 'push': {
-                        const [obj2, st2] = reifyExpression(obj, nextSt);
+                        const [obj2, st2] = transformExpression(obj, nextSt);
                         const tMethod = methodCall(obj2, prop.name, theArgs);
                         const tLet = traceLet(name, tMethod);
                         return [[ tLet, s ], st2.set(name, false)];
@@ -472,10 +472,10 @@ function reifyVariableDeclaration(s: b.VariableDeclaration, st: State): [b.State
         }
         case 'FunctionExpression': {
             const newFun = b.functionDeclaration(b.identifier(name), init.params, init.body);
-            return reifyFunctionDeclaration(newFun, st);
+            return transformFunctionDeclaration(newFun, st);
         }
         default: {
-            const [init2, st1] = reifyExpression(init, st);
+            const [init2, st1] = transformExpression(init, st);
             const tLet = traceLet(name, init2);
             return [[tLet, s], st1.set(name, false)];
         }
@@ -492,9 +492,9 @@ function reifyVariableDeclaration(s: b.VariableDeclaration, st: State): [b.State
  * b.exitBlock();
  * ```
  */
-function reifyWhileStatement(s: b.WhileStatement, st: State): [b.Statement[], State] {
-    const [test, st1] = reifyExpression(s.test, st);
-    let [body, st2] = reifyStatement(s.body, st);
+function transformWhileStatement(s: b.WhileStatement, st: State): [b.Statement[], State] {
+    const [test, st1] = transformExpression(s.test, st);
+    let [body, st2] = transformStatement(s.body, st);
     body.unshift(traceLoop);
     const tWhile = traceWhile(test);
     const theWhile = b.whileStatement(s.test, b.blockStatement(body));
@@ -515,12 +515,12 @@ function reifyWhileStatement(s: b.WhileStatement, st: State): [b.Statement[], St
  * ```
  *
  */
-function reifyIfStatement(s: b.IfStatement, st: State): [b.Statement[], State] {
-    const [test, st1] = reifyExpression(s.test, st);
-    let [ifTrue, st2] = reifyStatement(s.consequent, st);
+function transformIfStatement(s: b.IfStatement, st: State): [b.Statement[], State] {
+    const [test, st1] = transformExpression(s.test, st);
+    let [ifTrue, st2] = transformStatement(s.consequent, st);
     let [ifFalse, st3]: [b.Statement[], State] = [[], st];
     if(s.alternate !== null) {
-        [ifFalse, st3] = reifyStatement(s.alternate, st);
+        [ifFalse, st3] = transformStatement(s.alternate, st);
     }
     const id = '$test';
     ifTrue.unshift(traceIfTrue(id));
@@ -535,7 +535,7 @@ function reifyIfStatement(s: b.IfStatement, st: State): [b.Statement[], State] {
 Note: Turns `x++` into `t.traceSet(x, x - 1); x = x - 1;`
 
 */
-function reifyExpressionStatement(s: b.ExpressionStatement, st: State): [b.Statement[], State] {
+function transformExpressionStatement(s: b.ExpressionStatement, st: State): [b.Statement[], State] {
     switch (s.expression.type) {
         case 'UpdateExpression': {
             let e = s.expression;
@@ -544,13 +544,13 @@ function reifyExpressionStatement(s: b.ExpressionStatement, st: State): [b.State
             } else if(e.operator !== '++') {
                 throw new Error("Found unimplemented case.");
             }
-            const [id, st1] = reifyExpression(e.argument, st);
+            const [id, st1] = transformExpression(e.argument, st);
             let ts = b.expressionStatement(traceSet(id, binop('+', id, number(1))));
             let js = jsAssignment(e.argument, b.binaryExpression('+', e.argument, b.numericLiteral(1)));
             return [[ts, js], st1];
         }
         default: {
-            const [expression, st1] = reifyExpression(s.expression, st);
+            const [expression, st1] = transformExpression(s.expression, st);
             const above = b.expressionStatement(expression);
             return [[above, s], st1];
         }
@@ -569,9 +569,9 @@ function reifyExpressionStatement(s: b.ExpressionStatement, st: State): [b.State
  * }
  * ```
  */
-function reifyLabeledStatement(s: b.LabeledStatement, st: State): [b.Statement[], State] {
+function transformLabeledStatement(s: b.LabeledStatement, st: State): [b.Statement[], State] {
     const name = s.label;
-    let [body, st1] = reifyStatement(s.body, st);
+    let [body, st1] = transformStatement(s.body, st);
     body.push(exitBlock);
     const tLabel = traceLabel(lvaltoName(name));
     const theLabel = b.labeledStatement(name, b.blockStatement(body));
@@ -584,7 +584,7 @@ function reifyLabeledStatement(s: b.LabeledStatement, st: State): [b.Statement[]
  * break l;
  * ```
  */
-function reifyBreakStatement(s: b.BreakStatement, st: State): [b.Statement[], State] {
+function transformBreakStatement(s: b.BreakStatement, st: State): [b.Statement[], State] {
     const name = s.label;
     if(name === null) {
         throw new Error("Found null label in break.");
@@ -610,7 +610,7 @@ function reifyBreakStatement(s: b.BreakStatement, st: State): [b.Statement[], St
  * }
  * ```
  */
-function reifyFunctionDeclaration(s: b.FunctionDeclaration, st: State): [b.Statement[], State] {
+function transformFunctionDeclaration(s: b.FunctionDeclaration, st: State): [b.Statement[], State] {
     const id = s.id;
     if(id === null) {
         throw new Error("Null id!!");
@@ -631,7 +631,7 @@ function reifyFunctionDeclaration(s: b.FunctionDeclaration, st: State): [b.State
             nextSt = nextSt.set(oldName, false);
         }
     }
-    let [body, myState] = reifyStatement(s.body, nextSt);
+    let [body, myState] = transformStatement(s.body, nextSt);
     body = paramsBody.concat(body);
     body.unshift(jsLet(b.arrayPattern(funBodyLHS), traceFunctionBody()));
     body.push(exitBlock); // exit the label
@@ -664,36 +664,36 @@ function reifyFunctionDeclaration(s: b.FunctionDeclaration, st: State): [b.State
  * return 42;
  * ```
  */
-function reifyReturnStatement(s_: b.ReturnStatement, st: State): [b.Statement[], State] {
+function transformReturnStatement(s_: b.ReturnStatement, st: State): [b.Statement[], State] {
     let s = assertNormalized(s_);
-    const [argument, st1] = reifyExpression(s.argument, st);
+    const [argument, st1] = transformExpression(s.argument, st);
     const tBreak = traceBreak(functionBreakName, argument);
     return [[tBreak, s], st1];
 }
 
-function reifyStatement(s: b.Statement, st: State): [b.Statement[], State] {
+function transformStatement(s: b.Statement, st: State): [b.Statement[], State] {
     switch(s.type) {
-        case 'VariableDeclaration': return reifyVariableDeclaration(s, st);
-        case 'WhileStatement': return reifyWhileStatement(s, st);
-        case 'BlockStatement': return reifyStatements(s.body, st); // NOTE: this unwraps block statements.
-        case 'IfStatement': return reifyIfStatement(s, st);
-        case 'ExpressionStatement': return reifyExpressionStatement(s, st);
-        case 'LabeledStatement': return reifyLabeledStatement(s, st);
-        case 'BreakStatement': return reifyBreakStatement(s, st);
-        case 'FunctionDeclaration': return reifyFunctionDeclaration(s, st);
-        case 'ReturnStatement': return reifyReturnStatement(s, st);
+        case 'VariableDeclaration': return transformVariableDeclaration(s, st);
+        case 'WhileStatement': return transformWhileStatement(s, st);
+        case 'BlockStatement': return transformStatements(s.body, st); // NOTE: this unwraps block statements.
+        case 'IfStatement': return transformIfStatement(s, st);
+        case 'ExpressionStatement': return transformExpressionStatement(s, st);
+        case 'LabeledStatement': return transformLabeledStatement(s, st);
+        case 'BreakStatement': return transformBreakStatement(s, st);
+        case 'FunctionDeclaration': return transformFunctionDeclaration(s, st);
+        case 'ReturnStatement': return transformReturnStatement(s, st);
         default: {
             throw new Error('TODO: ' + s.type);
         }
     }
 }
 
-function reifyStatements(s: b.Statement[], st: State): [b.Statement[], State] {
+function transformStatements(s: b.Statement[], st: State): [b.Statement[], State] {
     let ret: b.Statement[] = [];
     let nextSt = st;
 
     for(let i=0; i<s.length; i++) {
-        let [r, st1] = reifyStatement(s[i], nextSt);
+        let [r, st1] = transformStatement(s[i], nextSt);
         for(let j=0; j<r.length; j++) {
             ret.push(r[j]);
         }
@@ -703,8 +703,8 @@ function reifyStatements(s: b.Statement[], st: State): [b.Statement[], State] {
     return [ret, nextSt];
 }
 
-function reify(s: b.Statement[]): b.Statement[] {
-    const [prog, _] = reifyStatements(s, Map());
+function transformBody(s: b.Statement[]): b.Statement[] {
+    const [prog, _] = transformStatements(s, Map());
     // TODO(emily): Fix. Need to detect require statements or something.
 
     let req = prog.shift();
@@ -732,7 +732,7 @@ export function testTransform(inputCode: string): any {
     //let normalized = n.normalize(inputCode);
     let ast = parser.parse(inputCode);
 
-    ast.program.body = reify(ast.program.body);
+    ast.program.body = transform(ast.program.body);
     ast.program.body.push(getTrace);
     return generator(ast.program).code;
 }
@@ -769,6 +769,6 @@ function lvaltoName(lval: b.LVal): string {
 export function transform(inputCode: string): string {
     let normalized = n.normalize(inputCode);
     let ast = parser.parse(normalized);
-    ast.program.body = reify(ast.program.body);
+    ast.program.body = transformBody(ast.program.body);
     return generator(ast.program).code;
 }
