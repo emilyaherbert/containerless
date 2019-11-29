@@ -53,7 +53,7 @@ impl ContainerHandle {
         client: Arc<HttpClient>,
         mut req: Request,
     ) -> impl Future<Item = Response, Error = hyper::Error> {
-        let pq = (req.uri().path().to_string() + "?").to_string()
+        let _pq = (req.uri().path().to_string() + "?").to_string()
             + req.uri()
             .query()
             .map(move |q| {

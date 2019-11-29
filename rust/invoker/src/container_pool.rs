@@ -138,14 +138,6 @@ impl ContainerPoolData {
         })
     }
 
-    pub fn force_stop_containers(this: &Arc<Self>) {
-        let this2 = this.clone();
-        this.available.recv_immediate().map(move |handle| {
-            handle.stop();
-            this2.num_containers.fetch_sub(1, SeqCst);
-        });
-    }
-
     // Starts `n` new containers.
     pub fn create_containers(this: &Arc<Self>, n: usize) -> impl Future<Item = (), Error = Error> {
         let idle = this.idle.clone();

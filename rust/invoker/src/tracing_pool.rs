@@ -27,8 +27,6 @@ use shared::config::InvokerConfig;
 use std::fs;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering::SeqCst};
 use std::sync::Arc;
-use nix::sys::signal::{kill, Signal};
-use nix::unistd::Pid;
 
 #[atomic_enum]
 #[derive(PartialEq)]

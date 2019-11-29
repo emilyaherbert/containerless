@@ -16,7 +16,7 @@ pub fn sysmon(config: &InvokerConfig) {
         return;
     }
 
-    let mut utilization_writer : LineWriter<Box<Write + Send>> = LineWriter::new(
+    let mut utilization_writer : LineWriter<Box<dyn Write + Send>> = LineWriter::new(
         if &config.utilization_log == "stdout" { 
             Box::new(stdout())
         } else {

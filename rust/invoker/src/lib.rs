@@ -1,6 +1,6 @@
 mod container_handle;
 mod container_pool;
-mod decontainer_pool;
+mod tracing_pool;
 mod error;
 mod mock;
 mod mpmc;
@@ -14,8 +14,6 @@ mod util;
 use clap::{App, Arg};
 use futures::future::{self, Future};
 use futures::stream::Stream;
-use nix::sys::signal::{kill, Signal};
-use nix::unistd::Pid;
 use shared::config::InvokerConfig;
 use std::io::{self, Read};
 use std::sync::Arc;

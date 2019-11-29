@@ -1,6 +1,9 @@
-use super::decontainer_pool::TracingPool;
-use super::trace_runtime::Containerless;
-use crate::error::Error;
+use crate::{
+    tracing_pool::TracingPool,
+    trace_runtime::Containerless,
+    error::Error
+};
+
 use futures::{
     future::{self, Either},
     Future,

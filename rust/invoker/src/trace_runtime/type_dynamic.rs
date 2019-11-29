@@ -449,7 +449,7 @@ impl<'a> Dyn<'a> {
         match self {
             Dyn::Str(s) => Some(Value::String(s.to_string())),
             Dyn::Bool(b) => Some(Value::Bool(*b)),
-            Dyn::Int(n) => unimplemented!(), // Value::Number(*n.into()),
+            Dyn::Int(n) => serde_json::Number::from_f64(*n as f64).map(|num| Value::Number(num)),
             Dyn::Float(x) => serde_json::Number::from_f64(*x).map(|num| Value::Number(num)),
             Dyn::Undefined => None,
             Dyn::Vec(vec_cell) => Some(vec_cell.to_json()),
