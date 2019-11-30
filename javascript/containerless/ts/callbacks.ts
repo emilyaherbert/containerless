@@ -140,11 +140,9 @@ export class Callbacks {
         let innerTrace = this.trace.traceCallback('post', $argRep, ['clos', 'response'], $callbackClos);
 
         if (uri.url.startsWith('data:')) {
-            console.error('data');
             this.withTrace(innerTrace, () => {
                 innerTrace.pushArgs([identifier('clos'), identifier('response')]);
-                let json = JSON.parse(String('{ "body": "User not found." }'));
-                callback(json);
+                callback(JSON.parse(uri.url.substr(5)));
             });
             return;
         }

@@ -369,9 +369,10 @@ pub fn benchmark_login() {
                     containerless.respond("Username or password not found.\n")
                 } else {
                     containerless.post({
-                            url: 'data:{}', //'http://localhost:7999/login',
+                            url: 'data:{ "username": "timmy", "password": "rust" }',
                             body: req.body
                         }, function(resp) {
+                        containerless.respond(u === resp.username);
                         if(resp.username === undefined || resp.password === undefined) {
                             containerless.respond(resp.body);
                         } else if(resp.username === u && resp.password === p) {
@@ -395,7 +396,7 @@ pub fn benchmark_login() {
               "query": {},
               "body": { "username": "timmy", "password": "rust" }  }
         ]));
-    assert_eq!(result, ["Could not convert response to string"]);
+    assert_eq!(result, ["Login successful!"]);
 }
 
 #[serial]
@@ -808,7 +809,7 @@ pub fn benchmark_banking() {
          * `next(req, transaction)`
          */
         function begin(req, next) {
-            containerless.get('http://10.200.0.1:7999/begin', function(resp) {
+            containerless.get('data:{ "transaction": "9876543210" }', function(resp) {
                 if(resp === undefined) {
                     console.log(resp);
                     containerless.respond("No response. 1");
@@ -827,7 +828,7 @@ pub fn benchmark_banking() {
          */
         function commit(req, transaction, mutation) {
             let o = {
-                'url': 'http://10.200.0.1:7999/commit',
+                'url': 'data:{ "body": "Done!" }',
                 'body': {
                     "transaction": transaction,
                     "mutation": mutation
@@ -853,7 +854,7 @@ pub fn benchmark_banking() {
          */
         function balance(req, transaction, next) {
             let o = {
-                'url': 'http://10.200.0.1:7999/balance',
+                'url': 'data:{ "balance": 81900 }',
                 'body': {
                     'name': req.body.account
                 }
@@ -958,8 +959,8 @@ pub fn benchmark_banking() {
             { "path": "/balance",
               "query": {},
               "body": {
-                    "accessToken": "ya29.c.KmOpB1qy-f9d8fq3J4lNQk-n_8PXZt7LCv1BzFMCFJ4IFvrG_boHYv5EHDzJwVkC4lX57hkH2LzHv4O0xMn2AaNgi6gI3Ta-OOcf_XUkNbAp3KQfSRxgFakMEqxiJYGyYzdPgwU",
-                    "id": "5638535449149440"
+                    "accessToken": "letmein",
+                    "account": "timmy"
                 }
             }
         ]),
@@ -967,8 +968,8 @@ pub fn benchmark_banking() {
             { "path": "/balance",
               "query": {},
               "body": {
-                    "accessToken": "ya29.c.KmOpB1qy-f9d8fq3J4lNQk-n_8PXZt7LCv1BzFMCFJ4IFvrG_boHYv5EHDzJwVkC4lX57hkH2LzHv4O0xMn2AaNgi6gI3Ta-OOcf_XUkNbAp3KQfSRxgFakMEqxiJYGyYzdPgwU",
-                    "id": "5638535449149440"
+                    "accessToken": "letmein",
+                    "account": "timmy"
                 }
             }
         ]));

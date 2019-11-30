@@ -23,7 +23,7 @@ use atomic_enum::atomic_enum;
 use auto_enums::auto_enum;
 use bytes::Bytes;
 use duct::cmd;
-use futures::future::{self, Future};
+use futures::future::Future;
 use futures::stream::Stream;
 use futures_cpupool::CpuPool;
 use http::uri::Authority;
@@ -31,7 +31,7 @@ use shared::config::InvokerConfig;
 use std::fs;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering::SeqCst};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use std::thread;
 
 #[atomic_enum]
