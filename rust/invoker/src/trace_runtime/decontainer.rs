@@ -97,7 +97,7 @@ impl Decontainer {
         parts: http::request::Parts,
         body: Vec<u8>,
     ) -> Decontainer {
-        let body_json = serde_json::from_slice(&body).unwrap(); // TODO
+        let body_json = serde_json::from_slice(&body).expect("Could not parse body.");
         Decontainer::new_from(func, client, parts.uri.path(), body_json)
     }
 }
