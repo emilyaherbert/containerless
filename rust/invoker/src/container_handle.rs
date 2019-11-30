@@ -1,3 +1,5 @@
+//! Internal handle for containers.
+
 use crate::types::*;
 use duct::cmd;
 use futures::Future;
@@ -7,6 +9,8 @@ use std::sync::Arc;
 // NOTE(emily, arjun): ContainerHandle must not implement Clone, since containers
 // are shut down when dropped. If you really need multiple references to the
 // same container, use Arc<ContainerHandle>.
+
+/// A handle to a container.
 #[derive(Debug)]
 pub struct ContainerHandle {
     pub name: String,
@@ -21,6 +25,7 @@ impl Drop for ContainerHandle {
 }
 
 impl ContainerHandle {
+    /// Sends a test message to the container.
     pub fn test(
         &self,
         client: Arc<HttpClient>,
@@ -48,6 +53,8 @@ impl ContainerHandle {
         .map(|_resp| ())
     }
 
+    /// Sends `req` to the `client`, modifying it to match this container
+    /// handle.
     pub fn request(
         &self,
         client: Arc<HttpClient>,
@@ -70,6 +77,7 @@ impl ContainerHandle {
         client.request(req)
     }
 
+    /// Stops a container using its `ContainerHandle`.
     pub fn stop(&self) {
         println!("Stopping {}", &self.name);
         let result = cmd!(

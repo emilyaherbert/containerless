@@ -1,3 +1,5 @@
+//! Dynamic type wrapper.
+
 use super::error::{type_error, Error, not_a_function};
 use bumpalo::{
     collections::{String, Vec},

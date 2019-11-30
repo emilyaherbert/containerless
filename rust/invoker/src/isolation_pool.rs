@@ -1,3 +1,19 @@
+//! Pool of different means of isolation (i.e. with-containers and without-containers).
+//! 
+//! *How should we switch between containers and Rust?*
+//! 
+//! We assume that the container can be run in two modes, either vanilla or
+//! tracing. On the first request, we start a tracing container. If additional
+//! containers are needed, we start vanilla containers.  After the tracing
+//! container receives N requests, we extract the trace, compile it to Rust
+//! and start serving requests from Rust instead of containers.  After switching
+//! to Rust, we let containers shut down naturally. The platform may send a
+//! request to the containers, which will only occur if the Rust code encounters
+//! an unexplored code path. By allowing the containers to shut down slowly, we
+//! can fall back to containers more quickly. However, we keep track of how many
+//! times we recompile the Rust code. If recompilation happens more than L times,
+//! we give up compiling to Rust.
+
 use super::container_handle::ContainerHandle;
 use super::container_pool::ContainerPool;
 use super::error::Error;
@@ -11,18 +27,6 @@ use futures::future::{self, Future};
 use futures::stream::Stream;
 use futures_cpupool::CpuPool;
 use http::uri::Authority;
-/// *How should we switch between containers and Rust?*
-/// We assume that the container can be run in two modes, either vanilla or
-/// tracing. On the first request, we start a tracing container. If additional
-/// containers are needed, we start vanilla containers.  After the tracing
-/// container receives N requests, we extract the trace, compile it to Rust
-/// and start serving requests from Rust instead of containers.  After switching
-/// to Rust, we let containers shut down naturally. The platform may send a
-/// request to the containers, which will only occur if the Rust code encounters
-/// an unexplored code path. By allowing the containers to shut down slowly, we
-/// can fall back to containers more quickly. However, we keep track of how many
-/// times we recompile the Rust code. If recompilation happens more than L times,
-/// we give up compiling to Rust.
 use shared::config::InvokerConfig;
 use std::fs;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering::SeqCst};
@@ -30,7 +34,7 @@ use std::sync::Arc;
 
 #[atomic_enum]
 #[derive(PartialEq)]
-enum TracingStatus {
+enum IsolationStatus {
     /// Cold start, we don't even have a container ready
     NotStarted,
     /// We gave up. The Rust code keeps getting requests
@@ -48,10 +52,10 @@ enum TracingStatus {
     Draining,
 }
 
-struct TracingPoolData {
+struct IsolationPoolData {
     tracing_container_available: AtomicBool,
     num_traced_requests: AtomicUsize,
-    mode: AtomicTracingStatus,
+    mode: AtomicIsolationStatus,
     container_pool: ContainerPool,
     config: Arc<InvokerConfig>,
     container_handle: ContainerHandle,
@@ -60,35 +64,42 @@ struct TracingPoolData {
     containerless: Containerless,
 }
 
+/// The pool that organizes the container pool, the tracing container, and the
+/// generated Rust code.
 #[derive(Clone)]
-pub struct TracingPool {
-    data: Arc<TracingPoolData>,
+pub struct IsolationPool {
+    data: Arc<IsolationPoolData>,
 }
 
 static TRACING_CONTAINER_PORT: usize = 2999;
 static TRACING_CONTAINER_NAME: &'static str = "tracing";
 static MAX_TRACED: usize = 100;
 
-impl TracingStatus {
+impl IsolationStatus {
     fn new(config: &InvokerConfig) -> Self {
         use shared::config::InitialState;
         match config.initial_state {
-            InitialState::Tracing => TracingStatus::NotStarted,
-            InitialState::Decontainerized => TracingStatus::Decontainerized,
-            InitialState::DisableTracing => TracingStatus::Aborted,
+            InitialState::Tracing => IsolationStatus::NotStarted,
+            InitialState::Decontainerized => IsolationStatus::Decontainerized,
+            InitialState::DisableTracing => IsolationStatus::Aborted,
         }
     }
 }
 
-impl TracingPoolData {
+impl IsolationPoolData {
+    /// Creates the isolation pool data.
+    /// 
+    /// 1. Creates a `ContainerPool`.
+    /// 2. Sets up all the tracing container info but does not actually start
+    /// the tracing container.
     fn new(
         config: Arc<InvokerConfig>,
         containerless: Containerless,
         client: Arc<types::HttpClient>,
-    ) -> (TracingPoolData, futures::sync::oneshot::Receiver<()>) {
+    ) -> (IsolationPoolData, futures::sync::oneshot::Receiver<()>) {
         let tracing_container_available = AtomicBool::new(false);
         let num_traced_requests = AtomicUsize::new(0);
-        let mode = AtomicTracingStatus::new(TracingStatus::new(&config));
+        let mode = AtomicIsolationStatus::new(IsolationStatus::new(&config));
         let (container_pool, rx_shutdown) = ContainerPool::new(config.clone(), client.clone());
         let cpu_pool = CpuPool::new(1);
         let authority = Authority::from_shared(Bytes::from(format!(
@@ -101,7 +112,7 @@ impl TracingPoolData {
             name: TRACING_CONTAINER_NAME.to_string(),
         };
         return (
-            TracingPoolData {
+            IsolationPoolData {
                 containerless,
                 tracing_container_available,
                 num_traced_requests,
@@ -116,14 +127,13 @@ impl TracingPoolData {
         );
     }
 
+    // Starts the tracing container.
     fn start_tracing_container(&self) {
         let config = &self.config;
         let run_result = cmd!(
             "docker",
-            "run",
-            // detached, so return immediately
-            "-d",
-            // delete on termination. Makes debugging harder
+            "run", // detached, so return immediately
+            "-d", // delete on termination. Makes debugging harder
             "--rm",
             "-p",
             format!(
@@ -148,17 +158,25 @@ impl TracingPoolData {
     }
 }
 
-impl TracingPool {
+impl IsolationPool {
     pub fn new(
         config: Arc<InvokerConfig>,
         containerless: Option<Containerless>,
         client: Arc<types::HttpClient>,
     ) -> (Self, futures::sync::oneshot::Receiver<()>) {
-        let (data, rx_shutdown) = TracingPoolData::new(config, containerless.unwrap(), client);
+        let (data, rx_shutdown) = IsolationPoolData::new(config, containerless.unwrap(), client);
         let data = Arc::new(data);
-        return (TracingPool { data }, rx_shutdown);
+        return (IsolationPool { data }, rx_shutdown);
     }
 
+    /// Extracts the trace from the tracing container and compiles it to Rust.
+    /// 
+    /// 1. Sends a request to the tracing container and recieves a trace as
+    /// bytes in the response.
+    /// 2. Writes the trace to a file.
+    /// 3. Compiles the trace to Rust.
+    /// 4. Builds the generated Rust code.
+    /// 5. Shuts down.
     fn extract_and_compile_trace(&self) -> impl Future<Item = (), Error = ()> {
         let req = hyper::Request::get(
             hyper::Uri::builder()
@@ -197,15 +215,13 @@ impl TracingPool {
                         .run()
                         .expect("Failed to compile the Rust code generated by the trace compiler");
 
-                    data.mode.store(TracingStatus::Draining, SeqCst);
-                    //return data.container_pool.shutdown();
+                    data.mode.store(IsolationStatus::Draining, SeqCst);
 
                     if data.config.kill_parent {
                         return future::Either::A(data.container_pool.shutdown_with_parent());
                     } else {
                         return future::Either::B(data.container_pool.shutdown());
                     }
-
                 })
             })
             .map_err(|err| {
@@ -215,8 +231,13 @@ impl TracingPool {
     }
 
     /// Issues a request, starting a new tracing container if needed.
-    /// If the tracing container is busy, sends the request to a
-    /// ContainerPool
+    ///
+    /// A state machine where the isolation status directs the request:
+    /// * `Aborted` -> `ContainerPool`
+    /// * `Decontainerized` -> create a `Decontainer` and use that.
+    /// * `NotStarted` -> start the tracing container and use that.
+    /// * `Compiling` -> `ContainerPool`
+    /// * `Draining` -> `ContainerPool`
     #[auto_enum(futures01::Future)]
     pub fn request(
         &self,
@@ -226,12 +247,12 @@ impl TracingPool {
         loop {
             let m = mode.load(SeqCst);
             match m {
-                TracingStatus::Aborted => {
+                IsolationStatus::Aborted => {
                     return self.data.container_pool.request(req);
                 }
                 // Send request. If there is an error due to unknown, switch to
                 // NotStarted
-                TracingStatus::Decontainerized => {
+                IsolationStatus::Decontainerized => {
                     let data = self.data.clone();
                     let (parts, body) = req.into_parts();
                     return body.concat2().from_err().and_then(move |body| {
@@ -246,13 +267,13 @@ impl TracingPool {
                 // Try to set the mode to Tracing. If succcessful, this request is going
                 // to launch the tracing container. Either way, loop to try to request
                 // again.
-                TracingStatus::NotStarted => {
+                IsolationStatus::NotStarted => {
                     let was_not_started = mode.compare_and_swap(
-                        TracingStatus::NotStarted,
-                        TracingStatus::Tracing,
+                        IsolationStatus::NotStarted,
+                        IsolationStatus::Tracing,
                         SeqCst,
                     );
-                    if TracingStatus::NotStarted != was_not_started {
+                    if IsolationStatus::NotStarted != was_not_started {
                         continue;
                     }
                     self.data.start_tracing_container();
@@ -277,7 +298,7 @@ impl TracingPool {
                 // If it is unavailable, send it to the container pool instead.
                 // If the tracing container has received enough requests, this
                 // triggers compilating and shuts down the tracing container.
-                TracingStatus::Tracing => {
+                IsolationStatus::Tracing => {
                     let was_available = self
                         .data
                         .tracing_container_available
@@ -285,7 +306,7 @@ impl TracingPool {
                     if was_available == true {
                         let n = self.data.num_traced_requests.fetch_add(1, SeqCst);
                         if n == MAX_TRACED {
-                            self.data.mode.store(TracingStatus::Compiling, SeqCst);
+                            self.data.mode.store(IsolationStatus::Compiling, SeqCst);
                             tokio::executor::spawn(self.extract_and_compile_trace());
                         }
                         let data = self.data.clone();
@@ -305,10 +326,10 @@ impl TracingPool {
                         return self.data.container_pool.request(req);
                     }
                 }
-                TracingStatus::Compiling => {
+                IsolationStatus::Compiling => {
                     return self.data.container_pool.request(req);
                 }
-                TracingStatus::Draining => {
+                IsolationStatus::Draining => {
                     return self.data.container_pool.request(req);
                 }
             }

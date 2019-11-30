@@ -1,3 +1,11 @@
+//! Manages a pool of containers that can process requests.
+//! 
+//! At the moment, the API is very straightforward and just has a single method
+//! called `request`, which redirects a request to an available container. If no
+//! container is immediately available, then `request` spawns a single new
+//! container upto the configured maximum number of containers (i.e., cold
+//! starts).
+
 use super::container_handle::ContainerHandle;
 use crate::error::Error;
 use crate::mpmc::{Queue, Receiver, Sender};
@@ -10,11 +18,6 @@ use duct::cmd;
 use futures::{future, Future};
 use futures_locks::{Mutex, MutexGuard};
 use http::uri::Authority;
-/// Manages a pool of containers that can process requests. At the moment, the
-/// API is very straightforward and just has a single method called `request`,
-/// which redirects a request to an available container. If no container is
-/// immediately available, then `request` spawns a single new container upto
-/// the configured maximum number of containers (i.e., cold starts).
 use shared::config::InvokerConfig;
 use std::sync::atomic;
 use std::sync::Arc;
@@ -27,6 +30,22 @@ struct ContainerSpawner {
     container_name_suffix: usize,
     container_name_prefix: String,
     next_container_port: usize,
+}
+
+impl ContainerSpawner {
+    /// Increments `container_name_suffix` and `next_container_port`.
+    fn update(&mut self) {
+        self.container_name_suffix += 1;
+        self.next_container_port += 1;
+    }
+
+    // Creates a name for the next container.
+    fn name(&self) -> String {
+        return format!(
+            "{}-{}",
+            self.container_name_prefix, self.container_name_suffix
+        );
+    }
 }
 
 struct ContainerPoolData {
@@ -46,36 +65,34 @@ struct ContainerPoolData {
     tx_shutdown: Mutex<Option<futures::sync::oneshot::Sender<()>>>,
 }
 
-#[derive(Clone)]
-pub struct ContainerPool {
-    data: Arc<ContainerPoolData>,
-}
-
+/// Creates a container.
+/// 
+/// 1. Creates `internal_authority` that publishes the docker port to a port
+/// within the docker container.
+/// 2. Creates `external_authority` that links the container host name and
+/// docker port.
+/// 3. Executes `docker run` using `internal_authoriy` and returns a
+/// `ContainerHandle` using `external_authority`.
 fn create_container(
     config: &Arc<InvokerConfig>,
     spawner: &mut MutexGuard<ContainerSpawner>,
 ) -> ContainerHandle {
-    let name = format!(
-        "{}-{}",
-        spawner.container_name_prefix, spawner.container_name_suffix
-    );
-    spawner.container_name_suffix += 1;
+    let name = spawner.name();
     let port = spawner.next_container_port;
-    let authority = Authority::from_shared(Bytes::from(format!(
+    let internal_authority = format!("{}:{}", port, config.container_internal_port);
+    let external_authority = Authority::from_shared(Bytes::from(format!(
         "{}:{}",
         &config.container_hostname, port
     )))
-    .expect("error parsing authority");
-    spawner.next_container_port += 1;
+    .expect("error parsing external authority");
+    spawner.update();
     let run_result = cmd!(
         "docker",
         "run",
-        // detached, so return immediately
-        "-d",
-        // delete on termination. Makes debugging harder
-        "--rm",
+        "-d", // detached, so return immediately
+        "--rm", // delete on termination. Makes debugging harder
         "-p",
-        format!("{}:{}", port, config.container_internal_port),
+        internal_authority,
         "--name",
         &name,
         "--cpus",
@@ -92,7 +109,7 @@ fn create_container(
     .stdout_to_stderr()
     .run();
     run_result.unwrap();
-    let handle = ContainerHandle { name, authority };
+    let handle = ContainerHandle { name: name, authority: external_authority };
     return handle;
 }
 
@@ -130,6 +147,7 @@ impl ContainerPoolData {
         self.num_containers.load(SeqCst)
     }
 
+    /// Immediately stops all containers.
     pub fn stop_containers(this: &Arc<Self>) -> impl Future<Item = (), Error = Error> {
         let this2 = this.clone();
         this.available.recv().map(move |handle| {
@@ -138,7 +156,11 @@ impl ContainerPoolData {
         })
     }
 
-    // Starts `n` new containers.
+    /// Starts `n` new containers.
+    /// 
+    /// Creates and starts `n` new containers using [`create_container`](create_container).
+    /// This creates `n` `ContainerHandle`s, which are added to idle using
+    /// `idle.send(...)`.
     pub fn create_containers(this: &Arc<Self>, n: usize) -> impl Future<Item = (), Error = Error> {
         let idle = this.idle.clone();
         let config = this.config.clone();
@@ -154,9 +176,6 @@ impl ContainerPoolData {
 
         this.num_containers.fetch_add(n, SeqCst);
         let fut = this.spawner.lock().from_err().and_then(move |mut guard| {
-            // TODO Generate names, start new containers, add them to idle, and return
-            // For robustness, we should send a request to each container to verify
-            // that the server is running!
             let handles = (0..n)
                 .map(|_i| create_container(&config, &mut guard))
                 .collect::<Vec<ContainerHandle>>();
@@ -173,7 +192,17 @@ impl ContainerPoolData {
     }
 }
 
+/// A pool of containers.
+#[derive(Clone)]
+pub struct ContainerPool {
+    data: Arc<ContainerPoolData>,
+}
+
 impl ContainerPool {
+    /// Creates a container pool using `config` that handles requests using
+    /// `client`.
+    /// 
+    /// Simultaneously launches a container killer.
     pub fn new(
         config: Arc<InvokerConfig>,
         client: Arc<HttpClient>,
@@ -184,6 +213,20 @@ impl ContainerPool {
         (ContainerPool { data }, rx_shutdown)
     }
 
+    /// Spawns a future that periodically pings for containers to kill.
+    /// 
+    /// Every 1 second, the future checks to determine if all the containers can
+    /// be killed. They can be killed if:
+    /// 
+    /// *(current_time - last_container_start_time) > min_container_lifespan*
+    /// 
+    /// &&
+    /// 
+    /// *time_keeper_mean < max_container_buffer_delay*
+    /// 
+    /// &&
+    /// 
+    /// *num_containers > 0*
     fn launch_container_killer(config: &InvokerConfig, data: Arc<ContainerPoolData>) {
         let max_container_buffer_delay = config.max_container_buffer_delay;
         let min_container_lifespan = config.min_container_lifespan;
@@ -208,6 +251,11 @@ impl ContainerPool {
         );
     }
 
+    /// Shuts down the `ContainerPool`.
+    /// 
+    /// Creates a `Future` loop that loops through the containers and shuts them
+    /// down when ready (i.e. when the the current request is completed) until
+    /// all the containers are shut down.
     pub fn shutdown(&self) -> impl Future<Item = (), Error = Error> {
         let data = self.data.clone();
         self.data
@@ -237,13 +285,17 @@ impl ContainerPool {
             })
     }
 
+    /// Shuts down the `ContainerPool`, if that `ContainerPool` was created from
+    /// some parent.
+    /// 
+    /// 1. Sends a kill signal to the parent.
+    /// 2. Sleeps for 4 seconds.
+    /// 3. Shuts down, using a loop to kill all the containers when they are
+    /// ready.
     pub fn shutdown_with_parent(&self) -> impl Future<Item = (), Error = Error> {
         let data = self.data.clone();
         kill(Pid::parent(), Signal::SIGUSR1).expect("Could not signal parent process");
-        let goodnight = Duration::from_secs(2);
-        thread::sleep(goodnight);
-        //ContainerPoolData::force_stop_containers(&data);
-        let goodnight = Duration::from_secs(2);
+        let goodnight = Duration::from_secs(4);
         thread::sleep(goodnight);
         self.data
             .tx_shutdown
@@ -256,6 +308,8 @@ impl ContainerPool {
                     .send(())
                     .unwrap();
                 data.shutting_down.store(true, SeqCst);
+                // TODO(emily): There is something weird going on with this somewhere.
+                // Not all of the containers get shut down...
                 future::loop_fn((), move |()| {
                     let num_left = data.num_containers.fetch_sub(1, SeqCst);
                     if num_left == 0 {
@@ -272,6 +326,14 @@ impl ContainerPool {
             })
     }
 
+    /// Sends a request to a container from the `ContainerPool`, creating
+    /// additional containers as necessary.
+    /// 
+    /// 1. Retrieves a container, either by using an available one or by
+    /// creating a new one.
+    /// 2. Sends `req` to that container.
+    /// 3. When it gets a response, it adds the container to idle...
+    /// 4. ... and then returns the response.
     pub fn request(&self, req: Request) -> impl Future<Item = Response, Error = Error> {
         let start = Instant::now();
         let data = self.data.clone();

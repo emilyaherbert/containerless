@@ -1,3 +1,5 @@
+//! Collects utilization information about the system.
+
 use shared::config::InvokerConfig;
 use shared::OS;
 use std::convert::TryInto;
@@ -10,6 +12,8 @@ use systemstat::{Platform, System};
 use super::util;
 use std::io::stdout;
 
+/// Spawns a `Future` that periodically measures cpu utilization and memory
+/// utilization.
 pub fn sysmon(config: &InvokerConfig) {
     if OS::detect() != OS::Linux {
         eprintln!("Utilization log requires Linux");

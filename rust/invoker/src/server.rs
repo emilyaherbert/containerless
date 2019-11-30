@@ -1,5 +1,9 @@
+//! Creates the server on which the invoker operates.
+//! 
+//! Incoming requests are sent to a `IsolationPool`.
+
 use crate::{
-    tracing_pool::TracingPool,
+    isolation_pool::IsolationPool,
     trace_runtime::Containerless,
     error::Error
 };
@@ -13,6 +17,15 @@ use hyper::{Body, Client, Response, Server};
 use shared::config::InvokerConfig;
 use std::sync::Arc;
 
+/// Starts a server that handles incoming requests.
+/// 
+/// 1. Creates a hyper `Client`.
+/// 2. Creates an `IsolationPool` using
+/// `config`, `containerless` if any, and the `Client`.
+/// 3. Returns a server, where the service function sends incoming requests to
+/// the `IsolationPool`.
+/// 
+/// The server intercepts messages with a `uri` of `/ping` for testing.
 pub fn serve(
     config: Arc<InvokerConfig>,
     containerless: Option<Containerless>,
@@ -23,8 +36,9 @@ pub fn serve(
     let https = hyper_rustls::HttpsConnector::new(4);
     let client = Arc::new(Client::builder().build(https));
 
-    let (pool, rx_shutdown) = TracingPool::new(config.clone(), containerless, client);
+    let (pool, rx_shutdown) = IsolationPool::new(config.clone(), containerless, client);
 
+    // TODO(emily): Put other special requests here: Get utilization. Shutdown containers?
     let new_svc = move || {
         let pool = pool.clone();
         service_fn(move |req| {

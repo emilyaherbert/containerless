@@ -1,13 +1,15 @@
-/// An implementation of a multi-producer, multi-consumer queue. For some
-/// reason, this is not available as part of the futures library. It is
-/// available as part of CrossBeam, but CrossBeam is not compatible with
-/// futures.
-///
-/// ``Queue::new()`` returns a sender and receiver that can both be cloned and
-/// sent between threads.
-///
-/// The implementation is not efficient, since it uses a single coarse-grained
-/// lock. However, it should be good enough for our purposes.
+//! An implementation of a multi-producer, multi-consumer queue.
+//!  
+//! For some reason, this is not available as part of the futures library. It is
+//! available as part of CrossBeam, but CrossBeam is not compatible with
+//! futures.
+//!
+//! ``Queue::new()`` returns a sender and receiver that can both be cloned and
+//! sent between threads.
+//!
+//! The implementation is not efficient, since it uses a single coarse-grained
+//! lock. However, it should be good enough for our purposes.
+
 use crate::error::Error;
 use futures::sync::oneshot;
 use futures::{future, Future};

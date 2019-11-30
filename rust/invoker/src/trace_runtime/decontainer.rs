@@ -1,3 +1,8 @@
+//! The entry-point to the generated Rust code.
+//! 
+//! `Decontainer` implements `Future` and has a custom implementation of `poll`
+//! that allows it to be used with the invoker server and incoming requests.
+
 use super::super::error::Error;
 use super::super::types::{self, HttpClient};
 use super::error::Error as JSError;
@@ -126,7 +131,7 @@ impl Future for Decontainer {
         loop {
             // Nothing left to do, so we are ready. Note that
             // Decontainer::new() adds a single future to machine_state, so
-            // this is not empty initialarg_cbidly.
+            // this is not empty initialy.
             if self_.machine_state.len() == 0 {
                 if let Some(resp) = ec.response {
                     let resp: Result<String, ()> = resp.try_into();

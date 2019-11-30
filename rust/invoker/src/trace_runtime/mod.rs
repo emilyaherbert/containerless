@@ -1,3 +1,5 @@
+//! The runtime system used by the generated Rust code.
+
 pub mod decontainer;
 pub mod error;
 pub mod execution_context;

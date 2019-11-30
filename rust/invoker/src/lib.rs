@@ -1,15 +1,38 @@
-mod container_handle;
-mod container_pool;
-mod tracing_pool;
-mod error;
-mod mock;
-mod mpmc;
-mod server;
-mod sysmon;
-mod time_keeper;
+//! # Invoker
+//!
+//! `invoker` manages a pool of containers that it uses to execute serverless
+//! functions in isolation.
+//! 
+//! At a high level, the invoker operates by managing requests with a goal of
+//! reaching language-level isolation through Rust.
+//! * The invoker starts a server with a service function that directs requests
+//! to an `IsolationPool`.
+//! * The `IsolationPool` organizes the `ContainerPool`, the tracing container,
+//! and `Decontainer`.
+//! * Typically we want to be tracing. In this case, the tracing container is
+//! prioritized and requests are attempted to be sent there, falling back on
+//! sending them to the `ContainerPool`. The tracing container executes a
+//! version of the serverless function that is instrumented with runtime
+//! statements to build a trace. Once some number of requests have been
+//! completed, the trace is extracted and compiled to Rust code.
+//! * The `ContainerPool` handles its own container starting, stopping, and
+//! management. Requests sent there are then sent to either an available
+//! container or a new container is created (within a certain limit) and made
+//! available.
+//! * Once ready, requests are executed in Rust using `trace_runtime::Decontainer`.
+
+pub mod container_handle;
+pub mod container_pool;
+pub mod isolation_pool;
+pub mod error;
+pub mod mock;
+pub mod mpmc;
+pub mod server;
+pub mod sysmon;
+pub mod time_keeper;
 pub mod trace_runtime;
-mod types;
-mod util;
+pub mod types;
+pub mod util;
 
 use clap::{App, Arg};
 use futures::future::{self, Future};
