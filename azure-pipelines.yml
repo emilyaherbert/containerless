@@ -1,7 +1,3 @@
-trigger:
-  branches:
-    - '*'
-
 pool:
   vmImage: 'ubuntu-latest'
 steps:
