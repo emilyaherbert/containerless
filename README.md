@@ -9,7 +9,7 @@ cargo run -- --config '{ "image_name": "serverless-function" }'
 curl localhost:8080/hello
 ```
 
-After four curls, it will extract and compile the trace to
+After 100 curls, it will extract and compile the trace to
 `/rust/containerless_scaffold/src/containerless.rs` and then *quit the
 program*.
 
@@ -19,4 +19,6 @@ curl localhost:8080/hello
 ```
 
 If compiling the JS trace fails, see `containerless_scaffold/trace.json` 
-IF compiling the Rust fails, see `/rust/containerless_scaffold/src/containerless.rs`
+If compiling the Rust fails, see `/rust/containerless_scaffold/src/containerless.rs`
+
+# TODO(emily): Add more.

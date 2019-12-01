@@ -8,3 +8,5 @@ POST:
 
 GET:
 `curl localhost:8080/trace`
+
+# TODO(emily): Add more.
