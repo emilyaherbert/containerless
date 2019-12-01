@@ -1,5 +1,5 @@
 trigger:
-- testing-branches
+- master
 
 pool:
   vmImage: 'ubuntu-latest'
