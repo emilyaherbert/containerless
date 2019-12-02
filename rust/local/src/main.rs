@@ -112,7 +112,7 @@ fn echo(req: Request<Body>, accounts: std::sync::Arc<HashMap<String, InternalAcc
             return Box::new(
                 req.into_body()
                 .concat2()
-                .and_then(move |body| {
+                .and_then(move |_| {
                     let mut rng = rand::thread_rng();
                     let resp = match commits.get(rng.gen_range(0, commits.len())) {
                         Some(commit) => {
