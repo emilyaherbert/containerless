@@ -2,7 +2,6 @@
 
 use shared::config::InvokerConfig;
 use shared::OS;
-use std::convert::TryInto;
 use std::fs::File;
 use std::io::LineWriter;
 use std::io::Write;
@@ -36,8 +35,8 @@ pub fn sysmon(config: &InvokerConfig) {
             thread::sleep(Duration::from_millis(100));
             let load = cpu_load.done().expect("could not read CPU load");
             let mem = sys.memory().expect("could not read memory");
-            let mem_total: u64 = mem.total.as_usize().try_into().unwrap();
-            let mem_free: u64 = mem.free.as_usize().try_into().unwrap();
+            let mem_total: u64 = mem.total.as_u64();
+            let mem_free: u64 = mem.free.as_u64();
             let mem_total = mem_total as f64;
             let mem_free = mem_free as f64;
             let mem_load = (mem_total - mem_free) / mem_total;

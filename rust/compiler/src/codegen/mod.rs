@@ -183,17 +183,16 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             }
         }
         Exp::Label { name, body } => {
-            let mut q_name = Lifetime::new(&format!("{}", "'a"), Span::call_site());
-            match name.chars().next() {
+            let q_name = match name.chars().next() {
                 Some(s) => {
                     if s == '\'' {
-                        q_name = Lifetime::new(&format!("{}", name), Span::call_site());
+                        Lifetime::new(&format!("{}", name), Span::call_site())
                     } else {
-                        q_name = Lifetime::new(&format!("'{}", name), Span::call_site());
+                        Lifetime::new(&format!("'{}", name), Span::call_site())
                     }
                 },
                 None => panic!("This should not happen.")
-            }
+            };
             let q_body = codegen_block(body, Some(q_name.clone()));
             quote! {
                 // NOTE(arjun): Unfortunately, labelled blocks are a nightly-only
@@ -272,6 +271,7 @@ pub fn codegen(e: &Exp, dest_file: &str) {
     let tokens = quote! {
         // We generate names from JavaScript, so camelCase names are inevitable.
         #![allow(non_snake_case)]
+        #![allow(unused_variables)]
         #![forbid(unsafe_code)]
         
         use invoker::trace_runtime::{self as rt, ExecutionContext, Dyn, DynResult};
