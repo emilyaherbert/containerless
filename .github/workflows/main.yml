@@ -1,0 +1,24 @@
+name: CI
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Build javascript/js-transform/
+      run: yarn run build
+      working-directory: ./javascript/js-transform
+    - name: Build and test javascript/containerless/
+      run: |
+        yarn run build
+        yarn run test
+      working-directory: ./javascript/containerless
+    - name: Build and test rust/compiler/
+      run: |
+        cargo build
+        cargo test
+      working-directory: ./rust/compiler
