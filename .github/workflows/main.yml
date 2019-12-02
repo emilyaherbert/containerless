@@ -14,14 +14,17 @@ jobs:
         yarn
         yarn run build
       working-directory: ./javascript/js-transform
-    - name: Build and test javascript/containerless/
+    - name: Build javascript/containerless
       run: |
         yarn
         yarn run build
-        yarn run test
       working-directory: ./javascript/containerless
-    - name: Build and test rust/compiler/
-      run: |
-        cargo build
-        cargo test
+    - name: Build rust/compiler/
+      run: cargo build
+      working-directory: ./rust/compiler
+    - name: Test javascript/containerless/
+      run: yarn run test
+      working-directory: ./javascript/containerless
+    - name: Test rust/compiler/
+      run: cargo test
       working-directory: ./rust/compiler
