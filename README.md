@@ -1,4 +1,3 @@
-
 1. Create program.js in /javascript/examples
 
 ```
@@ -22,7 +21,3 @@ If compiling the JS trace fails, see `containerless_scaffold/trace.json`
 If compiling the Rust fails, see `/rust/containerless_scaffold/src/containerless.rs`
 
 # TODO(emily): Add more.
-
-
-
-
