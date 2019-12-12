@@ -82,6 +82,18 @@
 | `++` | :bangbang: | NOTE: might get desugared with js-transform |
 | `--` | :bangbang: | |
 
+### Logical Operators
+
+|   |   |   |
+|---|---|---|
+| | | |
+
+### Unary Operators
+
+|   |   |   |
+|---|---|---|
+| | | |
+
 ## Keywords
 
 |   |   |   |
