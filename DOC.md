@@ -80,7 +80,7 @@
 | `>=` | :heavy_check_mark: | |
 | `<=` | :heavy_check_mark: | |
 | `++` | :bangbang: | NOTE: might get desugared with js-transform |
-| `--` | :bangbang: | |
+| `--` | :bangbang: | NOTE: might get desugared with js-transform |
 
 ### Logical Operators
 
