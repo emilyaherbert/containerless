@@ -1,5 +1,5 @@
 
-## Supported Operations
+# Supported Operations
 
 |   |   |
 |---|---|
@@ -8,7 +8,16 @@
 | :bangbang: | should be supported, unimplemented |
 | :heavy_minus_sign: | will not be supported |
 
-# Objects
+## Statements and Control Operators
+
+|   |   |   |   |
+|---|---|---|---|
+| if-true | `if(true) { e1 } else { e2 }` -> `e1` | :heavy_check_mark: | |
+|         | `if(true) { e1 }` -> `e1` | :heavy_check_mark: | |
+| if-false | `if(false) { e1 } else { e2 }` -> `e2` | :heavy_check_mark: | |
+|          | `if(false) { e1 }` | :heavy_check_mark: | |
+
+## Objects
 
 |   |   |   |   |
 |---|---|---|---|
@@ -16,7 +25,24 @@
 | get field | `{x:1}.x` | :heavy_check_mark: |   |
 |           | `{x:1}["x"]` | :grey_question: | will want to merge this and ^ | 
 | get field - not found | `{x:1}.y` -> `undefined` | :grey_question: | |
+| get field - proto null | `{x:1, __proto__: null}.y` -> `undefined` | :bangbang: | |
+| get field - proto | `{x:1, __proto__: l}.y` -> `(deref l).y` | :bangbang: | |
 | update field | `{x:1}.x = 4` | :heavy_check_mark: |   |
 | create field | `{x:1}.y = 4` | :grey_question: | |
 | delete field | `delete {x.1}.x` | :bangbang: | |
 | delete field - not found | `delete {x.1}.y` | :bangbang: | |
+
+## Prototype-based Objects
+
+:grey_question:
+
+## Functions as Objects
+
+:heavy_minus_sign:
+
+## Keywords
+
+|   |   |   |
+|---|---|---|
+| `this` | :grey_question: | |
+| `instanceof` | :grey_question: | |
