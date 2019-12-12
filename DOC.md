@@ -37,7 +37,7 @@
 |---|---|---|---|
 | object literal | `{x:1, y:2}` | :heavy_check_mark: |   |
 | get field | `{x:1}.x` | :heavy_check_mark: |   |
-|           | `{x:1}["x"]` | :grey_question: | will want to merge this and ^ | 
+|           | `{x:1}["x"]` | :grey_question: | TODO: merge this and ^ | 
 | get field - not found | `{x:1}.y` -> `undefined` | :grey_question: | |
 | get field - proto null | `{x:1, __proto__: null}.y` -> `undefined` | :bangbang: | |
 | get field - proto | `{x:1, __proto__: l}.y` -> `(deref l).y` | :bangbang: | |
@@ -45,6 +45,32 @@
 | create field | `{x:1}.y = 4` | :grey_question: | |
 | delete field | `delete {x.1}.x` | :bangbang: | |
 | delete field - not found | `delete {x.1}.y` | :bangbang: | |
+
+## Arrays
+
+|   |   |   |
+|---|---|---|
+| | | |
+
+## Operators
+
+|   |   |   |
+|---|---|---|
+| | | |
+
+## Keywords
+
+|   |   |   |
+|---|---|---|
+| `this` | :grey_question: | |
+| `instanceof` | :grey_question: | |
+| `typeof` | :grey_question: | TODO: ensure all cases are implemented |
+
+## Type Conversions
+
+|   |   |   |
+|---|---|---|
+| | | |
 
 ## Prototype-based Objects
 
@@ -54,9 +80,14 @@
 
 :heavy_minus_sign:
 
-## Keywords
+## Local Variables
 
-|   |   |   |
-|---|---|---|
-| `this` | :grey_question: | |
-| `instanceof` | :grey_question: | |
+:heavy_check_mark:
+
+## Global Variables
+
+:grey_question:
+
+## With Statements
+
+:heavy_minus_sign:
