@@ -12,10 +12,24 @@
 
 |   |   |   |   |
 |---|---|---|---|
-| if-true | `if(true) { e1 } else { e2 }` -> `e1` | :heavy_check_mark: | |
-|         | `if(true) { e1 }` -> `e1` | :heavy_check_mark: | |
-| if-false | `if(false) { e1 } else { e2 }` -> `e2` | :heavy_check_mark: | |
+| if-true | `if(true) { e1 } else { e2 }` | :heavy_check_mark: | |
+|         | `if(true) { e1 }` | :heavy_check_mark: | |
+| if-false | `if(false) { e1 } else { e2 }` | :heavy_check_mark: | |
 |          | `if(false) { e1 }` | :heavy_check_mark: | |
+| while | `while(e1) { e2 }` | :heavy_check_mark: | |
+| while-false | `while(false) { e2 }` | :heavy_check_mark: | | 
+| throw | | :heavy_minus_sign: | |
+| try-catch | | :heavy_minus_sign: | |
+| try-catch-pop | | :heavy_minus_sign: | |
+| uncaught-exception | | :grey_question: | |
+| try-finally-error | | :heavy_minus_sign: | |
+| try-finally-break | | :heavy_minus_sign: | |
+| try-finally-pop | | :heavy_minus_sign: | |
+| label-break | `l: { e; break l v; }` | :heavy_check_mark: | |
+| label-break-pop | `l1: { e; break l2 v; }` | :heavy_check_mark: | |
+| label-pop | `l: { v }` | :grey_question: | |
+| break-break | `break l1 (break l2 v)` | :grey_question: | |
+
 
 ## Objects
 
