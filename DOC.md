@@ -54,9 +54,33 @@
 
 ## Operators
 
+### Binary Operators
 |   |   |   |
 |---|---|---|
-| | | |
+| `+` | :heavy_check_mark: | TODO: ensure it matches with implicit type conversions |
+| `-` | :heavy_check_mark: | |
+| `/` | :heavy_check_mark: | |
+| `%` | :bangbang: | |
+| `*` | :heavy_check_mark: | |
+| `**` | :bangbang: | |
+| `&` | :heavy_minus_sign: | |
+| `\|` | :heavy_minus_sign: | |
+| `>>` | :heavy_minus_sign: | |
+| `>>>` | :heavy_minus_sign: | |
+| `<<` | :heavy_minus_sign: | |
+| `^` | :heavy_minus_sign: | |
+| `==` | :heavy_minus_sign: | |
+| `===` | :heavy_check_mark: | |
+| `!=` | :heavy_minus_sign: | |
+| `!==` | :heavy_check_mark: | |
+| `in` | :bangbang: | |
+| `instanceof` | :grey_question: | |
+| `>` | :heavy_check_mark: | |
+| `<` | :heavy_check_mark: | |
+| `>=` | :heavy_check_mark: | |
+| `<=` | :heavy_check_mark: | |
+| `++` | :bangbang: | NOTE: might get desugared with js-transform |
+| `--` | :bangbang: | |
 
 ## Keywords
 
@@ -72,22 +96,25 @@
 |---|---|---|
 | | | |
 
-## Prototype-based Objects
+## Assorted
 
+### Prototype-based Objects
 :grey_question:
 
-## Functions as Objects
-
+### Functions as Objects
 :heavy_minus_sign:
 
-## Local Variables
+### Local Variables
 
-:heavy_check_mark:
+|   |   |   |
+|---|---|---|
+| `var` | :heavy_check_mark: | |
+| `let` | :heavy_check_mark: | |
 
-## Global Variables
+### Global Variables
 
 :grey_question:
 
-## With Statements
+### With Statements
 
 :heavy_minus_sign:
