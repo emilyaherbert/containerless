@@ -12,6 +12,9 @@ jobs:
     - name: Install microk8s
       run: |
         sudo snap install microk8s --classic
+        sudo usermod -a -G microk8s runner
+    - name: Enable microk8s Registry and DNS
+      run: |
         microk8s.enable dns registry
     - name: Build javascript/js-transform/
       run: |
