@@ -32,6 +32,9 @@ jobs:
     - name: Test rust/compiler/
       run: cargo test
       working-directory: ./rust/compiler
+    - name: Build Function Runner Agent
+      run: cargo build
+      working-directory: ./rust/function-runner-agent
     - name: Build Function Runner Container
       run: make
       working-directory: ./docker/function-runner
