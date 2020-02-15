@@ -1,95 +1,65 @@
 # Function Runner Agent
 
 This program is the agent that runs in a container and manages a tracing for
-Containerless. The agent is a web server with the following high-level API:
+Containerless. The program expects two environment variables to be set:
 
-1. *init*: Receives the code of a serverless function to run. In the background,
-   the agent 1) optionally compiles the function for tracing, 2) and then starts
-   the web-server for the function. The *init* function can only be called once,
-   and raises an error if called again.
+- `FUNCTION_NAME` the name of the function to run (including the extension).
+  The agent fetches this function from
+  `http://function-storage/get/FUNCTION_NAME`
+- `FUNCTION_MODE`, which should be either `tracing` or `vanilla`.
 
-2. *status*: Returns the status of the container, which is one of the following:
-   - `"pre-initialized"`: *init* has not been called.
-   - `"compiling"`: the function is being compiled (with the trace compiler)
-     in the background.
-   - `"compile-error"`: trace compilation fails. Any error is reported to
-     standard error.
-   - `"running"`: the serverless function is ready to receive requests.
-   - `"runtime-error"`: the serverless function encountered a runtime error.
+The agent exposes the following API:
 
-   The follow diagram shows how the status may transition:
+- `http://HOSTNAME:8080/status`: returns code 200 when function is ready
+- `http://HOSTNAME:8081/PATH` : invokes the function
+- `http://HOSTNAME:8080/trace`: retrieves the execution trace of the serverless
+   function.
 
-   ```
-   --> pre-initialized ---> compiling ---> running
-                              |               |
-                              |               v
-                              +-------> runtime-error
-                              |
-                              |
-                              +-------> compile-error
-   ```
+The agent runs the following external commands within the container:
 
-   Thus, all errors are fatal and the container must be shutdown.
-
-3. *get-trace*: Retrieves the execution trace of the serverless
-   function. This assumes that *init* successfully compiled the
-   serverless function with support for tracing.
-
-The agent runs the following external commands:
-
-1. `./js-transform.sh FILENAME` to compile the serverless function with tracing
+1. `./js-transform.sh FILENAME`: compiles the serverless function with tracing
    support. Thus, `js-transform.sh` must be a shell script in the working
    directory that calls the compiler.
 
-2. `node FILENAME` where `FILENAME` is a serverless function that uses
+2. `node FILENAME`: starts the serverless function stored in `FILENAME`. The
+   serverless function is assumed to load the Containerless library using
    `require('containerless')`. Therefore, the working directory must have a
    `node_modules/containerless` directory.
 
-This directory has a `js-tranform.sh` that runs the program in
-`../../javascript/js-transform`. Similarly, `./node_modules/containerless` is a
-symlink to `../../javascript/containerless`. So, we can test the agent
-in-place.
-
 ## Demo
 
-First, start the agent:
+First, deploy Containerless to microk8s:
 
 ```
-cargo run
+../../deploy-to-microk8s.sh
 ```
 
-Initialize it with a serverless function:
+Start a pod with function-runner:
 
 ```
-curl -X POST -H "Content-Type: application/json" \
-    --data $'{ "mode": "Tracing", "code": "let containerless = require(\'containerless\'); containerless.listen(function(req) { console.log(\'Got a response\'); containerless.respond(\'hi\'); });" }' \
-    http://localhost:8080/init
+microk8s.kubectl apply -f function-runner-demo.yaml
 ```
 
-The command above will create the files `index.js` and `traced.js` in the
-current directory.
-
-Check the status of the agent:
+Verify that the function loaded successfully:
 
 ```
-curl localhost:8080/status
+microk8s.kubectl logs function-runner-demo
 ```
 
-Invoke the serverless function:
+Setup port forwarding:
 
 ```
-curl localhost:8081/
+kubectl port-forward function-runner-demo 8081:8081
 ```
 
-Extract the trace:
+In a new terminal, invoke the function:
 
 ```
-curl localhost:8080/trace
+curl http://localhost:8081/
 ```
 
 Cleanup:
 
 ```
-rm index.js traced.js
+microk8s.kubectl delete pod function-runner-demo
 ```
-

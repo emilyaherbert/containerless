@@ -10,6 +10,5 @@ edition = "2018"
 hyper = "*"
 warp = "*"
 tokio = { version = "*", features = ["macros", "process", "fs"] }
-serde = { version = "*", features = ["derive"] }
 futures-retry = "*"
 reqwest = "*"

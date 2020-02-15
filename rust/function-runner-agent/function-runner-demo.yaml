@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: function-runner-demo
+  labels:
+    app: function-runner
+    family: function-runner
+spec:
+  terminationGracePeriodSeconds: 1
+  containers:
+  - name: function-runner
+    image: localhost:32000/function-runner
+    imagePullPolicy: Always
+    ports:
+    - containerPort: 8080
+    - containerPort: 8081
+    env:
+    - name: FUNCTION_NAME
+      value: hello_world.js
+    - name: FUNCTION_MODE
+      value: vanilla
