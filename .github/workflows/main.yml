@@ -9,6 +9,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
+    - name: Update Rust
+      run: |
+        rustup update
     - name: Install microk8s
       run: |
         sudo snap install microk8s --classic
