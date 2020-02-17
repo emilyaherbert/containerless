@@ -1,0 +1,59 @@
+# This ReplicaSet runs function storage. Note that the number of replicates
+# must be exactly 1. The function-storage-agent is not designed to be
+# replicated.
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: function-storage
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: function-storage
+  template:
+    metadata:
+      labels:
+        app: function-storage
+    spec:
+      containers:
+      - name: function-storage
+        image: localhost:32000/function-storage
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+          - name: storage
+            mountPath: "/storage"
+      volumes:
+        - name: storage
+          hostPath:
+            path: $EXAMPLES_PATH
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: function-storage
+spec:
+  type: NodePort
+  selector:
+    app: function-storage
+  ports:
+    - name: http
+      port: 8080
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: containerless-ingress
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  rules:
+  - http:
+      paths:
+        - path: /function-storage(/|$)(.*)
+          backend:
+            serviceName: function-storage
+            servicePort: http
