@@ -6,18 +6,25 @@ fi
 cd javascript/containerless
 yarn install
 yarn run build
+yarn run test
 cd ../js-transform
 yarn install
 yarn run build
 cd ../../rust/compiler
-cargo build --release
+cargo build
+cargo test
 cd ../invoker
-cargo build --release
-cd ../multi-invoker
-cargo build --release
+cargo build
+cargo test
 cd ../shared
-cargo build --release
+cargo build
+cargo test
+cd ../trace-runtime
+cargo build
+cargo test
 cd ../function-runner-agent
-cargo build --release
+cargo build
+cargo test
 cd ../function-storage-agent
-cargo build --release
+cargo build
+cargo test

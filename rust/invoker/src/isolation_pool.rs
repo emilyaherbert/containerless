@@ -31,8 +31,6 @@ use shared::config::InvokerConfig;
 use std::fs;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering::SeqCst};
 use std::sync::Arc;
-use std::time::Duration;
-use std::thread;
 use futures::future;
 
 #[atomic_enum]
