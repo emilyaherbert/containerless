@@ -45,7 +45,7 @@ jobs:
       run: make
       working-directory: ./docker/dispatcher
     - name: Deploy Containerless to microk8s
-      run: sudo ./deploy-to-microk8s.sh
+      run: ./deploy-to-microk8s.sh
       working-directory: ./docker
     - name: Trivial test case on microk8s
       run: |
