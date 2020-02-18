@@ -7,6 +7,9 @@ jobs:
     runs-on: self-hosted
     steps:
     - uses: actions/checkout@v1
+    - name: Delete Containerless from microk8s (stale resources)
+      run: ./undeploy.sh
+      working-directory: ./docker
     - name: Build javascript/js-transform/
       run: |
         yarn
@@ -49,6 +52,9 @@ jobs:
       working-directory: ./docker
     - name: Trivial test case on microk8s
       run: |
-        sleep 5
+        sleep 10
         time curl http://localhost/dispatcher/hello-world
         time curl http://localhost/dispatcher/hello-world
+    - name: Delete Containerless from microk8s
+      run: ./undeploy.sh
+      working-directory: ./docker
