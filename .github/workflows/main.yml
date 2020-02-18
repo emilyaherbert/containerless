@@ -20,12 +20,6 @@ jobs:
     - name: Build rust/compiler/
       run: cargo build
       working-directory: ./rust/compiler
-    - name: Test javascript/containerless/
-      run: yarn run test
-      working-directory: ./javascript/containerless
-    - name: Test rust/compiler/
-      run: cargo test
-      working-directory: ./rust/compiler
     - name: Build Function Runner Agent
       run: cargo build
       working-directory: ./rust/function-runner-agent
@@ -35,6 +29,12 @@ jobs:
     - name: Build Dispatcher Agent
       run: cargo build
       working-directory: ./rust/dispatcher-agent
+    - name: Test javascript/containerless/
+      run: yarn run test
+      working-directory: ./javascript/containerless
+    - name: Test rust/compiler/
+      run: cargo test
+      working-directory: ./rust/compiler
     - name: Build Function Runner Container
       run: make
       working-directory: ./docker/function-runner
@@ -49,5 +49,6 @@ jobs:
       working-directory: ./docker
     - name: Trivial test case on microk8s
       run: |
+        sleep 5
         time curl http://localhost/dispatcher/hello-world
         time curl http://localhost/dispatcher/hello-world
