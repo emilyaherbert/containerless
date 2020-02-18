@@ -3,7 +3,7 @@
 This program is the agent that runs in a container and manages a tracing for
 Containerless. The program expects two environment variables to be set:
 
-- `FUNCTION_NAME` the name of the function to run (including the extension).
+- `FUNCTION_NAME` the name of the function to run (excluding the extension).
   The agent fetches this function from
   `http://function-storage/get/FUNCTION_NAME`
 - `FUNCTION_MODE`, which should be either `tracing` or `vanilla`.
@@ -31,7 +31,7 @@ The agent runs the following external commands within the container:
 First, deploy Containerless to microk8s:
 
 ```
-../../deploy-to-microk8s.sh
+../../docker/deploy-to-microk8s.sh
 ```
 
 Start a pod with function-runner:

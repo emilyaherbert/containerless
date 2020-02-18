@@ -15,7 +15,7 @@ jobs:
     - name: Install microk8s
       run: |
         sudo snap install microk8s --classic
-        sudo microk8s.enable dns registry
+        sudo microk8s.enable dns registry ingress
     - name: Build javascript/js-transform/
       run: |
         yarn
@@ -41,12 +41,22 @@ jobs:
     - name: Build Function Storage Agent
       run: cargo build
       working-directory: ./rust/function-storage-agent
+    - name: Build Dispatcher Agent
+      run: cargo build
+      working-directory: ./rust/dispatcher-agent
     - name: Build Function Runner Container
       run: make
       working-directory: ./docker/function-runner
     - name: Build Function Storage Container
       run: make
       working-directory: ./docker/function-storage
+    - name: Build Dispatcher
+      run: make
+      working-directory: ./docker/dispatcher
     - name: Deploy Containerless to microk8s
       run: sudo ./deploy-to-microk8s.sh
       working-directory: ./docker
+    - name: Trivial test case on microk8s
+      run: |
+        time curl http://localhost/dispatcher/hello-world
+        time curl http://localhost/dispatcher/hello-world
