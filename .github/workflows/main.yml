@@ -41,7 +41,7 @@ jobs:
     - name: Build Function Storage Container
       run: make
       working-directory: ./docker/function-storage
-    - name: Build Dispatcher
+    - name: Build Dispatcher Container
       run: make
       working-directory: ./docker/dispatcher
     - name: Deploy Containerless to microk8s
