@@ -4,18 +4,9 @@ on: [push]
 
 jobs:
   build:
-
-    runs-on: ubuntu-latest
-
+    runs-on: self-hosted
     steps:
     - uses: actions/checkout@v1
-    - name: Update Rust
-      run: |
-        rustup update
-    - name: Install microk8s
-      run: |
-        sudo snap install microk8s --classic
-        sudo microk8s.enable dns registry ingress
     - name: Build javascript/js-transform/
       run: |
         yarn
