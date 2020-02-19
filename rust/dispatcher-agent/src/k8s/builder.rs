@@ -1,6 +1,8 @@
 use k8s_openapi::api::apps::v1::{ReplicaSet, ReplicaSetSpec};
+use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
 use k8s_openapi::api::core::v1::{
     Container, ContainerPort, EnvVar, PodSpec, PodTemplateSpec, Service, ServicePort, ServiceSpec,
+    Probe, HTTPGetAction
 };
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{LabelSelector, ObjectMeta};
 use std::collections::BTreeMap;
@@ -347,6 +349,21 @@ impl ContainerBuilder {
             value: Some(value.into()),
             value_from: None,
         });
+        return self;
+    }
+
+    pub fn http_readiness_probe<S>(mut self, path: S, port: i32) -> Self
+    where
+        S: Into<String>,
+    {
+        if let None = self.container.readiness_probe {
+            self.container.readiness_probe = Some(Probe::default());
+        }
+        let readiness_probe = self.container.readiness_probe.as_mut().unwrap();
+        let mut http_get_action = HTTPGetAction::default();
+        http_get_action.path = Some(path.into());
+        http_get_action.port = IntOrString::Int(port);
+        readiness_probe.http_get = Some(http_get_action);
         return self;
     }
 }

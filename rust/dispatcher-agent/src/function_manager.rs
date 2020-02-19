@@ -80,6 +80,10 @@ impl FunctionManagerInner {
                             .expose_port("manager", 8080)
                             .expose_port("server", 8081)
                             .always_pull()
+                            // A readiness probe ensures that we don't direct
+                            // requests to an instance until it is ready. By
+                            // default, wait ten seconds between each probe.
+                            .http_readiness_probe("/", 8081)
                             .env("FUNCTION_NAME", &name)
                             .env("FUNCTION_MODE", "vanilla")
                             .build(),
