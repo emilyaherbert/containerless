@@ -5,4 +5,4 @@ COPY node_modules /root/node_modules
 COPY function-runner-agent /root/function-runner-agent
 COPY js-transform.sh /root/js-transform.sh
 WORKDIR /root
-ENTRYPOINT /root/function-runner-agent
+CMD ["/root/function-runner-agent"]

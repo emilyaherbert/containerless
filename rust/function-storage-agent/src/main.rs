@@ -5,7 +5,7 @@ use std::io;
 use tokio::prelude::*;
 
 async fn get_file(path: &str) -> Result<String, io::Error> {
-    let mut file = File::open(format!("/storage/{}", &path)).await?;
+    let mut file = File::open(format!("/storage/{}.js", &path)).await?;
     let mut buf = String::new();
     file.read_to_string(&mut buf).await?;
     return Ok(buf);

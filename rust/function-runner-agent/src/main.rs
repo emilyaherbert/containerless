@@ -1,13 +1,13 @@
 mod error;
 
-
-use hyper::Response;
-use std::env;
 use futures_retry::{FutureRetry, RetryPolicy};
+use hyper::Response;
 use reqwest;
+use std::env;
 use std::process::Stdio;
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
+use tokio::signal::unix::{signal, SignalKind};
 use tokio::{fs::File, process, task};
 use warp::{http::StatusCode, Filter};
 
@@ -43,7 +43,11 @@ async fn monitor_nodejs_process(handle: process::Child) -> () {
 }
 
 async fn initialize(function_name: String, tracing_enabled: bool) -> Result<(), error::Error> {
-    let resp = reqwest::get(&format!("http://function-storage:8080/get/{}", &function_name)).await?;
+    let resp = reqwest::get(&format!(
+        "http://function-storage:8080/get/{}",
+        &function_name
+    ))
+    .await?;
     let function_code = resp.text().await?;
     eprintln!("Downloaded function ({} bytes)", function_code.len());
 
@@ -87,7 +91,9 @@ async fn initialize(function_name: String, tracing_enabled: bool) -> Result<(), 
 }
 
 async fn status() -> WarpResult<impl warp::Reply> {
-    return Ok(Response::builder().status(200).body("Function runner agent\n"));
+    return Ok(Response::builder()
+        .status(200)
+        .body("Function runner agent\n"));
 }
 
 async fn get_trace() -> reqwest::Result<String> {
@@ -113,36 +119,39 @@ async fn trace() -> WarpResult<impl warp::Reply> {
 
 #[tokio::main]
 async fn main() {
-    let function_name = 
-        env::var("FUNCTION_NAME").expect("envvar FUNCTION_NAME should be set");
+    let function_name = env::var("FUNCTION_NAME").expect("envvar FUNCTION_NAME should be set");
 
     let function_mode = env::var("FUNCTION_MODE").expect("envvar FUNCTION_MODE should be set");
 
     let tracing_enabled = match function_mode.as_str() {
         "vanilla" => false,
         "tracing" => true,
-        _ => panic!("envvar FUNCTION_MODE must be \"vanilla\" or \"tracing\"")
+        _ => panic!("envvar FUNCTION_MODE must be \"vanilla\" or \"tracing\""),
     };
 
-    eprintln!("Initializing Function Runner Agent for function {} (tracing enabled: {})",
-        &function_name, tracing_enabled);
+    eprintln!(
+        "Initializing Function Runner Agent for function {} (tracing enabled: {})",
+        &function_name, tracing_enabled
+    );
 
     if let Err(err) = initialize(function_name, tracing_enabled).await {
         eprintln!("Error during initialization: {}", err);
         std::process::exit(1);
     }
 
+    let status_route = warp::path!("ready").and(warp::get()).and_then(status);
 
-    let status_route = warp::path!("ready")
-        .and(warp::get())
-        .and_then(status);
-
-    let get_trace_route = warp::path!("trace")
-        .and(warp::get())
-        .and_then(trace);
+    let get_trace_route = warp::path!("trace").and(warp::get()).and_then(trace);
 
     let paths = status_route.or(get_trace_route);
 
-    warp::serve(paths).run(([0, 0, 0, 0], 8080)).await;
+    let (_, server) = warp::serve(paths).bind_with_graceful_shutdown(([0, 0, 0, 0], 8080), async {
+        let mut sigterm = signal(SignalKind::terminate()).expect("registering SIGTERM handler");
+        sigterm.recv().await;
+        println!("Received SIGTERM");
+    });
+
+    server.await;
+
     println!("Function Runner Agent terminated");
 }
