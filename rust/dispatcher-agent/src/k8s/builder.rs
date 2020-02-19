@@ -1,10 +1,10 @@
 use k8s_openapi::api::apps::v1::{ReplicaSet, ReplicaSetSpec};
-use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
 use k8s_openapi::api::core::v1::{
-    Container, ContainerPort, EnvVar, PodSpec, PodTemplateSpec, Service, ServicePort, ServiceSpec,
-    Probe, HTTPGetAction
+    Container, ContainerPort, EnvVar, HTTPGetAction, PodSpec, PodTemplateSpec, Probe, Service,
+    ServicePort, ServiceSpec,
 };
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{LabelSelector, ObjectMeta};
+use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
 use std::collections::BTreeMap;
 use std::convert::Into;
 

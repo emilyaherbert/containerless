@@ -12,5 +12,5 @@
 pub mod builder;
 pub mod client;
 
-pub use client::Client;
 pub use builder::*;
+pub use client::Client;
