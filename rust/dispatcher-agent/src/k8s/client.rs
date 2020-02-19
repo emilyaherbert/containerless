@@ -9,7 +9,6 @@ pub struct Client {
 }
 
 impl Client {
-
     /// Creates a new Client that 1) interacts with resources in the default
     /// namespace, and 2) only works within pods deployed on the k8s cluster.
     pub async fn new() -> Result<Client, kube::Error> {

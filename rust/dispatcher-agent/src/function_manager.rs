@@ -6,14 +6,14 @@
 //! 2. Does not support decontainerization
 use crate::types::*;
 use crate::util;
+use futures::channel::oneshot;
 use futures::lock::Mutex;
 use http::uri;
 use http::uri::Authority;
 use std::str::FromStr;
-use std::sync::Arc;
-use futures::channel::oneshot;
-use tokio::task;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+use tokio::task;
 
 enum State {
     Loading = 0,
@@ -29,7 +29,7 @@ impl From<usize> for State {
             2 => State::Error,
             _ => unreachable!(),
         }
-    }        
+    }
 }
 
 struct FunctionManagerInner {
@@ -50,19 +50,21 @@ struct PendingRequest {
     method: http::Method,
     path_and_query: String,
     body: hyper::Body,
-    send: oneshot::Sender<Result<Response, hyper::Error>>
+    send: oneshot::Sender<Result<Response, hyper::Error>>,
 }
 
 impl PendingRequest {
-    pub fn new(send: oneshot::Sender<Result<Response, hyper::Error>>,
+    pub fn new(
+        send: oneshot::Sender<Result<Response, hyper::Error>>,
         method: http::Method,
         path_and_query: &str,
-        body: hyper::Body) -> Self {
+        body: hyper::Body,
+    ) -> Self {
         return PendingRequest {
             method: method,
             path_and_query: path_and_query.to_string(),
             body: body,
-            send: send
+            send: send,
         };
     }
 }
@@ -125,7 +127,7 @@ impl FunctionManagerInner {
                     .build(),
             )
             .build();
-        
+
         self.k8s.new_replica_set(replica_set).await?;
         self.k8s.new_service(service).await?;
         return Ok(());
@@ -138,7 +140,7 @@ impl FunctionManagerInner {
                 eprintln!("Error creating ReplicaSet: {}", err);
                 self.state.store(State::Error as usize, Ordering::SeqCst);
                 return;
-            },
+            }
             Ok(()) => {
                 let service_ping_uri = http::Uri::builder()
                     .scheme("http")
@@ -146,34 +148,38 @@ impl FunctionManagerInner {
                     .path_and_query("/")
                     .build()
                     .unwrap();
-                if let Err(_err) = util::retry_get(&self.http_client, 5, 2, service_ping_uri).await {
+                if let Err(_err) = util::retry_get(&self.http_client, 5, 2, service_ping_uri).await
+                {
                     eprintln!("Error waiting for service");
                     self.state.store(State::Error as usize, Ordering::SeqCst);
                     return;
                 }
-                self.state.store(State::Containerized as usize, Ordering::SeqCst);
+                self.state
+                    .store(State::Containerized as usize, Ordering::SeqCst);
                 // Note that we update the state to Containerized before
                 // acquiring the lock on pending_requests. A concurrent thread
                 // issuing a request will thus issue requests directly, and
                 // nothing will be added to pending_requests.
-                
+
                 // TODO(arjun): We should turn pending_requests into an Option
                 // and set it to None, so that we don't lose any requests.
                 let mut pending_requests = self.pending_requests.lock().await;
                 for pending_request in pending_requests.drain(0..) {
                     let uri = hyper::Uri::builder()
-                    .scheme("http")
-                    .authority(self.authority.clone())
-                    .path_and_query(pending_request.path_and_query.as_str())
-                    .build()
-                    .expect("building URI");
-                let req = hyper::Request::builder()
-                    .method(pending_request.method)
-                    .uri(uri)
-                    .body(pending_request.body)
-                    .expect("building request");
-                    let _ = pending_request.send.send(self.http_client.request(req).await);
-                }                
+                        .scheme("http")
+                        .authority(self.authority.clone())
+                        .path_and_query(pending_request.path_and_query.as_str())
+                        .build()
+                        .expect("building URI");
+                    let req = hyper::Request::builder()
+                        .method(pending_request.method)
+                        .uri(uri)
+                        .body(pending_request.body)
+                        .expect("building request");
+                    let _ = pending_request
+                        .send
+                        .send(self.http_client.request(req).await);
+                }
             }
         }
     }
@@ -195,15 +201,15 @@ impl FunctionManagerInner {
                 match recv.await {
                     Err(oneshot::Canceled) => {
                         return Ok(hyper::Response::builder()
-                        .status(500)
-                        .body(hyper::Body::from("dispatcher shutdown"))
-                        .unwrap());
-                    },
+                            .status(500)
+                            .body(hyper::Body::from("dispatcher shutdown"))
+                            .unwrap());
+                    }
                     Ok(result) => {
                         return result;
                     }
                 }
-            },
+            }
             State::Error => {
                 let resp = hyper::Response::builder()
                     .status(500)
@@ -230,7 +236,6 @@ impl FunctionManagerInner {
 }
 
 impl FunctionManager {
-
     pub async fn invoke(
         &self,
         method: http::Method,
@@ -252,7 +257,7 @@ impl FunctionManager {
             name: name.clone(),
             k8s: k8s.clone(),
             http_client: client.clone(),
-            pending_requests: Mutex::new(Vec::new())
+            pending_requests: Mutex::new(Vec::new()),
         });
         let fm = FunctionManager { inner };
         task::spawn(fm.clone().load());
