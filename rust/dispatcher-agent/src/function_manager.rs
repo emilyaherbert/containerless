@@ -5,6 +5,7 @@
 //! 1. Runs a single pod, but uses a replicaSet, so scaling should be easy
 //! 2. Does not support decontainerization
 use crate::types::*;
+use crate::util;
 use futures::lock::Mutex;
 use http::uri;
 use http::uri::Authority;
@@ -139,6 +140,17 @@ impl FunctionManagerInner {
                 return;
             },
             Ok(()) => {
+                let service_ping_uri = http::Uri::builder()
+                    .scheme("http")
+                    .authority(self.authority.clone())
+                    .path_and_query("/")
+                    .build()
+                    .unwrap();
+                if let Err(_err) = util::retry_get(&self.http_client, 5, 2, service_ping_uri).await {
+                    eprintln!("Error waiting for service");
+                    self.state.store(State::Error as usize, Ordering::SeqCst);
+                    return;
+                }
                 self.state.store(State::Containerized as usize, Ordering::SeqCst);
                 // Note that we update the state to Containerized before
                 // acquiring the lock on pending_requests. A concurrent thread

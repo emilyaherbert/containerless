@@ -193,6 +193,7 @@ version = "0.1.0"
 dependencies = [
  "bytes",
  "futures",
+ "futures-retry",
  "http",
  "hyper",
  "k8s-openapi",
@@ -329,6 +330,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "futures-retry"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc9a95ec273db7b9d07559e25f9cd75074fee2f437f1e502b0c3b610d129d554"
+dependencies = [
+ "futures",
+ "pin-project",
+ "tokio",
 ]
 
 [[package]]
