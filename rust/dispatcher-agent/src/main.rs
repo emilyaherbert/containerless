@@ -2,6 +2,7 @@ mod function_manager;
 mod function_table;
 mod k8s;
 mod types;
+mod util;
 
 use function_table::FunctionTable;
 use hyper::service::{make_service_fn, service_fn};
