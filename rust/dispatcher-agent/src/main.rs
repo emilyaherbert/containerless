@@ -3,6 +3,8 @@ mod function_table;
 mod k8s;
 mod types;
 mod util;
+mod fixed_window;
+mod autoscaler;
 
 use function_table::FunctionTable;
 use hyper::service::{make_service_fn, service_fn};
@@ -14,7 +16,6 @@ use types::*;
 async fn handle_req(state: FunctionTable, req: Request) -> Result<Response, hyper::Error> {
     let (parts, body) = req.into_parts();
     let path = parts.uri.path();
-    println!("Path: {}", &path);
     let mut split_path = path.splitn(3, '/');
     let _ = split_path.next(); // Drop the leading /
     match split_path.next() {

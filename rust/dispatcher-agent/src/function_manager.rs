@@ -11,7 +11,7 @@ use futures::lock::Mutex;
 use http::uri;
 use http::uri::Authority;
 use std::str::FromStr;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicUsize, AtomicI32, Ordering};
 use std::sync::Arc;
 use tokio::task;
 
@@ -39,6 +39,7 @@ struct FunctionManagerInner {
     http_client: HttpClient,
     authority: uri::Authority,
     pending_requests: Mutex<Vec<PendingRequest>>,
+    num_replicas: AtomicI32
 }
 
 #[derive(Clone)]
@@ -233,6 +234,38 @@ impl FunctionManagerInner {
             }
         }
     }
+
+    pub async fn shutdown(&self) -> Result<(), kube::Error> {
+        self
+            .k8s
+            .delete_service(&format!("function-{}", &self.name))
+            .await?;
+        self
+            .k8s
+            .delete_replica_set(&format!("function-{}", &self.name))
+            .await?;
+        return Ok(());
+    }
+
+    pub fn num_replicas(&self) -> i32 {
+        return self.num_replicas.load(Ordering::SeqCst);
+    }
+
+    pub async fn set_replicas(&self, n: i32) -> Result<(), kube::Error> {
+        use crate::k8s::builder::*;
+        assert!(n > 0, "number of replicas must be greater than zero");
+        self.num_replicas.store(n, Ordering::SeqCst);
+        let rs = ReplicaSetBuilder::new()
+            .metadata(ObjectMetaBuilder::new()
+            .name(format!("function-{}", self.name))
+            .build())
+            .spec(ReplicaSetSpecBuilder::new()
+                .replicas(n)
+                .build())
+            .build();
+        return self.k8s.patch_replica_set(rs).await;
+    }
+
 }
 
 impl FunctionManager {
@@ -245,12 +278,13 @@ impl FunctionManager {
         return self.inner.invoke(method, path_and_query, body).await;
     }
 
-    pub async fn load(self) -> () {
+    async fn load(self) -> () {
         self.inner.load().await;
     }
 
     // May fail if the function does not exist.
     pub async fn new(k8s: K8sClient, client: HttpClient, name: String) -> FunctionManager {
+        let num_replicas = AtomicI32::new(1);
         let inner = Arc::new(FunctionManagerInner {
             authority: Authority::from_str(&format!("function-{}:8081", &name)).unwrap(),
             state: AtomicUsize::new(State::Loading as usize),
@@ -258,22 +292,22 @@ impl FunctionManager {
             k8s: k8s.clone(),
             http_client: client.clone(),
             pending_requests: Mutex::new(Vec::new()),
+            num_replicas,
         });
         let fm = FunctionManager { inner };
         task::spawn(fm.clone().load());
         return fm;
     }
 
-    pub async fn shutdown(self) -> Result<(), kube::Error> {
-        let inner = self.inner;
-        inner
-            .k8s
-            .delete_service(&format!("function-{}", &inner.name))
-            .await?;
-        inner
-            .k8s
-            .delete_replica_set(&format!("function-{}", &inner.name))
-            .await?;
-        return Ok(());
+    pub async fn shutdown(&self) -> Result<(), kube::Error> {
+        return self.inner.shutdown().await;
+    }
+
+    pub fn num_replicas(&self) -> i32 {
+        return self.inner.num_replicas();
+    }
+
+    pub async fn set_replicas(&self, n: i32) -> Result<(), kube::Error> {
+        return self.inner.set_replicas(n).await;
     }
 }

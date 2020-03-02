@@ -1,4 +1,5 @@
 use crate::function_manager::FunctionManager;
+use crate::autoscaler::Autoscaler;
 use crate::k8s;
 use crate::types::*;
 use futures::lock::Mutex;
@@ -6,7 +7,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 struct FunctionTableImpl {
-    functions: HashMap<String, FunctionManager>,
+    functions: HashMap<String, Autoscaler>,
     http_client: HttpClient,
     k8s_client: K8sClient,
 }
@@ -48,16 +49,16 @@ impl FunctionTable {
         }
     }
 
-    pub async fn get_function(&self, name: &str) -> FunctionManager {
+    pub async fn get_function(&self, name: &str) -> Autoscaler {
         let mut inner = self.inner.lock().await;
         match inner.functions.get(name) {
             None => {
-                let fm = FunctionManager::new(
+                let fm = Autoscaler::new(FunctionManager::new(
                     inner.k8s_client.clone(),
                     inner.http_client.clone(),
                     name.to_string(),
                 )
-                .await;
+                .await);
                 inner.functions.insert(name.to_string(), fm.clone());
                 return fm;
             }
