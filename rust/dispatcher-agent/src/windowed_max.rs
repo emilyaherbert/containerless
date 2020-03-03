@@ -1,4 +1,7 @@
-
+/// A circular buffer of integers, with a function to calculate their maximum.
+///
+/// `WindowedMax` stores a fixed set of integers, and provides a single function
+/// to calculate their maximum.
 pub struct WindowedMax {
     values: Vec<usize>,
     max: usize,

@@ -1,3 +1,15 @@
+/// An autoscalar for a single serverless function.
+///
+/// This autoscalar works by manipulating the number of replicas in a
+/// ReplicaSet. The number of replicas is the maximum number of concurrent
+/// requests received over the last 60 seconds (bounded by MAX_REPLICAS).
+///
+/// Instead exactly tracking the number of concurrent connections over time,
+/// it accumulates the total number of connections in windows of time
+/// INTERVAL_TIMESPAN_SECONDS. For example, suppose INTERVAL_TIMESPAN_SECONDS
+/// is two seconds, and the function processes five connections in one second,
+/// and another five in the next second, the number of replicas will be 10, instead
+/// of five.
 use tokio::task;
 use crate::function_manager::FunctionManager;
 use crate::types::*;
@@ -7,8 +19,11 @@ use std::time::{Duration};
 use tokio::time::delay_for;
 use crate::windowed_max::WindowedMax;
 
+// TODO(arjun): should be an environment variable
 const MAX_REPLICAS: usize = 4;
+// This could be a parameter.
 const NUM_INTERVALS: usize = 12;
+// This could be a parameter.
 const INTERVAL_TIMESPAN_SECONDS: u64 = 5;
 
 struct AutoscalerInner {
