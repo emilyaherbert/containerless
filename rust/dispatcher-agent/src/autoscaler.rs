@@ -1,7 +1,7 @@
 use crate::function_manager::FunctionManager;
 use crate::types::*;
 use crate::windowed_max::WindowedMax;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 /// An autoscalar for a single serverless function.
@@ -29,6 +29,7 @@ const INTERVAL_TIMESPAN_SECONDS: u64 = 5;
 struct AutoscalerInner {
     pending_requests: AtomicUsize,
     max_pending_requests: AtomicUsize,
+    is_shutdown: AtomicBool,
     function_manager: FunctionManager,
 }
 
@@ -58,6 +59,9 @@ async fn update_latency(autoscaler: Autoscaler) {
                 eprintln!("Error from set_replicas: {}", err);
             }
         }
+        if autoscaler.inner.is_shutdown.load(Ordering::SeqCst) {
+            return;
+        }
         delay_for(Duration::from_secs(INTERVAL_TIMESPAN_SECONDS)).await;
     }
 }
@@ -66,9 +70,11 @@ impl AutoscalerInner {
     pub fn new(function_manager: FunctionManager) -> AutoscalerInner {
         let pending_requests = AtomicUsize::new(0);
         let max_pending_requests = AtomicUsize::new(0);
+        let is_shutdown = AtomicBool::new(false);
         return AutoscalerInner {
             pending_requests,
             max_pending_requests,
+            is_shutdown,
             function_manager,
         };
     }
@@ -102,7 +108,7 @@ impl AutoscalerInner {
     }
 
     pub async fn shutdown(&self) -> Result<(), kube::Error> {
-        // TODO(arjun) Terminate the autoscaling task
+        self.is_shutdown.store(true, Ordering::SeqCst);
         return self.function_manager.shutdown().await;
     }
 }
@@ -116,7 +122,6 @@ impl Autoscaler {
     }
 
     pub async fn shutdown(&self) -> Result<(), kube::Error> {
-        // TODO(arjun) Terminate the autoscaling task
         return self.inner.shutdown().await;
     }
 
