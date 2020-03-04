@@ -12,7 +12,7 @@ impl WindowedMax {
     pub fn new(max_len: usize) -> Self {
         assert!(max_len > 0, "max_len must be greater than zero");
         return WindowedMax {
-            values: vec![0, max_len],
+            values: vec![0; max_len],
             max: 0,
             current_index: 0,
         };
@@ -21,7 +21,9 @@ impl WindowedMax {
     pub fn add(&mut self, value: usize) {
         let removed_value = self.values[self.current_index];
         self.values[self.current_index] = value;
-        if removed_value > self.max {
+        if value > self.max {
+            self.max = value;
+        } else if removed_value >= self.max {
             self.max = *self.values.iter().max_by_key(|n| *n).unwrap();
         }
         self.current_index = (self.current_index + 1) % self.values.len();

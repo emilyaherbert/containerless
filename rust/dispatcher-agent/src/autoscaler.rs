@@ -11,6 +11,7 @@
 //! and another five in the next second, the number of replicas will be 10, instead
 //! of five.
 use crate::function_manager::FunctionManager;
+use crate::function_table::WeakFunctionTable;
 use crate::types::*;
 use crate::windowed_max::WindowedMax;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -31,6 +32,7 @@ struct AutoscalerInner {
     max_pending_requests: AtomicUsize,
     is_shutdown: AtomicBool,
     function_manager: FunctionManager,
+    function_table: WeakFunctionTable,
 }
 
 #[derive(Clone)]
@@ -50,9 +52,21 @@ async fn update_latency(autoscaler: Autoscaler) {
             .max_pending_requests
             .swap(0, Ordering::SeqCst);
         max_pending_requests_vec.add(current_max_pending);
-        // Calculated number of replicas, bounded by 1 below and MAX_REPLICAS
+        // Calculated number of replicas, bounded above by MAX_REPLICAS
         // above (inclusively).
-        let num_replicas = 1.max(MAX_REPLICAS.min(max_pending_requests_vec.max()));
+        let num_replicas = MAX_REPLICAS.min(max_pending_requests_vec.max());
+        if num_replicas == 0 {
+            if let Some(table) = autoscaler.inner.function_table.upgrade() {
+                eprintln!(
+                    "Shutting down {} (current_max_pending: {})",
+                    fm.name(),
+                    current_max_pending
+                );
+                table.shutdown_function(fm.name()).await;
+            }
+            return;
+        }
+
         if num_replicas != fm.num_replicas() as usize {
             eprintln!("set_replicas({})", num_replicas);
             if let Err(err) = fm.set_replicas(num_replicas as i32).await {
@@ -67,15 +81,20 @@ async fn update_latency(autoscaler: Autoscaler) {
 }
 
 impl AutoscalerInner {
-    pub fn new(function_manager: FunctionManager) -> AutoscalerInner {
+    pub fn new(
+        function_table: WeakFunctionTable,
+        function_manager: FunctionManager,
+    ) -> AutoscalerInner {
         let pending_requests = AtomicUsize::new(0);
-        let max_pending_requests = AtomicUsize::new(0);
+        // Initializing this to 1 is a little hack that prevents immediate shutdown
+        let max_pending_requests = AtomicUsize::new(1);
         let is_shutdown = AtomicBool::new(false);
         return AutoscalerInner {
             pending_requests,
             max_pending_requests,
             is_shutdown,
             function_manager,
+            function_table,
         };
     }
 
@@ -114,8 +133,8 @@ impl AutoscalerInner {
 }
 
 impl Autoscaler {
-    pub fn new(function_manager: FunctionManager) -> Self {
-        let inner = Arc::new(AutoscalerInner::new(function_manager));
+    pub fn new(function_table: WeakFunctionTable, function_manager: FunctionManager) -> Self {
+        let inner = Arc::new(AutoscalerInner::new(function_table, function_manager));
         let autoscaler = Autoscaler { inner };
         task::spawn(update_latency(autoscaler.clone()));
         return autoscaler;

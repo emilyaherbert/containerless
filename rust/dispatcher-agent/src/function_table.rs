@@ -4,7 +4,7 @@ use crate::k8s;
 use crate::types::*;
 use futures::lock::Mutex;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 
 struct FunctionTableImpl {
     functions: HashMap<String, Autoscaler>,
@@ -15,6 +15,17 @@ struct FunctionTableImpl {
 #[derive(Clone)]
 pub struct FunctionTable {
     inner: Arc<Mutex<FunctionTableImpl>>,
+}
+
+#[derive(Clone)]
+pub struct WeakFunctionTable {
+    weak: Weak<Mutex<FunctionTableImpl>>,
+}
+
+impl WeakFunctionTable {
+    pub fn upgrade(&self) -> Option<FunctionTable> {
+        return self.weak.upgrade().map(|inner| FunctionTable { inner });
+    }
 }
 
 impl FunctionTableImpl {
@@ -49,11 +60,30 @@ impl FunctionTable {
         }
     }
 
+    pub async fn shutdown_function(&self, name: &str) {
+        let mut inner = self.inner.lock().await;
+        match inner.functions.remove(name) {
+            None => eprintln!("{} not in hash table", name),
+            Some(fm) => {
+                if let Err(err) = fm.shutdown().await {
+                    eprintln!("error shutting down {}", err);
+                }
+            }
+        }
+    }
+
+    pub fn downgrade(&self) -> WeakFunctionTable {
+        return WeakFunctionTable {
+            weak: Arc::downgrade(&self.inner),
+        };
+    }
+
     pub async fn get_function(&self, name: &str) -> Autoscaler {
         let mut inner = self.inner.lock().await;
         match inner.functions.get(name) {
             None => {
                 let fm = Autoscaler::new(
+                    self.downgrade(),
                     FunctionManager::new(
                         inner.k8s_client.clone(),
                         inner.http_client.clone(),
