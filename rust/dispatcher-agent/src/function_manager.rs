@@ -11,7 +11,7 @@ use futures::lock::Mutex;
 use http::uri;
 use http::uri::Authority;
 use std::str::FromStr;
-use std::sync::atomic::{AtomicUsize, AtomicI32, Ordering};
+use std::sync::atomic::{AtomicI32, AtomicUsize, Ordering};
 use std::sync::Arc;
 use tokio::task;
 
@@ -39,7 +39,7 @@ struct FunctionManagerInner {
     http_client: HttpClient,
     authority: uri::Authority,
     pending_requests: Mutex<Vec<PendingRequest>>,
-    num_replicas: AtomicI32
+    num_replicas: AtomicI32,
 }
 
 #[derive(Clone)]
@@ -236,12 +236,10 @@ impl FunctionManagerInner {
     }
 
     pub async fn shutdown(&self) -> Result<(), kube::Error> {
-        self
-            .k8s
+        self.k8s
             .delete_service(&format!("function-{}", &self.name))
             .await?;
-        self
-            .k8s
+        self.k8s
             .delete_replica_set(&format!("function-{}", &self.name))
             .await?;
         return Ok(());
@@ -256,16 +254,15 @@ impl FunctionManagerInner {
         assert!(n > 0, "number of replicas must be greater than zero");
         self.num_replicas.store(n, Ordering::SeqCst);
         let rs = ReplicaSetBuilder::new()
-            .metadata(ObjectMetaBuilder::new()
-            .name(format!("function-{}", self.name))
-            .build())
-            .spec(ReplicaSetSpecBuilder::new()
-                .replicas(n)
-                .build())
+            .metadata(
+                ObjectMetaBuilder::new()
+                    .name(format!("function-{}", self.name))
+                    .build(),
+            )
+            .spec(ReplicaSetSpecBuilder::new().replicas(n).build())
             .build();
         return self.k8s.patch_replica_set(rs).await;
     }
-
 }
 
 impl FunctionManager {

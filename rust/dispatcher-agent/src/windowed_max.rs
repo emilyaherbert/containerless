@@ -9,13 +9,12 @@ pub struct WindowedMax {
 }
 
 impl WindowedMax {
-
     pub fn new(max_len: usize) -> Self {
         assert!(max_len > 0, "max_len must be greater than zero");
-        return WindowedMax { 
+        return WindowedMax {
             values: vec![0, max_len],
             max: 0,
-            current_index: 0
+            current_index: 0,
         };
     }
 

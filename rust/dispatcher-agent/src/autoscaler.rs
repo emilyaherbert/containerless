@@ -1,3 +1,9 @@
+use crate::function_manager::FunctionManager;
+use crate::types::*;
+use crate::windowed_max::WindowedMax;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+use std::time::Duration;
 /// An autoscalar for a single serverless function.
 ///
 /// This autoscalar works by manipulating the number of replicas in a
@@ -11,13 +17,7 @@
 /// and another five in the next second, the number of replicas will be 10, instead
 /// of five.
 use tokio::task;
-use crate::function_manager::FunctionManager;
-use crate::types::*;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
-use std::time::{Duration};
 use tokio::time::delay_for;
-use crate::windowed_max::WindowedMax;
 
 // TODO(arjun): should be an environment variable
 const MAX_REPLICAS: usize = 4;
@@ -29,12 +29,12 @@ const INTERVAL_TIMESPAN_SECONDS: u64 = 5;
 struct AutoscalerInner {
     pending_requests: AtomicUsize,
     max_pending_requests: AtomicUsize,
-    function_manager: FunctionManager
+    function_manager: FunctionManager,
 }
 
 #[derive(Clone)]
 pub struct Autoscaler {
-    inner: Arc<AutoscalerInner>
+    inner: Arc<AutoscalerInner>,
 }
 
 async fn update_latency(autoscaler: Autoscaler) {
@@ -44,7 +44,10 @@ async fn update_latency(autoscaler: Autoscaler) {
     let fm = &autoscaler.inner.function_manager;
 
     loop {
-        let current_max_pending = autoscaler.inner.max_pending_requests.swap(0, Ordering::SeqCst);
+        let current_max_pending = autoscaler
+            .inner
+            .max_pending_requests
+            .swap(0, Ordering::SeqCst);
         max_pending_requests_vec.add(current_max_pending);
         // Calculated number of replicas, bounded by 1 below and MAX_REPLICAS
         // above (inclusively).
@@ -60,7 +63,6 @@ async fn update_latency(autoscaler: Autoscaler) {
 }
 
 impl AutoscalerInner {
-
     pub fn new(function_manager: FunctionManager) -> AutoscalerInner {
         let pending_requests = AtomicUsize::new(0);
         let max_pending_requests = AtomicUsize::new(0);
@@ -78,11 +80,18 @@ impl AutoscalerInner {
         body: hyper::Body,
     ) -> Result<Response, hyper::Error> {
         self.pending_requests.fetch_add(1, Ordering::SeqCst);
-        let resp = self.function_manager.invoke(method, path_and_query, body).await;
+        let resp = self
+            .function_manager
+            .invoke(method, path_and_query, body)
+            .await;
         let candidate_max_pending = self.pending_requests.fetch_sub(1, Ordering::SeqCst);
         let mut stored_max_pending = self.max_pending_requests.load(Ordering::SeqCst);
         while candidate_max_pending > stored_max_pending {
-            let previous = self.max_pending_requests.compare_and_swap(stored_max_pending, candidate_max_pending, Ordering::SeqCst);
+            let previous = self.max_pending_requests.compare_and_swap(
+                stored_max_pending,
+                candidate_max_pending,
+                Ordering::SeqCst,
+            );
             if previous == stored_max_pending {
                 return resp;
             }
@@ -96,18 +105,16 @@ impl AutoscalerInner {
         // TODO(arjun) Terminate the autoscaling task
         return self.function_manager.shutdown().await;
     }
-
 }
 
 impl Autoscaler {
-
     pub fn new(function_manager: FunctionManager) -> Self {
         let inner = Arc::new(AutoscalerInner::new(function_manager));
         let autoscaler = Autoscaler { inner };
         task::spawn(update_latency(autoscaler.clone()));
         return autoscaler;
     }
-    
+
     pub async fn shutdown(&self) -> Result<(), kube::Error> {
         // TODO(arjun) Terminate the autoscaling task
         return self.inner.shutdown().await;
@@ -121,6 +128,4 @@ impl Autoscaler {
     ) -> Result<Response, hyper::Error> {
         return self.inner.invoke(method, path_and_query, body).await;
     }
-
-
 }

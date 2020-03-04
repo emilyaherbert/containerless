@@ -1,5 +1,5 @@
-use crate::function_manager::FunctionManager;
 use crate::autoscaler::Autoscaler;
+use crate::function_manager::FunctionManager;
 use crate::k8s;
 use crate::types::*;
 use futures::lock::Mutex;
@@ -53,12 +53,14 @@ impl FunctionTable {
         let mut inner = self.inner.lock().await;
         match inner.functions.get(name) {
             None => {
-                let fm = Autoscaler::new(FunctionManager::new(
-                    inner.k8s_client.clone(),
-                    inner.http_client.clone(),
-                    name.to_string(),
-                )
-                .await);
+                let fm = Autoscaler::new(
+                    FunctionManager::new(
+                        inner.k8s_client.clone(),
+                        inner.http_client.clone(),
+                        name.to_string(),
+                    )
+                    .await,
+                );
                 inner.functions.insert(name.to_string(), fm.clone());
                 return fm;
             }

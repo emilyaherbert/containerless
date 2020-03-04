@@ -1,8 +1,8 @@
 use k8s_openapi::api::apps::v1::{ReplicaSet, ReplicaSetSpec, ReplicaSetStatus};
 use k8s_openapi::api::core::v1::{Service, ServiceSpec, ServiceStatus};
 use kube;
+use kube::api::{Api, DeleteParams, Object, PatchParams, PostParams};
 use kube::config::Configuration;
-use kube::api::{Api, DeleteParams, Object, PostParams, PatchParams};
 
 pub struct Client {
     services: Api<Object<ServiceSpec, ServiceStatus>>,
@@ -10,7 +10,6 @@ pub struct Client {
 }
 
 impl Client {
-
     pub async fn from_config(config: Configuration) -> Result<Client, kube::Error> {
         let client = kube::client::APIClient::new(config);
         let services = kube::api::Api::v1Service(client.clone()).within("default");
@@ -52,8 +51,13 @@ impl Client {
     }
 
     pub async fn patch_replica_set(&self, replica_set: ReplicaSet) -> Result<(), kube::Error> {
-        let name = replica_set.metadata.as_ref().expect("metadata omitted")
-            .name.as_ref().expect("metadata.name omitted");
+        let name = replica_set
+            .metadata
+            .as_ref()
+            .expect("metadata omitted")
+            .name
+            .as_ref()
+            .expect("metadata.name omitted");
         let params = PatchParams::default();
         let _ = self
             .replica_set

@@ -1,9 +1,9 @@
+mod autoscaler;
 mod function_manager;
 mod function_table;
 mod k8s;
 mod types;
 mod util;
-mod autoscaler;
 mod windowed_max;
 
 use function_table::FunctionTable;
