@@ -307,4 +307,8 @@ impl FunctionManager {
     pub async fn set_replicas(&self, n: i32) -> Result<(), kube::Error> {
         return self.inner.set_replicas(n).await;
     }
+
+    pub fn name(&self) -> &str {
+        return self.inner.name.as_str();
+    }
 }
