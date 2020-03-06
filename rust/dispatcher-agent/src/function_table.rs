@@ -1,5 +1,4 @@
 use crate::autoscaler::Autoscaler;
-use crate::function_manager::FunctionManager;
 use crate::k8s;
 use crate::types::*;
 use futures::lock::Mutex;
@@ -62,13 +61,10 @@ impl FunctionTable {
             None => {
                 let fm = Autoscaler::new(
                     Arc::downgrade(self_),
-                    FunctionManager::new(
-                        inner.k8s_client.clone(),
-                        inner.http_client.clone(),
-                        name.to_string(),
-                    )
-                    .await,
-                );
+                    inner.k8s_client.clone(),
+                    inner.http_client.clone(),
+                    name.to_string(),
+                ).await;
                 inner.functions.insert(name.to_string(), fm.clone());
                 return fm;
             }

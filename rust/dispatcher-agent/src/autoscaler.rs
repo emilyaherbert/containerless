@@ -73,10 +73,13 @@ async fn update_latency(autoscaler: Arc<Autoscaler>) {
 }
 
 impl Autoscaler {
-    pub fn new(
+    pub async fn new(
         function_table: Weak<FunctionTable>,
-        function_manager: Arc<FunctionManager>,
+        k8s: K8sClient,
+        client: HttpClient,
+        name: String,        
     ) -> Arc<Autoscaler> {
+        let function_manager = FunctionManager::new(k8s, client, name).await;
         let pending_requests = AtomicUsize::new(0);
         // Initializing this to 1 is a little hack that prevents immediate shutdown
         let max_pending_requests = AtomicUsize::new(1);
