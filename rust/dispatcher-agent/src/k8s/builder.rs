@@ -118,6 +118,7 @@ impl ServiceSpecBuilder {
         return self.service_spec;
     }
 
+    #[allow(unused)]
     pub fn node_port(mut self) -> Self {
         self.service_spec.type_ = Some("NodePort".to_string());
         return self;
