@@ -32,7 +32,7 @@ impl From<usize> for State {
     }
 }
 
-struct FunctionManagerInner {
+pub struct FunctionManager {
     state: AtomicUsize,
     name: String,
     k8s: K8sClient,
@@ -40,11 +40,6 @@ struct FunctionManagerInner {
     authority: uri::Authority,
     pending_requests: Mutex<Vec<PendingRequest>>,
     num_replicas: AtomicI32,
-}
-
-#[derive(Clone)]
-pub struct FunctionManager {
-    inner: Arc<FunctionManagerInner>,
 }
 
 struct PendingRequest {
@@ -70,7 +65,23 @@ impl PendingRequest {
     }
 }
 
-impl FunctionManagerInner {
+impl FunctionManager {
+    // May fail if the function does not exist.
+    pub async fn new(k8s: K8sClient, client: HttpClient, name: String) -> Arc<FunctionManager> {
+        let num_replicas = AtomicI32::new(1);
+        let fm = Arc::new(FunctionManager {
+            authority: Authority::from_str(&format!("function-{}:8081", &name)).unwrap(),
+            state: AtomicUsize::new(State::Loading as usize),
+            name: name.clone(),
+            k8s: k8s.clone(),
+            http_client: client.clone(),
+            pending_requests: Mutex::new(Vec::new()),
+            num_replicas,
+        });
+        task::spawn(FunctionManager::load(fm.clone()));
+        return fm;
+    }
+
     async fn init_k8s(&self, name: String) -> Result<(), kube::Error> {
         use crate::k8s::builder::*;
         let pod_template = PodTemplateSpecBuilder::new()
@@ -134,28 +145,29 @@ impl FunctionManagerInner {
         return Ok(());
     }
 
-    async fn load(&self) -> () {
-        let create_result = { self.init_k8s(self.name.clone()).await };
+    async fn load(self_: Arc<FunctionManager>) -> () {
+        let create_result = { self_.init_k8s(self_.name.clone()).await };
         match create_result {
             Err(err) => {
                 eprintln!("Error creating ReplicaSet: {}", err);
-                self.state.store(State::Error as usize, Ordering::SeqCst);
+                self_.state.store(State::Error as usize, Ordering::SeqCst);
                 return;
             }
             Ok(()) => {
                 let service_ping_uri = http::Uri::builder()
                     .scheme("http")
-                    .authority(self.authority.clone())
+                    .authority(self_.authority.clone())
                     .path_and_query("/")
                     .build()
                     .unwrap();
-                if let Err(_err) = util::retry_get(&self.http_client, 5, 2, service_ping_uri).await
+                if let Err(_err) = util::retry_get(&self_.http_client, 5, 2, service_ping_uri).await
                 {
                     eprintln!("Error waiting for service");
-                    self.state.store(State::Error as usize, Ordering::SeqCst);
+                    self_.state.store(State::Error as usize, Ordering::SeqCst);
                     return;
                 }
-                self.state
+                self_
+                    .state
                     .store(State::Containerized as usize, Ordering::SeqCst);
                 // Note that we update the state to Containerized before
                 // acquiring the lock on pending_requests. A concurrent thread
@@ -164,11 +176,11 @@ impl FunctionManagerInner {
 
                 // TODO(arjun): We should turn pending_requests into an Option
                 // and set it to None, so that we don't lose any requests.
-                let mut pending_requests = self.pending_requests.lock().await;
+                let mut pending_requests = self_.pending_requests.lock().await;
                 for pending_request in pending_requests.drain(0..) {
                     let uri = hyper::Uri::builder()
                         .scheme("http")
-                        .authority(self.authority.clone())
+                        .authority(self_.authority.clone())
                         .path_and_query(pending_request.path_and_query.as_str())
                         .build()
                         .expect("building URI");
@@ -179,7 +191,7 @@ impl FunctionManagerInner {
                         .expect("building request");
                     let _ = pending_request
                         .send
-                        .send(self.http_client.request(req).await);
+                        .send(self_.http_client.request(req).await);
                 }
             }
         }
@@ -249,6 +261,10 @@ impl FunctionManagerInner {
         return self.num_replicas.load(Ordering::SeqCst);
     }
 
+    pub fn name(&self) -> &str {
+        return self.name.as_str();
+    }
+
     pub async fn set_replicas(&self, n: i32) -> Result<(), kube::Error> {
         use crate::k8s::builder::*;
         assert!(n > 0, "number of replicas must be greater than zero");
@@ -262,53 +278,5 @@ impl FunctionManagerInner {
             .spec(ReplicaSetSpecBuilder::new().replicas(n).build())
             .build();
         return self.k8s.patch_replica_set(rs).await;
-    }
-}
-
-impl FunctionManager {
-    pub async fn invoke(
-        &self,
-        method: http::Method,
-        path_and_query: &str,
-        body: hyper::Body,
-    ) -> Result<Response, hyper::Error> {
-        return self.inner.invoke(method, path_and_query, body).await;
-    }
-
-    async fn load(self) -> () {
-        self.inner.load().await;
-    }
-
-    // May fail if the function does not exist.
-    pub async fn new(k8s: K8sClient, client: HttpClient, name: String) -> FunctionManager {
-        let num_replicas = AtomicI32::new(1);
-        let inner = Arc::new(FunctionManagerInner {
-            authority: Authority::from_str(&format!("function-{}:8081", &name)).unwrap(),
-            state: AtomicUsize::new(State::Loading as usize),
-            name: name.clone(),
-            k8s: k8s.clone(),
-            http_client: client.clone(),
-            pending_requests: Mutex::new(Vec::new()),
-            num_replicas,
-        });
-        let fm = FunctionManager { inner };
-        task::spawn(fm.clone().load());
-        return fm;
-    }
-
-    pub async fn shutdown(&self) -> Result<(), kube::Error> {
-        return self.inner.shutdown().await;
-    }
-
-    pub fn num_replicas(&self) -> i32 {
-        return self.inner.num_replicas();
-    }
-
-    pub async fn set_replicas(&self, n: i32) -> Result<(), kube::Error> {
-        return self.inner.set_replicas(n).await;
-    }
-
-    pub fn name(&self) -> &str {
-        return self.inner.name.as_str();
     }
 }

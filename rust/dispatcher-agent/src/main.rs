@@ -10,10 +10,11 @@ use function_table::FunctionTable;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::Server;
 use std::convert::Infallible;
+use std::sync::Arc;
 use tokio::signal::unix::{signal, SignalKind};
 use types::*;
 
-async fn handle_req(state: FunctionTable, req: Request) -> Result<Response, hyper::Error> {
+async fn handle_req(state: Arc<FunctionTable>, req: Request) -> Result<Response, hyper::Error> {
     let (parts, body) = req.into_parts();
     let path = parts.uri.path();
     let mut split_path = path.splitn(3, '/');
@@ -21,7 +22,7 @@ async fn handle_req(state: FunctionTable, req: Request) -> Result<Response, hype
     match split_path.next() {
         Some(function_name) => {
             let function_path = split_path.next().unwrap_or("");
-            let fm = state.get_function(function_name).await;
+            let fm = FunctionTable::get_function(&state, function_name).await;
             let resp = fm.invoke(parts.method, function_path, body).await?;
             return Ok(resp);
         }

@@ -4,32 +4,20 @@ use crate::k8s;
 use crate::types::*;
 use futures::lock::Mutex;
 use std::collections::HashMap;
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 
 struct FunctionTableImpl {
-    functions: HashMap<String, Autoscaler>,
+    functions: HashMap<String, Arc<Autoscaler>>,
     http_client: HttpClient,
     k8s_client: K8sClient,
 }
 
-#[derive(Clone)]
 pub struct FunctionTable {
-    inner: Arc<Mutex<FunctionTableImpl>>,
+    inner: Mutex<FunctionTableImpl>,
 }
 
-#[derive(Clone)]
-pub struct WeakFunctionTable {
-    weak: Weak<Mutex<FunctionTableImpl>>,
-}
-
-impl WeakFunctionTable {
-    pub fn upgrade(&self) -> Option<FunctionTable> {
-        return self.weak.upgrade().map(|inner| FunctionTable { inner });
-    }
-}
-
-impl FunctionTableImpl {
-    async fn new() -> FunctionTableImpl {
+impl FunctionTable {
+    pub async fn new() -> Arc<FunctionTable> {
         let functions = HashMap::new();
         let k8s_client = Arc::new(
             k8s::client::Client::new()
@@ -37,18 +25,14 @@ impl FunctionTableImpl {
                 .expect("initializing k8s client"),
         );
         let http_client = Arc::new(hyper::Client::new());
-        return FunctionTableImpl {
+        let inner = FunctionTableImpl {
             functions,
             http_client,
             k8s_client,
         };
-    }
-}
-
-impl FunctionTable {
-    pub async fn new() -> FunctionTable {
-        let inner = Arc::new(Mutex::new(FunctionTableImpl::new().await));
-        return FunctionTable { inner };
+        return Arc::new(FunctionTable {
+            inner: Mutex::new(inner),
+        });
     }
 
     pub async fn shutdown(&self) -> () {
@@ -72,18 +56,12 @@ impl FunctionTable {
         }
     }
 
-    pub fn downgrade(&self) -> WeakFunctionTable {
-        return WeakFunctionTable {
-            weak: Arc::downgrade(&self.inner),
-        };
-    }
-
-    pub async fn get_function(&self, name: &str) -> Autoscaler {
-        let mut inner = self.inner.lock().await;
+    pub async fn get_function(self_: &Arc<FunctionTable>, name: &str) -> Arc<Autoscaler> {
+        let mut inner = self_.inner.lock().await;
         match inner.functions.get(name) {
             None => {
                 let fm = Autoscaler::new(
-                    self.downgrade(),
+                    Arc::downgrade(self_),
                     FunctionManager::new(
                         inner.k8s_client.clone(),
                         inner.http_client.clone(),
