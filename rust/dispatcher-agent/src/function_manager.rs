@@ -85,7 +85,12 @@ impl FunctionManager {
     async fn init_k8s(&self, name: String) -> Result<(), kube::Error> {
         use crate::k8s::builder::*;
         let pod_template = PodTemplateSpecBuilder::new()
-            .metadata(ObjectMetaBuilder::new().label("function", &name).build())
+            .metadata(
+                ObjectMetaBuilder::new()
+                    .label("function", &name)
+                    .label("mode", "vanilla")
+                    .build(),
+            )
             .spec(
                 PodSpecBuilder::new()
                     .container(
@@ -119,6 +124,7 @@ impl FunctionManager {
                     .selector(
                         LabelSelectorBuilder::new()
                             .match_label("function", &name)
+                            .match_label("mode", "vanilla")
                             .build(),
                     )
                     .template(pod_template)
@@ -259,10 +265,6 @@ impl FunctionManager {
 
     pub fn num_replicas(&self) -> i32 {
         return self.num_replicas.load(Ordering::SeqCst);
-    }
-
-    pub fn name(&self) -> &str {
-        return self.name.as_str();
     }
 
     pub async fn set_replicas(&self, n: i32) -> Result<(), kube::Error> {

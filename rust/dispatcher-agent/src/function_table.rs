@@ -1,9 +1,10 @@
 use crate::autoscaler::Autoscaler;
 use crate::k8s;
 use crate::types::*;
+use futures::channel::oneshot;
 use futures::lock::Mutex;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 
 struct FunctionTableImpl {
     functions: HashMap<String, Arc<Autoscaler>>,
@@ -55,16 +56,32 @@ impl FunctionTable {
         }
     }
 
+    async fn cleanup_task(self_: Weak<FunctionTable>, recv: oneshot::Receiver<()>, name: String) {
+        if let Err(_cancelled) = recv.await {
+            eprintln!("Cancelled");
+        }
+        if let Some(table) = self_.upgrade() {
+            table.shutdown_function(&name).await;
+        }
+    }
+
     pub async fn get_function(self_: &Arc<FunctionTable>, name: &str) -> Arc<Autoscaler> {
         let mut inner = self_.inner.lock().await;
         match inner.functions.get(name) {
             None => {
-                let fm = Autoscaler::new(
+                let (send, recv) = oneshot::channel::<()>();
+                tokio::task::spawn(FunctionTable::cleanup_task(
                     Arc::downgrade(self_),
+                    recv,
+                    name.to_string(),
+                ));
+                let fm = Autoscaler::new(
                     inner.k8s_client.clone(),
                     inner.http_client.clone(),
                     name.to_string(),
-                ).await;
+                    send,
+                )
+                .await;
                 inner.functions.insert(name.to_string(), fm.clone());
                 return fm;
             }

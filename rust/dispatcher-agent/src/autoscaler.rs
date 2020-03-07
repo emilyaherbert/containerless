@@ -11,11 +11,12 @@
 //! and another five in the next second, the number of replicas will be 10, instead
 //! of five.
 use crate::function_manager::FunctionManager;
-use crate::function_table::FunctionTable;
 use crate::types::*;
 use crate::windowed_max::WindowedMax;
+use futures::channel::oneshot;
+use futures::lock::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::task;
 use tokio::time::delay_for;
@@ -32,7 +33,7 @@ pub struct Autoscaler {
     max_pending_requests: AtomicUsize,
     is_shutdown: AtomicBool,
     function_manager: Arc<FunctionManager>,
-    function_table: Weak<FunctionTable>,
+    on_zero_replicas: Mutex<Option<oneshot::Sender<()>>>,
 }
 
 async fn update_latency(autoscaler: Arc<Autoscaler>) {
@@ -48,13 +49,11 @@ async fn update_latency(autoscaler: Arc<Autoscaler>) {
         // above (inclusively).
         let num_replicas = MAX_REPLICAS.min(max_pending_requests_vec.max());
         if num_replicas == 0 {
-            if let Some(table) = autoscaler.function_table.upgrade() {
-                eprintln!(
-                    "Shutting down {} (current_max_pending: {})",
-                    fm.name(),
-                    current_max_pending
-                );
-                table.shutdown_function(fm.name()).await;
+            let mut stored = autoscaler.on_zero_replicas.lock().await;
+            let mut on_zero = None;
+            std::mem::swap(&mut *stored, &mut on_zero);
+            if let Some(sender) = on_zero {
+                let _result = sender.send(());
             }
             return;
         }
@@ -74,10 +73,10 @@ async fn update_latency(autoscaler: Arc<Autoscaler>) {
 
 impl Autoscaler {
     pub async fn new(
-        function_table: Weak<FunctionTable>,
         k8s: K8sClient,
         client: HttpClient,
-        name: String,        
+        name: String,
+        on_zero_replicas: oneshot::Sender<()>,
     ) -> Arc<Autoscaler> {
         let function_manager = FunctionManager::new(k8s, client, name).await;
         let pending_requests = AtomicUsize::new(0);
@@ -89,7 +88,7 @@ impl Autoscaler {
             max_pending_requests,
             is_shutdown,
             function_manager,
-            function_table,
+            on_zero_replicas: Mutex::new(Some(on_zero_replicas)),
         });
         task::spawn(update_latency(autoscaler.clone()));
         return autoscaler;
