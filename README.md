@@ -1,30 +1,66 @@
-# Containerless ![Build](https://github.com/plasma-umass/decontainerization/workflows/CI/badge.svg)
+# Containerless ![](https://github.com/plasma-umass/decontainerization/workflows/CI/badge.svg)
 
-## Prerequisites
+## Overview
+
+This repo is broken into a number of different components:
+
+1. [`js-transform`](./javascript/js-transform/) - Applies ANF transformation and
+    instruments JS source code with Containerless runtime statements.
+2. [`containerless`](./javascript/containerless/) - Trace-building JS runtime
+    library.
+3. [`compiler`](./rust/compiler/) - Compiles an execution trace to Rust.
+4. [`invoker`](./rust/invoker/) - Orchestrates Containerless serverless
+    functions. Sends requests to JS while functions are being compiled to Rust,
+    then sends requests to Rust.
+5. [`multi-invoker`](./rust/multi-invoker) - Something.
+6. [`containerless-scaffold`](./rust/containerless-scaffold/) - Something.
+7. [`local`](./rust/local/) - Something.
+8. [`shared`](./rust/shared/) - Something.
+
+## Getting Started
+
+### Prerequisites
 
 Containerless has components written in Rust and JavaScript (TypeScript).
 Thus, you need [Cargo], [Yarn], and [Node]. We package these components
 into containers using [Docker].
 
-## Building
+### Building
+
+To build all components, use:
 
 ```
 ./build_release.sh
 ```
 
+To build individual components, use one of the following commands in a
+respective directory:
+
+```
+yarn run build
+cargo build
+```
+
 ## Testing Installation
 
-To test that everything has installed correctly, use:
+To test that all components are functioning correctly, use:
 
 ```
 ./build_test.sh
+```
+
+To test individual components, use one of the following commands in a respective directory:
+
+```
+yarn run test
+cargo test
 ```
 
 ## Deploying
 
 ### Manually Deploying a Function
 
-1. Create a serverless function `program.js` in `/javascript/examples`.
+1. Create a serverless function `program.js` in [`/javascript/examples`](./javascript/examples/).
 
 2. Build the Containerless [Docker] image.
 
@@ -61,8 +97,6 @@ curl -X POST localhost:8080/hello -d '{}'
 
 If compiling the JS trace fails, see `containerless_scaffold/trace.json` 
 If compiling the Rust fails, see `/rust/containerless_scaffold/src/containerless.rs`
-
-## Documentation
 
 ## Contributing
 
