@@ -1,4 +1,4 @@
-# Containerless [![](https://github.com/umass-plasma/decontainerization/workflows/CI/badge.svg)]
+# Containerless [![](https://github.com/umass-plasma/decontainerization/workflows/CI/badge.svg?branch=emily-wip)]
 
 ## Prerequisites
 
