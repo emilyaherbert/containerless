@@ -16,6 +16,6 @@ spec:
     - containerPort: 8081
     env:
     - name: FUNCTION_NAME
-      value: hello_world.js
+      value: hello_world
     - name: FUNCTION_MODE
       value: vanilla

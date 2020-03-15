@@ -9,6 +9,6 @@ edition = "2018"
 [dependencies]
 hyper = "*"
 warp = "*"
-tokio = { version = "*", features = ["macros", "process", "fs"] }
+tokio = { version = "*", features = ["macros", "process", "fs", "signal"] }
 futures-retry = "*"
 reqwest = "*"

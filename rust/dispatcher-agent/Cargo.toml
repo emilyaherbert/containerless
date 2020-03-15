@@ -7,13 +7,12 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tokio = { version = "*", features = ["macros", "sync"] }
+tokio = { version = "*", features = ["macros", "sync", "signal", "time"] }
 hyper = "*"
 kube = { version = "0.25.0", features = ["openapi"] }
 k8s-openapi = { version = "0.7.1", default-features = false, features = ["v1_17"] }
 serde_json = "*"
 futures = "*"
-warp = "*"
-reqwest = "*"
 http = "*"
 bytes = "*"
+futures-retry = "*"

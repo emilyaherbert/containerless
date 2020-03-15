@@ -1,101 +1,70 @@
-mod state;
+mod autoscaler;
+mod function_manager;
+mod function_table;
+mod k8s;
 mod types;
+mod util;
+mod windowed_max;
 
-use futures::Stream;
-use http;
+use function_table::FunctionTable;
 use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Client, Server};
-use kube::{self, api::PostParams};
-use serde_json::json;
-use state::State;
+use hyper::Server;
 use std::convert::Infallible;
-use tokio::prelude::*;
+use tokio::signal::unix::{signal, SignalKind};
 use types::*;
-use warp::Filter;
 
-async fn get_kube_client() -> Result<usize, kube::Error> {
-    let config = kube::config::incluster_config()?;
-    let client = kube::client::APIClient::new(config);
-    // let pods = kube::api::Api::v1Pod(client.clone()).within("default");
-    // let pod_list = pods.list(&kube::api::ListParams::default()).await?;
-    // println!("{}", pod_list.items.len());
-    // let p = pods.get("blog").await?;
-    let services = kube::api::Api::v1Service(client.clone()).within("default");
-    let req = json!({
-        "apiVersion": "v1",
-        "kind": "Service",
-        "metadata": {
-          "name": "test"
-        },
-        "spec": {
-          "selector": {
-            "app": "function-storage"
-          },
-          "ports": [
-            { "name": "http", "port": 8080 }
-          ]
-        }
-    });
-    services
-        .create(&PostParams::default(), serde_json::to_vec(&req)?)
-        .await?;
-
-    // let replication_controller =
-    //     kube::api::Api::v1ReplicationController(client.clone()).within("default");
-    // let r = replication_controller.create(0, 0).await?;
-    return Ok(34);
-}
-
-// async fn handle_request<S, B>(
-//     function_name: String,
-//     path: String,
-//     method: warp::http::Method,
-//     body: S,
-//     state: State,
-// ) -> Result<impl warp::Reply, warp::Rejection>
-// where
-//     // B: bytes::buf::Buf,
-//     S: Stream<Item = Result<B, warp::Error>> + 'static
-// {
-//     let client = hyper::Client::new();
-//     let req = hyper::Request::builder()
-//       .uri(format!("http://{}/{}", &function_name, &path))
-//       .body(body)
-//       .unwrap();
-//     let resp = client.request(req).await;
-
-//     return Ok("ok");
-// }
-
-async fn handle_req(state: State, req: Request) -> Result<Response, hyper::Error> {
+async fn handle_req(state: FunctionTable, req: Request) -> Result<Response, hyper::Error> {
     let (parts, body) = req.into_parts();
     let path = parts.uri.path();
-    let mut split_path = path.splitn(2, '/');
-    let function_name = split_path.next().unwrap();
-    let function_path = split_path.next().unwrap();
-
-    return state
-        .invoke(function_name, function_path, parts.method, body)
-        .await;
+    let mut split_path = path.splitn(3, '/');
+    let _ = split_path.next(); // Drop the leading /
+    match split_path.next() {
+        Some(function_name) => {
+            let function_path = split_path.next().unwrap_or("");
+            let fm = state.get_function(function_name).await;
+            let resp = fm.invoke(parts.method, function_path, body).await?;
+            return Ok(resp);
+        }
+        None => {
+            return Ok(hyper::Response::builder()
+                .status(404)
+                .body(hyper::Body::from(
+                    "To invoke: http://HOSTNAME/dispatcher/FUNCTION-NAME\n",
+                ))
+                .unwrap());
+        }
+    }
 }
 
 #[tokio::main]
 async fn main() {
-    if let Err(e) = get_kube_client().await {
-        println!("{:?}", e);
-    }
+    let state = FunctionTable::new().await;
 
-    let state = State::new(vec![]);
-
-    let make_svc = make_service_fn(move |_| {
+    let make_svc = {
         let state = state.clone();
-        futures::future::ok::<_, Infallible>(service_fn(move |req| handle_req(state.clone(), req)))
-    });
+        make_service_fn(move |_conn| {
+            let state = state.clone();
+            futures::future::ok::<_, Infallible>(service_fn(move |req| {
+                handle_req(state.clone(), req)
+            }))
+        })
+    };
 
     let addr = ([0, 0, 0, 0], 8080).into();
-    Server::bind(&addr)
-        .serve(make_svc)
+
+    let server = Server::bind(&addr).serve(make_svc);
+
+    let addr = server.local_addr();
+    eprintln!("Listening on port {}", addr.port());
+    server
+        .with_graceful_shutdown(async {
+            let mut sigterm = signal(SignalKind::terminate()).expect("registering SIGTERM handler");
+            sigterm.recv().await;
+            println!("Received SIGTERM");
+        })
         .await
-        .expect("could not start server");
+        .expect("starting server");
+
+    state.shutdown().await;
     return;
 }
