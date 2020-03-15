@@ -99,7 +99,19 @@ curl -X POST localhost:8080/hello -d '{}'
 If compiling the JS trace fails, see `containerless_scaffold/trace.json` 
 If compiling the Rust fails, see `/rust/containerless_scaffold/src/containerless.rs`
 
-## Contributing
+### Using the local mock server
+
+[`local`](./rust/local/) acts as a local mock Datastore and mock Filestore. It
+can be started with:
+
+```
+cargo build
+cargo run
+```
+
+The server is exposed on port 7999, and can be interacted with through various
+paths.
+
 
 [Cargo]: https://rustup.rs/
 [Yarn]: https://yarnpkg.com/
