@@ -9,13 +9,14 @@ This repo is broken into a number of different components:
 2. [`containerless`](./javascript/containerless/) - Trace-building JS runtime
     library.
 3. [`compiler`](./rust/compiler/) - Compiles an execution trace to Rust.
-4. [`invoker`](./rust/invoker/) - Orchestrates Containerless serverless
-    functions. Sends requests to JS while functions are being compiled to Rust,
-    then sends requests to Rust.
-5. [`multi-invoker`](./rust/multi-invoker) - Something.
-6. [`containerless-scaffold`](./rust/containerless-scaffold/) - Something.
-7. [`local`](./rust/local/) - Something.
-8. [`shared`](./rust/shared/) - Something.
+4. [`invoker`](./rust/invoker/) - 
+5. [`multi-invoker`](./rust/multi-invoker) - Orchestrates Containerless
+    serverless functions. Sends requests to JS while functions are being
+    compiled to Rust, then sends requests to Rust.
+6. [`containerless-scaffold`](./rust/containerless-scaffold/) -
+7. [`shared`](./rust/shared/) -
+8. [`local`](./rust/local/) - Local mock server for running functions and
+    experiments.
 
 ## Getting Started
 

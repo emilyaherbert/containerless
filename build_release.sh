@@ -6,3 +6,4 @@ set -e
 (cd rust/invoker && cargo build --release)
 (cd rust/multi-invoker && cargo build --release)
 (cd rust/shared && cargo build --release)
+(cd rust/local && cargo build --release)
