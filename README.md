@@ -1,5 +1,25 @@
 # Containerless
 
+## Prerequisites
+
+Containerless has components written in Rust and JavaScript (TypeScript).
+Thus, you need [Cargo], [Yarn], and [Node]. We package these components
+into containers using [Docker].
+
+## Building
+
+```
+./build_release.sh
+```
+
+## Testing Installation
+
+To test that everything has installed correctly, use:
+
+```
+./build_test.sh
+```
+
 1. Create program.js in /javascript/examples
 
 ```
