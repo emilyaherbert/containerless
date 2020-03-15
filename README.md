@@ -20,6 +20,8 @@ To test that everything has installed correctly, use:
 ./build_test.sh
 ```
 
+## Deploy
+
 1. Create program.js in /javascript/examples
 
 ```
