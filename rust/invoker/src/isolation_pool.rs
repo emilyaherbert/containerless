@@ -74,7 +74,6 @@ pub struct IsolationPool {
 
 static TRACING_CONTAINER_PORT: usize = 2999;
 static TRACING_CONTAINER_NAME: &'static str = "tracing";
-static MAX_TRACED: usize = 100;
 
 impl IsolationStatus {
     fn new(config: &InvokerConfig) -> Self {
@@ -306,17 +305,18 @@ impl IsolationPool {
                         .compare_and_swap(true, false, SeqCst);
                     if was_available == true {
                         let n = self.data.num_traced_requests.fetch_add(1, SeqCst);
-                        if n == MAX_TRACED {
+                        if n == self.data.config.max_requests_to_trace {
                             self.data.mode.store(IsolationStatus::Compiling, SeqCst);
                             tokio::executor::spawn(self.extract_and_compile_trace());
                         }
                         let data = self.data.clone();
+                        let max_requests_to_trace = self.data.config.max_requests_to_trace.clone();
                         return data
                             .container_handle
                             .request(self.data.client.clone(), req)
                             .from_err()
                             .map(move |resp| {
-                                if n == MAX_TRACED {
+                                if n == max_requests_to_trace {
                                     data.container_handle.stop();
                                 } else {
                                     data.tracing_container_available.store(true, SeqCst);
