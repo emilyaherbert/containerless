@@ -76,8 +76,7 @@ $ curl -X POST localhost:8080/hello -d '{}'
 ```
 
 After 6 curls, it will extract and compile the trace to
-[`/rust/containerless-scaffold/src/containerless.rs`](./rust/containerless-scaffold/src/containerless.rs)
-and then *quit the program*.
+`/rust/containerless-scaffold/src/containerless.rs` and then *quit the program*.
 
 5. Serve requests from Rust!
 
