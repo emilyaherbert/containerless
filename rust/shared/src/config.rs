@@ -32,6 +32,8 @@ pub struct InvokerConfig {
     pub utilization_log: String,
     #[serde(default = "InvokerConfig::default_kill_parent")]
     pub kill_parent: bool,
+    #[serde(default = "InvokerConfig::default_max_requests_to_trace")]
+    pub max_requests_to_trace: usize
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -97,6 +99,10 @@ impl InvokerConfig {
 
     fn default_kill_parent() -> bool {
         false
+    }
+
+    fn default_max_requests_to_trace() -> usize {
+        100
     }
 }
 

@@ -1,14 +1,11 @@
-A platform for running serverless functions. Usage:
+The orchestration mechanism for Containerless. `invoker` is used by both
+[`containerless-scaffold`](../containerless-scaffold) and
+[`multi-invoker`](../multi-invoker).
+
+Implementation specific details can be found in the associate Rust doc:
 
 ```
-cargo run IMAGE-NAME
-curl localhost:8080
+cargo doc
 ```
 
-IMAGE-NAME should be the name of a Docker image that creates an HTTP
-server at port 3000. (There a CLI argument to change the expected port number.)
-
-Run `cargo run -- --help` for many options. The most significant is
-the `--max-containers` flag, which controls the level of parallelism.
-
-# TODO(emily): Add more.
+at your local `target/doc/invoker/index.html`.

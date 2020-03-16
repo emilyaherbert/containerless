@@ -273,6 +273,7 @@ pub fn codegen(e: &Exp, dest_file: &str) {
         #![allow(non_snake_case)]
         #![allow(unused_variables)]
         #![forbid(unsafe_code)]
+        #![allow(unused_imports)]
         
         use invoker::trace_runtime::{self as rt, ExecutionContext, Dyn, DynResult};
 
