@@ -9,12 +9,19 @@ This repo is broken into a number of different components:
 2. [`containerless`](./javascript/containerless/) - Trace-building JS runtime
     library.
 3. [`compiler`](./rust/compiler/) - Compiles an execution trace to Rust.
-4. [`invoker`](./rust/invoker/) - 
+4. [`invoker`](./rust/invoker/) - Orchestrates Containerless serverless
+    functions. Either 1) Sends requests to JS for tracing and to be compiled to
+    Rust, or 2) Sends requests to Rust. Does not do both. This also contains the
+    Rust [`trace_runtime`](./rust/invoker/src/trace_runtime) library that
+    contains the [dynamic type](./rust/invoker/src/trace_runtime/type_dynamic.rs).
 5. [`multi-invoker`](./rust/multi-invoker) - Orchestrates Containerless
-    serverless functions. Sends requests to JS while functions are being
-    compiled to Rust, then sends requests to Rust.
-6. [`containerless-scaffold`](./rust/containerless-scaffold/) -
-7. [`shared`](./rust/shared/) -
+    serverless functions. Uses two `invoker`'s to send requests to JS while
+    functions are being compiled to Rust (#1 above), then send requests to Rust
+    (#2 above).
+6. [`containerless-scaffold`](./rust/containerless-scaffold/) - The scaffolding
+    for the generated Rust code.
+7. [`shared`](./rust/shared/) - Components shared between the `invoker` and the
+    `multi-invoker`.
 8. [`local`](./rust/local/) - Local mock server for running functions and
     experiments.
 
@@ -31,15 +38,7 @@ into containers using [Docker].
 To build all components, use:
 
 ```
-./build_release.sh
-```
-
-To build individual components, use one of the following commands in a
-respective directory:
-
-```
-yarn run build
-cargo build
+$ ./build_release.sh
 ```
 
 ## Testing Installation
@@ -47,14 +46,7 @@ cargo build
 To test that all components are functioning correctly, use:
 
 ```
-./build_test.sh
-```
-
-To test individual components, use one of the following commands in a respective directory:
-
-```
-yarn run test
-cargo test
+$ ./build_test.sh
 ```
 
 ## Deploying
@@ -66,32 +58,32 @@ cargo test
 2. Build the Containerless [Docker] image.
 
 ```
-./scripts/prepare_serverless_function.sh javascript/examples/program.js
+$ ./scripts/prepare_serverless_function.sh javascript/examples/program.js
 ```
 
 3. Start the server.
 
 ```
-cd rust/containerless-scaffold
-cargo run -- --config '{ "image_name": "serverless-function", "max_requests_to_trace": 6 }'
+$ cd rust/containerless-scaffold
+$ cargo run -- --config '{ "image_name": "serverless-function", "max_requests_to_trace": 6 }'
 ```
 
 4. Send requests. All requests to the platform must be sent as `POST` requests,
 with possibly empty JSON bodies.
 
 ```
-curl -X POST localhost:8080/hello -d '{}'
+$ curl -X POST localhost:8080/hello -d '{}'
 ```
 
 After 6 curls, it will extract and compile the trace to
-`/rust/containerless_scaffold/src/containerless.rs` and then *quit the
-program*.
+[`/rust/containerless-scaffold/src/containerless.rs`](./rust/containerless-scaffold/src/containerless.rs)
+and then *quit the program*.
 
 5. Serve requests from Rust!
 
 ```
-cargo run -- --config '{ "image_name": "serverless-function", "initial_state": "Decontainerized" }'
-curl -X POST localhost:8080/hello -d '{}'
+$ cargo run -- --config '{ "image_name": "serverless-function", "initial_state": "Decontainerized" }'
+$ curl -X POST localhost:8080/hello -d '{}'
 ```
 
 ### Debugging
@@ -105,8 +97,8 @@ If compiling the Rust fails, see `/rust/containerless_scaffold/src/containerless
 can be started with:
 
 ```
-cargo build
-cargo run
+$ cargo build
+$ cargo run
 ```
 
 The server is exposed on port 7999, and can be interacted with through various
