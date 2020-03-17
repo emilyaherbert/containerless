@@ -20,7 +20,7 @@ impl FunctionTable {
     pub async fn new() -> Arc<FunctionTable> {
         let functions = HashMap::new();
         let k8s_client = Arc::new(
-            k8s::client::Client::new()
+            k8s::client::Client::new("containerless")
                 .await
                 .expect("initializing k8s client"),
         );

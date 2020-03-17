@@ -10,26 +10,26 @@ pub struct Client {
 }
 
 impl Client {
-    pub async fn from_config(config: Configuration) -> Result<Client, kube::Error> {
+    pub async fn from_config(config: Configuration, namespace: &str) -> Result<Client, kube::Error> {
         let client = kube::client::APIClient::new(config);
-        let services = kube::api::Api::v1Service(client.clone()).within("default");
-        let replica_set = kube::api::Api::v1ReplicaSet(client.clone()).within("default");
+        let services = kube::api::Api::v1Service(client.clone()).within(namespace);
+        let replica_set = kube::api::Api::v1ReplicaSet(client.clone()).within(namespace);
         return Ok(Client {
             services,
             replica_set,
         });
     }
 
-    pub async fn from_kubeconfig_file() -> Result<Client, kube::Error> {
+    pub async fn from_kubeconfig_file(namespace: &str) -> Result<Client, kube::Error> {
         let config = kube::config::load_kube_config().await.unwrap();
-        return Self::from_config(config).await;
+        return Self::from_config(config, namespace).await;
     }
 
-    /// Creates a new Client that 1) interacts with resources in the default
-    /// namespace, and 2) only works within pods deployed on the k8s cluster.
-    pub async fn new() -> Result<Client, kube::Error> {
+    /// Creates a new Client that only works within pods deployed on the k8s
+    /// cluster.
+    pub async fn new(namespace: &str) -> Result<Client, kube::Error> {
         let config = kube::config::incluster_config()?;
-        return Self::from_config(config).await;
+        return Self::from_config(config, namespace).await;
     }
 
     pub async fn new_service(&self, service: Service) -> Result<(), kube::Error> {
