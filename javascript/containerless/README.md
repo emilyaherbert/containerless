@@ -14,7 +14,7 @@ $ yarn link js-transform
 $ yarn run build
 ```
 
-## Deploying a Single Function
+## Deploying a Function
 
 Deploy a single function that builds a trace using Containerless.
 
