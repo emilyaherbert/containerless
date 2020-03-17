@@ -130,12 +130,12 @@ $ cargo run -- --config ${CONFIG}
 This creates a `multi-invoker` (configured with `CONFIG`) that listens for
 requests on port 8080. The `multi-invoker` will start two instances of the
 `invoker` (the first configured with `CONFIG1` and the second with `CONFIG2`).
-The `multi-invoker` will initially direct requests to the first invoker on port
-8081 to be traced. When this invoker quits and dies, the `multi-invoker` will
-switch and direct requests to the second invoker listening on port 8082. At this
-point, the first invoker has already traced and compiled the Rust code, so the
-second invoker will be servicing requests directly from the generated Rust
-function!
+The `multi-invoker` will initially direct requests to the first `invoker` on
+port 8081 to be traced. When this `invoker` quits and dies, the `multi-invoker`
+will switch and direct requests to the second `invoker` listening on port 8082.
+At this point, the first `invoker` has already traced and compiled the Rust
+code, so the second `invoker` will be servicing requests directly from the
+generated Rust function!
 
 ### Debugging
 
