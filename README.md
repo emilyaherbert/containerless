@@ -73,8 +73,8 @@ $ cargo run -- --config '{ "image_name": "serverless-function", "initial_state":
 This starts an instance of the `invoker` through the proxy of
 `containerless-scaffold`. The initial state of the invoker is "Tracing", and it
 will trace 6 requests before compiling to Rust. It will use a maximum of 4
-containers if necessary, where the tracing container is included in the total. A
-list of config options can be found [here](./rust/shared/README.md).
+containers if necessary, where the tracing container is __not__ included in the
+total. A list of config options can be found [here](./rust/shared/README.md).
 
 4. Send requests. All requests to the platform must be sent as `POST` requests,
 with possibly empty JSON bodies.
@@ -101,7 +101,41 @@ language-based isolation via Rust).
 
 The manual method above allows you to deploy a function to JavaScript, trace and
 compile to Rust, and then deploy the function using Rust. However, it involves
-manual intervention. The true Containerless 
+manual intervention. In order to automate the process of switching from
+JavaScript to Rust, we will employ the `multi-invoker`.
+
+1. Create a serverless function `program.js` in [`/javascript/examples`](./javascript/examples/).
+
+2. Build the Containerless [Docker] image:
+
+```
+$ ./scripts/prepare_serverless_function.sh javascript/examples/program.js
+```
+
+3. Create the important environment variables:
+
+```
+$ CONFIG1="{\"bind_port\":8081,\"image_name\":\"serverless-function\",\"max_containers\":5,\"initial_state\":\"Tracing\",\"kill_parent\":true}"
+$ CONFIG2="{\"bind_port\":8082,\"image_name\":\"serverless-function\", \"initial_state\":\"Decontainerized\",\"kill_parent\":true}"
+$ CONFIG="{\"bind_port\":8080,\"config_a\":${CONFIG1},\"config_b\":${CONFIG2}}"
+```
+
+4. Start the server:
+
+```
+$ cd rust/multi-invoker/
+$ cargo run -- --config ${CONFIG}
+```
+
+This creates a `multi-invoker` (configured with `CONFIG`) that listens for
+requests on port 8080. The `multi-invoker` will start two instances of the
+`invoker` (the first configured with `CONFIG1` and the second with `CONFIG2`).
+The `multi-invoker` will initially direct requests to the first invoker on port
+8081 to be traced. When this invoker quits and dies, the `multi-invoker` will
+switch and direct requests to the second invoker listening on port 8082. At this
+point, the first invoker has already traced and compiled the Rust code, so the
+second invoker will be servicing requests directly from the generated Rust
+function!
 
 ### Debugging
 
