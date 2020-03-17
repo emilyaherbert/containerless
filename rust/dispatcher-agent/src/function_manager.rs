@@ -14,6 +14,7 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicI32, AtomicUsize, Ordering};
 use std::sync::Arc;
 use tokio::task;
+use k8s;
 
 enum State {
     Loading = 0,
@@ -83,7 +84,7 @@ impl FunctionManager {
     }
 
     async fn init_k8s(&self, name: String) -> Result<(), kube::Error> {
-        use crate::k8s::builder::*;
+        use k8s::builder::*;
         let pod_template = PodTemplateSpecBuilder::new()
             .metadata(
                 ObjectMetaBuilder::new()
@@ -268,7 +269,7 @@ impl FunctionManager {
     }
 
     pub async fn set_replicas(&self, n: i32) -> Result<(), kube::Error> {
-        use crate::k8s::builder::*;
+        use k8s::builder::*;
         assert!(n > 0, "number of replicas must be greater than zero");
         self.num_replicas.store(n, Ordering::SeqCst);
         let rs = ReplicaSetBuilder::new()

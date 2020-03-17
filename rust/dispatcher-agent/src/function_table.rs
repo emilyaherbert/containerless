@@ -1,5 +1,5 @@
 use crate::autoscaler::Autoscaler;
-use crate::k8s;
+use k8s;
 use crate::types::*;
 use futures::channel::oneshot;
 use futures::lock::Mutex;

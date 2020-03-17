@@ -20,7 +20,6 @@ impl Client {
         });
     }
 
-    #[allow(unused)]
     pub async fn from_kubeconfig_file() -> Result<Client, kube::Error> {
         let config = kube::config::load_kube_config().await.unwrap();
         return Self::from_config(config).await;
