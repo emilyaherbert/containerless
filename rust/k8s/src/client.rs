@@ -1,7 +1,7 @@
 use k8s_openapi::api::apps::v1::{ReplicaSet, ReplicaSetSpec, ReplicaSetStatus};
 use k8s_openapi::api::core::v1::{Service, ServiceSpec, ServiceStatus};
 use kube;
-use kube::api::{Api, DeleteParams, Object, PatchParams, PostParams};
+use kube::api::{Api, DeleteParams, Object, PatchParams, PostParams, ListParams};
 use kube::config::Configuration;
 
 pub struct Client {
@@ -77,4 +77,18 @@ impl Client {
         let _ = self.replica_set.delete(name, &params).await;
         return Ok(());
     }
+
+    pub async fn list_services(&self) -> Result<Vec<(String, ServiceSpec)>, kube::Error> {
+        let params = ListParams::default();
+        let svcs = self.services.list(&params).await?;
+        
+        return Ok(svcs.items.into_iter().map(|item| (item.metadata.name, item.spec)).collect());
+    }
+
+    pub async fn list_replica_sets(&self) -> Result<Vec<(String, ReplicaSetSpec)>, kube::Error> {
+        let params = ListParams::default();
+        let replica_sets = self.replica_set.list(&params).await?;
+        return Ok(replica_sets.items.into_iter().map(|item| (item.metadata.name, item.spec)).collect());
+    }
+
 }

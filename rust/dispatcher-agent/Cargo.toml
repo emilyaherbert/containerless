@@ -17,3 +17,5 @@ http = "*"
 bytes = "*"
 futures-retry = "*"
 k8s = { path = "../k8s" }
+lazy_static = "*"
+regex = "*"

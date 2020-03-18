@@ -72,16 +72,15 @@ async fn update_latency(autoscaler: Arc<Autoscaler>) {
 }
 
 impl Autoscaler {
-    pub async fn new(
-        k8s: K8sClient,
-        client: HttpClient,
-        name: String,
+
+    fn internal_create(
         on_zero_replicas: oneshot::Sender<()>,
+        num_replicas: usize,
+        function_manager: Arc<FunctionManager>,
     ) -> Arc<Autoscaler> {
-        let function_manager = FunctionManager::new(k8s, client, name).await;
         let pending_requests = AtomicUsize::new(0);
-        // Initializing this to 1 is a little hack that prevents immediate shutdown
-        let max_pending_requests = AtomicUsize::new(1);
+        // Initializing max_pending_requests to num_replicas is a little hack that prevents immediate shutdown
+        let max_pending_requests = AtomicUsize::new(num_replicas);
         let is_shutdown = AtomicBool::new(false);
         let autoscaler = Arc::new(Autoscaler {
             pending_requests,
@@ -92,6 +91,27 @@ impl Autoscaler {
         });
         task::spawn(update_latency(autoscaler.clone()));
         return autoscaler;
+    }
+
+    pub fn adopt(
+        k8s: K8sClient,
+        client: HttpClient,
+        name: String,
+        num_replicas: usize,
+        on_zero_replicas: oneshot::Sender<()>,
+    ) -> Arc<Autoscaler> {
+        let fm = FunctionManager::adopt(k8s, client, name, num_replicas as i32);
+        return Self::internal_create(on_zero_replicas, num_replicas, fm);
+    }
+
+    pub async fn new(
+        k8s: K8sClient,
+        client: HttpClient,
+        name: String,
+        on_zero_replicas: oneshot::Sender<()>,
+    ) -> Arc<Autoscaler> {
+        let fm = FunctionManager::new(k8s, client, name).await;
+        return Self::internal_create(on_zero_replicas, 1, fm);
     }
 
     pub async fn invoke(
@@ -124,6 +144,6 @@ impl Autoscaler {
 
     pub async fn shutdown(&self) -> Result<(), kube::Error> {
         self.is_shutdown.store(true, Ordering::SeqCst);
-        return self.function_manager.shutdown().await;
+        return Ok(());
     }
 }

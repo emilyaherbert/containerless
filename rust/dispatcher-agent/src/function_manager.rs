@@ -67,18 +67,33 @@ impl PendingRequest {
 }
 
 impl FunctionManager {
-    // May fail if the function does not exist.
-    pub async fn new(k8s: K8sClient, client: HttpClient, name: String) -> Arc<FunctionManager> {
-        let num_replicas = AtomicI32::new(1);
-        let fm = Arc::new(FunctionManager {
+
+    fn internal_create(
+        k8s: K8sClient, 
+        client: HttpClient,
+        name: String,
+        num_replicas: i32,
+        state: State) -> Arc<FunctionManager> {
+        let num_replicas = AtomicI32::new(num_replicas);
+        let fm = FunctionManager {
             authority: Authority::from_str(&format!("function-{}:8081", &name)).unwrap(),
-            state: AtomicUsize::new(State::Loading as usize),
-            name: name.clone(),
+            state: AtomicUsize::new(state as usize),
+            name: name,
             k8s: k8s.clone(),
             http_client: client.clone(),
             pending_requests: Mutex::new(Vec::new()),
             num_replicas,
-        });
+        };
+        return Arc::new(fm);
+    }
+
+    pub fn adopt(k8s: K8sClient, client: HttpClient, name: String, num_replicas: i32) -> Arc<FunctionManager> {
+        return Self::internal_create(k8s, client, name, num_replicas, State::Containerized);
+    }
+
+    // May fail if the function does not exist.
+    pub async fn new(k8s: K8sClient, client: HttpClient, name: String) -> Arc<FunctionManager> {
+        let fm = Self::internal_create(k8s, client, name, 1, State::Loading);
         task::spawn(FunctionManager::load(fm.clone()));
         return fm;
     }
@@ -252,16 +267,6 @@ impl FunctionManager {
                 return self.http_client.request(req).await;
             }
         }
-    }
-
-    pub async fn shutdown(&self) -> Result<(), kube::Error> {
-        self.k8s
-            .delete_service(&format!("function-{}", &self.name))
-            .await?;
-        self.k8s
-            .delete_replica_set(&format!("function-{}", &self.name))
-            .await?;
-        return Ok(());
     }
 
     pub fn num_replicas(&self) -> i32 {

@@ -4,9 +4,39 @@ kind: Namespace
 metadata:
     name: containerless
 ---
-# This ReplicaSet runs the dispatcher.
+# This ReplicaSet runs the controller. Note that the number of replicates
+# must be exactly 1. The controller-agent is not designed to be
+# replicated.
 apiVersion: apps/v1
 kind: ReplicaSet
+metadata:
+  name: controller
+  namespace: containerless
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: controller
+  template:
+    metadata:
+      labels:
+        app: controller
+    spec:
+      containers:
+      - name: controller
+        image: localhost:32000/controller
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          periodSeconds: 5
+          httpGet:
+            path: /ready
+            port: 80
+---
+# This Deployment runs the dispatcher.
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: dispatcher
   namespace: containerless
@@ -26,6 +56,14 @@ spec:
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
+        env:
+          - name: Version
+            value: V1
+        readinessProbe:
+          periodSeconds: 5
+          httpGet:
+            path: /readinessProbe/
+            port: 8080
 ---
 apiVersion: v1
 kind: Service
@@ -46,20 +84,20 @@ spec:
 apiVersion: apps/v1
 kind: ReplicaSet
 metadata:
-  name: function-storage
+  name: storage
   namespace: containerless
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: function-storage
+      app: storage
   template:
     metadata:
       labels:
-        app: function-storage
+        app: storage
     spec:
       containers:
-      - name: function-storage
+      - name: storage
         image: localhost:32000/function-storage
         imagePullPolicy: Always
         ports:
@@ -75,12 +113,12 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: function-storage
+  name: storage
   namespace: containerless
 spec:
   type: NodePort
   selector:
-    app: function-storage
+    app: storage
   ports:
     - name: http
       port: 8080
@@ -98,9 +136,9 @@ spec:
   rules:
   - http:
       paths:
-        - path: /function-storage(/|$)(.*)
+        - path: /storage(/|$)(.*)
           backend:
-            serviceName: function-storage
+            serviceName: storage
             servicePort: http
         - path: /dispatcher(/|$)(.*)
           backend:

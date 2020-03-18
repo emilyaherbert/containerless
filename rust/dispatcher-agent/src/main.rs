@@ -19,6 +19,14 @@ async fn handle_req(state: Arc<FunctionTable>, req: Request) -> Result<Response,
     let mut split_path = path.splitn(3, '/');
     let _ = split_path.next(); // Drop the leading /
     match split_path.next() {
+        Some("readinessProbe") => {
+            return Ok(hyper::Response::builder()
+                .status(200)
+                .body(hyper::Body::from(
+                    "To invoke: http://HOSTNAME/dispatcher/FUNCTION-NAME\n",
+                ))
+                .unwrap());
+        },
         Some(function_name) => {
             let function_path = split_path.next().unwrap_or("");
             let fm = FunctionTable::get_function(&state, function_name).await;
@@ -38,7 +46,12 @@ async fn handle_req(state: Arc<FunctionTable>, req: Request) -> Result<Response,
 
 #[tokio::main]
 async fn main() {
+    eprintln!("Starting dispatcher");
     let state = FunctionTable::new().await;
+    if let Err(err) = FunctionTable::adopt_running_functions(&state).await {
+        eprintln!("Error adopting functions: {}", err);
+        return;
+    }
 
     let make_svc = {
         let state = state.clone();

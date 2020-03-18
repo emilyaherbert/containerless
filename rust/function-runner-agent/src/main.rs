@@ -44,7 +44,7 @@ async fn monitor_nodejs_process(handle: process::Child) -> () {
 
 async fn initialize(function_name: String, tracing_enabled: bool) -> Result<(), error::Error> {
     let resp = reqwest::get(&format!(
-        "http://function-storage:8080/get/{}",
+        "http://storage:8080/get/{}",
         &function_name
     ))
     .await?;

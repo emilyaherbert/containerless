@@ -5,6 +5,8 @@ use futures::channel::oneshot;
 use futures::lock::Mutex;
 use std::collections::HashMap;
 use std::sync::{Arc, Weak};
+use regex::Regex;
+use lazy_static::lazy_static;
 
 struct FunctionTableImpl {
     functions: HashMap<String, Arc<Autoscaler>>,
@@ -33,6 +35,41 @@ impl FunctionTable {
         return Arc::new(FunctionTable {
             inner: Mutex::new(inner),
         });
+    }
+
+    pub async fn adopt_running_functions(self_: &Arc<FunctionTable>) -> Result<(), kube::Error> {
+        lazy_static! {
+            static ref RE: Regex = Regex::new("^function-(.*)$").unwrap();
+        }
+        let mut inner = self_.inner.lock().await;
+        let replica_sets = inner.k8s_client.list_replica_sets().await?;
+        for (name, spec) in replica_sets.into_iter() {
+            eprintln!("Found ReplicaSet {}", &name);
+            match RE.captures(&name) {
+                None => (),
+                Some(captures) => {
+                    let (send, recv) = oneshot::channel::<()>();
+                    tokio::task::spawn(FunctionTable::cleanup_task(
+                        Arc::downgrade(self_),
+                        recv,
+                        name.to_string(),
+                    ));
+                    let function_name = captures.get(1).unwrap().as_str();
+                    let num_replicas = spec.replicas.unwrap() as usize;
+                    eprintln!("Adopting {}", function_name);
+                    let autoscaler = Autoscaler::adopt(
+                        inner.k8s_client.clone(),
+                        inner.http_client.clone(),
+                        function_name.to_string(),
+                        num_replicas,
+                        send
+                    );
+                    inner.functions.insert(function_name.to_string(), autoscaler);
+                }
+            }
+        }
+
+        return Ok(());
     }
 
     pub async fn shutdown(&self) -> () {

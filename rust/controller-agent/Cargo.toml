@@ -1,0 +1,19 @@
+[package]
+name = "controller-agent"
+version = "0.1.0"
+authors = ["Arjun Guha <arjun@cs.umass.edu>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+warp = "*"
+hyper = "*"
+k8s = { path = "../k8s" }
+tokio = { version = "*", features = ["macros", "sync", "signal"] }
+log = "*"
+env_logger = "*"
+kube = "*"
+futures = "*"
+regex = "*"
+lazy_static = "*"
