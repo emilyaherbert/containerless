@@ -78,6 +78,5 @@ async fn main() {
         .await
         .expect("starting server");
 
-    state.shutdown().await;
-    return;
+    std::process::exit(0);
 }

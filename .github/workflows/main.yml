@@ -32,21 +32,21 @@ jobs:
     - name: Build Dispatcher Agent
       run: cargo build
       working-directory: ./rust/dispatcher-agent
+    - name: Build Controller Agent
+      run: cargo build
+      working-directory: ./rust/controller-agent
+    - name: Build Dispatcher Launcher Agent
+      run: cargo build
+      working-directory: ./rust/dispatcher-launcher-agent
     - name: Test javascript/containerless/
       run: yarn run test
       working-directory: ./javascript/containerless
     - name: Test rust/compiler/
       run: cargo test
       working-directory: ./rust/compiler
-    - name: Build Function Runner Container
+    - name: Build Containers
       run: make
-      working-directory: ./docker/function-runner
-    - name: Build Function Storage Container
-      run: make
-      working-directory: ./docker/function-storage
-    - name: Build Dispatcher Container
-      run: make
-      working-directory: ./docker/dispatcher
+      working-directory: ./docker
     - name: Deploy Containerless to microk8s
       run: ./deploy-to-microk8s.sh
       working-directory: ./docker

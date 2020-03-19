@@ -72,15 +72,6 @@ impl FunctionTable {
         return Ok(());
     }
 
-    pub async fn shutdown(&self) -> () {
-        let mut inner = self.inner.lock().await;
-        for (name, fm) in inner.functions.drain() {
-            if let Err(err) = fm.shutdown().await {
-                println!("Error shutting down {}: {}", name, err);
-            }
-        }
-    }
-
     pub async fn shutdown_function(&self, name: &str) {
         let mut inner = self.inner.lock().await;
         match inner.functions.remove(name) {

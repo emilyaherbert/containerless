@@ -34,6 +34,18 @@ spec:
             path: /ready
             port: 80
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: controller
+  namespace: containerless
+spec:
+  selector:
+    app: controller
+  ports:
+    - name: http
+      port: 80
+---
 # This Deployment runs the dispatcher.
 apiVersion: apps/v1
 kind: Deployment
@@ -57,6 +69,8 @@ spec:
         ports:
         - containerPort: 8080
         env:
+          - name: RUST_LOG
+            value: error,dispatcher=info,dispatcher-launcher=info
           - name: Version
             value: V1
         readinessProbe:

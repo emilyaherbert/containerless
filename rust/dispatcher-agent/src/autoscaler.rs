@@ -144,6 +144,6 @@ impl Autoscaler {
 
     pub async fn shutdown(&self) -> Result<(), kube::Error> {
         self.is_shutdown.store(true, Ordering::SeqCst);
-        return Ok(());
+        return self.function_manager.shutdown().await;
     }
 }

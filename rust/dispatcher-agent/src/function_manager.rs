@@ -269,6 +269,16 @@ impl FunctionManager {
         }
     }
 
+    pub async fn shutdown(&self) -> Result<(), kube::Error> {
+        self.k8s
+            .delete_service(&format!("function-{}", &self.name))
+            .await?;
+        self.k8s
+            .delete_replica_set(&format!("function-{}", &self.name))
+            .await?;
+        return Ok(());
+    }
+    
     pub fn num_replicas(&self) -> i32 {
         return self.num_replicas.load(Ordering::SeqCst);
     }
