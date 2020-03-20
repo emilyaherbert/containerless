@@ -30,7 +30,6 @@ class Trace implements TracingInterface {
     private trace: BlockExp;
     private cursorStack: Cursor[];
     private cursor: Cursor | undefined;
-    private traceStack: Exp[];
     private argsBuf: Exp | undefined;
 
     constructor(body: Exp[]) {
@@ -38,7 +37,6 @@ class Trace implements TracingInterface {
         this.trace = exp;
         this.cursor = { body: exp.body, index: 0 };
         this.cursorStack = [];
-        this.traceStack = [];
         this.argsBuf = undefined;
     }
 
