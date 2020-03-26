@@ -4,7 +4,7 @@ kind: Namespace
 metadata:
     name: containerless
 ---
-# This ReplicaSet runs the controller. Note that the number of replicates
+# This ReplicaSet runs the controller. Note that the number of replicas
 # must be exactly 1. The controller-agent is not designed to be
 # replicated.
 apiVersion: apps/v1
@@ -26,6 +26,9 @@ spec:
       - name: controller
         image: localhost:32000/controller
         imagePullPolicy: Always
+        env:
+          - name: RUST_LOG
+            value: error,controller=debug
         ports:
         - containerPort: 80
         readinessProbe:

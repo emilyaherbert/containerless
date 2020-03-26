@@ -1,21 +1,21 @@
-use crate::decontainerizer::Decontainerizer;
-use k8s;
+use super::function_manager;
+use super::function_manager::FunctionManager;
 use crate::types::*;
-use futures::channel::oneshot;
 use futures::lock::Mutex;
-use std::collections::HashMap;
-use std::sync::{Arc, Weak};
-use regex::Regex;
+use k8s;
 use lazy_static::lazy_static;
+use regex::Regex;
+use std::collections::HashMap;
 
 struct FunctionTableImpl {
-    functions: HashMap<String, Arc<Decontainerizer>>,
+    functions: HashMap<String, FunctionManager>,
     http_client: HttpClient,
     k8s_client: K8sClient,
 }
 
 pub struct FunctionTable {
     inner: Mutex<FunctionTableImpl>,
+    decontainerized_functions: HashMap<&'static str, Containerless>,
 }
 
 impl FunctionTable {
@@ -32,39 +32,41 @@ impl FunctionTable {
             http_client,
             k8s_client,
         };
+        let decontainerized_functions = super::decontainerized_functions::init();
         return Arc::new(FunctionTable {
             inner: Mutex::new(inner),
+            decontainerized_functions,
         });
     }
 
     pub async fn adopt_running_functions(self_: &Arc<FunctionTable>) -> Result<(), kube::Error> {
         lazy_static! {
-            static ref RE: Regex = Regex::new("^function-(.*)$").unwrap();
+            static ref RE: Regex = Regex::new("^function-vanilla-(.*)$").unwrap();
         }
         let mut inner = self_.inner.lock().await;
         let replica_sets = inner.k8s_client.list_replica_sets().await?;
-        for (name, spec) in replica_sets.into_iter() {
-            eprintln!("Found ReplicaSet {}", &name);
-            match RE.captures(&name) {
-                None => (),
+        for (rs_name, spec) in replica_sets.into_iter() {
+            match RE.captures(&rs_name) {
+                None => {
+                    debug!(target: "dispatcher", "Ignoring ReplicaSet {}", &rs_name);
+                }
                 Some(captures) => {
-                    let (send, recv) = oneshot::channel::<()>();
-                    tokio::task::spawn(FunctionTable::cleanup_task(
-                        Arc::downgrade(self_),
-                        recv,
-                        name.to_string(),
-                    ));
-                    let function_name = captures.get(1).unwrap().as_str();
-                    let num_replicas = spec.replicas.unwrap() as usize;
-                    eprintln!("Adopting {}", function_name);
-                    let autoscaler = Decontainerizer::adopt(
+                    debug!(target: "dispatcher", "Adopting ReplicaSet {}", &rs_name);
+                    let name = captures.get(1).unwrap().as_str();
+                    let num_replicas = spec.replicas.unwrap();
+                    let fm = FunctionManager::new(
                         inner.k8s_client.clone(),
                         inner.http_client.clone(),
-                        function_name.to_string(),
-                        num_replicas,
-                        send
-                    ).await;
-                    inner.functions.insert(function_name.to_string(), autoscaler);
+                        Arc::downgrade(self_),
+                        name.to_string(),
+                        function_manager::CreateMode::Adopt { num_replicas },
+                        self_
+                            .decontainerized_functions
+                            .get(name)
+                            .map(|ptrptr| *ptrptr),
+                    )
+                    .await;
+                    inner.functions.insert(name.to_string(), fm.clone());
                 }
             }
         }
@@ -72,42 +74,38 @@ impl FunctionTable {
         return Ok(());
     }
 
-    pub async fn shutdown_function(&self, name: &str) {
-        let mut inner = self.inner.lock().await;
+    pub async fn shutdown(self_: Arc<FunctionTable>, name: &str) {
+        let mut inner = self_.inner.lock().await;
         match inner.functions.remove(name) {
             None => eprintln!("{} not in hash table", name),
-            Some(fm) => {
-                if let Err(err) = fm.shutdown().await {
-                    eprintln!("error shutting down {}", err);
-                }
+            Some(mut fm) => {
+                fm.shutdown().await;
             }
         }
     }
 
-    async fn cleanup_task(self_: Weak<FunctionTable>, recv: oneshot::Receiver<()>, name: String) {
-        if let Err(_cancelled) = recv.await {
-            eprintln!("Cancelled");
-        }
-        if let Some(table) = self_.upgrade() {
-            table.shutdown_function(&name).await;
+    pub async fn orphan(self_: Arc<FunctionTable>) {
+        let mut inner = self_.inner.lock().await;
+        // Unnecessary sequential awaits
+        for (_name, function_manager) in inner.functions.drain() {
+            function_manager.orphan().await;
         }
     }
 
-    pub async fn get_function(self_: &Arc<FunctionTable>, name: &str) -> Arc<Decontainerizer> {
+    pub async fn get_function(self_: &Arc<FunctionTable>, name: &str) -> FunctionManager {
         let mut inner = self_.inner.lock().await;
         match inner.functions.get(name) {
             None => {
-                let (send, recv) = oneshot::channel::<()>();
-                tokio::task::spawn(FunctionTable::cleanup_task(
-                    Arc::downgrade(self_),
-                    recv,
-                    name.to_string(),
-                ));
-                let fm = Decontainerizer::new_tracing(
-                    name.to_string(),
+                let fm = FunctionManager::new(
                     inner.k8s_client.clone(),
                     inner.http_client.clone(),
-                    send,
+                    Arc::downgrade(self_),
+                    name.to_string(),
+                    function_manager::CreateMode::New,
+                    self_
+                        .decontainerized_functions
+                        .get(name)
+                        .map(|ptrptr| *ptrptr),
                 )
                 .await;
                 inner.functions.insert(name.to_string(), fm.clone());

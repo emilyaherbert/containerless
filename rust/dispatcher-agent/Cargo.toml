@@ -21,3 +21,4 @@ lazy_static = "*"
 regex = "*"
 log = "*"
 env_logger = "*"
+bumpalo = { version = "*", features = ["collections"] }

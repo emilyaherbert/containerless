@@ -1,4 +1,4 @@
-use k8s_openapi::api::apps::v1::{ReplicaSet, ReplicaSetSpec, ReplicaSetStatus};
+use k8s_openapi::api::apps::v1::{ReplicaSet, ReplicaSetSpec, ReplicaSetStatus, Deployment, DeploymentSpec, DeploymentStatus};
 use k8s_openapi::api::core::v1::{Pod, PodSpec, PodStatus, Service, ServiceSpec, ServiceStatus};
 use kube;
 use kube::api::{Api, DeleteParams, ListParams, Object, PatchParams, PostParams};
@@ -8,6 +8,7 @@ pub struct Client {
     pods: Api<Object<PodSpec, PodStatus>>,
     services: Api<Object<ServiceSpec, ServiceStatus>>,
     replica_set: Api<Object<ReplicaSetSpec, ReplicaSetStatus>>,
+    deployment: Api<Object<DeploymentSpec, DeploymentStatus>>,
 }
 
 impl Client {
@@ -19,10 +20,12 @@ impl Client {
         let pods = kube::api::Api::v1Pod(client.clone()).within(namespace);
         let services = kube::api::Api::v1Service(client.clone()).within(namespace);
         let replica_set = kube::api::Api::v1ReplicaSet(client.clone()).within(namespace);
+        let deployment = kube::api::Api::v1Deployment(client.clone()).within(namespace);
         return Ok(Client {
             pods,
             services,
             replica_set,
+            deployment,
         });
     }
 
@@ -52,6 +55,23 @@ impl Client {
             .await?;
         return Ok(());
     }
+
+    pub async fn patch_service(&self, service: Service) -> Result<(), kube::Error> {
+        let name = service
+            .metadata
+            .as_ref()
+            .expect("metadata omitted")
+            .name
+            .as_ref()
+            .expect("metadata.name omitted");
+        let params = PatchParams::default();
+        let _ = self
+            .services
+            .patch(name, &params, serde_json::to_vec(&service)?)
+            .await?;
+        return Ok(());
+    }
+
 
     pub async fn new_replica_set(&self, replica_set: ReplicaSet) -> Result<(), kube::Error> {
         let params = PostParams::default();
@@ -114,6 +134,22 @@ impl Client {
     pub async fn delete_pod(&self, name: &str) -> Result<(), kube::Error> {
         let params = DeleteParams::default();
         let _ = self.pods.delete(name, &params).await;
+        return Ok(());
+    }
+
+    pub async fn patch_deployment(&self, deployment: Deployment) -> Result<(), kube::Error> {
+        let name = deployment
+            .metadata
+            .as_ref()
+            .expect("metadata omitted")
+            .name
+            .as_ref()
+            .expect("metadata.name omitted");
+        let params = PatchParams::default();
+        let _ = self
+            .deployment
+            .patch(name, &params, serde_json::to_vec(&deployment)?)
+            .await?;
         return Ok(());
     }
 }

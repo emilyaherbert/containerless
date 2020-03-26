@@ -1,4 +1,4 @@
-use k8s_openapi::api::apps::v1::{ReplicaSet, ReplicaSetSpec};
+use k8s_openapi::api::apps::v1::{ReplicaSet, ReplicaSetSpec, Deployment, DeploymentSpec};
 use k8s_openapi::api::core::v1::{
     Container, ContainerPort, EnvVar, HTTPGetAction, Pod, PodSpec, PodTemplateSpec, Probe, Service,
     ServicePort, ServiceSpec,
@@ -52,6 +52,14 @@ pub struct PodBuilder {
     pod: Pod,
 }
 
+pub struct DeploymentBuilder {
+    deployment: Deployment,
+}
+
+pub struct DeploymentSpecBuilder {
+    deployment_spec: DeploymentSpec,
+}
+
 impl ObjectMetaBuilder {
     pub fn new() -> Self {
         return ObjectMetaBuilder {
@@ -68,6 +76,14 @@ impl ObjectMetaBuilder {
         S: Into<String>,
     {
         self.meta.name = Some(name.into());
+        return self;
+    }
+
+    pub fn namespace<S>(mut self, namespace: S) -> Self
+    where
+        S: Into<String>,
+    {
+        self.meta.namespace = Some(namespace.into());
         return self;
     }
 
@@ -356,7 +372,7 @@ impl ContainerBuilder {
         return self;
     }
 
-    pub fn http_readiness_probe<S>(mut self, path: S, port: i32) -> Self
+    pub fn http_readiness_probe<S>(mut self, period_seconds: i32, path: S, port: i32) -> Self
     where
         S: Into<String>,
     {
@@ -367,6 +383,7 @@ impl ContainerBuilder {
         let mut http_get_action = HTTPGetAction::default();
         http_get_action.path = Some(path.into());
         http_get_action.port = IntOrString::Int(port);
+        readiness_probe.period_seconds = Some(period_seconds);
         readiness_probe.http_get = Some(http_get_action);
         return self;
     }
@@ -389,6 +406,61 @@ impl PodBuilder {
 
     pub fn spec(mut self, spec: PodSpec) -> Self {
         self.pod.spec = Some(spec);
+        return self;
+    }
+}
+
+impl DeploymentBuilder {
+    pub fn new() -> Self {
+        let deployment = Deployment::default();
+        return DeploymentBuilder { deployment };
+    }
+
+    pub fn build(self) -> Deployment {
+        return self.deployment;
+    }
+
+    pub fn metadata(mut self, meta: ObjectMeta) -> Self {
+        self.deployment.metadata = Some(meta);
+        return self;
+    }
+
+    pub fn spec(mut self, spec: DeploymentSpec) -> Self {
+        self.deployment.spec = Some(spec);
+        return self;
+    }
+}
+
+impl DeploymentSpecBuilder {
+    pub fn new() -> Self {
+        let deployment_spec = DeploymentSpec::default();
+        return DeploymentSpecBuilder { deployment_spec };
+    }
+
+    pub fn build(self) -> DeploymentSpec {
+        return self.deployment_spec;
+    }
+
+    pub fn replicas(mut self, replicas: i32) -> Self {
+        self.deployment_spec.replicas = Some(replicas);
+        return self;
+    }
+
+    pub fn selector<S1, S2>(mut self, key: S1, value: S2) -> Self
+    where
+        S1: Into<String>,
+        S2: Into<String>,
+    {
+        if let None = self.deployment_spec.selector.match_labels {
+            self.deployment_spec.selector.match_labels = Some(BTreeMap::new());
+        }
+        let selector = self.deployment_spec.selector.match_labels.as_mut().unwrap();
+        selector.insert(key.into(), value.into());
+        return self;
+    }
+
+    pub fn template(mut self, template: PodTemplateSpec) -> Self {
+        self.deployment_spec.template = template;
         return self;
     }
 }

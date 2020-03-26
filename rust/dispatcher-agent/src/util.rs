@@ -1,8 +1,21 @@
+use super::error::*;
 use crate::types::*;
 use futures::future::FutureExt;
+use futures::prelude::*;
 use futures_retry::{FutureRetry, RetryPolicy};
 use http::uri::Uri;
 use std::time::Duration;
+
+pub async fn maybe_run<E, F>(flag: bool, f: F) -> Result<(), E>
+where
+    F: Future<Output = Result<(), E>>,
+{
+    if flag {
+        return f.await;
+    } else {
+        return Ok(());
+    }
+}
 
 pub async fn retry_get(
     client: &HttpClient,
@@ -29,7 +42,7 @@ pub async fn retry_get(
                 Err(err) => {
                     eprintln!("Request error: {}", err);
                     Err(())
-                },
+                }
             })
         },
         move |err| {
@@ -43,4 +56,32 @@ pub async fn retry_get(
     )
     .await?;
     return Ok(());
+}
+
+pub async fn wait_for_service(
+    http_client: &HttpClient,
+    authority: uri::Authority,
+) -> Result<(), Error> {
+    let uri = http::Uri::builder()
+        .scheme("http")
+        .authority(authority)
+        .path_and_query("/readinessProbe")
+        .build()
+        .unwrap();
+    if let Err(_err) = retry_get(http_client, 30, 1, uri).await {
+        return Err(Error::Timeout);
+    }
+    return Ok(());
+}
+
+pub async fn log_error<F, E, S>(future: F, message: S)
+where
+    F: Future<Output = Result<(), E>>,
+    E: std::error::Error,
+    S: Into<String>,
+{
+    let message = message.into();
+    if let Err(err) = future.await {
+        debug!(target: "dispatcher", "{}, error is {:?}", message, err);
+    }
 }

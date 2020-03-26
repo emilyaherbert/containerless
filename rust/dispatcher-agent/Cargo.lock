@@ -211,6 +211,7 @@ dependencies = [
 name = "dispatcher-agent"
 version = "0.1.0"
 dependencies = [
+ "bumpalo",
  "bytes",
  "env_logger",
  "futures",

@@ -1,12 +1,10 @@
-use futures::future;
+use crate::common::*;
 use k8s;
 use kube;
 use lazy_static::lazy_static;
-use log::{info};
 use regex::Regex;
 use tokio::signal::unix::{signal, SignalKind};
-
-static NAMESPACE: &'static str = "containerless";
+use super::compiler::CompilerHandle;
 
 fn is_function(name: &String) -> bool {
     lazy_static! {
@@ -16,12 +14,12 @@ fn is_function(name: &String) -> bool {
 }
 
 async fn delete_service(k8s: &k8s::Client, name: String) -> Result<(), kube::Error> {
-    info!("Deleting service/{}", &name);
+    info!(target: "controller", "Deleting service/{}", &name);
     return k8s.delete_service(name.as_str()).await;
 }
 
 async fn delete_replica_set(k8s: &k8s::Client, name: String) -> Result<(), kube::Error> {
-    info!("Deleting replicaset/{}", &name);
+    info!(target: "controller", "Deleting replicaset/{}", &name);
     return k8s.delete_replica_set(name.as_str()).await;
 }
 
@@ -47,17 +45,13 @@ async fn delete_replica_sets(k8s: &k8s::Client) -> Result<(), kube::Error> {
     return Ok(());
 }
 
-pub async fn handle_sigterm() -> Result<(), kube::Error> {
-    info!("Received SIGTERM");
+pub async fn handle_sigterm(mut compiler: CompilerHandle) -> Result<(), kube::Error> {
     let mut sigterm = signal(SignalKind::terminate()).expect("registering SIGTERM handler");
     sigterm.recv().await;
+    info!("Received SIGTERM");
 
+    compiler.shutdown().await;
     let k8s = k8s::Client::new(NAMESPACE).await?;
-
-    future::try_join(
-        delete_replica_sets(&k8s),
-        delete_services(&k8s),
-    )
-    .await?;
+    future::try_join(delete_replica_sets(&k8s), delete_services(&k8s)).await?;
     return Ok(());
 }

@@ -10,12 +10,9 @@
 //! is two seconds, and the function processes five connections in one second,
 //! and another five in the next second, the number of replicas will be 10, instead
 //! of five.
-use crate::function_manager::FunctionManager;
+use super::function_table::FunctionTable;
 use crate::types::*;
 use crate::windowed_max::WindowedMax;
-use futures::channel::oneshot;
-use futures::lock::Mutex;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::task;
@@ -24,126 +21,113 @@ use tokio::time::delay_for;
 // TODO(arjun): should be an environment variable
 const MAX_REPLICAS: usize = 4;
 // This could be a parameter.
-const NUM_INTERVALS: usize = 12;
+const NUM_INTERVALS: usize = 3;
 // This could be a parameter.
 const INTERVAL_TIMESPAN_SECONDS: u64 = 5;
 
 pub struct Autoscaler {
     pending_requests: AtomicUsize,
     max_pending_requests: AtomicUsize,
-    is_shutdown: AtomicBool,
-    function_manager: Arc<FunctionManager>,
-    on_zero_replicas: Mutex<Option<oneshot::Sender<()>>>,
-}
-
-async fn update_latency(autoscaler: Arc<Autoscaler>) {
-    let mut max_pending_requests_vec = WindowedMax::new(NUM_INTERVALS);
-
-    delay_for(Duration::from_secs(INTERVAL_TIMESPAN_SECONDS)).await;
-    let fm = &autoscaler.function_manager;
-
-    loop {
-        let current_max_pending = autoscaler.max_pending_requests.swap(0, Ordering::SeqCst);
-        max_pending_requests_vec.add(current_max_pending);
-        // Calculated number of replicas, bounded above by MAX_REPLICAS
-        // above (inclusively).
-        let num_replicas = MAX_REPLICAS.min(max_pending_requests_vec.max());
-        if num_replicas == 0 {
-            let mut stored = autoscaler.on_zero_replicas.lock().await;
-            let mut on_zero = None;
-            std::mem::swap(&mut *stored, &mut on_zero);
-            if let Some(sender) = on_zero {
-                let _result = sender.send(());
-            }
-            return;
-        }
-
-        if num_replicas != fm.num_replicas() as usize {
-            eprintln!("set_replicas({})", num_replicas);
-            if let Err(err) = fm.set_replicas(num_replicas as i32).await {
-                eprintln!("Error from set_replicas: {}", err);
-            }
-        }
-        if autoscaler.is_shutdown.load(Ordering::SeqCst) {
-            return;
-        }
-        delay_for(Duration::from_secs(INTERVAL_TIMESPAN_SECONDS)).await;
-    }
+    k8s_client: K8sClient,
+    replica_set: String,
+    name: String,
+    terminated: AtomicBool,
 }
 
 impl Autoscaler {
+    async fn set_replicas(&self, n: i32) -> Result<(), kube::Error> {
+        use k8s::builder::*;
+        let rs = ReplicaSetBuilder::new()
+            .metadata(ObjectMetaBuilder::new().name(&self.replica_set).build())
+            .spec(ReplicaSetSpecBuilder::new().replicas(n).build())
+            .build();
+        info!(target: "dispatcher", "setting replicas = {} for rs/{}", n, &self.replica_set);
+        return self.k8s_client.patch_replica_set(rs).await;
+    }
 
-    fn internal_create(
-        on_zero_replicas: oneshot::Sender<()>,
-        num_replicas: usize,
-        function_manager: Arc<FunctionManager>,
+    async fn update_latency(
+        autoscaler: Arc<Autoscaler>,
+        function_table: Weak<FunctionTable>,
+        init_num_replicas: i32,
+    ) {
+        let mut max_pending_requests_vec = WindowedMax::new(NUM_INTERVALS);
+
+        delay_for(Duration::from_secs(INTERVAL_TIMESPAN_SECONDS)).await;
+        let mut last_num_replicas = init_num_replicas;
+        loop {
+            if autoscaler.terminated.load(SeqCst) {
+                return;
+            }
+            let current_max_pending = autoscaler.max_pending_requests.swap(0, SeqCst);
+            max_pending_requests_vec.add(current_max_pending);
+            // Calculated number of replicas, bounded above by MAX_REPLICAS
+            // above (inclusively).
+            let num_replicas = MAX_REPLICAS.min(max_pending_requests_vec.max()) as i32;
+            if num_replicas == 0 {
+                let ft = function_table.upgrade().expect("FunctionTable is nil");
+                FunctionTable::shutdown(ft, &autoscaler.name).await;
+                return;
+            }
+
+            if num_replicas != last_num_replicas {
+                if let Err(err) = autoscaler.set_replicas(num_replicas).await {
+                    eprintln!("Error from set_replicas: {}", err);
+                }
+                last_num_replicas = num_replicas;
+            }
+            delay_for(Duration::from_secs(INTERVAL_TIMESPAN_SECONDS)).await;
+        }
+    }
+
+    pub fn new(
+        k8s_client: K8sClient,
+        replica_set: String,
+        function_table: Weak<FunctionTable>,
+        init_num_replicas: i32,
+        name: String,
     ) -> Arc<Autoscaler> {
+        let max_pending_requests = AtomicUsize::new(1);
         let pending_requests = AtomicUsize::new(0);
-        // Initializing max_pending_requests to num_replicas is a little hack that prevents immediate shutdown
-        let max_pending_requests = AtomicUsize::new(num_replicas);
-        let is_shutdown = AtomicBool::new(false);
-        let autoscaler = Arc::new(Autoscaler {
+        let terminated = AtomicBool::new(false);
+        let autoscaler = Autoscaler {
             pending_requests,
             max_pending_requests,
-            is_shutdown,
-            function_manager,
-            on_zero_replicas: Mutex::new(Some(on_zero_replicas)),
-        });
-        task::spawn(update_latency(autoscaler.clone()));
+            k8s_client,
+            replica_set,
+            name,
+            terminated,
+        };
+        let autoscaler = Arc::new(autoscaler);
+
+        task::spawn(Autoscaler::update_latency(
+            autoscaler.clone(),
+            function_table,
+            init_num_replicas,
+        ));
         return autoscaler;
     }
 
-    pub fn adopt(
-        k8s: K8sClient,
-        client: HttpClient,
-        name: String,
-        num_replicas: usize,
-        on_zero_replicas: oneshot::Sender<()>,
-    ) -> Arc<Autoscaler> {
-        let fm = FunctionManager::adopt(k8s, client, name, num_replicas as i32);
-        return Self::internal_create(on_zero_replicas, num_replicas, fm);
+    pub fn terminate(&self) {
+        self.terminated.store(true, SeqCst);
     }
 
-    pub async fn new(
-        k8s: K8sClient,
-        client: HttpClient,
-        name: String,
-        on_zero_replicas: oneshot::Sender<()>,
-    ) -> Arc<Autoscaler> {
-        let fm = FunctionManager::new(k8s, client, name).await;
-        return Self::internal_create(on_zero_replicas, 1, fm);
+    pub fn recv_req(&self) {
+        self.pending_requests.fetch_add(1, SeqCst);
     }
 
-    pub async fn invoke(
-        &self,
-        method: http::Method,
-        path_and_query: &str,
-        body: hyper::Body,
-    ) -> Result<Response, hyper::Error> {
-        self.pending_requests.fetch_add(1, Ordering::SeqCst);
-        let resp = self
-            .function_manager
-            .invoke(method, path_and_query, body)
-            .await;
-        let candidate_max_pending = self.pending_requests.fetch_sub(1, Ordering::SeqCst);
-        let mut stored_max_pending = self.max_pending_requests.load(Ordering::SeqCst);
+    pub fn recv_resp(&self) {
+        let candidate_max_pending = self.pending_requests.fetch_sub(1, SeqCst);
+        let mut stored_max_pending = self.max_pending_requests.load(SeqCst);
         while candidate_max_pending > stored_max_pending {
             let previous = self.max_pending_requests.compare_and_swap(
                 stored_max_pending,
                 candidate_max_pending,
-                Ordering::SeqCst,
+                SeqCst,
             );
             if previous == stored_max_pending {
-                return resp;
+                return;
             }
             stored_max_pending = previous;
         }
-
-        return resp;
-    }
-
-    pub async fn shutdown(&self) -> Result<(), kube::Error> {
-        self.is_shutdown.store(true, Ordering::SeqCst);
-        return self.function_manager.shutdown().await;
     }
 }
