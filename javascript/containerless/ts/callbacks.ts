@@ -214,9 +214,8 @@ export class Callbacks {
         }
         state.setListening();
 
-	this.app.get('/', (req, resp) => {
-	    console.error("Hello world!\n");
-            resp.send('Hello world!\n');
+        this.app.get('/readinessProbe', (req, resp) => {
+            resp.send('');
         });
 
         this.app.post('/', (req, resp) => {

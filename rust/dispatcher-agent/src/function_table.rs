@@ -1,4 +1,4 @@
-use crate::autoscaler::Autoscaler;
+use crate::decontainerizer::Decontainerizer;
 use k8s;
 use crate::types::*;
 use futures::channel::oneshot;
@@ -9,7 +9,7 @@ use regex::Regex;
 use lazy_static::lazy_static;
 
 struct FunctionTableImpl {
-    functions: HashMap<String, Arc<Autoscaler>>,
+    functions: HashMap<String, Arc<Decontainerizer>>,
     http_client: HttpClient,
     k8s_client: K8sClient,
 }
@@ -57,13 +57,13 @@ impl FunctionTable {
                     let function_name = captures.get(1).unwrap().as_str();
                     let num_replicas = spec.replicas.unwrap() as usize;
                     eprintln!("Adopting {}", function_name);
-                    let autoscaler = Autoscaler::adopt(
+                    let autoscaler = Decontainerizer::adopt(
                         inner.k8s_client.clone(),
                         inner.http_client.clone(),
                         function_name.to_string(),
                         num_replicas,
                         send
-                    );
+                    ).await;
                     inner.functions.insert(function_name.to_string(), autoscaler);
                 }
             }
@@ -93,7 +93,7 @@ impl FunctionTable {
         }
     }
 
-    pub async fn get_function(self_: &Arc<FunctionTable>, name: &str) -> Arc<Autoscaler> {
+    pub async fn get_function(self_: &Arc<FunctionTable>, name: &str) -> Arc<Decontainerizer> {
         let mut inner = self_.inner.lock().await;
         match inner.functions.get(name) {
             None => {
@@ -103,10 +103,10 @@ impl FunctionTable {
                     recv,
                     name.to_string(),
                 ));
-                let fm = Autoscaler::new(
+                let fm = Decontainerizer::new_tracing(
+                    name.to_string(),
                     inner.k8s_client.clone(),
                     inner.http_client.clone(),
-                    name.to_string(),
                     send,
                 )
                 .await;

@@ -19,3 +19,5 @@ futures-retry = "*"
 k8s = { path = "../k8s" }
 lazy_static = "*"
 regex = "*"
+log = "*"
+env_logger = "*"

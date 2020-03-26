@@ -33,6 +33,14 @@ spec:
           httpGet:
             path: /ready
             port: 80
+        volumeMounts:
+          - name: rust-src
+            mountPath: "/src"
+      volumes:
+        - name: rust-src
+          hostPath:
+            path: $RUST_SRC_PATH
+
 ---
 apiVersion: v1
 kind: Service
@@ -70,7 +78,7 @@ spec:
         - containerPort: 8080
         env:
           - name: RUST_LOG
-            value: error,dispatcher=info,dispatcher-launcher=info
+            value: error,dispatcher=debug,dispatcher-launcher=info
           - name: Version
             value: V1
         readinessProbe:

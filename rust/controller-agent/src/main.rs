@@ -31,7 +31,7 @@ async fn main() {
     let ready_route = warp::path!("ready").and(warp::get()).and_then(ready);
     let download_dispatcher_route = warp::path("download_dispatcher")
         .and(warp::get())
-        .and(warp::fs::file("/src/dispatcher-agent/target/debug/dispatcher-agent"));
+        .and(warp::fs::file("/dispatcher-agent/target/debug/dispatcher-agent"));
 
     let paths = ready_route.or(download_dispatcher_route);
 

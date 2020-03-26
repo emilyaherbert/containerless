@@ -1,6 +1,6 @@
 use k8s_openapi::api::apps::v1::{ReplicaSet, ReplicaSetSpec};
 use k8s_openapi::api::core::v1::{
-    Container, ContainerPort, EnvVar, HTTPGetAction, PodSpec, PodTemplateSpec, Probe, Service,
+    Container, ContainerPort, EnvVar, HTTPGetAction, Pod, PodSpec, PodTemplateSpec, Probe, Service,
     ServicePort, ServiceSpec,
 };
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{LabelSelector, ObjectMeta};
@@ -46,6 +46,10 @@ pub struct PodTemplateSpecBuilder {
 
 pub struct ContainerBuilder {
     container: Container,
+}
+
+pub struct PodBuilder {
+    pod: Pod,
 }
 
 impl ObjectMetaBuilder {
@@ -364,6 +368,27 @@ impl ContainerBuilder {
         http_get_action.path = Some(path.into());
         http_get_action.port = IntOrString::Int(port);
         readiness_probe.http_get = Some(http_get_action);
+        return self;
+    }
+}
+
+impl PodBuilder {
+    pub fn new() -> Self {
+        let pod = Pod::default();
+        return PodBuilder { pod };
+    }
+
+    pub fn build(self) -> Pod {
+        return self.pod;
+    }
+
+    pub fn metadata(mut self, meta: ObjectMeta) -> Self {
+        self.pod.metadata = Some(meta);
+        return self;
+    }
+
+    pub fn spec(mut self, spec: PodSpec) -> Self {
+        self.pod.spec = Some(spec);
         return self;
     }
 }

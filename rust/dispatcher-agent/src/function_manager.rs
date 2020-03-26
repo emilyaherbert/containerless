@@ -15,6 +15,7 @@ use std::sync::atomic::{AtomicI32, AtomicUsize, Ordering};
 use std::sync::Arc;
 use tokio::task;
 use k8s;
+use log::{debug};
 
 enum State {
     Loading = 0,
@@ -119,7 +120,7 @@ impl FunctionManager {
                             // A readiness probe ensures that we don't direct
                             // requests to an instance until it is ready. By
                             // default, wait ten seconds between each probe.
-                            .http_readiness_probe("/", 8081)
+                            .http_readiness_probe("/readinessProbe", 8081)
                             .env("FUNCTION_NAME", &name)
                             .env("FUNCTION_MODE", "vanilla")
                             .build(),
@@ -179,10 +180,10 @@ impl FunctionManager {
                 let service_ping_uri = http::Uri::builder()
                     .scheme("http")
                     .authority(self_.authority.clone())
-                    .path_and_query("/")
+                    .path_and_query("/readinessProbe")
                     .build()
                     .unwrap();
-                if let Err(_err) = util::retry_get(&self_.http_client, 5, 2, service_ping_uri).await
+                if let Err(_err) = util::retry_get(&self_.http_client, 30, 1, service_ping_uri).await
                 {
                     eprintln!("Error waiting for service");
                     self_.state.store(State::Error as usize, Ordering::SeqCst);
@@ -230,22 +231,26 @@ impl FunctionManager {
             State::Loading => {
                 let (send, recv) = oneshot::channel();
                 {
+                    debug!(target: "dispatcher", "function {} is in State::Loading. Enqueing request", &self.name);
                     let mut pending_requests = self.pending_requests.lock().await;
                     pending_requests.push(PendingRequest::new(send, method, path_and_query, body));
                 }
                 match recv.await {
                     Err(oneshot::Canceled) => {
+                        debug!(target: "dispatcher", "dispatcher shutdown before before request for {} could be made", &self.name);
                         return Ok(hyper::Response::builder()
                             .status(500)
                             .body(hyper::Body::from("dispatcher shutdown"))
                             .unwrap());
                     }
                     Ok(result) => {
+                        debug!(target: "dispatcher", "queued response received for {}", &self.name);
                         return result;
                     }
                 }
             }
             State::Error => {
+                debug!(target: "dispatcher", "{} is in an error state, response unavailable", &self.name);
                 let resp = hyper::Response::builder()
                     .status(500)
                     .body(hyper::Body::from("function in an error state"))
@@ -259,11 +264,13 @@ impl FunctionManager {
                     .path_and_query(path_and_query)
                     .build()
                     .expect("building URI");
+                    debug!(target: "dispatcher", "issuing HTTP request to {}", &uri);
                 let req = hyper::Request::builder()
                     .method(method)
                     .uri(uri)
                     .body(body)
                     .expect("building request");
+                
                 return self.http_client.request(req).await;
             }
         }
