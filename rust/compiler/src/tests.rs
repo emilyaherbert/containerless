@@ -975,3 +975,28 @@ pub fn benchmark_banking() {
         ]));
     assert_eq!(result, ["819"]);
 }
+
+#[test]
+#[serial]
+pub fn loops_and_stuff() {
+    let mut runner = TestRunner::new("trivial_fixed_response.js");
+    let result = runner.test(
+        r#"
+        let containerless = require("../../javascript/containerless");
+        containerless.listen(function(req) {
+            let arr = req.body.arr;
+            let count = 0;
+            for(let i=0; i<arr.length; i++) {
+                count = count+1;
+            }
+            containerless.respond(count);
+        });"#,
+        json!([
+            { "path": "/hello", "query": {}, "body": { "arr": [1,2,3] } }
+        ]),
+        json!([
+            { "path": "/hello", "query": {}, "body": { "arr": [1,2,3] } }
+        ]),
+    );
+    assert_eq!(result, vec!["3"]);
+}
