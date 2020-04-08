@@ -1,0 +1,166 @@
+{
+    "kind": "block",
+    "body": [
+      {
+        "kind": "let",
+        "name": "fun0",
+        "named": {
+          "kind": "clos",
+          "tenv": {}
+        }
+      },
+      {
+        "kind": "let",
+        "name": "app0",
+        "named": {
+          "kind": "block",
+          "body": [
+            {
+              "kind": "callback",
+              "event": "listen",
+              "eventArg": {
+                "kind": "number",
+                "value": 0
+              },
+              "callbackArgs": [
+                "clos",
+                "request"
+              ],
+              "clos": {
+                "kind": "identifier",
+                "name": "fun0"
+              },
+              "body": [
+                {
+                  "kind": "label",
+                  "name": "'ret",
+                  "body": [
+                    {
+                      "kind": "let",
+                      "name": "req",
+                      "named": {
+                        "kind": "identifier",
+                        "name": "request"
+                      }
+                    },
+                    {
+                      "kind": "let",
+                      "name": "arr00",
+                      "named": {
+                        "kind": "get",
+                        "exp": {
+                          "kind": "get",
+                          "exp": {
+                            "kind": "identifier",
+                            "name": "req"
+                          },
+                          "field": "body"
+                        },
+                        "field": "arr"
+                      }
+                    },
+                    {
+                      "kind": "let",
+                      "name": "i00",
+                      "named": {
+                        "kind": "number",
+                        "value": 0
+                      }
+                    },
+                    {
+                      "kind": "label",
+                      "name": "loop_break0",
+                      "body": [
+                        {
+                          "kind": "while",
+                          "cond": {
+                            "kind": "binop",
+                            "op": "<",
+                            "e1": {
+                              "kind": "identifier",
+                              "name": "i00"
+                            },
+                            "e2": {
+                              "kind": "get",
+                              "exp": {
+                                "kind": "identifier",
+                                "name": "arr00"
+                              },
+                              "field": "length"
+                            }
+                          },
+                          "body": [
+                            {
+                              "kind": "label",
+                              "name": "loop_continue0",
+                              "body": [
+                                {
+                                  "kind": "primApp",
+                                  "event": "console.log",
+                                  "eventArgs": [
+                                    {
+                                      "kind": "index",
+                                      "exp": {
+                                        "kind": "identifier",
+                                        "name": "arr00"
+                                      },
+                                      "index": {
+                                        "kind": "identifier",
+                                        "name": "i00"
+                                      }
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "kind": "set",
+                              "name": {
+                                "kind": "identifier",
+                                "name": "i00"
+                              },
+                              "named": {
+                                "kind": "binop",
+                                "op": "+",
+                                "e1": {
+                                  "kind": "identifier",
+                                  "name": "i00"
+                                },
+                                "e2": {
+                                  "kind": "number",
+                                  "value": 1
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "let",
+                      "name": "app2",
+                      "named": {
+                        "kind": "block",
+                        "body": [
+                          {
+                            "kind": "primApp",
+                            "event": "send",
+                            "eventArgs": [
+                              {
+                                "kind": "string",
+                                "value": "bye"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
