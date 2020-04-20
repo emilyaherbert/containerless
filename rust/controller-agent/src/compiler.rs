@@ -72,7 +72,6 @@ async fn update_dispatcher_deployment(k8s: &k8s::Client, version: usize) -> Resu
                                 .container(ContainerBuilder::new()
                                     .name("dispatcher")
                                     .image("localhost:32000/dispatcher")
-                                    .always_pull()
                                     .expose_port("http", 8080)
                                     .env("RUST_LOG", "error,dispatcher=debug,dispatcher-launcher=info")
                                     .env("Version", format!("V{}", version))
