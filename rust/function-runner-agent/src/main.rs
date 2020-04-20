@@ -62,6 +62,7 @@ async fn initialize(function_name: String, tracing_enabled: bool) -> Result<(), 
             .stderr(Stdio::inherit())
             .output()
             .await?;
+        eprintln!("{}", String::from_utf8_lossy(&output.stderr));
         if output.status.success() == false {
             println!("{}", String::from_utf8_lossy(&output.stdout));
             eprintln!("js-transform aborted with exit code {:?}", output.status);

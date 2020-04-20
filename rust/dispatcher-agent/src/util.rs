@@ -5,6 +5,7 @@ use futures::prelude::*;
 use futures_retry::{FutureRetry, RetryPolicy};
 use http::uri::Uri;
 use std::time::Duration;
+use tokio::time::delay_for;
 
 pub async fn maybe_run<E, F>(flag: bool, f: F) -> Result<(), E>
 where
@@ -86,4 +87,24 @@ where
     if let Err(err) = future.await {
         debug!(target: "dispatcher", "{}, error is {:?}", message, err);
     }
+}
+
+pub async fn wait_for_pod_running(
+    k8s_client: &K8sClient,
+    pod_name: &str,
+    timeout_secs: usize) -> Result<(), Error> {
+    use k8s::{PodPhase, PodCondition};
+    for _i in 0 .. timeout_secs {
+        let (phase, ready) = k8s_client.get_pod_phase_and_readiness(pod_name).await?;
+        match (phase, ready) {
+            (PodPhase::Failed, _) => return Err(Error::UnexpectedPodPhase(pod_name.to_string(), phase)),
+            (PodPhase::Succeeded, _) => return Err(Error::UnexpectedPodPhase(pod_name.to_string(), phase)),
+            (PodPhase::Pending, _) => (),
+            (PodPhase::Unknown, _) => (),
+            (PodPhase::Running, PodCondition::True) => return Ok(()),
+            (PodPhase::Running, _) => (),
+        }
+        delay_for(Duration::from_secs(1)).await;
+    }
+    return Err(Error::TimeoutReason(format!("timeout waiting for pod {} to enter Running phase", pod_name)));
 }

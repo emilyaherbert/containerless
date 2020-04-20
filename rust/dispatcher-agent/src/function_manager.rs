@@ -89,7 +89,7 @@ impl State {
 
     fn pod_spec(&self, mode: &str) -> k8s_openapi::api::core::v1::PodSpec {
         use k8s::builder::*;
-        return PodSpecBuilder::new()
+        let builder = PodSpecBuilder::new()
             .container(
                 ContainerBuilder::new()
                     .name("function")
@@ -103,8 +103,15 @@ impl State {
                     .env("FUNCTION_NAME", &self.name)
                     .env("FUNCTION_MODE", mode)
                     .build(),
-            )
-            .build();
+            );
+        if mode == "tracing" {
+            // A crash should be an error in Containerless, and not an error
+            // in user code. Restarting should be pointless.
+            return builder.restart_never().build();
+        }
+        else {
+            return builder.build();
+        }
     }
 
     async fn start_vanilla_pod_and_service(&self) -> Result<(), kube::Error> {
@@ -301,7 +308,9 @@ impl State {
         if create_mode == CreateMode::New && containerless.is_none() {
             self_.start_tracing_pod_and_service().await?;
             self_.start_vanilla_pod_and_service().await?;
-            util::wait_for_service(&self_.http_client, self_.tracing_authority.clone()).await?;
+            debug!(target: "dispatcher", "Waiting for pod {} to be available",  &self_.tracing_pod_name);
+            util::wait_for_pod_running(&self_.k8s_client, &self_.tracing_pod_name, 10).await?;
+            debug!(target: "dispatcher", "Waiting for service {} to be available",  &self_.vanilla_authority);
             util::wait_for_service(&self_.http_client, self_.vanilla_authority.clone()).await?;
         }
 
