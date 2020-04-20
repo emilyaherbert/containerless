@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "controller-agent",
+    "dispatcher-agent",
+    "dispatcher-launcher-agent",
+    "function-runner-agent",
+    "function-storage-agent",
+    "k8s"
+]

@@ -36,7 +36,7 @@ async fn main() {
         warp::path("download_dispatcher")
             .and(warp::get())
             .and(warp::fs::file(
-                "/src/dispatcher-agent/target/debug/dispatcher-agent",
+                "/src/target/debug/dispatcher-agent",
             ));
     let recv_trace_route = warp::path!("recv_trace" / String)
         .and(warp::body::bytes())

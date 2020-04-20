@@ -29,7 +29,7 @@ pub async fn retry_get(
             .body(hyper::Body::from(""))
             .unwrap()
     };
-    let _resp = FutureRetry::new(
+    let resp_result = FutureRetry::new(
         move || {
             client.request(mk_req()).map(|resp| match resp {
                 Ok(resp) => {
@@ -53,9 +53,11 @@ pub async fn retry_get(
             tries = tries - 1;
             return RetryPolicy::WaitRetry(Duration::from_secs(delay_secs));
         },
-    )
-    .await?;
-    return Ok(());
+    ).await;
+    return match resp_result {
+        Ok(_) => Ok(()),
+        Err(_) => Err(())
+    };
 }
 
 pub async fn wait_for_service(
