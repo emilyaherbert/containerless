@@ -5,6 +5,7 @@ use super::types::*;
 use super::util;
 use futures::prelude::*;
 use tokio::task;
+use hyper::header::HeaderValue;
 
 #[derive(Debug, PartialEq)]
 pub enum CreateMode {
@@ -208,6 +209,7 @@ impl State {
         authority: uri::Authority,
         serverless_request: ServerlessRequest,
         autoscaler: Arc<Autoscaler>,
+        containerless_mode_header: &'static str,
     ) {
         let uri = hyper::Uri::builder()
             .scheme("http")
@@ -224,7 +226,7 @@ impl State {
             .expect("constructing request");
         let resp_result = self.http_client.request(req).await;
         autoscaler.recv_resp(); // decrement counter even if error
-        let resp = match resp_result {
+        let mut resp = match resp_result {
             Err(err) => {
                 debug!(target: "dispatcher", "invoking {}", &err);
                 hyper::Response::builder()
@@ -234,6 +236,8 @@ impl State {
             }
             Ok(resp) => resp,
         };
+        resp.headers_mut().insert("X-Containless-Mode", HeaderValue::from_static(containerless_mode_header));
+
         if let Err(_err) = serverless_request.send.send(Ok(resp)) {
             debug!(target: "dispatcher", "failed to send response to client (receiver deallocated)");
         }
@@ -241,18 +245,18 @@ impl State {
 
     async fn invoke_tracing(self_: Arc<Self>, req: ServerlessRequest, autoscaler: Arc<Autoscaler>) {
         self_.tracing_pod_available.store(false, SeqCst);
-        Self::invoke_err(&self_, self_.tracing_authority.clone(), req, autoscaler).await;
+        Self::invoke_err(&self_, self_.tracing_authority.clone(), req, autoscaler, "tracing").await;
         self_.tracing_pod_available.store(true, SeqCst);
     }
 
     async fn invoke_vanilla(self_: Arc<Self>, req: ServerlessRequest, autoscaler: Arc<Autoscaler>) {
-        Self::invoke_err(&self_, self_.vanilla_authority.clone(), req, autoscaler).await;
+        Self::invoke_err(&self_, self_.vanilla_authority.clone(), req, autoscaler, "vanilla").await;
     }
 
     async fn invoke_decontainerized(self_: Arc<Self>, func: Containerless, req: ServerlessRequest) {
         // let data = req.payload.body.concat2();
         debug!(target: "dispatcher", "invoking decontainerized function {}", self_.name);
-        let response = match hyper::body::to_bytes(req.payload.body).await {
+        let mut resp = match hyper::body::to_bytes(req.payload.body).await {
             Err(err) => hyper::Response::builder()
                 .status(500)
                 .body(hyper::Body::from(
@@ -279,7 +283,8 @@ impl State {
                 }
             }
         };
-        if let Err(_err) = req.send.send(Ok(response)) {
+        resp.headers_mut().insert("X-Containless-Mode", HeaderValue::from_static("decontainerized"));
+        if let Err(_err) = req.send.send(Ok(resp)) {
             debug!(target: "dispatcher", "failed to send response to client (receiver deallocated)");
         }
 
