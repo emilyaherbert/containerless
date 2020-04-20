@@ -11,6 +11,8 @@
 //! NOTE: The API is woefully incomplete.
 pub mod builder;
 pub mod client;
+pub mod types;
 
 pub use builder::*;
 pub use client::Client;
+pub use types::*;

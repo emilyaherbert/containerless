@@ -299,6 +299,12 @@ impl PodSpecBuilder {
         self.pod_spec.containers.push(container);
         return self;
     }
+
+    pub fn restart_never(mut self) -> Self {
+        self.pod_spec.restart_policy = Some("Never".to_string());
+        return self;
+    }
+
 }
 
 impl ContainerBuilder {

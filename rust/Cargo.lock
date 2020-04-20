@@ -322,6 +322,7 @@ dependencies = [
  "log 0.4.8",
  "regex",
  "serde_json",
+ "thiserror",
  "tokio",
 ]
 
