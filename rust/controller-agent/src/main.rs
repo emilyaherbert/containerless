@@ -24,6 +24,13 @@ async fn recv_trace(
     return Ok(Response::builder().status(200).body(""));
 }
 
+async fn get_status_handler(
+    name: String,
+    mut compiler: compiler::CompilerHandle,
+) -> Result<impl warp::Reply, warp::Rejection> {
+    return Ok(compiler.get_status(name).await);
+}
+
 #[tokio::main]
 async fn main() {
     env_logger::init();
@@ -38,15 +45,24 @@ async fn main() {
             .and(warp::fs::file(
                 "/src/target/debug/dispatcher-agent",
             ));
-    let recv_trace_route = warp::path!("recv_trace" / String)
-        .and(warp::body::bytes())
-        .and(warp::post())
-        .and(warp::any().map(move || compiler.clone()))
-        .and_then(recv_trace);
+    let recv_trace_route = {
+        let compiler = compiler.clone();
+        warp::path!("recv_trace" / String)
+            .and(warp::body::bytes())
+            .and(warp::post())
+            .and(warp::any().map(move || compiler.clone()))
+            .and_then(recv_trace)
+    };
+    let get_status_route = warp::path!("get_status" / String)
+            .and(warp::get())
+            .and(warp::any().map(move || compiler.clone()))
+            .and_then(get_status_handler);
+    
 
     let paths = ready_route
         .or(download_dispatcher_route)
-        .or(recv_trace_route);
+        .or(recv_trace_route)
+        .or(get_status_route);
 
     let (_addr, server) = warp::serve(paths)
         .bind_with_graceful_shutdown(([0, 0, 0, 0], 80), suppress_and_log_err(handle_sigterm(compiler2)));

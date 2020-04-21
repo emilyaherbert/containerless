@@ -2,22 +2,46 @@
 //! run as a single threaded task.
 use crate::common::*;
 use super::trace_compiler;
-use duct::cmd;
 use futures::channel::mpsc;
 use k8s;
 use quote::__private::TokenStream;
 use quote::quote;
 use syn::Ident;
 use proc_macro2::Span;
-
+use std::fs;
+use futures::lock::Mutex;
+use tokio::task;
+use tokio::process::Command;
+use std::fmt;
 enum Message {
     Compile { name: String, code: Bytes },
     Shutdown,
 }
 
+#[derive(PartialEq)]
+enum CompileStatus {
+    Compiling,
+    Compiled,
+    Error
+}
+
+impl fmt::Display for CompileStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CompileStatus::Compiling => f.write_str("Compiling"),
+            CompileStatus::Compiled => f.write_str("Compiled"),
+            CompileStatus::Error => f.write_str("Error"),
+        }
+    }
+
+}
+
+type KnownFunctions = Arc<Mutex<HashMap<String, CompileStatus>>>;
+
 #[derive(Clone)]
 pub struct CompilerHandle {
     send_message: mpsc::Sender<Message>,
+    known_functions: KnownFunctions,
 }
 
 fn gen_function_table_entry(name: &str) -> TokenStream {
@@ -87,37 +111,64 @@ async fn update_dispatcher_deployment(k8s: &k8s::Client, version: usize) -> Resu
     return k8s.patch_deployment(deployment).await;
 }
 
-async fn compiler_task(mut recv_message: mpsc::Receiver<Message>) {
+fn generate_decontainerized_functions_mod(known_functions: &HashMap<String, CompileStatus>) {
+    let available_functions = known_functions.iter().filter(|(_, v)| **v != CompileStatus::Error).map(|(k, _)| k.clone()).collect::<Vec<_>>();
+
+    std::fs::write(
+        "/src/dispatcher-agent/src/decontainerized_functions/mod.rs", 
+        format!("{}", gen_function_table_file(&available_functions)))
+        .expect("cannot write function table file");
+}
+
+pub fn text_response(code: u16, text: impl Into<String>) -> hyper::Response<hyper::Body> {
+    return hyper::Response::builder().status(code).body(hyper::Body::from(text.into())).unwrap();
+}
+
+async fn compiler_task(
+    known_functions: KnownFunctions, 
+    mut recv_message: mpsc::Receiver<Message>) {
     let k8s = k8s::Client::new(NAMESPACE)
         .await
         .expect("creating k8s::Client");
     let mut next_version = 1;
-    let mut available_functions = Vec::new();
 
     while let Some(message) = recv_message.next().await {
         match message {
             Message::Compile { name, code } => {
                 info!(target: "controller", "compiler task received trace for {}", &name);
                 next_version = next_version + 1;
+                fs::write(
+                    format!("/src/dispatcher-agent/src/decontainerized_functions/function_{}.json", &name),
+                    &code)
+                    .expect("failed to create trace (JSON) file");
                 let trace_compile_err = trace_compiler::compile(
                     name.clone(), 
                     &format!("/src/dispatcher-agent/src/decontainerized_functions/function_{}.rs", &name),
                     &String::from_utf8_lossy(&code));
                 if let Err(err) = trace_compile_err {
+                    known_functions.lock().await.insert(name.clone(), CompileStatus::Error);
                     error!(target: "controller", "error compiling trace for {}: {}", &name, err);
                     continue;
                 }
 
-                available_functions.push(name);
+                {
+                    let mut tbl = known_functions.lock().await;
+                    tbl.insert(name.clone(), CompileStatus::Compiling);
+                    generate_decontainerized_functions_mod(&tbl);
+                }
 
-                std::fs::write(
-                    "/src/dispatcher-agent/src/decontainerized_functions/mod.rs", 
-                    format!("{}", gen_function_table_file(&available_functions)))
-                    .expect("cannot write function table file");
-
-                cmd!("cargo", "build").dir("/src/dispatcher-agent")
-                    .run()
-                    .expect("cargo build failed");
+                let cargo_fut = Command::new("cargo").arg("build").current_dir("/src/dispatcher-agent").spawn().expect("failed to start cargo");
+                if let Err(err) = cargo_fut.await {
+                    error!(target: "dispatcher", "cargo build failed for {} (exit code {})", &name, err);
+                    let mut tbl = known_functions.lock().await;
+                    tbl.insert(name.clone(), CompileStatus::Error);
+                    generate_decontainerized_functions_mod(&tbl);
+                    continue;
+                }
+                {
+                    let mut tbl = known_functions.lock().await;
+                    tbl.insert(name.clone(), CompileStatus::Compiled);
+                }
 
                 // TODO(arjun): If several traces are queued up, we should batch
                 // them together before updating the deployment.
@@ -137,8 +188,9 @@ async fn compiler_task(mut recv_message: mpsc::Receiver<Message>) {
 
 pub fn start_compiler_task() -> CompilerHandle {
     let (send, recv) = mpsc::channel(1);
-    task::spawn(compiler_task(recv));
-    return CompilerHandle { send_message: send };
+    let known_functions = Arc::new(Mutex::new(HashMap::new()));
+    task::spawn(compiler_task(known_functions.clone(), recv));
+    return CompilerHandle { send_message: send, known_functions };
 }
 
 impl CompilerHandle {
@@ -160,6 +212,15 @@ impl CompilerHandle {
     pub async fn shutdown(&mut self) {
         if let Err(_err) = self.send_message.send(Message::Shutdown).await {
             error!(target: "compiler", "could not send a shutdown message (compiler task is shutdown)");
+        }
+    }
+
+    pub async fn get_status(&mut self, name: String) -> hyper::Response<hyper::Body> {
+        println!("called get_status on controller");
+        let tbl = self.known_functions.lock().await;
+        match tbl.get(&name) {
+            None => text_response(200, "Unknown"),
+            Some(status) => text_response(200, format!("{}", status)),
         }
     }
 }

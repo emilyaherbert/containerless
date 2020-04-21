@@ -169,3 +169,7 @@ spec:
           backend:
             serviceName: dispatcher
             servicePort: http
+        - path: /controller(/|$)(.*)
+          backend:
+            serviceName: controller
+            servicePort: http
