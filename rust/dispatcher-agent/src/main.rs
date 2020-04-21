@@ -38,6 +38,11 @@ async fn dispatcher_handler(function_name: String, mut function_path: String, me
     };
 }
 
+async fn compile_handler(function_name: String, state: Arc<FunctionTable>) -> Result<impl warp::Reply, warp::Rejection>  {
+    let mut fm = FunctionTable::get_function(&state, &function_name).await;
+    return Ok(fm.extract_and_compile().await);
+}
+
 #[tokio::main]
 async fn main() {
     env_logger::init();
@@ -61,10 +66,16 @@ async fn main() {
     let dispatcher_route = warp::path!(String / String)
         .and(warp::method())
         .and(warp::filters::body::bytes())
-        .and(extract_state)
+        .and(extract_state.clone())
         .and_then(dispatcher_handler);
 
+    let extract_and_compile_route = warp::path!("compile" / String)
+        .and(warp::post())
+        .and(extract_state.clone())
+        .and_then(compile_handler);
+
     let paths = readiness_route
+        .or(extract_and_compile_route)
         .or(dispatcher_route);
 
     info!(target: "dispatcher", "started listening");

@@ -33,6 +33,7 @@ pub struct ServerlessRequest {
 
 enum Message {
     Request(ServerlessRequest),
+    ExtractAndCompile(oneshot::Sender<Response>),
     Shutdown,
     Orphan,
 }
@@ -367,6 +368,27 @@ impl State {
                     let self_ = Arc::clone(&self_);
                     task::spawn(Self::invoke_decontainerized(self_, func, req));
                 }
+                (_, Message::ExtractAndCompile(send)) => {
+                    if let Mode::Tracing(_) = mode {
+                        {
+                            let self_ = Arc::clone(&self_);
+                            task::spawn(util::log_error::<_, Error, _>(async move {
+                                Self::send_trace_then_stop_pod_and_service(Arc::clone(&self_)).await?;
+                                if let Err(_) = send.send(util::text_response(200, format!("extracted and sent trace"))) {
+                                    error!(target: "controller", "could not send response");
+                                }
+                                return Ok(());
+                            }, "extracting and sending trace"));
+                        }
+                        mode = Mode::Vanilla;
+                        debug!(target: "dispatcher", "switched to Vanilla mode for {}", &self_.name);
+                    }
+                    else {
+                        if let Err(_) = send.send(util::text_response(403, format!("function is not tracing"))) {
+                            error!(target: "controller", "could not send response");
+                        }
+                    }
+                }
                 (Mode::Tracing(5), Message::Request(req)) => {
                     task::spawn(Self::send_trace_then_stop_pod_and_service(Arc::clone(
                         &self_,
@@ -487,6 +509,19 @@ impl FunctionManager {
                     .status(500)
                     .body(hyper::Body::from("dispatcher shutdown"))
                     .unwrap());
+            }
+        }
+    }
+
+    pub async fn extract_and_compile(&mut self) -> Response {
+        let (send_resp, recv_resp) = oneshot::channel();
+        self.send_requests.send(Message::ExtractAndCompile(send_resp)).await.unwrap();
+        match recv_resp.await {
+            Ok(resp) => {
+                return resp;
+            },
+            Err(oneshot::Canceled) => {
+                return util::text_response(500, format!("dispatcher shutdown before trace could be extracted for {}", self.state.name));
             }
         }
     }
