@@ -113,3 +113,10 @@ pub async fn wait_for_pod_running(
 pub fn text_response(code: u16, text: impl Into<String>) -> hyper::Response<hyper::Body> {
     return hyper::Response::builder().status(code).body(hyper::Body::from(text.into())).unwrap();
 }
+
+pub fn send_log_error<T>(sender: futures::channel::oneshot::Sender<T>, value: T) where
+  T : std::fmt::Debug {
+    if let Err(value) = sender.send(value) {
+        error!(target: "dispatcher", "could not send {:?}", value);
+    }
+}

@@ -43,6 +43,11 @@ async fn compile_handler(function_name: String, state: Arc<FunctionTable>) -> Re
     return Ok(fm.extract_and_compile().await);
 }
 
+async fn get_mode_handler(function_name: String, state: Arc<FunctionTable>) -> Result<impl warp::Reply, warp::Rejection>  {
+    let mut fm = FunctionTable::get_function(&state, &function_name).await;
+    return Ok(fm.get_mode().await);
+}
+
 #[tokio::main]
 async fn main() {
     env_logger::init();
@@ -74,8 +79,14 @@ async fn main() {
         .and(extract_state.clone())
         .and_then(compile_handler);
 
+    let get_mode_route = warp::path!("mode" / String)
+        .and(warp::get())
+        .and(extract_state.clone())
+        .and_then(get_mode_handler);
+
     let paths = readiness_route
         .or(extract_and_compile_route)
+        .or(get_mode_route)
         .or(dispatcher_route);
 
     info!(target: "dispatcher", "started listening");

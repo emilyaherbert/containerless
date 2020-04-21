@@ -34,6 +34,7 @@ pub struct ServerlessRequest {
 enum Message {
     Request(ServerlessRequest),
     ExtractAndCompile(oneshot::Sender<Response>),
+    GetMode(oneshot::Sender<Response>),
     Shutdown,
     Orphan,
 }
@@ -53,6 +54,17 @@ struct State {
 pub struct FunctionManager {
     send_requests: mpsc::Sender<Message>,
     state: Arc<State>,
+}
+
+impl std::fmt::Display for Mode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Mode::Decontainerized(_) => f.write_str("Decontainerized"),
+            Mode::Tracing(_) => f.write_str("Tracing"),
+            Mode::Vanilla => f.write_str("Vanilla"),
+        }
+    }
+
 }
 
 impl State {
@@ -246,9 +258,7 @@ impl State {
         };
         resp.headers_mut().insert("X-Containless-Mode", HeaderValue::from_static(containerless_mode_header));
 
-        if let Err(_err) = serverless_request.send.send(Ok(resp)) {
-            debug!(target: "dispatcher", "failed to send response to client (receiver deallocated)");
-        }
+        util::send_log_error(serverless_request.send, Ok(resp));
     }
 
     async fn invoke_tracing(self_: Arc<Self>, req: ServerlessRequest, autoscaler: Arc<Autoscaler>) {
@@ -292,10 +302,7 @@ impl State {
             }
         };
         resp.headers_mut().insert("X-Containless-Mode", HeaderValue::from_static("decontainerized"));
-        if let Err(_err) = req.send.send(Ok(resp)) {
-            debug!(target: "dispatcher", "failed to send response to client (receiver deallocated)");
-        }
-
+        util::send_log_error(req.send, Ok(resp));
         // task::spawn(Self::invoke_decontainerized(Arc::clone(&self_), func, req));
     }
 
@@ -364,6 +371,9 @@ impl State {
                     }
                     return Ok(());
                 }
+                (_, Message::GetMode(send)) => {
+                    util::send_log_error(send, util::text_response(200, format!("{}", mode)));
+                }
                 (Mode::Decontainerized(func), Message::Request(req)) => {
                     let self_ = Arc::clone(&self_);
                     task::spawn(Self::invoke_decontainerized(self_, func, req));
@@ -374,9 +384,7 @@ impl State {
                             let self_ = Arc::clone(&self_);
                             task::spawn(util::log_error::<_, Error, _>(async move {
                                 Self::send_trace_then_stop_pod_and_service(Arc::clone(&self_)).await?;
-                                if let Err(_) = send.send(util::text_response(200, format!("extracted and sent trace"))) {
-                                    error!(target: "controller", "could not send response");
-                                }
+                                util::send_log_error(send, util::text_response(200, format!("extracted and sent trace")));
                                 return Ok(());
                             }, "extracting and sending trace"));
                         }
@@ -384,9 +392,7 @@ impl State {
                         debug!(target: "dispatcher", "switched to Vanilla mode for {}", &self_.name);
                     }
                     else {
-                        if let Err(_) = send.send(util::text_response(403, format!("function is not tracing"))) {
-                            error!(target: "controller", "could not send response");
-                        }
+                        util::send_log_error(send, util::text_response(403, format!("function is not tracing")));
                     }
                 }
                 (Mode::Tracing(5), Message::Request(req)) => {
@@ -525,4 +531,18 @@ impl FunctionManager {
             }
         }
     }
+
+    pub async fn get_mode(&mut self) -> Response {
+        let (send_resp, recv_resp) = oneshot::channel();
+        self.send_requests.send(Message::GetMode(send_resp)).await.unwrap();
+        match recv_resp.await {
+            Ok(resp) => {
+                return resp;
+            },
+            Err(oneshot::Canceled) => {
+                return util::text_response(500, format!("dispatcher shutdown before mode could be queried for {}", self.state.name));
+            }
+        }
+    }
+
 }
