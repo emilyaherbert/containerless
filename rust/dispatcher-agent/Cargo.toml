@@ -23,3 +23,4 @@ log = "*"
 env_logger = "*"
 bumpalo = { version = "*", features = ["collections"] }
 thiserror = "*"
+warp = "*"
