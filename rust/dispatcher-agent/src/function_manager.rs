@@ -256,7 +256,7 @@ impl State {
             }
             Ok(resp) => resp,
         };
-        resp.headers_mut().insert("X-Containless-Mode", HeaderValue::from_static(containerless_mode_header));
+        resp.headers_mut().insert("X-Containerless-Mode", HeaderValue::from_static(containerless_mode_header));
 
         util::send_log_error(serverless_request.send, Ok(resp));
     }
@@ -301,7 +301,7 @@ impl State {
                 }
             }
         };
-        resp.headers_mut().insert("X-Containless-Mode", HeaderValue::from_static("decontainerized"));
+        resp.headers_mut().insert("X-Containerless-Mode", HeaderValue::from_static("decontainerized"));
         util::send_log_error(req.send, Ok(resp));
         // task::spawn(Self::invoke_decontainerized(Arc::clone(&self_), func, req));
     }
@@ -317,7 +317,7 @@ impl State {
             self_.start_tracing_pod_and_service().await?;
             self_.start_vanilla_pod_and_service().await?;
             debug!(target: "dispatcher", "Waiting for pod {} to be available",  &self_.tracing_pod_name);
-            util::wait_for_pod_running(&self_.k8s_client, &self_.tracing_pod_name, 10).await?;
+            util::wait_for_pod_running(&self_.k8s_client, &self_.tracing_pod_name, 20).await?;
             debug!(target: "dispatcher", "Waiting for service {} to be available",  &self_.vanilla_authority);
             util::wait_for_service(&self_.http_client, self_.vanilla_authority.clone()).await?;
         }

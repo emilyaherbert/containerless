@@ -4,26 +4,6 @@ use serial_test_derive::serial;
 
 #[test]
 #[serial]
-pub fn trivial_fixed_response() {
-    let mut runner = TestRunner::new("trivial_fixed_response.js");
-    let result = runner.test(
-        r#"
-        let containerless = require("../../javascript/containerless");
-        containerless.listen(function(req) {
-            containerless.respond("Hello, world!");
-        });"#,
-        json!([
-            { "path": "/hello", "query": {}, "body": {} }
-        ]),
-        json!([
-            { "path": "/hello", "query": {}, "body": {} }
-        ]),
-    );
-    assert_eq!(result, vec!["Hello, world!"]);
-}
-
-#[test]
-#[serial]
 pub fn and_bug() {
     let mut runner = TestRunner::new("and_bug.js");
     let result = runner.test(
