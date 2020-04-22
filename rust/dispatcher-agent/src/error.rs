@@ -13,4 +13,13 @@ pub enum Error {
     UnexpectedPodPhase(String, k8s::PodPhase),
     #[error("TimeoutReason({0})")]
     TimeoutReason(String),
+    #[error("communicating with controller: {0}")]
+    Controller(String)
+}
+
+impl Error {
+
+    pub fn controller<T>(message: impl Into<String>) -> Result<T, Self> {
+        return Err(Error::Controller(message.into()));
+    }
 }

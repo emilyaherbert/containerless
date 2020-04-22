@@ -12,7 +12,7 @@ pub use std::sync::atomic::{AtomicBool, AtomicI32, AtomicUsize};
 pub use std::sync::{Arc, Weak};
 pub use tokio::task;
 
-pub type Request = hyper::Request<hyper::Body>;
+// pub type Request = hyper::Request<hyper::Body>;
 pub type Response = hyper::Response<hyper::Body>;
 pub type K8sClient = Arc<k8s::client::Client>;
 pub type HttpClient = Arc<hyper::Client<hyper::client::HttpConnector>>;

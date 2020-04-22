@@ -8,6 +8,7 @@ use bumpalo::{
 use std::cell::{Cell, RefCell};
 use std::convert::{From, TryFrom};
 
+#[allow(unused)]
 pub fn unknown<'a>() -> DynResult<'a> {
     Err(Error::Unknown)
 }

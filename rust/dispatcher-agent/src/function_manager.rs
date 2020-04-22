@@ -216,6 +216,9 @@ impl State {
             .body(resp.into_body())
             .expect("constructing POST /recv_trace");
         let resp = self_.http_client.request(req).await?;
+        if resp.status() != 200 {
+            return Error::controller(format!("sending trace for {} to controller failed", self_.name));
+        }
         info!(target: "dispatcher", "removing Kubernetes resources for tracing {}", self_.name);
         try_join!(
             self_.k8s_client.delete_pod(&self_.tracing_pod_name),
@@ -278,7 +281,7 @@ impl State {
             Err(err) => hyper::Response::builder()
                 .status(500)
                 .body(hyper::Body::from(
-                    "error reading request payload from client",
+                    format!("error reading request payload from client {}", err),
                 ))
                 .unwrap(),
             Ok(body) => {

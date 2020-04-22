@@ -6,6 +6,7 @@ use std::convert::TryInto;
 /// An enumeration of the events that a decontainerized function can run
 /// within Rust.
 #[derive(Debug)]
+#[allow(unused)]
 pub enum AsyncOp {
     Preinitialize,
     /// This event immediately completes, which is useful for testing without
@@ -132,18 +133,6 @@ struct SendBox<T> {
 unsafe impl<T> Send for SendBox<T> {}
 
 impl<'a> PendingOp<'a> {
-    pub async fn to_future(
-        self,
-        client: &HttpClient,
-    ) -> Result<(AsyncOpOutcome, i32, Dyn<'a>), Error> {
-        let indicator = self.indicator;
-        let closure = SendBox {
-            contents: self.closure,
-        };
-        let op = self.async_op;
-        let outcome = op.to_future(client).await?;
-        return Ok((outcome, indicator, closure.contents));
-    }
 
     pub fn to_future2(
         self,
@@ -260,6 +249,7 @@ impl<'a> ExecutionContext<'a> {
         Ok(Dyn::int(0))
     }
 
+    #[allow(unused)]
     pub fn count(&mut self) -> Result<(), Error> {
         if self.counter == 10000 {
             Err(Error::OutOfGas)
