@@ -337,6 +337,7 @@ dependencies = [
  "exec",
  "log 0.4.8",
  "reqwest",
+ "thiserror",
  "tokio",
 ]
 
