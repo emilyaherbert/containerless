@@ -4,8 +4,8 @@ use reqwest;
 use std::fs::File;
 use std::io::copy;
 use std::time::Duration;
-use tokio::time::delay_for;
 use thiserror::Error;
+use tokio::time::delay_for;
 
 #[derive(Debug, Error)]
 enum DownloadError {

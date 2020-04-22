@@ -43,7 +43,7 @@ impl Transformer {
             Undefined {} => return undefined(),
             BinOp { op, e1, e2 } => {
                 return binop(op, self.transform_exp(e1), self.transform_exp(e2))
-            },
+            }
             Op1 { op, e } => op1(op, self.transform_exp(e)),
             If {
                 cond,
@@ -113,9 +113,17 @@ impl Transformer {
             Array { exps } => return array(self.transform_exps(exps)),
             PrimApp { event, event_args } => {
                 return prim_app(event, self.transform_exps(event_args));
-            },
-            MethodCall { e, method, method_call_args } => {
-                return method_call(self.transform_exp(e), method, self.transform_exps(method_call_args));
+            }
+            MethodCall {
+                e,
+                method,
+                method_call_args,
+            } => {
+                return method_call(
+                    self.transform_exp(e),
+                    method,
+                    self.transform_exps(method_call_args),
+                );
             }
             Loopback {
                 event: _,

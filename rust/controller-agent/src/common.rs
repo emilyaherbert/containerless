@@ -1,11 +1,11 @@
 pub use bytes::Bytes;
 pub use futures::prelude::*;
 pub use log::{debug, error, info};
-pub use std::pin::Pin;
-pub use std::sync::Arc;
-pub use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
-pub use tokio::task;
 pub use std::collections::HashMap;
+pub use std::pin::Pin;
+pub use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
+pub use std::sync::Arc;
+pub use tokio::task;
 pub static NAMESPACE: &'static str = "containerless";
 pub use futures::channel::oneshot;
 

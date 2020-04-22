@@ -1,15 +1,15 @@
-use super::types::{Exp, Op2, Op1, LVal};
+use super::types::{Exp, LVal, Op1, Op2};
+use duct::cmd;
 use proc_macro2::Span;
 use quote::__private::TokenStream;
 use quote::*;
 use syn::{Ident, Lifetime};
-use duct::cmd;
 
 fn codegen_op1(op: &Op1) -> TokenStream {
     match op {
         Op1::Void => quote! { void },
         Op1::Typeof => quote! { typeof_ },
-        Op1::Negative => quote! { neg }
+        Op1::Negative => quote! { neg },
     }
 }
 
@@ -26,17 +26,20 @@ fn codegen_op(op: &Op2) -> TokenStream {
         Op2::LTE => quote! { lte },
         Op2::And => quote! { and },
         Op2::Or => quote! { or },
-        Op2::StrictNotEq => quote! { strict_neq }
+        Op2::StrictNotEq => quote! { strict_neq },
     }
 }
 
 fn codegen_block(block: &[Exp], to_break: Option<Lifetime>) -> TokenStream {
     let undef = Exp::Undefined {};
     let (last, all_but_last) = match block.last() {
-        Some(Exp::Let { name: _, named: _, typ: _ }) =>
-          (&undef, block),
+        Some(Exp::Let {
+            name: _,
+            named: _,
+            typ: _,
+        }) => (&undef, block),
         Some(_) => block.split_last().unwrap(),
-        None => (&undef, block)
+        None => (&undef, block),
     };
 
     let q_block_but_last = all_but_last.iter().map(|e| codegen_exp(e));
@@ -54,7 +57,7 @@ fn codegen_block(block: &[Exp], to_break: Option<Lifetime>) -> TokenStream {
                 #(#q_block_but_last)*
                 #q_last
             }
-        },
+        }
         (Some(lifetime), _) => {
             quote! {
                 #(#q_block_but_last)*
@@ -93,7 +96,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             let q_e2 = codegen_exp(e2);
             match op {
                 Op2::Add => quote! { (#q_e1).#q_op(arena, #q_e2)? },
-                _ => quote! { (#q_e1).#q_op(#q_e2)? }
+                _ => quote! { (#q_e1).#q_op(#q_e2)? },
             }
         }
         Exp::Op1 { op, e } => {
@@ -101,7 +104,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             let q_e = codegen_exp(e);
             match op {
                 Op1::Negative => quote! { (#q_e).#q_op()? },
-                _ => quote! { (#q_e).#q_op(arena)? }
+                _ => quote! { (#q_e).#q_op(arena)? },
             }
         }
         Exp::If {
@@ -136,7 +139,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             quote! {
                 let #q_name = #q_named;
             }
-        },
+        }
         Exp::Set {
             name: LVal::Index { exp, index },
             named,
@@ -146,7 +149,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             let q_named = codegen_exp(named);
             quote! { #q_exp.set(#q_index, #q_named)? }
             //quote! { #q_exp.index(arena, #q_index)?.set(#q_named)? }
-        },
+        }
         Exp::Set { name: _, named: _ } =>
         // NOTE(arjun): This should have been turned into SetRef.
         {
@@ -191,8 +194,8 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
                     } else {
                         Lifetime::new(&format!("'{}", name), Span::call_site())
                     }
-                },
-                None => panic!("This should not happen.")
+                }
+                None => panic!("This should not happen."),
             };
             let q_body = codegen_block(body, Some(q_name.clone()));
             quote! {
@@ -246,7 +249,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
                     quote! {
                         eprintln!("{:?}", #(#q_event_args),*)
                     }
-                },
+                }
                 _ => {
                     let q_event = Ident::new(&format!("{}", event), Span::call_site());
                     quote! {
@@ -254,8 +257,12 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
                     }
                 }
             }
-        },
-        Exp::MethodCall { e, method, method_call_args } => {
+        }
+        Exp::MethodCall {
+            e,
+            method,
+            method_call_args,
+        } => {
             let q_e = codegen_exp(e);
             let q_method_call_args = method_call_args.iter().map(|e| codegen_exp(e));
             let q_method = Ident::new(&format!("{}", method), Span::call_site());
@@ -263,7 +270,6 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
                 #q_e.#q_method(#(#q_method_call_args),*)?
             }
         }
-
     }
 }
 
@@ -275,7 +281,7 @@ pub fn codegen(e: &Exp, dest_file: &str) {
         #![allow(unused_variables)]
         #![forbid(unsafe_code)]
         #![allow(unused_imports)]
-        
+
         use super::super::trace_runtime::{self as rt, ExecutionContext, Dyn, DynResult};
 
         pub fn containerless<'a>(
@@ -293,6 +299,5 @@ pub fn codegen(e: &Exp, dest_file: &str) {
 
     // NOTE(arjun): If we ever measure compilation time, this line *must* be
     // removed.
-    cmd!("rustfmt", dest_file).run()
-        .expect("rustfmt failed");
+    cmd!("rustfmt", dest_file).run().expect("rustfmt failed");
 }

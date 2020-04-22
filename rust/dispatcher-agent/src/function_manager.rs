@@ -4,8 +4,8 @@ use super::function_table::FunctionTable;
 use super::types::*;
 use super::util;
 use futures::prelude::*;
-use tokio::task;
 use hyper::header::HeaderValue;
+use tokio::task;
 
 #[derive(Debug, PartialEq)]
 pub enum CreateMode {
@@ -64,7 +64,6 @@ impl std::fmt::Display for Mode {
             Mode::Vanilla => f.write_str("Vanilla"),
         }
     }
-
 }
 
 impl State {
@@ -102,27 +101,25 @@ impl State {
 
     fn pod_spec(&self, mode: &str) -> k8s_openapi::api::core::v1::PodSpec {
         use k8s::builder::*;
-        let builder = PodSpecBuilder::new()
-            .container(
-                ContainerBuilder::new()
-                    .name("function")
-                    .image("localhost:32000/function-runner")
-                    .expose_port("manager", 8080)
-                    .expose_port("server", 8081)
-                    // A readiness probe ensures that we don't direct
-                    // requests to an instance until it is ready. By
-                    // default, wait ten seconds between each probe.
-                    .http_readiness_probe(5, "/readinessProbe", 8081)
-                    .env("FUNCTION_NAME", &self.name)
-                    .env("FUNCTION_MODE", mode)
-                    .build(),
-            );
+        let builder = PodSpecBuilder::new().container(
+            ContainerBuilder::new()
+                .name("function")
+                .image("localhost:32000/function-runner")
+                .expose_port("manager", 8080)
+                .expose_port("server", 8081)
+                // A readiness probe ensures that we don't direct
+                // requests to an instance until it is ready. By
+                // default, wait ten seconds between each probe.
+                .http_readiness_probe(5, "/readinessProbe", 8081)
+                .env("FUNCTION_NAME", &self.name)
+                .env("FUNCTION_MODE", mode)
+                .build(),
+        );
         if mode == "tracing" {
             // A crash should be an error in Containerless, and not an error
             // in user code. Restarting should be pointless.
             return builder.restart_never().build();
-        }
-        else {
+        } else {
             return builder.build();
         }
     }
@@ -219,7 +216,10 @@ impl State {
             .expect("constructing POST /recv_trace");
         let resp = self_.http_client.request(req).await?;
         if resp.status() != 200 {
-            return Error::controller(format!("sending trace for {} to controller failed", self_.name));
+            return Error::controller(format!(
+                "sending trace for {} to controller failed",
+                self_.name
+            ));
         }
         info!(target: "dispatcher", "removing Kubernetes resources for tracing {}", self_.name);
         try_join!(
@@ -266,19 +266,36 @@ impl State {
             }
             Ok(resp) => resp,
         };
-        resp.headers_mut().insert("X-Containerless-Mode", HeaderValue::from_static(containerless_mode_header));
+        resp.headers_mut().insert(
+            "X-Containerless-Mode",
+            HeaderValue::from_static(containerless_mode_header),
+        );
 
         util::send_log_error(serverless_request.send, Ok(resp));
     }
 
     async fn invoke_tracing(self_: Arc<Self>, req: ServerlessRequest, autoscaler: Arc<Autoscaler>) {
         self_.tracing_pod_available.store(false, SeqCst);
-        Self::invoke_err(&self_, self_.tracing_authority.clone(), req, autoscaler, "tracing").await;
+        Self::invoke_err(
+            &self_,
+            self_.tracing_authority.clone(),
+            req,
+            autoscaler,
+            "tracing",
+        )
+        .await;
         self_.tracing_pod_available.store(true, SeqCst);
     }
 
     async fn invoke_vanilla(self_: Arc<Self>, req: ServerlessRequest, autoscaler: Arc<Autoscaler>) {
-        Self::invoke_err(&self_, self_.vanilla_authority.clone(), req, autoscaler, "vanilla").await;
+        Self::invoke_err(
+            &self_,
+            self_.vanilla_authority.clone(),
+            req,
+            autoscaler,
+            "vanilla",
+        )
+        .await;
     }
 
     async fn invoke_decontainerized(self_: Arc<Self>, func: Containerless, req: ServerlessRequest) {
@@ -287,9 +304,10 @@ impl State {
         let mut resp = match hyper::body::to_bytes(req.payload.body).await {
             Err(err) => hyper::Response::builder()
                 .status(500)
-                .body(hyper::Body::from(
-                    format!("error reading request payload from client {}", err),
-                ))
+                .body(hyper::Body::from(format!(
+                    "error reading request payload from client {}",
+                    err
+                )))
                 .unwrap(),
             Ok(body) => {
                 match super::trace_runtime::run_decontainerized_function(
@@ -311,7 +329,10 @@ impl State {
                 }
             }
         };
-        resp.headers_mut().insert("X-Containerless-Mode", HeaderValue::from_static("decontainerized"));
+        resp.headers_mut().insert(
+            "X-Containerless-Mode",
+            HeaderValue::from_static("decontainerized"),
+        );
         util::send_log_error(req.send, Ok(resp));
         // task::spawn(Self::invoke_decontainerized(Arc::clone(&self_), func, req));
     }
@@ -392,17 +413,29 @@ impl State {
                     if let Mode::Tracing(_) = mode {
                         {
                             let self_ = Arc::clone(&self_);
-                            task::spawn(util::log_error::<_, Error, _>(async move {
-                                Self::send_trace_then_stop_pod_and_service(Arc::clone(&self_)).await?;
-                                util::send_log_error(send, util::text_response(200, format!("extracted and sent trace")));
-                                return Ok(());
-                            }, "extracting and sending trace"));
+                            task::spawn(util::log_error::<_, Error, _>(
+                                async move {
+                                    Self::send_trace_then_stop_pod_and_service(Arc::clone(&self_))
+                                        .await?;
+                                    util::send_log_error(
+                                        send,
+                                        util::text_response(
+                                            200,
+                                            format!("extracted and sent trace"),
+                                        ),
+                                    );
+                                    return Ok(());
+                                },
+                                "extracting and sending trace",
+                            ));
                         }
                         mode = Mode::Vanilla;
                         debug!(target: "dispatcher", "switched to Vanilla mode for {}", &self_.name);
-                    }
-                    else {
-                        util::send_log_error(send, util::text_response(403, format!("function is not tracing")));
+                    } else {
+                        util::send_log_error(
+                            send,
+                            util::text_response(403, format!("function is not tracing")),
+                        );
                     }
                 }
                 (Mode::Tracing(5), Message::Request(req)) => {
@@ -531,28 +564,45 @@ impl FunctionManager {
 
     pub async fn extract_and_compile(&mut self) -> Response {
         let (send_resp, recv_resp) = oneshot::channel();
-        self.send_requests.send(Message::ExtractAndCompile(send_resp)).await.unwrap();
+        self.send_requests
+            .send(Message::ExtractAndCompile(send_resp))
+            .await
+            .unwrap();
         match recv_resp.await {
             Ok(resp) => {
                 return resp;
-            },
+            }
             Err(oneshot::Canceled) => {
-                return util::text_response(500, format!("dispatcher shutdown before trace could be extracted for {}", self.state.name));
+                return util::text_response(
+                    500,
+                    format!(
+                        "dispatcher shutdown before trace could be extracted for {}",
+                        self.state.name
+                    ),
+                );
             }
         }
     }
 
     pub async fn get_mode(&mut self) -> Response {
         let (send_resp, recv_resp) = oneshot::channel();
-        self.send_requests.send(Message::GetMode(send_resp)).await.unwrap();
+        self.send_requests
+            .send(Message::GetMode(send_resp))
+            .await
+            .unwrap();
         match recv_resp.await {
             Ok(resp) => {
                 return resp;
-            },
+            }
             Err(oneshot::Canceled) => {
-                return util::text_response(500, format!("dispatcher shutdown before mode could be queried for {}", self.state.name));
+                return util::text_response(
+                    500,
+                    format!(
+                        "dispatcher shutdown before mode could be queried for {}",
+                        self.state.name
+                    ),
+                );
             }
         }
     }
-
 }

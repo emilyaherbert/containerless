@@ -33,48 +33,48 @@ impl Assertions {
 
     fn assert_exp(&self, exp: &Exp) {
         match exp {
-            Number { value: _ } => {},
-            Bool { value: _ } => {},
-            Identifier { name: _ } => {},
+            Number { value: _ } => {}
+            Bool { value: _ } => {}
+            Identifier { name: _ } => {}
             From { exp, field: _ } => {
                 self.assert_exp(exp);
-            },
+            }
             Index { e1, e2 } => {
                 self.assert_exp(e1);
                 self.assert_exp(e2);
-            },
+            }
             Get { exp, field: _ } => self.assert_exp(exp),
-            Stringg { value: _ } => {},
-            Undefined {} => {},
+            Stringg { value: _ } => {}
+            Undefined {} => {}
             BinOp { op: _, e1, e2 } => {
                 self.assert_exp(e1);
                 self.assert_exp(e2);
-            },
+            }
             Op1 { op: _, e } => self.assert_exp(e),
             Block { body } => {
                 self.assert_stmts(body);
-            },
+            }
             Object { properties } => {
                 self.assert_tenv(properties);
-            },
+            }
             Clos { tenv } => self.assert_tenv(tenv),
             Array { exps } => {
                 self.assert_exps(exps);
-            },
+            }
             Ref { e } => {
                 self.assert_exp(e);
-            },
+            }
             Deref { e } => {
                 self.assert_exp(e);
-            },
+            }
             MethodCall {
                 e,
-                method:_,
-                method_call_args
+                method: _,
+                method_call_args,
             } => {
                 self.assert_exp(e);
                 self.assert_exps(method_call_args);
-            },
+            }
             _ => {
                 panic!("Did not expect to find {:?} here.", exp);
             }
@@ -145,7 +145,7 @@ impl Assertions {
             } => {
                 self.assert_exp(event_arg);
                 self.assert_exp(callback_clos);
-            },
+            }
             _ => {
                 panic!("Did not expect to find {:?} here.", exp);
             }
@@ -288,7 +288,7 @@ impl Assertions {
             Identifier { name: _ } => {}
             From { exp, field: _ } => {
                 self.assert_all_options_are_none(exp);
-            },
+            }
             Index { e1, e2 } => {
                 self.assert_all_options_are_none(e1);
                 self.assert_all_options_are_none(e2);
@@ -299,7 +299,7 @@ impl Assertions {
             BinOp { op: _, e1, e2 } => {
                 self.assert_all_options_are_none(e1);
                 self.assert_all_options_are_none(e2);
-            },
+            }
             Op1 { op: _, e } => self.assert_all_options_are_none(e),
             If {
                 cond: _,
@@ -382,8 +382,12 @@ impl Assertions {
             SetRef { e1, e2 } => {
                 self.assert_all_options_are_none(e1);
                 self.assert_all_options_are_none(e2);
-            },
-            MethodCall { e, method:_, method_call_args } => {
+            }
+            MethodCall {
+                e,
+                method: _,
+                method_call_args,
+            } => {
                 self.assert_all_options_are_none(e);
                 self.assert_all_options_are_none_vec(method_call_args);
             }

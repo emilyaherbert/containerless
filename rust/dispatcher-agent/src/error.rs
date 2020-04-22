@@ -14,11 +14,10 @@ pub enum Error {
     #[error("TimeoutReason({0})")]
     TimeoutReason(String),
     #[error("communicating with controller: {0}")]
-    Controller(String)
+    Controller(String),
 }
 
 impl Error {
-
     pub fn controller<T>(message: impl Into<String>) -> Result<T, Self> {
         return Err(Error::Controller(message.into()));
     }

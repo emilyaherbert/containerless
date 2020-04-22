@@ -1,4 +1,4 @@
-use k8s_openapi::api::apps::v1::{ReplicaSet, ReplicaSetSpec, Deployment, DeploymentSpec};
+use k8s_openapi::api::apps::v1::{Deployment, DeploymentSpec, ReplicaSet, ReplicaSetSpec};
 use k8s_openapi::api::core::v1::{
     Container, ContainerPort, EnvVar, HTTPGetAction, Pod, PodSpec, PodTemplateSpec, Probe, Service,
     ServicePort, ServiceSpec,
@@ -304,7 +304,6 @@ impl PodSpecBuilder {
         self.pod_spec.restart_policy = Some("Never".to_string());
         return self;
     }
-
 }
 
 impl ContainerBuilder {

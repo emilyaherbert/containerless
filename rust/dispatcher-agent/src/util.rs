@@ -54,10 +54,11 @@ pub async fn retry_get(
             tries = tries - 1;
             return RetryPolicy::WaitRetry(Duration::from_secs(delay_secs));
         },
-    ).await;
+    )
+    .await;
     return match resp_result {
         Ok(_) => Ok(()),
-        Err(_) => Err(())
+        Err(_) => Err(()),
     };
 }
 
@@ -92,13 +93,18 @@ where
 pub async fn wait_for_pod_running(
     k8s_client: &K8sClient,
     pod_name: &str,
-    timeout_secs: usize) -> Result<(), Error> {
-    use k8s::{PodPhase, PodCondition};
-    for _i in 0 .. timeout_secs {
+    timeout_secs: usize,
+) -> Result<(), Error> {
+    use k8s::{PodCondition, PodPhase};
+    for _i in 0..timeout_secs {
         let (phase, ready) = k8s_client.get_pod_phase_and_readiness(pod_name).await?;
         match (phase, ready) {
-            (PodPhase::Failed, _) => return Err(Error::UnexpectedPodPhase(pod_name.to_string(), phase)),
-            (PodPhase::Succeeded, _) => return Err(Error::UnexpectedPodPhase(pod_name.to_string(), phase)),
+            (PodPhase::Failed, _) => {
+                return Err(Error::UnexpectedPodPhase(pod_name.to_string(), phase))
+            }
+            (PodPhase::Succeeded, _) => {
+                return Err(Error::UnexpectedPodPhase(pod_name.to_string(), phase))
+            }
             (PodPhase::Pending, _) => (),
             (PodPhase::Unknown, _) => (),
             (PodPhase::Running, PodCondition::True) => return Ok(()),
@@ -106,16 +112,23 @@ pub async fn wait_for_pod_running(
         }
         delay_for(Duration::from_secs(1)).await;
     }
-    return Err(Error::TimeoutReason(format!("timeout waiting for pod {} to enter Running phase", pod_name)));
+    return Err(Error::TimeoutReason(format!(
+        "timeout waiting for pod {} to enter Running phase",
+        pod_name
+    )));
 }
-
 
 pub fn text_response(code: u16, text: impl Into<String>) -> hyper::Response<hyper::Body> {
-    return hyper::Response::builder().status(code).body(hyper::Body::from(text.into())).unwrap();
+    return hyper::Response::builder()
+        .status(code)
+        .body(hyper::Body::from(text.into()))
+        .unwrap();
 }
 
-pub fn send_log_error<T>(sender: futures::channel::oneshot::Sender<T>, value: T) where
-  T : std::fmt::Debug {
+pub fn send_log_error<T>(sender: futures::channel::oneshot::Sender<T>, value: T)
+where
+    T: std::fmt::Debug,
+{
     if let Err(value) = sender.send(value) {
         error!(target: "dispatcher", "could not send {:?}", value);
     }

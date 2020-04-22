@@ -18,7 +18,7 @@
 //
 // - I could not find documentation for the #[serde(rename = "+")] directive.
 //   Instead, I guessed that it existed and it worked!
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 use im_rc::{HashMap as ImHashMap, HashSet as ImHashSet};
 
@@ -252,7 +252,7 @@ impl Typ {
                 } else if new_typ_vec.len() == 1 {
                     match new_typ_vec.iter().next() {
                         Some(new_typ) => return new_typ.to_owned(),
-                        None => panic!("Something went wrong.")
+                        None => panic!("Something went wrong."),
                     }
                 } else {
                     return Typ::Union(new_typ_vec);
@@ -272,7 +272,7 @@ pub enum Op1 {
     #[serde(rename = "typeof")]
     Typeof,
     #[serde(rename = "-")]
-    Negative
+    Negative,
 }
 
 #[derive(PartialEq, Debug, Deserialize, Clone)]
@@ -300,7 +300,7 @@ pub enum Op2 {
     #[serde(rename = "&&")]
     And,
     #[serde(rename = "||")]
-    Or
+    Or,
 }
 
 #[derive(PartialEq, Debug, Deserialize, Clone)]
@@ -431,8 +431,8 @@ pub enum Exp {
         e: Box<Exp>,
         method: String,
         #[serde(rename = "methodCallArgs")]
-        method_call_args: Vec<Exp>
-    }
+        method_call_args: Vec<Exp>,
+    },
 }
 
 #[derive(PartialEq, Debug, Deserialize, Clone)]
@@ -517,9 +517,11 @@ impl fmt::Display for Exp {
             Exp::PrimApp { event, event_args } => {
                 write!(f, "PrimApp({}, {})", event, vec_to_string(event_args))
             }
-            Exp::MethodCall { e, method, method_call_args } => {
-                write!(f, "MethodCall({}, {}, {:?})", e, method, method_call_args)
-            }
+            Exp::MethodCall {
+                e,
+                method,
+                method_call_args,
+            } => write!(f, "MethodCall({}, {}, {:?})", e, method, method_call_args),
         }
     }
 }
@@ -535,9 +537,9 @@ pub mod constructors {
     // constructors to take care of allocating strings and boxes.
 
     use super::Exp::*;
-    use super::{Typ, Arg, Exp, LVal, Op1, Op2};
-    use std::collections::HashMap;
+    use super::{Arg, Exp, LVal, Op1, Op2, Typ};
     use im_rc::{HashMap as ImHashMap, HashSet as ImHashSet};
+    use std::collections::HashMap;
 
     pub fn t_union(t1: Typ, t2: Typ) -> Typ {
         match t1 {
@@ -640,7 +642,7 @@ pub mod constructors {
     pub fn op1(op: &Op1, e: Exp) -> Exp {
         return Exp::Op1 {
             op: op.clone(),
-            e: Box::new(e)
+            e: Box::new(e),
         };
     }
 
@@ -763,7 +765,7 @@ pub mod constructors {
         return MethodCall {
             e: Box::new(e),
             method: method.to_string(),
-            method_call_args: method_call_args
+            method_call_args: method_call_args,
         };
     }
 
@@ -782,8 +784,7 @@ pub mod constructors {
     pub fn lval_index(exp: Exp, index: Exp) -> LVal {
         return LVal::Index {
             exp: Box::new(exp),
-            index: Box::new(index)
+            index: Box::new(index),
         };
     }
-
 }

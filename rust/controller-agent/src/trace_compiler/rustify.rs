@@ -17,10 +17,11 @@ impl Rustify {
             self.rustify(e);
             if ix < len - 1 {
                 if let Exp::Let {
-                    name:_,
-                    typ:_,
-                    named:_
-                } = e {
+                    name: _,
+                    typ: _,
+                    named: _,
+                } = e
+                {
                     // empty body
                 } else {
                     let inner = std::mem::replace(e, Exp::Undefined {});
@@ -31,53 +32,53 @@ impl Rustify {
                     };
                 }
 
-                // We treat `if` as expressions in our IR. Conveniently, `if`
-                // in Rust is an expression too! However, when an `if` is in
-                // a block and *not* the last expression in the block, Rust
-                // requires both branches of the `if` to return `()`. This is
-                // a hack that transforms `if ...` into `let _ = if ...`, which
-                // is enough to satisfy the Rust type checker.
-                /*
-                if let Exp::If {
-                    cond: _,
-                    true_part: _,
-                    false_part: _,
-                } = e
-                {
-                    let inner = std::mem::replace(e, Exp::Undefined {});
-                    *e = Exp::Let {
-                        name: "_".to_string(),
-                        typ: None,
-                        named: Box::new(inner),
-                    };
-                } else if let Exp::Label {
-                    name,
-                    body: _
-                } = e
-                {
-                    let inner = std::mem::replace(e, Exp::Undefined {});
-                    *e = Exp::Let {
-                        name: "l".to_string(),
-                        typ: None,
-                        named: Box::new(inner)
-                    };
-                }
-                */
+            // We treat `if` as expressions in our IR. Conveniently, `if`
+            // in Rust is an expression too! However, when an `if` is in
+            // a block and *not* the last expression in the block, Rust
+            // requires both branches of the `if` to return `()`. This is
+            // a hack that transforms `if ...` into `let _ = if ...`, which
+            // is enough to satisfy the Rust type checker.
+            /*
+            if let Exp::If {
+                cond: _,
+                true_part: _,
+                false_part: _,
+            } = e
+            {
+                let inner = std::mem::replace(e, Exp::Undefined {});
+                *e = Exp::Let {
+                    name: "_".to_string(),
+                    typ: None,
+                    named: Box::new(inner),
+                };
+            } else if let Exp::Label {
+                name,
+                body: _
+            } = e
+            {
+                let inner = std::mem::replace(e, Exp::Undefined {});
+                *e = Exp::Let {
+                    name: "l".to_string(),
+                    typ: None,
+                    named: Box::new(inner)
+                };
+            }
+            */
             } else {
-                if let Exp::Label {
-                    name:_,
-                    body:_
-                } = e
-                {
+                if let Exp::Label { name: _, body: _ } = e {
                     let inner = std::mem::replace(e, Exp::Undefined {});
-                    *e = Exp::Block { body: vec![
-                        Exp::Let {
-                            name: "l".to_string(),
-                            typ: None,
-                            named: Box::new(inner)
-                        },
-                        Exp::Identifier { name: "l".to_string() }
-                    ]};
+                    *e = Exp::Block {
+                        body: vec![
+                            Exp::Let {
+                                name: "l".to_string(),
+                                typ: None,
+                                named: Box::new(inner),
+                            },
+                            Exp::Identifier {
+                                name: "l".to_string(),
+                            },
+                        ],
+                    };
                 }
             }
         }
@@ -113,10 +114,9 @@ impl Rustify {
                 self.rustify(cond);
                 self.rustify_block(body);
                 let inner = std::mem::replace(&mut *exp, Exp::Undefined {});
-                *exp = Exp::Block { body: vec! [
-                    inner,
-                    Exp::Undefined {}
-                ]};
+                *exp = Exp::Block {
+                    body: vec![inner, Exp::Undefined {}],
+                };
             }
             Exp::Let {
                 name: _,
@@ -144,7 +144,7 @@ impl Rustify {
             Exp::Label { name: _, body } => self.rustify_block(body),
             // Generating `break 'a break 'b e` produces an unreachable code
             // warning. This simplifies it to `break 'b e`.
-            Exp::Break { name:_, value } => match **value {
+            Exp::Break { name: _, value } => match **value {
                 Exp::Break { name: _, value: _ } => {
                     let inner = std::mem::replace(&mut **value, Exp::Unit {});
                     *exp = inner;
@@ -157,21 +157,21 @@ impl Rustify {
             Exp::Index { e1, e2 } => {
                 self.rustify(e1);
                 self.rustify(e2);
-            },
+            }
             Exp::Ref { e } => self.rustify(e),
             Exp::Deref { e } => self.rustify(e),
             Exp::SetRef { e1, e2 } => {
                 self.rustify(e1);
                 self.rustify(e2);
-            },
+            }
             Exp::PrimApp {
                 event: _,
                 event_args,
             } => event_args.iter_mut().for_each(|e| self.rustify(e)),
             Exp::MethodCall {
                 e,
-                method:_,
-                method_call_args
+                method: _,
+                method_call_args,
             } => {
                 self.rustify(e);
                 method_call_args.iter_mut().for_each(|e| self.rustify(e));

@@ -1,7 +1,7 @@
 use bytes;
 use hyper::Response;
-use warp::Filter;
 use tokio::process::Command;
+use warp::Filter;
 
 mod common;
 mod compiler;
@@ -36,20 +36,25 @@ async fn get_status_handler(
 async fn main() {
     env_logger::init();
     info!(target: "controller", "Started Controller");
-    assert!(Command::new("cargo").arg("build").current_dir("/src/dispatcher-agent").spawn()
-    .expect("spawning cargo").await.expect("waiting for cargo to complete")
-        .success(), "initial cargo build failed");
+    assert!(
+        Command::new("cargo")
+            .arg("build")
+            .current_dir("/src/dispatcher-agent")
+            .spawn()
+            .expect("spawning cargo")
+            .await
+            .expect("waiting for cargo to complete")
+            .success(),
+        "initial cargo build failed"
+    );
 
     let compiler = compiler::start_compiler_task();
     let compiler2 = compiler.clone();
 
     let ready_route = warp::path!("ready").and(warp::get()).and_then(ready);
-    let download_dispatcher_route =
-        warp::path("download_dispatcher")
-            .and(warp::get())
-            .and(warp::fs::file(
-                "/src/target/debug/dispatcher-agent",
-            ));
+    let download_dispatcher_route = warp::path("download_dispatcher")
+        .and(warp::get())
+        .and(warp::fs::file("/src/target/debug/dispatcher-agent"));
     let recv_trace_route = {
         let compiler = compiler.clone();
         warp::path!("recv_trace" / String)
@@ -59,17 +64,18 @@ async fn main() {
             .and_then(recv_trace)
     };
     let get_status_route = warp::path!("get_status" / String)
-            .and(warp::get())
-            .and(warp::any().map(move || compiler.clone()))
-            .and_then(get_status_handler);
-    
+        .and(warp::get())
+        .and(warp::any().map(move || compiler.clone()))
+        .and_then(get_status_handler);
 
     let paths = ready_route
         .or(download_dispatcher_route)
         .or(recv_trace_route)
         .or(get_status_route);
 
-    let (_addr, server) = warp::serve(paths)
-        .bind_with_graceful_shutdown(([0, 0, 0, 0], 80), suppress_and_log_err(handle_sigterm(compiler2)));
+    let (_addr, server) = warp::serve(paths).bind_with_graceful_shutdown(
+        ([0, 0, 0, 0], 80),
+        suppress_and_log_err(handle_sigterm(compiler2)),
+    );
     server.await;
 }

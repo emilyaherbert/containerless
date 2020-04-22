@@ -1,10 +1,10 @@
+use super::compiler::CompilerHandle;
 use crate::common::*;
 use k8s;
 use kube;
 use lazy_static::lazy_static;
 use regex::Regex;
 use tokio::signal::unix::{signal, SignalKind};
-use super::compiler::CompilerHandle;
 
 fn is_function(name: &String) -> bool {
     lazy_static! {

@@ -1,8 +1,8 @@
-use warp::Filter;
 use hyper::Response;
-use tokio::fs::File;
 use std::io;
+use tokio::fs::File;
 use tokio::prelude::*;
+use warp::Filter;
 
 async fn get_file(path: &str) -> Result<String, io::Error> {
     let mut file = File::open(format!("/storage/{}.js", &path)).await?;
@@ -15,8 +15,10 @@ async fn get(path: String) -> Result<impl warp::Reply, warp::Rejection> {
     match get_file(&path).await {
         Err(err) => {
             eprintln!("Error reading file {}: {} ", path, err);
-            return Ok(Response::builder().status(404).body("Could not read file".to_string()));
-        },
+            return Ok(Response::builder()
+                .status(404)
+                .body("Could not read file".to_string()));
+        }
         Ok(file) => {
             return Ok(Response::builder().status(200).body(file));
         }
@@ -24,19 +26,16 @@ async fn get(path: String) -> Result<impl warp::Reply, warp::Rejection> {
 }
 
 async fn ping() -> Result<impl warp::Reply, warp::Rejection> {
-    return Ok(Response::builder().status(200).body("Function storage agent\n"));
+    return Ok(Response::builder()
+        .status(200)
+        .body("Function storage agent\n"));
 }
 
 #[tokio::main]
 async fn main() {
+    let get_route = warp::path!("get" / String).and(warp::get()).and_then(get);
 
-    let get_route = warp::path!("get" / String)
-        .and(warp::get())
-        .and_then(get);
-
-    let ping_route = warp::path!("ping")
-        .and(warp::get())
-        .and_then(ping);
+    let ping_route = warp::path!("ping").and(warp::get()).and_then(ping);
 
     let paths = ping_route.or(get_route);
 

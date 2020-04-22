@@ -1,5 +1,5 @@
+use serde_json::error::Error as JsonError;
 use std::convert::From;
-use serde_json::error::{Error as JsonError};
 
 #[derive(Debug)]
 pub enum Error {
@@ -17,9 +17,7 @@ impl std::fmt::Display for Error {
     }
 }
 
-impl std::error::Error for Error { 
-
-}
+impl std::error::Error for Error {}
 
 impl From<JsonError> for Error {
     fn from(e: JsonError) -> Self {

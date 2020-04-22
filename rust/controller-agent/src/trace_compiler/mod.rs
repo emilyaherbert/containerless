@@ -1,21 +1,22 @@
-mod error;
-mod types;
 mod assertions;
-mod transformer;
+mod codegen;
+mod error;
 mod lift_callbacks;
 mod rustify;
-mod codegen;
+mod transformer;
+mod types;
 
-use types::Exp;
 use assertions::Assertions;
-use transformer::Transformer;
 use lift_callbacks::LiftCallbacks;
 use rustify::Rustify;
+use transformer::Transformer;
+use types::Exp;
 
 pub fn compile(
     serverless_function_name: String,
     dest_file: &str,
-    trace: &str) -> Result<(), error::Error> {
+    trace: &str,
+) -> Result<(), error::Error> {
     let exp = serde_json::from_str::<Exp>(trace)?;
     let mut assertions = Assertions::new();
     assertions.assert_supposed_grammar(&exp);

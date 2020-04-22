@@ -1,18 +1,18 @@
 //! The compiler uses `cargo build` in the `/src` directory, so it must
 //! run as a single threaded task.
-use crate::common::*;
 use super::trace_compiler;
+use crate::common::*;
 use futures::channel::mpsc;
+use futures::lock::Mutex;
 use k8s;
+use proc_macro2::Span;
 use quote::__private::TokenStream;
 use quote::quote;
-use syn::Ident;
-use proc_macro2::Span;
-use std::fs;
-use futures::lock::Mutex;
-use tokio::task;
-use tokio::process::Command;
 use std::fmt;
+use std::fs;
+use syn::Ident;
+use tokio::process::Command;
+use tokio::task;
 enum Message {
     Compile { name: String, code: Bytes },
     Shutdown,
@@ -22,7 +22,7 @@ enum Message {
 enum CompileStatus {
     Compiling,
     Compiled,
-    Error
+    Error,
 }
 
 impl fmt::Display for CompileStatus {
@@ -33,7 +33,6 @@ impl fmt::Display for CompileStatus {
             CompileStatus::Error => f.write_str("Error"),
         }
     }
-
 }
 
 type KnownFunctions = Arc<Mutex<HashMap<String, CompileStatus>>>;
@@ -75,7 +74,10 @@ fn gen_function_table_file(table: &[String]) -> TokenStream {
     };
 }
 
-async fn update_dispatcher_deployment(k8s: &k8s::Client, version: usize) -> Result<(), kube::Error> {
+async fn update_dispatcher_deployment(
+    k8s: &k8s::Client,
+    version: usize,
+) -> Result<(), kube::Error> {
     use k8s::*;
     let deployment = DeploymentBuilder::new()
         .metadata(
@@ -93,14 +95,19 @@ async fn update_dispatcher_deployment(k8s: &k8s::Client, version: usize) -> Resu
                         .metadata(ObjectMetaBuilder::new().label("app", "dispatcher").build())
                         .spec(
                             PodSpecBuilder::new()
-                                .container(ContainerBuilder::new()
-                                    .name("dispatcher")
-                                    .image("localhost:32000/dispatcher")
-                                    .expose_port("http", 8080)
-                                    .env("RUST_LOG", "error,dispatcher=debug,dispatcher-launcher=info")
-                                    .env("Version", format!("V{}", version))
-                                    .http_readiness_probe(5, "/readinessProbe/", 8080)
-                                    .build())
+                                .container(
+                                    ContainerBuilder::new()
+                                        .name("dispatcher")
+                                        .image("localhost:32000/dispatcher")
+                                        .expose_port("http", 8080)
+                                        .env(
+                                            "RUST_LOG",
+                                            "error,dispatcher=debug,dispatcher-launcher=info",
+                                        )
+                                        .env("Version", format!("V{}", version))
+                                        .http_readiness_probe(5, "/readinessProbe/", 8080)
+                                        .build(),
+                                )
                                 .build(),
                         )
                         .build(),
@@ -112,21 +119,27 @@ async fn update_dispatcher_deployment(k8s: &k8s::Client, version: usize) -> Resu
 }
 
 fn generate_decontainerized_functions_mod(known_functions: &HashMap<String, CompileStatus>) {
-    let available_functions = known_functions.iter().filter(|(_, v)| **v != CompileStatus::Error).map(|(k, _)| k.clone()).collect::<Vec<_>>();
+    let available_functions = known_functions
+        .iter()
+        .filter(|(_, v)| **v != CompileStatus::Error)
+        .map(|(k, _)| k.clone())
+        .collect::<Vec<_>>();
 
     std::fs::write(
-        "/src/dispatcher-agent/src/decontainerized_functions/mod.rs", 
-        format!("{}", gen_function_table_file(&available_functions)))
-        .expect("cannot write function table file");
+        "/src/dispatcher-agent/src/decontainerized_functions/mod.rs",
+        format!("{}", gen_function_table_file(&available_functions)),
+    )
+    .expect("cannot write function table file");
 }
 
 pub fn text_response(code: u16, text: impl Into<String>) -> hyper::Response<hyper::Body> {
-    return hyper::Response::builder().status(code).body(hyper::Body::from(text.into())).unwrap();
+    return hyper::Response::builder()
+        .status(code)
+        .body(hyper::Body::from(text.into()))
+        .unwrap();
 }
 
-async fn compiler_task(
-    known_functions: KnownFunctions, 
-    mut recv_message: mpsc::Receiver<Message>) {
+async fn compiler_task(known_functions: KnownFunctions, mut recv_message: mpsc::Receiver<Message>) {
     let k8s = k8s::Client::new(NAMESPACE)
         .await
         .expect("creating k8s::Client");
@@ -138,15 +151,26 @@ async fn compiler_task(
                 info!(target: "controller", "compiler task received trace for {}", &name);
                 next_version = next_version + 1;
                 fs::write(
-                    format!("/src/dispatcher-agent/src/decontainerized_functions/function_{}.json", &name),
-                    &code)
-                    .expect("failed to create trace (JSON) file");
+                    format!(
+                        "/src/dispatcher-agent/src/decontainerized_functions/function_{}.json",
+                        &name
+                    ),
+                    &code,
+                )
+                .expect("failed to create trace (JSON) file");
                 let trace_compile_err = trace_compiler::compile(
-                    name.clone(), 
-                    &format!("/src/dispatcher-agent/src/decontainerized_functions/function_{}.rs", &name),
-                    &String::from_utf8_lossy(&code));
+                    name.clone(),
+                    &format!(
+                        "/src/dispatcher-agent/src/decontainerized_functions/function_{}.rs",
+                        &name
+                    ),
+                    &String::from_utf8_lossy(&code),
+                );
                 if let Err(err) = trace_compile_err {
-                    known_functions.lock().await.insert(name.clone(), CompileStatus::Error);
+                    known_functions
+                        .lock()
+                        .await
+                        .insert(name.clone(), CompileStatus::Error);
                     error!(target: "controller", "error compiling trace for {}: {}", &name, err);
                     continue;
                 }
@@ -157,8 +181,13 @@ async fn compiler_task(
                     generate_decontainerized_functions_mod(&tbl);
                 }
 
-                let cargo_result = Command::new("cargo").arg("build").current_dir("/src/dispatcher-agent").spawn()
-                    .expect("spawning cargo").await.expect("waiting for cargo to complete");
+                let cargo_result = Command::new("cargo")
+                    .arg("build")
+                    .current_dir("/src/dispatcher-agent")
+                    .spawn()
+                    .expect("spawning cargo")
+                    .await
+                    .expect("waiting for cargo to complete");
                 if cargo_result.success() == false {
                     error!(target: "dispatcher", "cargo build failed for {}", &name);
                     let mut tbl = known_functions.lock().await;
@@ -173,7 +202,9 @@ async fn compiler_task(
 
                 // TODO(arjun): If several traces are queued up, we should batch
                 // them together before updating the deployment.
-                update_dispatcher_deployment(&k8s, next_version).await.expect("patching dispatcher deployment");
+                update_dispatcher_deployment(&k8s, next_version)
+                    .await
+                    .expect("patching dispatcher deployment");
                 info!(target: "controller", "Patched dispatcher deployment");
             }
             Message::Shutdown => {
@@ -191,7 +222,10 @@ pub fn start_compiler_task() -> CompilerHandle {
     let (send, recv) = mpsc::channel(1);
     let known_functions = Arc::new(Mutex::new(HashMap::new()));
     task::spawn(compiler_task(known_functions.clone(), recv));
-    return CompilerHandle { send_message: send, known_functions };
+    return CompilerHandle {
+        send_message: send,
+        known_functions,
+    };
 }
 
 impl CompilerHandle {

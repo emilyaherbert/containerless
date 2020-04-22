@@ -1,7 +1,7 @@
 #![cfg(test)]
+use super::test_runner::run_test;
 use serde_json::json;
 use serial_test::serial;
-use super::test_runner::run_test;
 
 #[test]
 #[serial]
@@ -13,12 +13,9 @@ fn trivial_fixed_response() {
         containerless.listen(function(req) {
             containerless.respond("Hello, world!");
         });"#,
-        vec![
-            ("/hello", json!({}))
-        ],
-        vec![
-            ("/hello", json!({}))
-    ]);
+        vec![("/hello", json!({}))],
+        vec![("/hello", json!({}))],
+    );
 
     assert_eq!(results, vec!["Hello, world!", "Hello, world!"]);
 }
@@ -38,7 +35,8 @@ fn loops() {
             }
             containerless.respond(count);
         });"#,
-        vec![ ("/hello", json!({ "arr": [1, 2, 3] })) ],
-        vec![ ("/hello", json!({ "arr": [1, 2, 3] })) ]);
+        vec![("/hello", json!({ "arr": [1, 2, 3] }))],
+        vec![("/hello", json!({ "arr": [1, 2, 3] }))],
+    );
     assert_eq!(results, vec!["3", "3"]);
 }

@@ -133,7 +133,6 @@ struct SendBox<T> {
 unsafe impl<T> Send for SendBox<T> {}
 
 impl<'a> PendingOp<'a> {
-
     pub fn to_future2(
         self,
         client: &'a HttpClient,
