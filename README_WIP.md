@@ -35,7 +35,7 @@ cluster. However, our deployment scripts assume you're using MicroK8s.
 The following command deploys Containerless to MicroK8s:
 
 ```
-cd docker && ./deploy-to-microk8s.sh
+cd docker && ./deploy.sh
 ```
 
 After you run this command, you should see several Pods, Services, and

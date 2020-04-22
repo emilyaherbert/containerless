@@ -134,6 +134,7 @@ impl State {
                 ObjectMetaBuilder::new()
                     .label("function", &self.name)
                     .label("mode", "vanilla")
+                    .label("dynamic", "true")
                     .build(),
             )
             .spec(self.pod_spec("vanilla"))
@@ -153,6 +154,7 @@ impl State {
                         LabelSelectorBuilder::new()
                             .match_label("function", &self.name)
                             .match_label("mode", "vanilla")
+                            .match_label("dynamic", "true")
                             .build(),
                     )
                     .template(pod_template)
@@ -244,6 +246,11 @@ impl State {
         autoscaler.recv_req();
         let req = hyper::Request::builder()
             .method(serverless_request.payload.method)
+            // TODO(arjun): This is a bit of a kludge. We should probably pass
+            // headers from the original request to the serverless function.
+            // This is needed because the containerless library uses Express'
+            // JSON bodyParser, which expects this header.
+            .header("Content-Type", "application/json")
             .uri(uri)
             .body(serverless_request.payload.body)
             .expect("constructing request");
