@@ -74,8 +74,7 @@ impl TestRunner {
 
 }
 
-#[allow(unused)]
-pub async fn run_test(
+pub async fn run_test_async(
     name: &str,
     js_code: &str,
     js_requests: Vec<(&str, JsonValue)>,
@@ -103,4 +102,15 @@ pub async fn run_test(
     }
 
     return results;
+}
+
+#[allow(unused)]
+pub fn run_test(
+    name: &str,
+    js_code: &str,
+    js_requests: Vec<(&str, JsonValue)>,
+    rs_requests: Vec<(&str, JsonValue)>) -> Vec<String> {
+
+    let mut rt = tokio::runtime::Runtime::new().expect("creating Tokio runtime");
+    return rt.block_on(run_test_async(name, js_code, js_requests, rs_requests));
 }

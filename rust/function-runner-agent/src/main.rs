@@ -19,7 +19,7 @@ type WarpResult<T> = Result<T, warp::Rejection>;
 async fn wait_for_http_server() -> Result<(), error::Error> {
     let mut tries = MAX_INIT_PINGS;
     let _resp = FutureRetry::new(
-        move || reqwest::get("http://localhost:8081/ping"),
+        move || reqwest::get("http://localhost:8081/readinessProbe"),
         move |err| {
             eprintln!("Pinging serverless function ({} tries left)", tries);
             if tries == 0 {

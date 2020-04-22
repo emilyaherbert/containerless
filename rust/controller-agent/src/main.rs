@@ -1,6 +1,7 @@
 use bytes;
 use hyper::Response;
 use warp::Filter;
+use tokio::process::Command;
 
 mod common;
 mod compiler;
@@ -35,6 +36,10 @@ async fn get_status_handler(
 async fn main() {
     env_logger::init();
     info!(target: "controller", "Started Controller");
+    assert!(Command::new("cargo").arg("build").current_dir("/src/dispatcher-agent").spawn()
+    .expect("spawning cargo").await.expect("waiting for cargo to complete")
+        .success(), "initial cargo build failed");
+
     let compiler = compiler::start_compiler_task();
     let compiler2 = compiler.clone();
 

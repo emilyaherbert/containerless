@@ -157,9 +157,10 @@ async fn compiler_task(
                     generate_decontainerized_functions_mod(&tbl);
                 }
 
-                let cargo_fut = Command::new("cargo").arg("build").current_dir("/src/dispatcher-agent").spawn().expect("failed to start cargo");
-                if let Err(err) = cargo_fut.await {
-                    error!(target: "dispatcher", "cargo build failed for {} (exit code {})", &name, err);
+                let cargo_result = Command::new("cargo").arg("build").current_dir("/src/dispatcher-agent").spawn()
+                    .expect("spawning cargo").await.expect("waiting for cargo to complete");
+                if cargo_result.success() == false {
+                    error!(target: "dispatcher", "cargo build failed for {}", &name);
                     let mut tbl = known_functions.lock().await;
                     tbl.insert(name.clone(), CompileStatus::Error);
                     generate_decontainerized_functions_mod(&tbl);
@@ -216,7 +217,6 @@ impl CompilerHandle {
     }
 
     pub async fn get_status(&mut self, name: String) -> hyper::Response<hyper::Body> {
-        println!("called get_status on controller");
         let tbl = self.known_functions.lock().await;
         match tbl.get(&name) {
             None => text_response(200, "Unknown"),
