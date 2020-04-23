@@ -43,8 +43,7 @@ pub async fn run_decontainerized_function(
         request
             .set_field("path", Dyn::str(&arena, url_path))
             .unwrap();
-        let body_json = serde_json::from_slice(&body).expect("Could not parse body.");
-        let body_json = Dyn::from_json(&arena, body_json);
+        let body_json = Dyn::from_json(&arena, serde_json::from_slice(&body)?);
         request.set_field("body", body_json).unwrap();
         request
     });
