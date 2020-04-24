@@ -12,6 +12,8 @@ pub enum Error {
     OutOfGas,
     #[error("Error::Json({0})")]
     Json(#[from] serde_json::Error),
+    #[error("Error::String({0})")]
+    String(#[from] std::str::Utf8Error),
 }
 
 pub fn type_error<T>(message: impl Into<String>) -> Result<T, Error> {

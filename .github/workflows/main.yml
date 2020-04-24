@@ -7,54 +7,51 @@ jobs:
     runs-on: self-hosted
     steps:
     - uses: actions/checkout@v1
-    - name: Delete Containerless from microk8s (stale resources)
-      run: ./undeploy.sh
-      working-directory: ./docker
+    #- name: Delete Containerless from microk8s (stale resources)
+    #  run: ./undeploy.sh
+    #  working-directory: ./docker
     - name: Build javascript/js-transform/
       run: |
         yarn
         yarn run build
       working-directory: ./javascript/js-transform
-    - name: Build javascript/containerless
+    - name: Build javascript/containerless/
       run: |
         yarn
         yarn run build
       working-directory: ./javascript/containerless
-    - name: Build rust/compiler/
-      run: cargo build
-      working-directory: ./rust/compiler
-    - name: Build Function Runner Agent
-      run: cargo build
-      working-directory: ./rust/function-runner-agent
-    - name: Build Function Storage Agent
-      run: cargo build
-      working-directory: ./rust/function-storage-agent
-    - name: Build Dispatcher Agent
-      run: cargo build
-      working-directory: ./rust/dispatcher-agent
-    - name: Build Controller Agent
-      run: cargo build
-      working-directory: ./rust/controller-agent
-    - name: Build Dispatcher Launcher Agent
-      run: cargo build
-      working-directory: ./rust/dispatcher-launcher-agent
     - name: Test javascript/containerless/
       run: yarn run test
       working-directory: ./javascript/containerless
-    - name: Test rust/compiler/
-      run: cargo test
-      working-directory: ./rust/compiler
+    - name: Build rust/
+      run: cargo build
+      working-directory: ./rust
     - name: Build Containers
       run: make
       working-directory: ./docker
     - name: Deploy Containerless to microk8s
-      run: ./deploy-to-microk8s.sh
+      run: ./deploy.sh
       working-directory: ./docker
-    - name: Trivial test case on microk8s
+    - name: Check status
       run: |
         sleep 10
-        time curl http://localhost/dispatcher/hello-world
-        time curl http://localhost/dispatcher/hello-world
+        microk8s.kubectl get pods -n containerless
+    - name: Start the Controller
+      run: ./controller.sh start
+      working-directory: ./docker
+    - name: Check status
+      if: always()    
+      run: |
+        sleep 10
+        microk8s.kubectl get pods -n containerless
+    - name: Run integration tests
+      run: cargo test
+      working-directory: ./rust/integration-tests
     - name: Delete Containerless from microk8s
+      if: always()
       run: ./undeploy.sh
+      working-directory: ./docker
+    - name: Stop the Controller
+      if: always()
+      run: ./controller.sh stop
       working-directory: ./docker

@@ -5,6 +5,7 @@ use super::execution_context::*;
 use super::type_dynamic::*;
 use super::Containerless;
 use std::convert::TryInto;
+use std::str;
 
 // An `async fn` produces a future that may or may not be sendable:
 //
@@ -43,8 +44,16 @@ pub async fn run_decontainerized_function(
         request
             .set_field("path", Dyn::str(&arena, url_path))
             .unwrap();
-        let body_json = Dyn::from_json(&arena, serde_json::from_slice(&body)?);
-        request.set_field("body", body_json).unwrap();
+
+        let body_json = serde_json::from_slice(&body)
+            .map(|j| Dyn::from_json(&arena, j))
+            .map_err(|err| Error::Json(err));
+        let body_str = str::from_utf8(&body)
+            .map(|s| Dyn::str(&arena, s))
+            .map_err(|err| Error::String(err));
+        let body = body_json.or(body_str).unwrap();
+
+        request.set_field("body", body).unwrap();
         request
     });
 
