@@ -337,6 +337,11 @@ impl ContainerBuilder {
         return self;
     }
 
+    pub fn pull_if_not_present(mut self) -> Self {
+        self.container.image_pull_policy = Some("IfNotPresent".to_string());
+        return self;
+    }
+
     pub fn port(mut self, container_port: ContainerPort) -> Self {
         match &mut self.container.ports {
             None => {

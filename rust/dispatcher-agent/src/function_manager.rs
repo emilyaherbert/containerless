@@ -107,10 +107,11 @@ impl State {
                 .image("localhost:32000/function-runner")
                 .expose_port("manager", 8080)
                 .expose_port("server", 8081)
+                .pull_if_not_present()
                 // A readiness probe ensures that we don't direct
                 // requests to an instance until it is ready. By
                 // default, wait ten seconds between each probe.
-                .http_readiness_probe(5, "/readinessProbe", 8081)
+                .http_readiness_probe(1, "/readinessProbe", 8081)
                 .env("FUNCTION_NAME", &self.name)
                 .env("FUNCTION_MODE", mode)
                 .build(),
@@ -124,7 +125,7 @@ impl State {
         }
     }
 
-    async fn start_vanilla_pod_and_service(&self) -> Result<(), kube::Error> {
+    async fn start_vanilla_pod_and_service(&self) -> Result<(), Error> {
         use k8s::builder::*;
         let pod_template = PodTemplateSpecBuilder::new()
             .metadata(
@@ -171,6 +172,7 @@ impl State {
 
         self.k8s_client.new_replica_set(replica_set).await?;
         self.k8s_client.new_service(service).await?;
+        util::wait_for_service(&self.http_client, self.vanilla_authority.clone()).await?;
         return Ok(());
     }
 
@@ -199,6 +201,7 @@ impl State {
 
         self.k8s_client.new_pod(pod).await?;
         self.k8s_client.new_service(service).await?;
+        util::wait_for_pod_running(&self.k8s_client, &self.tracing_pod_name, 60).await?;
         return Ok(());
     }
 
@@ -345,12 +348,9 @@ impl State {
         containerless: Option<Containerless>,
     ) -> Result<(), Error> {
         if create_mode == CreateMode::New && containerless.is_none() {
-            self_.start_tracing_pod_and_service().await?;
-            self_.start_vanilla_pod_and_service().await?;
-            debug!(target: "dispatcher", "Waiting for pod {} to be available",  &self_.tracing_pod_name);
-            util::wait_for_pod_running(&self_.k8s_client, &self_.tracing_pod_name, 60).await?;
-            debug!(target: "dispatcher", "Waiting for service {} to be available",  &self_.vanilla_authority);
-            util::wait_for_service(&self_.http_client, self_.vanilla_authority.clone()).await?;
+            try_join!(
+                self_.start_tracing_pod_and_service(),
+                self_.start_vanilla_pod_and_service())?;
         }
 
         let init_num_replicas = match create_mode {

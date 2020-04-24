@@ -87,12 +87,13 @@ pub fn dispatcher_deployment_spec(version: usize) -> k8s::Deployment {
                                         .name("dispatcher")
                                         .image("localhost:32000/dispatcher")
                                         .expose_port("http", 8080)
+                                        .pull_if_not_present()
                                         .env(
                                             "RUST_LOG",
                                             "error,dispatcher=debug,dispatcher-launcher=info",
                                         )
                                         .env("Version", format!("V{}", version))
-                                        .http_readiness_probe(5, "/readinessProbe/", 8080)
+                                        .http_readiness_probe(1, "/readinessProbe/", 8080)
                                         .build(),
                                 )
                                 .build(),
