@@ -16,3 +16,5 @@ pub mod types;
 pub use builder::*;
 pub use client::Client;
 pub use types::*;
+
+pub use k8s_openapi::api::apps::v1::Deployment;

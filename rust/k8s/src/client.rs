@@ -139,6 +139,32 @@ impl Client {
         return Ok(());
     }
 
+    pub async fn list_pods(&self) -> Result<Vec<(String, PodSpec)>, kube::Error> {
+        let params = ListParams::default();
+        let pods = self.pods.list(&params).await?;
+
+        return Ok(pods
+            .items
+            .into_iter()
+            .map(|item| (item.metadata.name, item.spec))
+            .collect());
+    }
+
+    pub async fn new_deployment(&self, deployment: Deployment) -> Result<(), kube::Error> {
+        let params = PostParams::default();
+        let _ = self
+            .deployment
+            .create(&params, serde_json::to_vec(&deployment)?)
+            .await?;
+        return Ok(());
+    }
+
+    pub async fn delete_deployment(&self, name: &str) -> Result<(), kube::Error> {
+        let params = DeleteParams::default();
+        let _ = self.deployment.delete(name, &params).await;
+        return Ok(());
+    }
+
     pub async fn patch_deployment(&self, deployment: Deployment) -> Result<(), kube::Error> {
         let name = deployment
             .metadata
