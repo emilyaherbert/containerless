@@ -16,7 +16,7 @@ use std::io::{self, Write};
 
 enum Message {
     Compile { name: String, code: Bytes },
-    Shutdown,
+    Shutdown { done: oneshot::Sender<()> },
     RecompileDispatcher { started_compiling: oneshot::Sender<()> },
     ResetDispatcher { started_compiling: oneshot::Sender<()> },
 }
@@ -199,10 +199,11 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                     .expect("patching dispatcher deployment");
                 info!(target: "controller", "Patched dispatcher deployment");
             }
-            Message::Shutdown => {
+            Message::Shutdown { done } => {
                 crate::graceful_sigterm::delete_dynamic_resources(&k8s).await
                     .expect("deleting dynamically created resources");
                 info!(target: "controller", "ending compiler task (received shutdown message)");
+                done.send(()).expect("sending done");
                 return;
             }
         }
@@ -262,8 +263,10 @@ impl Compiler {
     }
 
     pub async fn shutdown(&self) {
+        let (send, recv) = oneshot::channel();
         let mut send_message = self.send_message.clone();
-        send_message.send(Message::Shutdown).await.expect("compiler task shutdown");
+        send_message.send(Message::Shutdown { done: send }).await.expect("compiler task shutdown");
+        return recv.await.expect("compiler task shutdown");
     }
 
     pub fn ok_if_not_compiling(&self) -> http::StatusCode {

@@ -1,7 +1,7 @@
 #!/bin/bash
 case $1 in
 start)
-    if [ -f controller.pid ]; then
+    if [ -f .controller.pid ]; then
         echo "Controller already running"
         exit 1
     fi
@@ -10,10 +10,10 @@ start)
     RUST_LOG=error,controller=debug ./target/debug/controller-agent &> ../docker/controller.log &
     cd ../docker
     echo "$!" > .controller.pid
-    ./poll-ready.sh http://localhost:7999/ready 30 || (./controller.sh stop)
+    ./poll-ready.sh http://localhost:7999/ready 60 || (./controller.sh stop)
 ;;
 stop)
-  kill `cat .controller.pid` && rm .controller.pid
+  kill `cat .controller.pid`; rm .controller.pid
 ;;
 logs)
   tail -f controller.log
