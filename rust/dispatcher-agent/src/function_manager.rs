@@ -348,7 +348,7 @@ impl State {
             self_.start_tracing_pod_and_service().await?;
             self_.start_vanilla_pod_and_service().await?;
             debug!(target: "dispatcher", "Waiting for pod {} to be available",  &self_.tracing_pod_name);
-            util::wait_for_pod_running(&self_.k8s_client, &self_.tracing_pod_name, 20).await?;
+            util::wait_for_pod_running(&self_.k8s_client, &self_.tracing_pod_name, 60).await?;
             debug!(target: "dispatcher", "Waiting for service {} to be available",  &self_.vanilla_authority);
             util::wait_for_service(&self_.http_client, self_.vanilla_authority.clone()).await?;
         }

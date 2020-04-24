@@ -54,6 +54,15 @@ impl FunctionTable {
                     debug!(target: "dispatcher", "Adopting ReplicaSet {}", &rs_name);
                     let name = captures.get(1).unwrap().as_str();
                     let num_replicas = spec.replicas.unwrap();
+                    {
+                        // TODO(arjun): This is a hack. We don't adopt tracing containers, but
+                        // just kill them. It's not ideal.
+                        let k8s_client = inner.k8s_client.clone();
+                        let rs_name = rs_name.clone();
+                        tokio::spawn(async move {
+                            let _ = k8s_client.delete_pod(&format!("function-tracing-{}", &rs_name)).await;
+                        });
+                    }
                     let fm = FunctionManager::new(
                         inner.k8s_client.clone(),
                         inner.http_client.clone(),
