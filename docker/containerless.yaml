@@ -4,46 +4,17 @@ kind: Namespace
 metadata:
     name: containerless
 ---
-# This ReplicaSet runs the controller. Note that the number of replicas
-# must be exactly 1. The controller-agent is not designed to be
-# replicated.
-apiVersion: apps/v1
-kind: ReplicaSet
+apiVersion: v1
+kind: Endpoints
 metadata:
   name: controller
   namespace: containerless
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: controller
-  template:
-    metadata:
-      labels:
-        app: controller
-    spec:
-      containers:
-      - name: controller
-        image: localhost:32000/controller
-        imagePullPolicy: Always
-        env:
-          - name: RUST_LOG
-            value: error,controller=debug
-        ports:
-        - containerPort: 80
-        readinessProbe:
-          periodSeconds: 5
-          httpGet:
-            path: /ready
-            port: 80
-        volumeMounts:
-          - name: rust-src
-            mountPath: "/src"
-      volumes:
-        - name: rust-src
-          hostPath:
-            path: $RUST_SRC_PATH
-
+subsets:
+  - addresses:
+    - ip: $CONTROLLER_IP
+    ports:
+    - port: $CONTROLLER_PORT
+      name: http
 ---
 apiVersion: v1
 kind: Service
@@ -51,44 +22,10 @@ metadata:
   name: controller
   namespace: containerless
 spec:
-  selector:
-    app: controller
   ports:
     - name: http
       port: 80
----
-# This Deployment runs the dispatcher.
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: dispatcher
-  namespace: containerless
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: dispatcher
-  template:
-    metadata:
-      labels:
-        app: dispatcher
-    spec:
-      containers:
-      - name: dispatcher
-        image: localhost:32000/dispatcher
-        imagePullPolicy: Always
-        ports:
-        - containerPort: 8080
-        env:
-          - name: RUST_LOG
-            value: error,dispatcher=debug,dispatcher-launcher=info
-          - name: Version
-            value: V1
-        readinessProbe:
-          periodSeconds: 5
-          httpGet:
-            path: /readinessProbe/
-            port: 8080
+      targetPort: $CONTROLLER_PORT
 ---
 apiVersion: v1
 kind: Service

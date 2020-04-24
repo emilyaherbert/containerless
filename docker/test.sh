@@ -1,8 +1,16 @@
 #!/bin/sh
 set -e
-set -x
-git checkout ../rust/dispatcher-agent/src/decontainerized_functions/mod.rs
-(cd ../rust/dispatcher-agent && cargo build)
-./restart-dispatcher.sh
-./poll-ready.sh http://localhost/dispatcher/readinessProbe 10
-(cd ../rust/integration-tests && cargo test)
+
+curl --output /dev/null --silent --fail -X POST http://localhost/controller/reset_dispatcher
+./poll-ready.sh http://localhost/controller/ok_if_not_compiling 60
+sleep 2
+echo -n "Waiting until exactly one replica "
+REPLICAS=$(microk8s.kubectl get deployment/dispatcher -n containerless -o json | jq ".status.replicas")
+until [ "$REPLICAS" -eq "1" ]; do
+    echo -n "."
+    REPLICAS=$(microk8s.kubectl get deployment/dispatcher -n containerless -o json | jq ".status.replicas")
+    sleep 1
+done
+echo "OK"
+
+(cd ../rust/integration-tests && cargo test -- --test-threads=1)

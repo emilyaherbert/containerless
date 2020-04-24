@@ -1,4 +1,4 @@
-use super::compiler::CompilerHandle;
+use super::compiler::Compiler;
 use crate::common::*;
 use k8s;
 use kube;
@@ -9,6 +9,13 @@ use tokio::signal::unix::{signal, SignalKind};
 fn is_function(name: &String) -> bool {
     lazy_static! {
         static ref RE: Regex = Regex::new("^function-(.*)$").unwrap();
+    }
+    return RE.is_match(name);
+}
+
+fn is_tracing_function(name: &String) -> bool {
+    lazy_static! {
+        static ref RE: Regex = Regex::new("^function-tracing-(.*)$").unwrap();
     }
     return RE.is_match(name);
 }
@@ -34,6 +41,16 @@ async fn delete_services(k8s: &k8s::Client) -> Result<(), kube::Error> {
     return Ok(());
 }
 
+async fn delete_tracing_pods(k8s: &k8s::Client) -> Result<(), kube::Error> {
+    let pods = k8s.list_pods().await?.into_iter()
+        .map(|(name, _)| name)
+        .filter(is_tracing_function)
+        .collect::<Vec<_>>();
+    let deleters = pods.iter().map(|name| k8s.delete_pod(&name));
+    future::try_join_all(deleters).await?;
+    return Ok(());
+}
+
 async fn delete_replica_sets(k8s: &k8s::Client) -> Result<(), kube::Error> {
     let replica_sets = k8s.list_services().await?;
     let deleters = replica_sets
@@ -45,13 +62,21 @@ async fn delete_replica_sets(k8s: &k8s::Client) -> Result<(), kube::Error> {
     return Ok(());
 }
 
-pub async fn handle_sigterm(mut compiler: CompilerHandle) -> Result<(), kube::Error> {
+
+pub async fn delete_dynamic_resources(k8s_client: &k8s::Client) -> Result<(), kube::Error> {
+    future::try_join4(
+        delete_replica_sets(&k8s_client),
+        delete_services(&k8s_client),
+        k8s_client.delete_deployment("dispatcher"),
+        delete_tracing_pods(&k8s_client),
+    ).await?;
+    return Ok(());
+}
+
+pub async fn handle_sigterm(compiler: Arc<Compiler>) -> Result<(), kube::Error> {
     let mut sigterm = signal(SignalKind::terminate()).expect("registering SIGTERM handler");
     sigterm.recv().await;
     info!("Received SIGTERM");
-
     compiler.shutdown().await;
-    let k8s = k8s::Client::new(NAMESPACE).await?;
-    future::try_join(delete_replica_sets(&k8s), delete_services(&k8s)).await?;
     return Ok(());
 }

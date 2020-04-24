@@ -21,21 +21,13 @@ impl TestRunner {
         for _i in 0..40 {
             let resp = self
                 .http_client
-                .get(&format!(
-                    "http://localhost/controller/get_status/{}",
-                    self.name
-                ))
+                .get("http://localhost/controller/ok_if_not_compiling")
                 .body("")
                 .send()
                 .await
                 .expect("checking compile status");
-            let text = resp.text().await.expect("reading compile response body");
-            match text.as_ref() {
-                "Error" => return false,
-                "Compiled" => return true,
-                "Compiling" => (),
-                "Unknown" => (),
-                unexpected => panic!("unexpected status from compiler {}", unexpected),
+            if resp.status().is_success() {
+                return true;
             }
             delay_for(Duration::from_secs(1)).await;
         }
@@ -65,7 +57,7 @@ impl TestRunner {
         path_suffix: &str,
         body: JsonValue,
         expected_mode: &str,
-    ) -> String {
+    ) -> Result<String, String> {
         let url = reqwest::Url::parse(&format!(
             "http://localhost/dispatcher/{}/{}",
             self.name, path_suffix
@@ -85,13 +77,13 @@ impl TestRunner {
             .get("X-Containerless-Mode")
             .map(|mode| mode.to_str().unwrap().to_string());
         let resp_body = resp.text().await.unwrap();
-        assert_eq!(
-            status, 200,
-            "got response code {} with body {}",
-            status, resp_body
-        );
-        assert_eq!(mode.as_deref(), Some(expected_mode));
-        return resp_body;
+        if status != 200 {
+            return Err(format!("got response code {} with body {}", status, resp_body));
+        }
+        if mode.as_deref() != Some(expected_mode) {
+            return Err(format!("response had mode {:?}", mode));
+        }
+        return Ok(resp_body);
     }
 }
 
@@ -119,7 +111,8 @@ pub async fn run_test_async(
         results.push(
             runner
                 .send_post_request(&path_suffix, body, "tracing")
-                .await,
+                .await
+                .unwrap(),
         );
     }
 
@@ -142,7 +135,8 @@ pub async fn run_test_async(
         results.push(
             runner
                 .send_post_request(&path_suffix, body, "decontainerized")
-                .await,
+                .await
+                .unwrap(),
         );
     }
 

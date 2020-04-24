@@ -215,6 +215,7 @@ dependencies = [
  "duct",
  "env_logger",
  "futures",
+ "http",
  "hyper",
  "im-rc",
  "k8s",

@@ -2,8 +2,13 @@ This directory contains several scripts that help run and test Containerless.
 
 - `./deploy.sh` deploys Containerless to MicroK8s. *Warning*: We assume you
   have a single-node MicroK8s cluster. In particular, it mounts directories
-  within this repository as volumes for the controller and storage agent, to
-  make re-deploying Containerless faster after you have made changes.
+  within this repository as volumes for storage agent, to make re-deploying
+  Containerless faster after you have made changes.
+
+- `./controller.sh` starts and stops the controller. Run `./controller.sh start`
+  to start the controller after running `./deploy.sh`.
+
+- `./test.sh` runs the integration tests.
 
 - `./undeploy.sh` deletes all Containerless resources.
 
