@@ -35,7 +35,7 @@ impl TestRunner {
     }
 
     async fn poll_dispatcher_for_decontainerized(&self) -> bool {
-        for _i in 0..20 {
+        for _i in 0..200 {
             let resp = self
                 .http_client
                 .get(&format!("http://localhost/dispatcher/mode/{}", self.name))
