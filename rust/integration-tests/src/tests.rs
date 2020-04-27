@@ -1,10 +1,8 @@
 #![cfg(test)]
 use super::test_runner::run_test;
 use serde_json::json;
-use serial_test::serial;
 
 #[test]
-#[serial]
 fn trivial_fixed_response() {
     let results = run_test(
         "trivialfixedresponse",
@@ -21,7 +19,6 @@ fn trivial_fixed_response() {
 }
 
 #[test]
-#[serial]
 fn loops() {
     let results = run_test(
         "loops",
