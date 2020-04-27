@@ -63,11 +63,15 @@ async fn delete_replica_sets(k8s: &k8s::Client) -> Result<(), kube::Error> {
 }
 
 
-pub async fn delete_dynamic_resources(k8s_client: &k8s::Client) -> Result<(), kube::Error> {
+pub async fn delete_dynamic_resources(k8s_client: &k8s::Client, delete_dispatcher: bool) -> Result<(), kube::Error> {
     future::try_join4(
         delete_replica_sets(&k8s_client),
         delete_services(&k8s_client),
-        k8s_client.delete_deployment("dispatcher"),
+        if delete_dispatcher {
+            future::Either::Left(k8s_client.delete_deployment("dispatcher"))
+        } else {
+            future::Either::Right(future::ok(()))
+        }, 
         delete_tracing_pods(&k8s_client),
     ).await?;
     return Ok(());
