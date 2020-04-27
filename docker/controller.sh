@@ -10,7 +10,7 @@ start)
     RUST_LOG=error,controller=debug ./target/debug/controller-agent &> ../docker/controller.log &
     cd ../docker
     echo "$!" > .controller.pid
-    ./poll-ready.sh http://127.0.0.1:7999/ready 60 || ((./controller.sh stop) && (exit 1))
+    ./poll-ready.sh http://127.0.0.1:7999/ready 300 || ((./controller.sh stop) && (exit 1))
 ;;
 stop)
   kill `cat .controller.pid`; rm .controller.pid
