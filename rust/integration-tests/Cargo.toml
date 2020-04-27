@@ -10,6 +10,4 @@ edition = "2018"
 tokio = { version = "*", features = [ "rt-threaded", "time", "macros" ] }
 serde_json = "*"
 reqwest = "*"
-
-[dev-dependencies]
-serial_test = "*"
+k8s = { path = "../k8s" }
