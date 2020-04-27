@@ -1,96 +1,120 @@
-use crate::autoscaler::Autoscaler;
-use crate::function_manager::FunctionManager;
-use crate::k8s;
+use super::function_manager;
+use super::function_manager::FunctionManager;
 use crate::types::*;
 use futures::lock::Mutex;
+use k8s;
+use lazy_static::lazy_static;
+use regex::Regex;
 use std::collections::HashMap;
-use std::sync::{Arc, Weak};
 
 struct FunctionTableImpl {
-    functions: HashMap<String, Autoscaler>,
+    functions: HashMap<String, FunctionManager>,
     http_client: HttpClient,
     k8s_client: K8sClient,
 }
 
-#[derive(Clone)]
 pub struct FunctionTable {
-    inner: Arc<Mutex<FunctionTableImpl>>,
+    inner: Mutex<FunctionTableImpl>,
+    decontainerized_functions: HashMap<&'static str, Containerless>,
+    upgrade_pending: Arc<AtomicBool>
 }
 
-#[derive(Clone)]
-pub struct WeakFunctionTable {
-    weak: Weak<Mutex<FunctionTableImpl>>,
-}
-
-impl WeakFunctionTable {
-    pub fn upgrade(&self) -> Option<FunctionTable> {
-        return self.weak.upgrade().map(|inner| FunctionTable { inner });
-    }
-}
-
-impl FunctionTableImpl {
-    async fn new() -> FunctionTableImpl {
+impl FunctionTable {
+    pub async fn new() -> Arc<FunctionTable> {
         let functions = HashMap::new();
         let k8s_client = Arc::new(
-            k8s::client::Client::new()
+            k8s::client::Client::new("containerless")
                 .await
                 .expect("initializing k8s client"),
         );
         let http_client = Arc::new(hyper::Client::new());
-        return FunctionTableImpl {
+        let inner = FunctionTableImpl {
             functions,
             http_client,
             k8s_client,
         };
+        let upgrade_pending = Arc::new(AtomicBool::new(false));
+        let decontainerized_functions = super::decontainerized_functions::init();
+        return Arc::new(FunctionTable {
+            inner: Mutex::new(inner),
+            decontainerized_functions,
+            upgrade_pending,
+        });
     }
-}
 
-impl FunctionTable {
-    pub async fn new() -> FunctionTable {
-        let inner = Arc::new(Mutex::new(FunctionTableImpl::new().await));
-        return FunctionTable { inner };
-    }
-
-    pub async fn shutdown(&self) -> () {
-        let mut inner = self.inner.lock().await;
-        for (name, fm) in inner.functions.drain() {
-            if let Err(err) = fm.shutdown().await {
-                println!("Error shutting down {}: {}", name, err);
-            }
+    pub async fn adopt_running_functions(self_: &Arc<FunctionTable>) -> Result<(), kube::Error> {
+        lazy_static! {
+            static ref RE: Regex = Regex::new("^function-vanilla-(.*)$").unwrap();
         }
-    }
-
-    pub async fn shutdown_function(&self, name: &str) {
-        let mut inner = self.inner.lock().await;
-        match inner.functions.remove(name) {
-            None => eprintln!("{} not in hash table", name),
-            Some(fm) => {
-                if let Err(err) = fm.shutdown().await {
-                    eprintln!("error shutting down {}", err);
+        let mut inner = self_.inner.lock().await;
+        let replica_sets = inner.k8s_client.list_replica_sets().await?;
+        let pods: Vec<String> = inner.k8s_client.list_pods().await?.into_iter().map(|(name, _)| name).collect();
+        for (rs_name, spec) in replica_sets.into_iter() {
+            match RE.captures(&rs_name) {
+                None => {
+                    debug!(target: "dispatcher", "Ignoring ReplicaSet {}", &rs_name);
+                }
+                Some(captures) => {
+                    debug!(target: "dispatcher", "Adopting ReplicaSet {}", &rs_name);
+                    let name = captures.get(1).unwrap().as_str();
+                    let num_replicas = spec.replicas.unwrap();
+                    let is_tracing = pods.contains(&format!("function-tracing-{}", &rs_name));
+                    let fm = FunctionManager::new(
+                        inner.k8s_client.clone(),
+                        inner.http_client.clone(),
+                        Arc::downgrade(self_),
+                        name.to_string(),
+                        function_manager::CreateMode::Adopt { num_replicas, is_tracing },
+                        self_
+                            .decontainerized_functions
+                            .get(name)
+                            .map(|ptrptr| *ptrptr),
+                        self_.upgrade_pending.clone(),
+                    )
+                    .await;
+                    inner.functions.insert(name.to_string(), fm.clone());
                 }
             }
         }
+
+        return Ok(());
     }
 
-    pub fn downgrade(&self) -> WeakFunctionTable {
-        return WeakFunctionTable {
-            weak: Arc::downgrade(&self.inner),
-        };
+    pub async fn shutdown(self_: Arc<FunctionTable>, name: &str) {
+        let mut inner = self_.inner.lock().await;
+        match inner.functions.remove(name) {
+            None => eprintln!("{} not in hash table", name),
+            Some(mut fm) => {
+                fm.shutdown().await;
+            }
+        }
     }
 
-    pub async fn get_function(&self, name: &str) -> Autoscaler {
-        let mut inner = self.inner.lock().await;
+    pub async fn orphan(self_: Arc<FunctionTable>) {
+        let mut inner = self_.inner.lock().await;
+        // Unnecessary sequential awaits
+        for (_name, function_manager) in inner.functions.drain() {
+            function_manager.orphan().await;
+        }
+    }
+
+    pub async fn get_function(self_: &Arc<FunctionTable>, name: &str) -> FunctionManager {
+        let mut inner = self_.inner.lock().await;
         match inner.functions.get(name) {
             None => {
-                let fm = Autoscaler::new(
-                    self.downgrade(),
-                    FunctionManager::new(
-                        inner.k8s_client.clone(),
-                        inner.http_client.clone(),
-                        name.to_string(),
-                    )
-                    .await,
-                );
+                let fm = FunctionManager::new(
+                    inner.k8s_client.clone(),
+                    inner.http_client.clone(),
+                    Arc::downgrade(self_),
+                    name.to_string(),
+                    function_manager::CreateMode::New,
+                    self_
+                        .decontainerized_functions
+                        .get(name)
+                        .map(|ptrptr| *ptrptr),
+                    self_.upgrade_pending.clone(),
+                )
+                .await;
                 inner.functions.insert(name.to_string(), fm.clone());
                 return fm;
             }

@@ -1,5 +1,6 @@
 import * as request from 'request';
 import * as express from 'express';
+import * as os from 'os';
 import * as bodyParser from "body-parser";
 import * as state from './state';
 import { newTrace } from './tracing';
@@ -14,6 +15,8 @@ export type Request = {
     query: JSON,
     body: JSON
 }
+
+const hostname = os.hostname();
 
 export class Callbacks {
 
@@ -214,9 +217,8 @@ export class Callbacks {
         }
         state.setListening();
 
-	this.app.get('/', (req, resp) => {
-	    console.error("Hello world!\n");
-            resp.send('Hello world!\n');
+        this.app.get('/readinessProbe', (req, resp) => {
+            resp.send('');
         });
 
         this.app.post('/', (req, resp) => {
@@ -253,6 +255,7 @@ export class Callbacks {
         let [_, $response] = this.trace.popArgs();
         this.trace.tracePrimApp('send', [$response]);
         if(this.response !== undefined) {
+            this.response.set('X-Server-Hostname', hostname); 
             this.response.send('' + response);
         } else if(state.getListenPort() !== 'test') {
             throw new Error("No express.Response found.");

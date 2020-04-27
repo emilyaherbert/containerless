@@ -26,6 +26,12 @@ impl std::convert::From<io::Error> for Error {
     }
 }
 
+impl std::convert::From<(reqwest::Error, usize)> for Error {
+    fn from(error: (reqwest::Error, usize)) -> Error {
+        return Error::Reqwest(error.0);
+    }
+}
+
 impl std::convert::From<reqwest::Error> for Error {
     fn from(error: reqwest::Error) -> Error {
         return Error::Reqwest(error);

@@ -19,7 +19,7 @@ type WarpResult<T> = Result<T, warp::Rejection>;
 async fn wait_for_http_server() -> Result<(), error::Error> {
     let mut tries = MAX_INIT_PINGS;
     let _resp = FutureRetry::new(
-        move || reqwest::get("http://localhost:8081/ping"),
+        move || reqwest::get("http://localhost:8081/readinessProbe"),
         move |err| {
             eprintln!("Pinging serverless function ({} tries left)", tries);
             if tries == 0 {
@@ -43,11 +43,7 @@ async fn monitor_nodejs_process(handle: process::Child) -> () {
 }
 
 async fn initialize(function_name: String, tracing_enabled: bool) -> Result<(), error::Error> {
-    let resp = reqwest::get(&format!(
-        "http://function-storage:8080/get/{}",
-        &function_name
-    ))
-    .await?;
+    let resp = reqwest::get(&format!("http://storage:8080/get/{}", &function_name)).await?;
     let function_code = resp.text().await?;
     eprintln!("Downloaded function ({} bytes)", function_code.len());
 
@@ -62,6 +58,7 @@ async fn initialize(function_name: String, tracing_enabled: bool) -> Result<(), 
             .stderr(Stdio::inherit())
             .output()
             .await?;
+        eprintln!("{}", String::from_utf8_lossy(&output.stderr));
         if output.status.success() == false {
             println!("{}", String::from_utf8_lossy(&output.stdout));
             eprintln!("js-transform aborted with exit code {:?}", output.status);
