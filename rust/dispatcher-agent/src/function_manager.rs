@@ -10,7 +10,7 @@ use tokio::task;
 #[derive(Debug, PartialEq)]
 pub enum CreateMode {
     New,
-    Adopt { num_replicas: i32 },
+    Adopt { num_replicas: i32, is_tracing: bool },
 }
 
 #[derive(Copy, Clone)]
@@ -340,22 +340,46 @@ impl State {
         // task::spawn(Self::invoke_decontainerized(Arc::clone(&self_), func, req));
     }
 
+
+    async fn maybe_start_vanilla(
+        self_: Arc<State>,
+        create_mode: &CreateMode,
+        containerless: Option<Containerless>) -> Result<(), Error> {
+        if *create_mode == CreateMode::New && containerless.is_none() {
+            return self_.start_vanilla_pod_and_service().await;
+        }
+        return Ok(());
+    }
+
+    async fn maybe_start_tracing(
+        self_: Arc<State>,
+        upgrade_pending: bool,
+        create_mode: &CreateMode,
+        containerless: Option<Containerless>) -> Result<(), Error> {
+        if upgrade_pending {
+            return Ok(());
+        }
+        if *create_mode == CreateMode::New && containerless.is_none() {
+            return self_.start_tracing_pod_and_service().await;
+        }
+        return Ok(());
+    }
+
     async fn function_manager_task(
         self_: Arc<State>,
         mut recv_requests: mpsc::Receiver<Message>,
         function_table: Weak<FunctionTable>,
         create_mode: CreateMode,
         containerless: Option<Containerless>,
+        upgrade_pending: Arc<AtomicBool>,
     ) -> Result<(), Error> {
-        if create_mode == CreateMode::New && containerless.is_none() {
-            try_join!(
-                self_.start_tracing_pod_and_service(),
-                self_.start_vanilla_pod_and_service())?;
-        }
+        try_join!(
+            Self::maybe_start_tracing(self_.clone(), upgrade_pending.load(SeqCst), &create_mode, containerless),
+            Self::maybe_start_vanilla(self_.clone(), &create_mode, containerless))?;
 
         let init_num_replicas = match create_mode {
             CreateMode::New => 1,
-            CreateMode::Adopt { num_replicas } => num_replicas,
+            CreateMode::Adopt { num_replicas, is_tracing: _ } => num_replicas,
         };
 
         let autoscaler = Autoscaler::new(
@@ -413,6 +437,7 @@ impl State {
                     if let Mode::Tracing(_) = mode {
                         {
                             let self_ = Arc::clone(&self_);
+                            upgrade_pending.store(true, SeqCst);
                             task::spawn(util::log_error::<_, Error, _>(
                                 async move {
                                     Self::send_trace_then_stop_pod_and_service(Arc::clone(&self_))
@@ -488,6 +513,7 @@ impl FunctionManager {
         name: String,
         create_mode: CreateMode,
         containerless: Option<Containerless>,
+        upgrade_pending: Arc<AtomicBool>,
     ) -> FunctionManager {
         let (send_requests, recv_requests) = mpsc::channel(1);
         let err_msg = format!("error raised by task for {}", &name);
@@ -499,6 +525,7 @@ impl FunctionManager {
                 function_table,
                 create_mode,
                 containerless,
+                upgrade_pending,
             ),
             err_msg,
         ));

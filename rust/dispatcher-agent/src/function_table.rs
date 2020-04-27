@@ -16,6 +16,7 @@ struct FunctionTableImpl {
 pub struct FunctionTable {
     inner: Mutex<FunctionTableImpl>,
     decontainerized_functions: HashMap<&'static str, Containerless>,
+    upgrade_pending: Arc<AtomicBool>
 }
 
 impl FunctionTable {
@@ -32,10 +33,12 @@ impl FunctionTable {
             http_client,
             k8s_client,
         };
+        let upgrade_pending = Arc::new(AtomicBool::new(false));
         let decontainerized_functions = super::decontainerized_functions::init();
         return Arc::new(FunctionTable {
             inner: Mutex::new(inner),
             decontainerized_functions,
+            upgrade_pending,
         });
     }
 
@@ -45,6 +48,7 @@ impl FunctionTable {
         }
         let mut inner = self_.inner.lock().await;
         let replica_sets = inner.k8s_client.list_replica_sets().await?;
+        let pods: Vec<String> = inner.k8s_client.list_pods().await?.into_iter().map(|(name, _)| name).collect();
         for (rs_name, spec) in replica_sets.into_iter() {
             match RE.captures(&rs_name) {
                 None => {
@@ -54,25 +58,18 @@ impl FunctionTable {
                     debug!(target: "dispatcher", "Adopting ReplicaSet {}", &rs_name);
                     let name = captures.get(1).unwrap().as_str();
                     let num_replicas = spec.replicas.unwrap();
-                    {
-                        // TODO(arjun): This is a hack. We don't adopt tracing containers, but
-                        // just kill them. It's not ideal.
-                        let k8s_client = inner.k8s_client.clone();
-                        let rs_name = rs_name.clone();
-                        tokio::spawn(async move {
-                            let _ = k8s_client.delete_pod(&format!("function-tracing-{}", &rs_name)).await;
-                        });
-                    }
+                    let is_tracing = pods.contains(&format!("function-tracing-{}", &rs_name));
                     let fm = FunctionManager::new(
                         inner.k8s_client.clone(),
                         inner.http_client.clone(),
                         Arc::downgrade(self_),
                         name.to_string(),
-                        function_manager::CreateMode::Adopt { num_replicas },
+                        function_manager::CreateMode::Adopt { num_replicas, is_tracing },
                         self_
                             .decontainerized_functions
                             .get(name)
                             .map(|ptrptr| *ptrptr),
+                        self_.upgrade_pending.clone(),
                     )
                     .await;
                     inner.functions.insert(name.to_string(), fm.clone());
@@ -115,6 +112,7 @@ impl FunctionTable {
                         .decontainerized_functions
                         .get(name)
                         .map(|ptrptr| *ptrptr),
+                    self_.upgrade_pending.clone(),
                 )
                 .await;
                 inner.functions.insert(name.to_string(), fm.clone());
