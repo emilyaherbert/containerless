@@ -89,9 +89,13 @@ pub fn dispatcher_deployment_spec(version: usize) -> k8s::Deployment {
                                         .expose_port("http", 8080)
                                         .pull_if_not_present()
                                         .env(
-                                            "RUST_LOG",
-                                            "error,dispatcher=debug,dispatcher-launcher=info",
+                                            "LOG_RSYSLOG_ADDR",
+                                            std::env::var("LOG_RSYSLOG_ADDR").unwrap(),
                                         )
+                                        .env(
+                                            "LOG_LEVEL",
+                                            std::env::var("LOG_LEVEL").unwrap(),
+                                        )                                        
                                         .env("Version", format!("V{}", version))
                                         .http_readiness_probe(1, "/readinessProbe/", 8080)
                                         .build(),

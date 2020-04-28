@@ -1,22 +1,21 @@
 #!/bin/bash
+export LOG_LEVEL=info
+export LOG_RSYSLOG_ADDR=`hostname -i | cut -f 1 -d " "`:514
 case $1 in
 start)
     if [ -f .controller.pid ]; then
         echo "Controller already running"
         exit 1
     fi
-
     cd ../rust
-    RUST_LOG=error,controller=debug ./target/debug/controller-agent &> ../docker/controller.log &
+    ./target/debug/controller-agent  &
     cd ../docker
     echo "$!" > .controller.pid
     ./poll-ready.sh http://127.0.0.1:7999/ready 300 || ((./controller.sh stop) && (exit 1))
 ;;
 stop)
-  kill `cat .controller.pid`; rm .controller.pid
-;;
-logs)
-  tail -f controller.log
+  rm .controller.pid
+  killall controller-agent
 ;;
 clear)
   git checkout ../rust/dispatcher-agent/src/decontainerized_functions/mod.rs
@@ -26,5 +25,4 @@ clear)
   echo ""
   echo "  controller.sh start"
   echo "  controller.sh stop"
-  echo "  controller.sh logs"
 esac

@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "shared2",
     "controller-agent",
     "dispatcher-agent",
     "dispatcher-launcher-agent",

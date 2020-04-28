@@ -64,7 +64,7 @@ async fn get_mode_handler(
 
 #[tokio::main]
 async fn main() {
-    env_logger::init();
+    shared2::rsyslog::init_using_env();
 
     info!(target: "dispatcher", "Started dispatcher");
     let state = FunctionTable::new().await;
