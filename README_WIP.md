@@ -88,8 +88,41 @@ hosting new resources for the `hello-world` function.
 cd docker && ./undeploy.sh
 ```
 
+## Logging
+
+Containerless uses [rsyslog] to consolidate logs from its distributed
+components. The `docker/controller.sh` script configures Containerless to to
+send log messages to an *rsyslog* server running the local machine, using
+UDP port 514 (the default). These log messages get silently discarded
+if the *rsyslog* server is not running.
+
+1. Install *rsyslog* with `apt-get install rsyslog`.
+
+2. Open the file `/etc/rsyslog.conf` as root and make two changes:
+
+   a. Add the following lines:
+   
+      ```
+      module(load="imudp")
+      input(type="imudp" port="514")
+      ```
+      
+      (By default, they are commented out, so uncomment them.)
+
+   b. At the end of the file, add the lines:
+
+      ```
+      $template remote-incoming-logs,"/var/log/rsyslog-%HOSTNAME%.log"
+      *.* ?remote-incoming-logs
+      & ~
+      ```
+3. Restart *rsyslog* with `systemctl restart rsyslog`
+
+The logs will now appear in `/var/log/rsyslog-containerless.log`.
+
 [Cargo]: https://rustup.rs/
 [Yarn]: https://yarnpkg.com/
 [Node]: https://nodejs.org/
 [Docker]: https://www.docker.com/
 [Microk8s]: https://microk8s.io/
+[rsyslog]: https://www.rsyslog.com/

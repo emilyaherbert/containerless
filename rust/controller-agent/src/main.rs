@@ -45,7 +45,7 @@ async fn reset_dispatcher_handler(
 
 #[tokio::main]
 async fn main() {
-    env_logger::init();
+    shared2::rsyslog::init_using_env();
 
     let k8s_client = Arc::new(k8s::Client::from_kubeconfig_file(NAMESPACE)
         .await

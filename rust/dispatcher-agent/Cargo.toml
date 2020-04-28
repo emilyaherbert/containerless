@@ -7,6 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+shared2 = { path = "../shared2" }
 tokio = { version = "*", features = ["macros", "sync", "signal", "time"] }
 hyper = "*"
 kube = { version = "0.25.0", features = ["openapi"] }
@@ -20,7 +21,6 @@ k8s = { path = "../k8s" }
 lazy_static = "*"
 regex = "*"
 log = "*"
-env_logger = "*"
 bumpalo = { version = "*", features = ["collections"] }
 thiserror = "*"
 warp = "*"
