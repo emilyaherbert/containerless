@@ -54,41 +54,38 @@ fn yay() {
 }
 
 #[test]
-fn single_binop() {
+fn frivolous_if() {
     let results = run_test(
-        "single_binop",
+        "frivolousif",
         r#"
         let containerless = require("containerless");
         containerless.listen(function(req) {
             let x = 12;
             if(x > 2) {
-                containerless.respond("yay!");
+                x = 11;
             } else {
-                containerless.respond("boo!");
+                x = 13;
             }
+            containerless.respond("hi");
         });"#,
         vec![("/hello", json!({}))],
         vec![("/hello", json!({}))],
     );
-    assert_eq!(results, vec!["yay!", "yay!"]);
+    assert_eq!(results, vec!["hi", "hi"]);
 }
 
 #[test]
-fn nested_binops() {
+#[should_panic]
+fn bad_name() {
     let results = run_test(
-        "nested_binops",
+        "bad_name",
         r#"
         let containerless = require("containerless");
         containerless.listen(function(req) {
-            let x = 12;
-            if(x > 2 && x < 15) {
-                containerless.respond("yay!");
-            } else {
-                containerless.respond("boo!");
-            }
+            containerless.respond("you won't see this");
         });"#,
         vec![("/hello", json!({}))],
         vec![("/hello", json!({}))],
     );
-    assert_eq!(results, vec!["yay!", "yay!"]);
+    assert_eq!(results, vec!["you won't see this", "you won't see this"]);
 }

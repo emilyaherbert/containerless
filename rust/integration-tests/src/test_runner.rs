@@ -150,6 +150,10 @@ pub fn run_test(
     js_requests: Vec<(&str, JsonValue)>,
     rs_requests: Vec<(&str, JsonValue)>,
 ) -> Vec<String> {
+    if name.contains("-") || name.contains("_") {
+        panic!("The function name contains an invalid characters.");
+    }
+
     let mut rt = tokio::runtime::Runtime::new().expect("creating Tokio runtime");
     return rt.block_on(run_test_async(name, js_code, js_requests, rs_requests));
 }
