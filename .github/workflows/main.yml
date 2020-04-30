@@ -45,8 +45,8 @@ jobs:
         sleep 10
         microk8s.kubectl get pods -n containerless
     - name: Run integration tests
-      run: cargo test
-      working-directory: ./rust/integration-tests
+      run: ./test.sh
+      working-directory: ./docker
     - name: Delete Containerless from microk8s
       if: always()
       run: ./undeploy.sh
