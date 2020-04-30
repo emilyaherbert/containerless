@@ -1,6 +1,8 @@
 use bytes;
 use hyper::Response;
 use warp::Filter;
+#[macro_use]
+extern crate lazy_static;
 
 mod common;
 mod compiler;
@@ -61,7 +63,7 @@ async fn main() {
     let ready_route = warp::path!("ready").and(warp::get()).and_then(ready);
     let download_dispatcher_route = warp::path("download_dispatcher")
         .and(warp::get())
-        .and(warp::fs::file(format!("{}/target/debug/dispatcher-agent", ROOT)));
+        .and(warp::fs::file(format!("{}/target/debug/dispatcher-agent", ROOT.as_str())));
     let recv_trace_route = {
         let compiler = compiler.clone();
         warp::path!("recv_trace" / String)

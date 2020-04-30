@@ -117,7 +117,7 @@ fn generate_decontainerized_functions_mod(known_functions: &HashMap<String, Comp
         .collect::<Vec<_>>();
 
     std::fs::write(
-        "./dispatcher-agent/src/decontainerized_functions/mod.rs",
+        format!("{}/dispatcher-agent/src/decontainerized_functions/mod.rs", ROOT.as_str()),
         format!("{}", gen_function_table_file(&available_functions)),
     )
     .expect("cannot write function table file");
@@ -166,7 +166,7 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                 fs::write(
                     format!(
                         "{}/dispatcher-agent/src/decontainerized_functions/function_{}.json",
-                        ROOT,
+                        ROOT.as_str(),
                         &name
                     ),
                     &code,
@@ -176,7 +176,7 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                     name.clone(),
                     &format!(
                         "{}/dispatcher-agent/src/decontainerized_functions/function_{}.rs",
-                        ROOT,
+                        ROOT.as_str(),
                         &name
                     ),
                     &String::from_utf8_lossy(&code),
@@ -239,7 +239,7 @@ impl Compiler {
         info!(target: "controller", "Running cargo build on dispatcher-agent. Output is suppressed unless an error occurs.");
         let cargo_result = Command::new("cargo")
             .arg("build")
-            .current_dir(&format!("{}/dispatcher-agent", ROOT))
+            .current_dir(&format!("{}/dispatcher-agent", ROOT.as_str()))
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .output()
