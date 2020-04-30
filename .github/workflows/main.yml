@@ -36,22 +36,10 @@ jobs:
       run: |
         sleep 10
         microk8s.kubectl get pods -n containerless
-    - name: Start the Controller
-      run: ./controller.sh start
-      working-directory: ./docker
-    - name: Check status
-      if: always()    
-      run: |
-        sleep 10
-        microk8s.kubectl get pods -n containerless
     - name: Run integration tests
       run: ./test.sh
       working-directory: ./docker
     - name: Delete Containerless from microk8s
       if: always()
       run: ./undeploy.sh
-      working-directory: ./docker
-    - name: Stop the Controller
-      if: always()
-      run: ./controller.sh stop
       working-directory: ./docker
