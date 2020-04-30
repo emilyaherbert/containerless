@@ -7,7 +7,6 @@ pub use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering::SeqCst};
 pub use std::sync::Arc;
 pub use tokio::task;
 pub static NAMESPACE: &'static str = "containerless";
-pub static ROOT: &'static str = "./";
 pub use futures::channel::oneshot;
 
 pub async fn suppress_and_log_err<F, E>(f: F)
@@ -18,4 +17,16 @@ where
     if let Err(err) = f.await {
         error!(target: "controller", "Error: {:?}", err);
     }
+}
+
+fn get_root_dir() -> String {
+    let mut bin_path = std::env::current_exe().unwrap();
+    assert!(bin_path.pop()); // pop controller-agent
+    assert!(bin_path.pop()); // pop debug
+    assert!(bin_path.pop()); // pop target
+    return String::from(bin_path.as_path().to_str().unwrap());
+}
+
+lazy_static! {
+    pub static ref ROOT: String = get_root_dir();
 }

@@ -25,3 +25,4 @@ if [ "$MODE" = "tracing" ]; then
   echo ""
   echo "curl http://localhost/lone-$MODE-$NAME/trace | python -m json.tool > trace.json"
 fi
+

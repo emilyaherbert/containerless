@@ -7,7 +7,10 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tokio = { version = "*", features = [ "rt-threaded", "time", "macros" ] }
+tokio = { version = "*", features = [ "rt-threaded", "time", "macros", "process", "signal"  ] }
 serde_json = "*"
-reqwest = "*"
 k8s = { path = "../k8s" }
+machine-ip = "*"
+nix = "*"
+reqwest = "*"
+shared2 = { path = "../shared2" }
