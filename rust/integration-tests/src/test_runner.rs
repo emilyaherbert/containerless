@@ -1,55 +1,52 @@
+use k8s::Client as K8sClient;
 use reqwest;
 use serde_json::Value as JsonValue;
 use std::fs;
 use std::time::Duration;
 use tokio::time::delay_for;
+use shared2::net::poll_url_with_timeout;
 
 struct TestRunner {
     http_client: reqwest::Client,
+    k8s_client: K8sClient,
     name: String,
 }
 
 impl TestRunner {
-    fn new(name: String) -> Self {
+    async fn new(name: String) -> Self {
+        let k8s_client = K8sClient::from_kubeconfig_file("containerless")
+            .await
+            .expect("creating k8s::Client");
+
         return TestRunner {
             http_client: reqwest::Client::new(),
+            k8s_client,
             name,
         };
     }
 
-    async fn poll_controller_for_compiled_ok(&self) -> bool {
-        for _i in 0..40 {
-            let resp = self
-                .http_client
-                .get("http://localhost/controller/ok_if_not_compiling")
-                .body("")
-                .send()
-                .await
-                .expect("checking compile status");
-            if resp.status().is_success() {
-                return true;
-            }
+    async fn poll_dispatcher_for_decontainerized(&self, previous_generation: usize) {
+        loop {
             delay_for(Duration::from_secs(1)).await;
-        }
-        return false;
-    }
-
-    async fn poll_dispatcher_for_decontainerized(&self) -> bool {
-        for _i in 0..200 {
-            let resp = self
-                .http_client
-                .get(&format!("http://localhost/dispatcher/mode/{}", self.name))
-                .body("")
-                .send()
+            let status = self
+                .k8s_client
+                .get_deployment_status("dispatcher")
                 .await
-                .expect("checking compile status");
-            let text = resp.text().await.expect("reading compile response body");
-            if text == "Decontainerized" {
-                return true;
+                .unwrap();
+            if status.replicas != 1 {
+                continue;
             }
-            delay_for(Duration::from_secs(1)).await;
+            if status.observed_generation == previous_generation {
+                continue;
+            }
+            if status.observed_generation == previous_generation + 1 {
+                return;
+            }
+            panic!(
+                "observed generation is {}, but previous generation was {}",
+                status.observed_generation, previous_generation
+            );
         }
-        return false;
     }
 
     async fn send_post_request(
@@ -75,12 +72,16 @@ impl TestRunner {
         let mode = resp
             .headers()
             .get("X-Containerless-Mode")
-            .map(|mode| mode.to_str().unwrap().to_string());
+            .map(|mode| mode.to_str().unwrap().to_string())
+            .unwrap_or(String::new());
         let resp_body = resp.text().await.unwrap();
         if status != 200 {
-            return Err(format!("got response code {} with body {}", status, resp_body));
+            return Err(format!(
+                "got response code {} with body {} and mode {}",
+                status, resp_body, mode
+            ));
         }
-        if mode.as_deref() != Some(expected_mode) {
+        if mode != expected_mode {
             return Err(format!("response had mode {:?}", mode));
         }
         return Ok(resp_body);
@@ -101,11 +102,18 @@ pub async fn run_test_async(
         rs_requests.len() > 0,
         "expected at least one post-tracing request"
     );
-    let runner = TestRunner::new(name.to_string());
+    let runner = TestRunner::new(name.to_string()).await;
     let js_path = format!("../../examples/{}.js", &name);
     fs::write(&js_path, js_code).expect(&format!("creating file {}", &js_path));
 
     let mut results = Vec::new();
+
+    let dispatcher_generation = runner
+        .k8s_client
+        .get_deployment_status("dispatcher")
+        .await
+        .unwrap()
+        .observed_generation;
 
     for (path_suffix, body) in js_requests.into_iter() {
         results.push(
@@ -128,8 +136,18 @@ pub async fn run_test_async(
         200
     );
 
-    assert_eq!(runner.poll_controller_for_compiled_ok().await, true);
-    assert_eq!(runner.poll_dispatcher_for_decontainerized().await, true);
+    poll_url_with_timeout(
+        &runner.http_client,
+        "http://localhost/controller/ok_if_not_compiling",
+        Duration::from_secs(1),
+        Duration::from_secs(60))
+        .await
+        .expect("compiler took too long");
+
+    runner
+        .poll_dispatcher_for_decontainerized(dispatcher_generation)
+        .await;
+    delay_for(Duration::from_secs(1)).await;
 
     for (path_suffix, body) in rs_requests.into_iter() {
         results.push(
