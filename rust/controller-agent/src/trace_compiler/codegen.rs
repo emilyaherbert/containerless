@@ -282,7 +282,7 @@ pub fn codegen(e: &Exp, dest_file: &str) {
         #![forbid(unsafe_code)]
         #![allow(unused_imports)]
 
-        use super::super::trace_runtime::{self as rt, ExecutionContext, Dyn, DynResult};
+        use dispatcher_agent_lib::trace_runtime::{self as rt, ExecutionContext, Dyn, DynResult};
 
         pub fn containerless<'a>(
             arena: &'a bumpalo::Bump,
