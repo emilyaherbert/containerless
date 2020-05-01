@@ -13,3 +13,9 @@ pub enum PodCondition {
     False,
     Unknown,
 }
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DeploymentStatus {
+    pub replicas: usize,
+    pub observed_generation: usize,
+}

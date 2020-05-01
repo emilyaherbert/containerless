@@ -1,4 +1,4 @@
-use super::types::*;
+use super::{types as t};
 use k8s_openapi::api::apps::v1::{
     Deployment, DeploymentSpec, DeploymentStatus, ReplicaSet, ReplicaSetSpec, ReplicaSetStatus,
 };
@@ -181,13 +181,22 @@ impl Client {
         return Ok(());
     }
 
+    pub async fn get_deployment_status(&self, name: &str) -> Result<t::DeploymentStatus, kube::Error> {
+        let raw_status = self.deployment.get_status(name).await?.status.expect("status not set");
+        let status = t::DeploymentStatus {
+            replicas: raw_status.replicas.expect("replicas is not set") as usize,
+            observed_generation: raw_status.observed_generation.expect("observed_generation is not set") as usize,
+        };
+        return Ok(status);
+    }
+
     pub async fn get_pod_phase_and_readiness(
         &self,
         name: &str,
-    ) -> Result<(PodPhase, PodCondition), kube::Error> {
+    ) -> Result<(t::PodPhase, t::PodCondition), kube::Error> {
         let status = self.pods.get_status(name).await?.status;
         match status {
-            None => return Ok((PodPhase::Unknown, PodCondition::Unknown)),
+            None => return Ok((t::PodPhase::Unknown, t::PodCondition::Unknown)),
             Some(status) => {
                 let phase = status.phase.as_deref();
                 let ready = status
@@ -195,19 +204,19 @@ impl Client {
                     .and_then(|vec| vec.into_iter().find(|condition| condition.type_ == "Ready"))
                     .map(|condition| condition.status);
                 let friendly_phase = match phase {
-                    None => PodPhase::Unknown,
-                    Some("Pending") => PodPhase::Pending,
-                    Some("Running") => PodPhase::Running,
-                    Some("Succeeded") => PodPhase::Succeeded,
-                    Some("Failed") => PodPhase::Failed,
-                    Some("Unknown") => PodPhase::Unknown,
+                    None => t::PodPhase::Unknown,
+                    Some("Pending") => t::PodPhase::Pending,
+                    Some("Running") => t::PodPhase::Running,
+                    Some("Succeeded") => t::PodPhase::Succeeded,
+                    Some("Failed") => t::PodPhase::Failed,
+                    Some("Unknown") => t::PodPhase::Unknown,
                     Some(phase) => panic!("unknown phase {}", phase),
                 };
                 let friendly_ready = match ready.as_deref() {
-                    None => PodCondition::Unknown,
-                    Some("Unknown") => PodCondition::Unknown,
-                    Some("True") => PodCondition::True,
-                    Some("False") => PodCondition::False,
+                    None => t::PodCondition::Unknown,
+                    Some("Unknown") => t::PodCondition::Unknown,
+                    Some("True") => t::PodCondition::True,
+                    Some("False") => t::PodCondition::False,
                     Some(condition) => panic!("unknown condition {}", condition),
                 };
                 return Ok((friendly_phase, friendly_ready));
