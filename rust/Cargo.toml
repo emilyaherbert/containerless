@@ -8,5 +8,6 @@ members = [
     "function-storage-agent",
     "k8s",
     "integration-tests",
+    "dispatcher-agent-lib",
 ]
 exclude = [ "compiler", "containerless-scaffold", "invoker" ]

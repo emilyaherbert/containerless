@@ -20,7 +20,9 @@ pub struct FunctionTable {
 }
 
 impl FunctionTable {
-    pub async fn new() -> Arc<FunctionTable> {
+    pub async fn new(
+        decontainerized_functions: HashMap <&'static str, Containerless>,
+    ) -> Arc<FunctionTable> {
         let functions = HashMap::new();
         let k8s_client = Arc::new(
             k8s::client::Client::new("containerless")
@@ -34,7 +36,6 @@ impl FunctionTable {
             k8s_client,
         };
         let upgrade_pending = Arc::new(AtomicBool::new(false));
-        let decontainerized_functions = super::decontainerized_functions::init();
         return Arc::new(FunctionTable {
             inner: Mutex::new(inner),
             decontainerized_functions,
