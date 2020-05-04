@@ -170,3 +170,83 @@ fn else_before_if() {
     );
     assert_eq!(results, vec!["24", "42", "42"]);
 }
+
+#[test]
+fn and_bug() {
+    let results = run_test(
+        "andbug",
+        r#"
+        let containerless = require("containerless");
+        function same(b) {
+            return b;
+        }
+        containerless.listen(function(req) {
+            if(same(true) && same(true)) {
+                containerless.respond("good path");
+            } else {
+                containerless.respond("bad path");
+            }
+        });"#,
+        vec![("/hello", json!({}))],
+        vec![("/hello", json!({}))],
+    );
+    assert_eq!(results, vec!["good path", "good path"]);
+}
+
+#[test]
+fn make_adder() {
+    let results = run_test(
+        "makeadder",
+        r#"
+        let containerless = require("containerless");
+        containerless.listen(function(req) {
+            function makeAdder(x) {
+                return function(y) {
+                    return x + y;
+                }
+            }
+
+            let addTen = makeAdder(10);
+
+            if (addTen(1) === 11) {
+                containerless.respond("ok");
+            }
+            else {
+                containerless.respond("error");
+            }
+        });"#,
+        vec![("/hello", json!({}))],
+        vec![("/hello", json!({}))],
+    );
+    assert_eq!(results, vec!["ok", "ok"]);
+}
+
+#[test]
+fn crazy_make_adder() {
+    let results = run_test(
+        "crazymakeadder",
+        r#"
+        let containerless = require("containerless");
+        containerless.listen(function(req) {
+            function makeAdder(x) {
+                return function(y) {
+                    x = x + 1; // NOTE: Crazy
+                    return x + y;
+                }
+            }
+
+            let crazy = makeAdder(10);
+            let result = crazy(1) + crazy(2); // (11 + 1) + (12 + 2) === 26
+
+            if (result === 26) {
+                containerless.respond("ok");
+            }
+            else {
+                containerless.respond("error");
+            }
+        });"#,
+        vec![("/hello", json!({}))],
+        vec![("/hello", json!({}))],
+    );
+    assert_eq!(results, vec!["ok", "ok"]);
+}
