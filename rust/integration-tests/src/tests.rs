@@ -250,3 +250,263 @@ fn crazy_make_adder() {
     );
     assert_eq!(results, vec!["ok", "ok"]);
 }
+
+#[test]
+fn nested_binops() {
+    let results = run_test(
+        "nestedbinops",
+        r#"
+        let containerless = require("containerless");
+        containerless.listen(function(req) {
+            let x = 12;
+            if(x > 2 && x < 15) {
+                containerless.respond("yay!");
+            } else {
+                containerless.respond("boo!");
+            }
+        });"#,
+        vec![("/hello", json!({}))],
+        vec![("/hello", json!({}))],
+    );
+    assert_eq!(results, vec!["yay!", "yay!"]);
+}
+
+#[test]
+fn autocomplete() {
+    let results = run_test(
+        "autocomplete",
+        r#"
+        let containerless = require("containerless");
+        let words = [
+            "time",
+            "year",
+            "people",
+            "way",
+            "day",
+            "man",
+            "thing",
+            "woman",
+            "life",
+            "child",
+            "world",
+            "school",
+            "state",
+            "family",
+            "student",
+            "group",
+            "country",
+            "problem",
+            "hand",
+            "part",
+            "place",
+            "case",
+            "week",
+            "company",
+            "system",
+            "program",
+            "question",
+            "work",
+            "government",
+            "number",
+            "night",
+            "point",
+            "home",
+            "water",
+            "room",
+            "mother",
+            "area",
+            "money",
+            "story",
+            "fact",
+            "month",
+            "lot",
+            "right",
+            "study",
+            "book",
+            "eye",
+            "job",
+            "word",
+            "business",
+            "issue",
+            "side",
+            "kind",
+            "head",
+            "house",
+            "service",
+            "friend",
+            "father",
+            "power",
+            "hour",
+            "game",
+            "line",
+            "end",
+            "member",
+            "law",
+            "car",
+            "city",
+            "community",
+            "name",
+            "president",
+            "team",
+            "minute",
+            "idea",
+            "kid",
+            "body",
+            "information",
+            "back",
+            "parent",
+            "face",
+            "others",
+            "level",
+            "office",
+            "door",
+            "health",
+            "person",
+            "art",
+            "war",
+            "history",
+            "party",
+            "result",
+            "change",
+            "morning",
+            "reason",
+            "research",
+            "girl",
+            "guy",
+            "moment",
+            "air",
+            "teacher",
+            "force",
+            "education",
+        ];
+
+        containerless.listen(function(req) {
+            let matches = [];
+            for(let i=0; i<words.length; i = i + 1) {
+                let word = words[i];
+                if((req.path.length > 1) && word.length >= (req.path.length - 1)) {
+                    let x = "/" + words[i];
+                    let match = x.startsWith(req.path);
+                    if(match) {
+                        matches.push(word);
+                    }
+                }
+            }
+            if(matches.length === 0) {
+                containerless.respond("No matches found!");
+            } else {
+                containerless.respond(matches);
+            }
+        });"#,
+        vec![("/a", json!({}))],
+        vec![("/b", json!({}))],
+    );
+    assert_eq!(results, vec!["area,art,air,", "book,business,body,back,"]);
+}
+
+#[test]
+fn maze() {
+    let results = run_test(
+        "maze",
+        r#"
+        let containerless = require("containerless");
+        let maze =
+        [
+            [999,   0, 999, 999,   0,   0,   0, 999, 999, 999, 999,   0, 999, 999, 999, 999, 999, 999, 999,   0, 999, 999, 999, 999, 999,   0, 999,   0, 999, 999],
+            [999,   0,   0, 999, 999, 999, 999, 999,   0,   0, 999, 999,   0,   0,   0, 999,   0,   0, 999,   0,   0, 999,   0,   0, 999,   0, 999, 999, 999,   0],
+            [999, 999,   0, 999,   0,   0,   0,   0,   0,   0,   0, 999, 999, 999,   0, 999,   0,   0, 999,   0,   0, 999,   0, 999, 999,   0, 999,   0, 999,   0],
+            [  0, 999,   0, 999, 999, 999,   0, 999, 999,   0, 999, 999,   0, 999,   0, 999, 999,   0, 999,   0, 999, 999,   0, 999,   0,   0, 999,   0, 999, 999],
+            [999, 999,   0,   0,   0, 999,   0, 999,   0,   0, 999,   0,   0, 999,   0,   0, 999,   0, 999, 999, 999,   0,   0, 999, 999,   0, 999,   0,   0,   0],
+            [999,   0, 999, 999, 999, 999,   0, 999, 999, 999, 999, 999,   0, 999,   0,   0, 999,   0,   0,   0, 999, 999, 999,   0, 999,   0, 999, 999, 999,   0],
+            [999,   0, 999,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 999, 999,   0, 999, 999, 999,   0,   0,   0,   0,   0, 999,   0,   0,   0, 999, 999],
+            [999, 999, 999,   0,   0, 999, 999, 999, 999, 999, 999, 999, 999,   0, 999,   0,   0,   0, 999, 999, 999, 999, 999,   0, 999, 999, 999,   0,   0, 999],
+            [  0,   0,   0, 999, 999, 999,   0,   0,   0,   0,   0,   0,   0,   0, 999, 999, 999, 999,   0,   0,   0,   0, 999,   0,   0,   0, 999, 999,   0, 999],
+            [999, 999,   0, 999,   0, 999,   0, 999,   0, 999, 999, 999, 999, 999,   0,   0,   0, 999,   0, 999, 999, 999, 999,   0, 999,   0,   0, 999,   0, 999],
+            [  0, 999,   0, 999,   0, 999, 999, 999,   0, 999,   0, 999,   0,   0,   0,   0, 999, 999,   0,   0,   0, 999,   0,   0, 999, 999,   0, 999,   0, 999],
+            [999, 999,   0, 999,   0,   0,   0,   0, 999, 999,   0, 999,   0, 999, 999, 999, 999,   0,   0,   0, 999, 999,   0,   0, 999,   0,   0, 999, 999, 999],
+            [999,   0,   0, 999,   0,   0, 999, 999, 999,   0,   0, 999, 999, 999,   0,   0,   0,   0, 999, 999, 999,   0, 999, 999, 999,   0,   0,   0, 999,   0],
+            [999, 999,   0, 999,   0, 999, 999,   0,   0,   0,   0,   0,   0,   0,   0,   0, 999, 999, 999,   0,   0,   0,   0,   0, 999,   0, 999, 999, 999,   0],
+            [  0, 999,   0, 999,   0, 999,   0, 999, 999, 999, 999, 999, 999, 999,   0, 999, 999,   0, 999, 999,   0, 999, 999, 999, 999,   0, 999,   0,   0, 999],
+            [999, 999, 999, 999,   0, 999,   0,   0,   0, 999,   0,   0,   0, 999,   0,   0,   0,   0,   0, 999,   0,   0,   0, 999,   0,   0, 999,   0,   0, 999],
+            [999,   0, 999,   0,   0, 999, 999, 999,   0, 999, 999, 999,   0, 999, 999, 999, 999, 999,   0, 999,   0, 999, 999, 999,   0, 999, 999,   0,   0, 999],
+            [  0,   0, 999, 999, 999,   0,   0, 999, 999,   0,   0, 999,   0,   0,   0,   0,   0, 999, 999, 999,   0,   0, 999,   0,   0, 999,   0,   0, 999, 999],
+            [999, 999, 999,   0, 999,   0,   0,   0, 999, 999,   0, 999, 999,   0, 999, 999,   0,   0,   0,   0, 999, 999, 999, 999, 999, 999, 999, 999, 999,   0],
+            [999,   0,   0,   0, 999,   0,   0,   0,   0, 999,   0,   0, 999, 999, 999,   0,   0, 999,   0,   0, 999,   0,   0,   0,   0,   0,   0,   0, 999, 999],
+            [999, 999, 999,   0,   0, 999, 999, 999,   0, 999, 999, 999,   0,   0, 999, 999,   0, 999, 999, 999, 999,   0, 999, 999, 999, 999,   0,   0,   0, 999],
+            [999,   0, 999,   0,   0, 999,   0, 999,   0,   0,   0, 999,   0, 999,   0, 999, 999,   0,   0,   0,   0, 999, 999,   0,   0, 999,   0, 999, 999, 999],
+            [999,   0, 999,   0, 999, 999,   0, 999, 999, 999,   0, 999,   0, 999,   0,   0, 999, 999,   0, 999, 999, 999,   0,   0,   0, 999,   0, 999,   0,   0],
+            [999,   0, 999, 999, 999,   0, 999, 999,   0,   0,   0, 999,   0, 999,   0,   0,   0, 999, 999, 999,   0, 999, 999,   0, 999, 999,   0, 999,   0, 999],
+            [999,   0,   0,   0,   0,   0, 999,   0, 999, 999, 999, 999,   0, 999,   0,   0,   0,   0,   0,   0,   0,   0, 999,   0, 999,   0,   0, 999, 999, 999],
+            [999,   0, 999,   0, 999, 999, 999,   0,   0,   0, 999,   0,   0, 999, 999, 999, 999,   0, 999, 999, 999,   0, 999,   0, 999, 999,   0,   0,   0, 999],
+            [999, 999, 999,   0, 999,   0, 999, 999,   0, 999, 999,   0,   0, 999,   0,   0, 999, 999, 999,   0, 999, 999,   0,   0,   0, 999, 999, 999,   0, 999],
+            [  0, 999,   0,   0, 999,   0,   0,   0,   0, 999,   0, 999, 999, 999, 999, 999,   0,   0,   0,   0,   0, 999, 999, 999,   0, 999,   0, 999,   0, 999],
+            [999, 999, 999,   0, 999, 999,   0, 999, 999, 999,   0, 999,   0,   0,   0,   0,   0, 999, 999, 999,   0,   0,   0, 999,   0,   0,   0, 999,   0, 999],
+            [999,   0, 999,   0,   0, 999, 999, 999,   0, 999, 999, 999,   0, 999, 999, 999, 999, 999,   0, 999, 999, 999, 999, 999, 999, 999, 999, 999,   0, 999],
+        ];
+
+        function resetMaze() {
+            for(let i=0; i<maze.length; i++) {
+                for(let j=0; j<maze.length; j++) {
+                    if(maze[i][j] > 0) {
+                        maze[i][j] = 999;
+                    }
+                }
+            }
+        }
+
+        function isValidMove(x, y, turn) {
+            if ((x > -1) && (y > -1) && (x < maze[0].length) && (y < maze.length)) {
+                return (maze[y][x] > 0) && (turn < maze[y][x]);
+            } else {
+                return false;
+            }
+        }
+
+        function findShortestPath(x1, y1, x2, y2) {
+            let shortest = -1;
+
+            let moves = [[x1, y1, 0], [x1-1, y1, 0], [x1+1, y1, 0], [x1, y1-1, 0], [x1, y1+1, 0]];
+
+            while(moves.length > 0) {
+                let nextMove = moves.shift();
+                let x = nextMove[0];
+                let y = nextMove[1];
+                let turn = nextMove[2] + 1;
+                if(isValidMove(x, y, turn)) {
+                    if(x === x2 && y === y2) {
+                        shortest = turn;
+                    } else {
+                        maze[y][x] = turn;
+                        moves.push([x-1, y, turn]);
+                        moves.push([x+1, y, turn]);
+                        moves.push([x, y-1, turn]);
+                        moves.push([x, y+1, turn]);
+                    }
+                }
+            }
+
+            resetMaze();
+            return shortest;
+        }
+
+        containerless.listen(function(req) {
+            let x1 = req.body.x1;
+            let y1 = req.body.y1;
+            let x2 = req.body.x2;
+            let y2 = req.body.y2;
+            if(maze[y1][x1] > 0 && maze[y2][x2] > 0) {
+                let len = findShortestPath(x1, y1, x2, y2);
+                if(len === -1) {
+                    containerless.respond("No such path exists!\n");
+                } else {
+                    containerless.respond(len);
+                }
+            } else {
+                containerless.respond("Invalid starting conditions.");
+            }
+        });"#,
+        vec![("/a", json!({"x1": 0, "y1": 0, "x2": 1, "y2": 2}))],
+        vec![("/a", json!({"x1": 0, "y1": 0, "x2": 1, "y2": 2}))],
+    );
+    assert_eq!(results, vec!["3", "3"]);
+}
