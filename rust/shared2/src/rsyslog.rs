@@ -14,7 +14,7 @@ pub fn init_using_env() {
         .parse::<LevelFilter>()
         .expect("invalid value for LOG_LEVEL");
     syslog::init_udp(
-        format!("{}:5140", my_ip).parse::<SocketAddr>().unwrap(),
+        format!("{}:0", my_ip).parse::<SocketAddr>().unwrap(),
         rsyslog_addr,
         "containerless".to_string(),
         Facility::LOG_USER,
