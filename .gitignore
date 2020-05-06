@@ -20,3 +20,5 @@ examples/*
 # git update-index --assume-unchanged rust/dispatcher-agent/src/decontainerized_functions/mod.rs
 # To reset:
 # git update-index --no-assume-unchanged rust/dispatcher-agent/src/decontainerized_functions/mod.rs
+
+docker/trace.json
