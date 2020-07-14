@@ -25,6 +25,7 @@ type Id = String
 -- Labels for break expressions
 type Label = String
 
+-- TODO(emily): Implement strings.
 data Const
   = CInt Int
   | CBool Bool
@@ -90,6 +91,7 @@ data Meta
   | MWhile Trace
   | MLabel Label
   | MBreak Label Trace
+  | MSaveHandler Int
   deriving (Show)
 
 data EventHandler =

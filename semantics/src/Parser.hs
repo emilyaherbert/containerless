@@ -186,7 +186,7 @@ sBinding = do
   reserved "let"
   x <- identifier
   reservedOp "="
-  stmt <- sFunction x <|> sApp x <|> sExpr x
+  stmt <- sFunction x <|> sListen x <|> sGet x <|> sPost x <|> sApp x <|> sExpr x
   semi
   return stmt
 

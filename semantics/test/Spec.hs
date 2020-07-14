@@ -8,7 +8,8 @@ import           Test.HUnit hiding (Label)
 
 tests =
   TestList
-    [ example1
+    [ --example1
+    {-
     , example2
     , example3
     , example4
@@ -26,6 +27,9 @@ tests =
     , fun5
     , fun6
     , fun7
+    , 
+    -}
+    events1
     ]
 
 basicExample label code =
@@ -239,8 +243,8 @@ events1 =
     "events1"
     "let F = function(resp) {\
     \   out = resp;\
-    \}\
-    \let r = get('example.com', F);"
+    \};\
+    \let r = get(3, F);"
 
 -- https://prettydiff.com/?m=beautify
 main :: IO ()

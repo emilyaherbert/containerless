@@ -7,58 +7,87 @@ import           Data.List       ((++))
 import           Data.Map.Strict as Map hiding (foldl, map)
 import           Syntax
 
-compileLVal :: Env -> LVal -> Trace
-compileLVal env (LVId x) = env ! x
+data State =
+  State
+    { env         :: Env
+    , nextHandler :: Int
+    }
+  deriving (Show)
 
-compileExpr :: Env -> Expr -> Trace
+extendEnv :: State -> Id -> Trace -> State
+extendEnv (State { env = env, nextHandler = nextHandler }) x t =
+  (State
+     { env = insert x t env
+     , nextHandler = nextHandler
+     })
+
+updateEnv :: State -> Env -> State
+updateEnv (State { env = env, nextHandler = nextHandler }) env2 =
+  (State
+     { env = env2
+     , nextHandler = nextHandler
+     })
+
+compileLVal :: State -> LVal -> Trace
+compileLVal state (LVId x) = (env state) ! x
+
+compileExpr :: State -> Expr -> Trace
 compileExpr _ (EConst c) = TConst c
-compileExpr env (EId x) = env ! x
-compileExpr env (EOp2 op e1 e2) =
-  TOp2 op (compileExpr env e1) (compileExpr env e2)
+compileExpr state (EId x) = (env state) ! x
+compileExpr state (EOp2 op e1 e2) =
+  TOp2 op (compileExpr state e1) (compileExpr state e2)
 
-compileStmts :: Env -> [Stmt] -> ([Stmt], Env)
-compileStmts env [] = ([], env)
-compileStmts env (s:ss) = (s' ++ ss', env'')
+compileStmts :: State -> [Stmt] -> ([Stmt], State)
+compileStmts state [] = ([], state)
+compileStmts state (s:ss) = (s' ++ ss', state'')
   where
-    (s', env') = compileStmt env s
-    (ss', env'') = compileStmts env' ss
+    (s', state') = compileStmt state s
+    (ss', state'') = compileStmts state' ss
 
-compileSeq :: Env -> [Stmt] -> ([Stmt], Env)
-compileSeq env [] = ([], env)
-compileSeq env [s] = compileStmt env s
+compileSeq :: State -> [Stmt] -> ([Stmt], State)
+compileSeq state [] = ([], state)
+compileSeq state [s] = compileStmt state s
+compileSeq state (s:ss) = (s' ++ (SMeta MSeqNext) : ss', state'')
   where
+    (s', state') = compileStmt state s
+    (ss', state'') = compileSeq state' ss
 
-compileSeq env (s:ss) = (s' ++ (SMeta MSeqNext) : ss', env'')
+compileStmt :: State -> Stmt -> ([Stmt], State)
+compileStmt state (SSeq ss) =
+  ([SSeq (SMeta (MEnterSeq n) : compiled ++ [SMeta MPop])], state')
   where
-    (s', env') = compileStmt env s
-    (ss', env'') = compileSeq env' ss
-
-compileStmt :: Env -> Stmt -> ([Stmt], Env)
-compileStmt env (SSeq ss) =
-  ([SSeq (SMeta (MEnterSeq n) : compiled ++ [SMeta MPop])], env')
-  where
-    (compiled, env') = compileSeq env ss
+    (compiled, state') = compileSeq state ss
     n = List.length ss
-compileStmt env (SLet x (BExpr expr)) = ([s1, s2], insert x (TId x) env)
+compileStmt state (SLet x (BExpr expr)) = ([s1, s2], extendEnv state x (TId x))
   where
-    s1 = SMeta $ MLet x $ BTrace $ compileExpr env expr
+    s1 = SMeta $ MLet x $ BTrace $ compileExpr state expr
     s2 = SLet x (BExpr expr)
-compileStmt env (SLet f (BFunc params blk)) = ([s1, s2], env''')
+compileStmt state (SLet f (BFunc params blk)) = ([s1, s2], state''')
   where
     env0 = Map.fromList $ map (\x -> (x, TId x)) params
     -- NOTE: Relies on left-biased union so that params correctly shadow the
     -- enclosing environment.
     env' =
       Map.union env0 $
-      Map.fromList $ map (\x -> (x, TFrom (TId "t") x)) (keys env)
+      Map.fromList $ map (\x -> (x, TFrom (TId "t") x)) (keys (env state))
     tracedParams = map (\x -> SMeta (MLet x BPopArg)) $ "t" : params
-    (compiled, env'') = compileStmt env' $ SSeq $ tracedParams ++ blk
-    s1 = SMeta $ MLet f $ BTrace $ TClos env
+    (compiled, state'') = compileStmt (updateEnv state env') $ SSeq $ tracedParams ++ blk
+    s1 = SMeta $ MLet f $ BTrace $ TClos (env state)
     s2 =
       SLet f $
       BFunc params $ [SMeta (MLabel "return")] ++ compiled ++ [SMeta MPop]
-    env''' = insert f (TId f) env''
-compileStmt env (SLet x (BApp f args)) =
+    state''' = extendEnv state f (TId f)
+compileStmt state (SLet x (BApp f args)) =
+  (pArgs ++ [s1, s2, SMeta MPop], extendEnv state x (TId x))
+  where
+    pArgs =
+      reverse $
+      SMeta (MPushArg (TId f)) :
+      map (\e -> SMeta (MPushArg (compileExpr state e))) args
+    s1 = SMeta (MNamed x)
+    s2 = SLet x (BApp f args)
+{-
+compileStmt env (SLet x (BEvent ev args)) =
   (pArgs ++ [s1, s2, SMeta MPop], insert x (TId x) env)
   where
     pArgs =
@@ -66,39 +95,42 @@ compileStmt env (SLet x (BApp f args)) =
       SMeta (MPushArg (TId f)) :
       map (\e -> SMeta (MPushArg (compileExpr env e))) args
     s1 = SMeta (MNamed x)
-    s2 = SLet x (BApp f args)
-compileStmt env (SSet lval (BExpr expr)) = ([s1, s2], env)
+    s2 = SLet x (BEvent ev args)
+    -- s3 = SMeta (MSaveHander 0)
+-}
+compileStmt state (SSet lval (BExpr expr)) = ([s1, s2], state)
   where
-    s1 = SMeta $ MSet (compileLVal env lval) $ BTrace $ compileExpr env expr
+    s1 = SMeta $ MSet (compileLVal state lval) $ BTrace $ compileExpr state expr
     s2 = SSet lval (BExpr expr)
-compileStmt env (SIf c t f) = ([s1, SMeta MPop], env)
+compileStmt state (SIf c t f) = ([s1, SMeta MPop], state)
   where
-    (t', _) = compileStmt env t
-    (f', _) = compileStmt env f
-    c' = compileExpr env c
+    (t', _) = compileStmt state t
+    (f', _) = compileStmt state f
+    c' = compileExpr state c
     t'' = SSeq (SMeta (MIfTrue c') : t')
     f'' = SSeq (SMeta (MIfFalse c') : f')
     s1 = SIf c t'' f''
-compileStmt env (SWhile expr body) = ([s1, s2, SMeta MPop], env)
+compileStmt state (SWhile expr body) = ([s1, s2, SMeta MPop], state)
   where
-    (body', _) = compileStmt env body
-    s1 = SMeta (MWhile (compileExpr env expr))
+    (body', _) = compileStmt state body
+    s1 = SMeta (MWhile (compileExpr state expr))
     s2 = SWhile expr (SSeq body')
-compileStmt env (SLabel l body) = ([s1], env')
+compileStmt state (SLabel l body) = ([s1], state')
   where
-    (compiled, env') = compileStmt env body
+    (compiled, state') = compileStmt state body
     body' = SSeq ((SMeta (MLabel l)) : compiled ++ [SMeta MPop])
     s1 = SLabel l body'
-compileStmt env (SBreak l) =
-  ([SMeta (MBreak l (TConst CUndefined)), SMeta (MPopTo l), SBreak l], env)
-compileStmt env (SReturn e) = ([tBreak, popTo, SReturn e], env)
+compileStmt state (SBreak l) =
+  ([SMeta (MBreak l (TConst CUndefined)), SMeta (MPopTo l), SBreak l], state)
+compileStmt state (SReturn e) = ([tBreak, popTo, SReturn e], state)
   where
-    tBreak = SMeta $ MBreak "return" $ compileExpr env e
+    tBreak = SMeta $ MBreak "return" $ compileExpr state e
     popTo = SMeta $ MPopTo "return"
-compileStmt env (SMeta m) = ([SMeta m], env)
+compileStmt state (SMeta m) = ([SMeta m], state)
 compileStmt _ other = error $ show other
 
 compile :: Stmt -> Stmt
 compile s = SSeq ss
   where
-    (ss, _) = compileStmt (Map.fromList [("output", TId "output")]) s
+    state = State { env = Map.fromList [("output", TId "output")], nextHandler = 0 }
+    (ss, _) = compileStmt state s
