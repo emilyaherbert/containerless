@@ -25,6 +25,9 @@ lex =
         , "true"
         , "false"
         , "let"
+        , "listen"
+        , "get"
+        , "post"
         ]
     , T.reservedOpNames =
         ["+", "-", "*", "(", ")", "{", "}", ";", ":", ">", "=="]
@@ -140,6 +143,25 @@ sFunction f = do
   args <- parens (commaSep identifier)
   body <- blk
   return (SLet f (BFunc args body))
+
+-- NOTE(emily): I'm sure there is some way to combine these in a better way.
+sListen :: Id -> Parser Stmt
+sListen x = do
+  reserved "listen"
+  args <- parens (commaSep expr)
+  return (SLet x (BEvent EvListen args))
+
+sGet :: Id -> Parser Stmt
+sGet x = do
+  reserved "get"
+  args <- parens (commaSep expr)
+  return (SLet x (BEvent EvGet args))
+
+sPost :: Id -> Parser Stmt
+sPost x = do
+  reserved "post"
+  args <- parens (commaSep expr)
+  return (SLet x (BEvent EvPost args))
 
 idFollowedByLParen :: Parser Id
 idFollowedByLParen =

@@ -5,6 +5,9 @@ module Syntax
   , Op2(..)
   , Expr(..)
   , Stmt(..)
+  , Event(..)
+  , EventHandler
+  , EventHandlers
   , Trace(..)
   , TraceContext(..)
   , Meta(..)
@@ -41,10 +44,17 @@ data Expr
   | EOp2 Op2 Expr Expr
   deriving (Show)
 
+data Event
+  = EvListen
+  | EvGet
+  | EvPost
+  deriving (Show)
+
 data Binding
   = BExpr Expr -- let x = e1;
   | BFunc [Id] Block -- let f = function (x1 ... xn) stmt;
   | BApp Id [Expr] -- let r = f(e1 ... en);
+  | BEvent Event [Expr] -- let r = get('example.com', F);
   deriving (Show)
 
 data TraceBinding
@@ -82,6 +92,16 @@ data Meta
   | MBreak Label Trace
   deriving (Show)
 
+data EventHandler =
+  EventHandler
+    { envId      :: Id
+    , argId      :: Id
+    , body       :: Trace
+    }
+  deriving (Show)
+
+type EventHandlers = Map Int EventHandler
+
 data TraceContext
   = KSeq [Trace] [Trace] TraceContext
   | KIfTrue Trace Trace TraceContext
@@ -103,15 +123,17 @@ type Env = Map Id Trace
 data Trace
   = TConst Const
   | TId Id
-  | TFrom Trace Id
-  | TClos Env
   | TOp2 Op2 Trace Trace
   | TSeq [Trace]
   | TIf Trace Trace Trace
   | TWhile Trace Trace
-  | TLabel Label Trace
-  | TBreak Label Trace
   | TLet Id Trace
   | TSet Trace Trace
+  | TLabel Label Trace
   | TUnknown
+  | TBreak Label Trace
+  | TEvent Event Trace Trace Int
+  | TResponse Trace
+  | TClos Env
+  | TFrom Trace Id
   deriving (Show)

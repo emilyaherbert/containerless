@@ -234,6 +234,14 @@ fun7 =
     \let bar = F(99);\
     \output = foo + bar;"
 
+events1 =
+  basicExample
+    "events1"
+    "let F = function(resp) {\
+    \   out = resp;\
+    \}\
+    \let r = get('example.com', F);"
+
 -- https://prettydiff.com/?m=beautify
 main :: IO ()
 main = do
