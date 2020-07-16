@@ -8,6 +8,7 @@ module EvalJS
 import           Data.List       as List hiding (insert)
 import           Data.Map.Strict as Map hiding (take)
 import           Syntax          hiding (Env)
+import API
 
 data Val
   = VConst Const
@@ -118,6 +119,9 @@ evalStmt st env (SLet r (BApp f args)) = (RNothing, st''', insert r addr env)
     (result, st'') = evalBlock st' env' fbody
     rValue = resultValue result
     (st''', addr) = alloc st'' rValue
+--evalStmt st env (SLet r (BEvent EvListen args)) = 0
+--  where
+--    vargs = List.map (evalExpr st env) args
 evalStmt st env (SSet (LVId x) (BExpr expr)) = (RNothing, st', env)
   where
     v = evalExpr st env expr

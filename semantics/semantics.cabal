@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: e25472f593f8249f049ea9cd1db91d170209ff2283583f187b6c9c9f94edefca
+-- hash: b85cfa1a6013ebae07902a851cded4faab0ecbedfb7144106cf80265072ba5ca
 
 name:           semantics
 version:        0.1.0.0
@@ -23,6 +23,7 @@ source-repository head
 
 library
   exposed-modules:
+      API
       Compiler
       EvalJS
       EvalTrace

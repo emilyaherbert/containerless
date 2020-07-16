@@ -28,6 +28,18 @@ updateEnv (State { env = env, nextHandler = nextHandler }) env2 =
      , nextHandler = nextHandler
      })
 
+incrementHandler :: State -> State
+incrementHandler (State { env = env, nextHandler = nextHandler }) =
+  (State
+     { env = env
+     , nextHandler = nextHandler+1
+     })
+
+eventToId :: Event -> Id
+eventToId EvListen = "listen"
+eventToId EvGet = "get"
+eventToId EvPost = "post"
+
 compileLVal :: State -> LVal -> Trace
 compileLVal state (LVId x) = (env state) ! x
 
@@ -86,18 +98,17 @@ compileStmt state (SLet x (BApp f args)) =
       map (\e -> SMeta (MPushArg (compileExpr state e))) args
     s1 = SMeta (MNamed x)
     s2 = SLet x (BApp f args)
-{-
-compileStmt env (SLet x (BEvent ev args)) =
-  (pArgs ++ [s1, s2, SMeta MPop], insert x (TId x) env)
+compileStmt state (SLet x (BEvent ev args)) =
+  (pArgs ++ [s1, s2, SMeta MPop, s3], extendEnv state' x (TId x))
   where
     pArgs =
       reverse $
-      SMeta (MPushArg (TId f)) :
-      map (\e -> SMeta (MPushArg (compileExpr env e))) args
+      SMeta (MPushArg (TId (eventToId ev))) :
+      map (\e -> SMeta (MPushArg (compileExpr state e))) args
     s1 = SMeta (MNamed x)
     s2 = SLet x (BEvent ev args)
-    -- s3 = SMeta (MSaveHander 0)
--}
+    s3 = SMeta (MSaveHandler (nextHandler state))
+    state' = incrementHandler state
 compileStmt state (SSet lval (BExpr expr)) = ([s1, s2], state)
   where
     s1 = SMeta $ MSet (compileLVal state lval) $ BTrace $ compileExpr state expr

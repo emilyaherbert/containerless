@@ -39,7 +39,7 @@ basicExample label code =
     let program = parseString code
     --putStrLn $ show program
     let compiled = compile program
-    --putStrLn $ show compiled
+    putStrLn $ show compiled
     let state = eval compiled
     --putStrLn $ show $ store state
     let trace = current state
@@ -242,7 +242,7 @@ events1 =
   basicExample
     "events1"
     "let F = function(resp) {\
-    \   out = resp;\
+    \   output = resp;\
     \};\
     \let r = get(3, F);"
 
