@@ -1,39 +1,13 @@
 module EvalJS
   ( eval
   , current
-  , TraceContext
-  , store
   ) where
 
 import           Data.List       as List hiding (insert)
 import           Data.Map.Strict as Map hiding (take)
 import           Syntax          hiding (Env)
+import EvalJSEnv
 import API
-
-data Val
-  = VConst Const
-  | VClosure Env [Id] Block
-  | VTrace Trace
-  deriving (Show)
-
-type Env = Map Id Addr
-
-type Addr = Int
-
-data Result
-  = RBreak Label
-  | RReturn Val
-  | RNothing
-
-data State =
-  State
-    { nextAddr      :: Addr
-    , store         :: Map Addr Val
-    , current       :: Trace
-    , traceContext  :: TraceContext
-    , argsStack     :: [Trace]
-    }
-  deriving (Show)
 
 alloc :: State -> Val -> (State, Addr)
 alloc (State { nextAddr = nextAddr
@@ -42,7 +16,7 @@ alloc (State { nextAddr = nextAddr
              , traceContext = traceContext
              , argsStack = argsStack
              }) v =
-  ( State
+  (State
       { nextAddr = nextAddr + 1
       , store = insert nextAddr v store
       , current = current

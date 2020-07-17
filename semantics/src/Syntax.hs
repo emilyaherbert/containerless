@@ -57,7 +57,8 @@ data Binding
   | BFunc [Id] Block -- let f = function (x1 ... xn) stmt;
   | BApp Id [Expr] -- let r = f(e1 ... en);
   | BEvent Event [Expr] -- let r = get('example.com', F);
-  | BPopArg
+  | BPopArg -- let tUri = popArg();
+  | BNewHandler Expr Expr Expr -- let n = newHandler('get', tUri, tCb);
   deriving (Show)
 
 type Block = [Stmt]
@@ -122,7 +123,6 @@ type Env = Map Id Trace
 data TraceBinding
   = TBTrace Trace
   | TBPopArg
-  | TBNewHandler Trace Trace Trace
   deriving (Show)
 
 data Trace

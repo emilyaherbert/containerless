@@ -1,14 +1,16 @@
 module API where
 
-import Syntax
+import Syntax hiding (Env)
+import EvalJSEnv
 
-get :: [Stmt]
-get = [
-    
-    SMeta (MLet "event" TBPopArg),
-    SMeta (MLet "tUri" TBPopArg),
-    SMeta (MLet "tCb" TBPopArg),
-    SMeta (MLet "n" (TBNewHandler (TConst (CString "get")) (TId "tUri") (TId "tCb")))
-    -- send request
+type Callback = String -> ()
 
-    ];
+loadHandler :: Int -> ()
+loadHandler n = ()
+
+saveHandler :: Int -> ()
+saveHandler n = ()
+
+-- get(response, callback)
+get :: State -> Env -> String -> Callback -> ()
+get st env resp cb = ()
