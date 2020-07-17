@@ -6,45 +6,8 @@ module EvalJS
 import           Data.List       as List hiding (insert)
 import           Data.Map.Strict as Map hiding (take)
 import           Syntax          hiding (Env)
-import EvalJSEnv
+import Lib
 import API
-
-alloc :: State -> Val -> (State, Addr)
-alloc (State { nextAddr = nextAddr
-             , store = store
-             , current = current
-             , traceContext = traceContext
-             , argsStack = argsStack
-             }) v =
-  (State
-      { nextAddr = nextAddr + 1
-      , store = insert nextAddr v store
-      , current = current
-      , traceContext = traceContext
-      , argsStack = argsStack
-      }
-  , nextAddr)
-
-updateStore :: State -> Addr -> Val -> State
-updateStore (State { nextAddr = nextAddr
-                   , store = store
-                   , current = current
-                   , traceContext = traceContext
-                   , argsStack = argsStack
-                   }) addr v =
-  (State
-     { nextAddr = nextAddr
-     , store = insert addr v store
-     , current = current
-     , traceContext = traceContext
-     , argsStack = argsStack
-     })
-
-extendEnv :: State -> Env -> [Id] -> [Val] -> (State, Env)
-extendEnv st env [] [] = (st, env)
-extendEnv st env (x:xs) (v:vs) = extendEnv st' (insert x addr env) xs vs
-  where
-    (st', addr) = alloc st v
 
 resultValue :: Result -> Val
 resultValue RNothing      = VConst (CInt (-1))
