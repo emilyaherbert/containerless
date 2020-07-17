@@ -72,7 +72,7 @@ compileStmt state (SSeq ss) =
     n = List.length ss
 compileStmt state (SLet x (BExpr expr)) = ([s1, s2], extendEnv state x (TId x))
   where
-    s1 = SMeta $ MLet x $ BTrace $ compileExpr state expr
+    s1 = SMeta $ MLet x $ TBTrace $ compileExpr state expr
     s2 = SLet x (BExpr expr)
 compileStmt state (SLet f (BFunc params blk)) = ([s1, s2], state''')
   where
@@ -82,9 +82,9 @@ compileStmt state (SLet f (BFunc params blk)) = ([s1, s2], state''')
     env' =
       Map.union env0 $
       Map.fromList $ map (\x -> (x, TFrom (TId "t") x)) (keys (env state))
-    tracedParams = map (\x -> SMeta (MLet x BPopArg)) $ "t" : params
+    tracedParams = map (\x -> SMeta (MLet x TBPopArg)) $ "t" : params
     (compiled, state'') = compileStmt (updateEnv state env') $ SSeq $ tracedParams ++ blk
-    s1 = SMeta $ MLet f $ BTrace $ TClos (env state)
+    s1 = SMeta $ MLet f $ TBTrace $ TClos (env state)
     s2 =
       SLet f $
       BFunc params $ [SMeta (MLabel "return")] ++ compiled ++ [SMeta MPop]
@@ -111,7 +111,7 @@ compileStmt state (SLet x (BEvent ev args)) =
     state' = incrementHandler state
 compileStmt state (SSet lval (BExpr expr)) = ([s1, s2], state)
   where
-    s1 = SMeta $ MSet (compileLVal state lval) $ BTrace $ compileExpr state expr
+    s1 = SMeta $ MSet (compileLVal state lval) $ TBTrace $ compileExpr state expr
     s2 = SSet lval (BExpr expr)
 compileStmt state (SIf c t f) = ([s1, SMeta MPop], state)
   where

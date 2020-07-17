@@ -155,8 +155,8 @@ evalStmt st env (SMeta m) = (RNothing, st', env)
     st' = evalMeta st env m
 
 evalTraceBinding :: [Trace] -> TraceBinding -> (Trace, [Trace])
-evalTraceBinding args (BTrace t)    = (t, args)
-evalTraceBinding (a:args) (BPopArg) = (a, args)
+evalTraceBinding args (TBTrace t)    = (t, args)
+evalTraceBinding (a:args) (TBPopArg) = (a, args)
 
 updateMetaState (tr, traceContext) st = st {current = tr, traceContext = traceContext}
 
