@@ -401,7 +401,7 @@ fn autocomplete() {
         vec![("/a", json!({}))],
         vec![("/b", json!({}))],
     );
-    assert_eq!(results, vec!["area,art,air,", "book,business,body,back,"]);
+    assert_eq!(results, vec!["area,art,air", "book,business,body,back,"]);
 }
 
 #[test]

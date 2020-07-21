@@ -10,4 +10,4 @@ members = [
     "integration-tests",
     "dispatcher-agent-lib",
 ]
-exclude = [ "compiler", "containerless-scaffold", "invoker" ]
+exclude = [ "compiler", "containerless-scaffold", "invoker", "multi-invoker", "local" ]

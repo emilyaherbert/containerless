@@ -1,162 +1,136 @@
+# Containerless
 
-# Containerless ![](https://github.com/plasma-umass/decontainerization/workflows/CI/badge.svg)
-
-## Overview
-
-This repo is broken into a number of different components:
-
-1. [`js-transform`](./javascript/js-transform/) - Applies ANF transformation and
-    instruments JS source code with Containerless runtime statements.
-2. [`containerless`](./javascript/containerless/) - Trace-building JS runtime
-    library.
-3. [`compiler`](./rust/compiler/) - Compiles an execution trace to Rust.
-4. [`invoker`](./rust/invoker/) - Orchestrates Containerless serverless
-    functions. Either 1) Sends requests to JS for tracing and to be compiled to
-    Rust, or 2) Sends requests to Rust. Does not do both simultaneously. This
-    also contains the Rust [`trace_runtime`](./rust/invoker/src/trace_runtime)
-    library that contains the
-    [dynamic type](./rust/invoker/src/trace_runtime/type_dynamic.rs).
-5. [`multi-invoker`](./rust/multi-invoker) - Orchestrates Containerless
-    serverless functions. Uses two `invoker`'s to send requests to JS while
-    functions are being compiled to Rust (#1 above), then send requests to Rust
-    (#2 above).
-6. [`containerless-scaffold`](./rust/containerless-scaffold/) - The scaffolding
-    for the generated Rust code.
-7. [`shared`](./rust/shared/) - Components shared between the `invoker` and the
-    `multi-invoker`.
-8. [`local`](./rust/local/) - Local mock server for running functions and
-    experiments.
-
-## Getting Started
-
-### Prerequisites
+## Prerequisites
 
 Containerless has components written in Rust and JavaScript (TypeScript).
 Thus, you need [Cargo], [Yarn], and [Node]. We package these components
 into containers using [Docker].
 
-### Building
+**Important:** You must build Containerless on Linux. Our build scripts copy 
+binaries built on the host into Docker containers, thus they will not run if the
+host is running Windows or macOS.
 
-To build all components, use:
-
-```
-$ ./build_release.sh
-```
-
-## Testing Installation
-
-To test that all components are functioning correctly, use:
+We test Containerless using [MicroK8s], which you can install on Ubuntu
+as follows:
 
 ```
-$ ./build_test.sh
+sudo snap install microk8s --classic
+microk8s.enable dns registry ingress
+```
+
+After installation, follow the on-screen directions to gain unprivileged access
+to Docker and MicroK8s, which will involve logging out and logging back in.
+
+In principle, it is possible to deploy Containerless on an arbitrary Kubernetes
+cluster. However, our deployment scripts assume you're using MicroK8s.
+
+### Logging
+
+Containerless uses [rsyslog] to consolidate logs from its distributed
+components. The `docker/controller.sh` script configures Containerless to to
+send log messages to an *rsyslog* server running the local machine, using
+UDP port 514 (the default). These log messages get silently discarded
+if the *rsyslog* server is not running.
+
+1. Install *rsyslog* with `apt-get install rsyslog`.
+
+2. Open the file `/etc/rsyslog.conf` as root and make two changes:
+
+   a. Add the following lines:
+   
+      ```
+      module(load="imudp")
+      input(type="imudp" port="514")
+      ```
+      
+      (By default, they are commented out, so uncomment them.)
+
+   b. At the end of the file, add the lines:
+
+      ```
+      $template remote-incoming-logs,"/var/log/rsyslog-%HOSTNAME%.log"
+      *.* ?remote-incoming-logs
+      & ~
+      ```
+3. Restart *rsyslog* with `systemctl restart rsyslog`
+
+The logs will now appear in `/var/log/rsyslog-containerless.log`.
+
+## Building
+
+```
+./build.sh
 ```
 
 ## Deploying
 
-### Manually Deploying a Function
-
-1. Create a serverless function `program.js` in [`/javascript/examples`](./javascript/examples/).
-
-2. Build the Containerless [Docker] image.
+The following command deploys Containerless to MicroK8s:
 
 ```
-$ ./scripts/prepare_serverless_function.sh javascript/examples/program.js
+cd docker && ./deploy.sh
 ```
 
-3. Start the server.
+After you run this command, you should see several Pods, Services, and
+ReplicaSets running (exact ports and IP addresses will vary):
 
 ```
-$ cd rust/containerless-scaffold/
-$ cargo run -- --config '{ "image_name": "serverless-function", "initial_state": "Tracing", "max_requests_to_trace": 6, "max_containers": 4 }'
+$ microk8s.kubectl get all
+NAME                         READY   STATUS    RESTARTS   AGE
+pod/dispatcher-4lbhm         1/1     Running   0          63s
+pod/function-storage-hdqzh   1/1     Running   0          63s
+
+NAME                       TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
+service/dispatcher         NodePort    10.152.183.193   <none>        8080:30373/TCP   63s
+service/function-storage   NodePort    10.152.183.118   <none>        8080:32152/TCP   63s
+service/kubernetes         ClusterIP   10.152.183.1     <none>        443/TCP          30h
+
+NAME                               DESIRED   CURRENT   READY   AGE
+replicaset.apps/dispatcher         1         1         1       63s
+replicaset.apps/function-storage   1         1         1       63s
 ```
 
-This starts an instance of the `invoker` through the proxy of
-`containerless-scaffold`. The initial state of the invoker is "Tracing", and it
-will trace 6 requests before compiling to Rust. It will use a maximum of 4
-containers if necessary, where the tracing container is __not__ included in the
-total. A list of config options can be found [here](./rust/shared/README.md).
-
-4. Send requests. All requests to the platform must be sent as `POST` requests,
-with possibly empty JSON bodies.
+The `deploy.sh` script also creates an Ingress, which gives access to 
+Containerless Services:
 
 ```
-$ curl -X POST localhost:8080/hello -d '{}'
+$ microk8s.kubectl get ingress
+NAME                    HOSTS   ADDRESS     PORTS   AGE
+containerless-ingress   *       127.0.0.1   80      2m19s
 ```
 
-After 6 curls, it will extract and compile the trace to
-`/rust/containerless-scaffold/src/containerless.rs` and then *quit the program*.
+## Integration Tests
 
-5. Serve requests from Rust!
-
-```
-$ cargo run -- --config '{ "image_name": "serverless-function", "initial_state": "Decontainerized" }'
-$ curl -X POST localhost:8080/hello -d '{}'
-```
-
-This starts a different instance of the `invoker` through the proxy of
-`containerless-scaffold`. The initial state is "Decontainerized" (i.e. using
-language-based isolation via Rust).
-
-### Automatically Deploying a Function
-
-The manual method above allows you to deploy a function to JavaScript, trace and
-compile to Rust, and then deploy the function using Rust. However, it involves
-manual intervention. In order to automate the process of switching from
-JavaScript to Rust, we will employ the `multi-invoker`.
-
-1. Create a serverless function `program.js` in [`/javascript/examples`](./javascript/examples/).
-
-2. Build the Containerless [Docker] image:
+To run integration tests, use:
 
 ```
-$ ./scripts/prepare_serverless_function.sh javascript/examples/program.js
+$ cd docker && ./test.sh
 ```
 
-3. Create the important environment variables:
+## Invoking Functions (possibly expired)
+
+The Containerless deployment can run the functions in the `/examples`
+directory. For example, there is a file called `/examples/hello-world.js`,
+thus we can invoke it as follows:
 
 ```
-$ CONFIG1="{\"bind_port\":8081,\"image_name\":\"serverless-function\",\"max_containers\":5,\"initial_state\":\"Tracing\",\"kill_parent\":true}"
-$ CONFIG2="{\"bind_port\":8082,\"image_name\":\"serverless-function\", \"initial_state\":\"Decontainerized\",\"kill_parent\":true}"
-$ CONFIG="{\"bind_port\":8080,\"config_a\":${CONFIG1},\"config_b\":${CONFIG2}}"
+$ curl http://localhost/dispatcher/hello-world
+Hello world!
 ```
 
-4. Start the server:
+Note that the first time we invoke the function, it takes 1-2 seconds to *cold
+start*. However, subsequent invocations are significantly faster. If we
+now run `microk8s.kubectl get all -n containerless` , we will find that the
+cluster is now hosting new resources for the `hello-world` function.
+
+## Cleanup
 
 ```
-$ cd rust/multi-invoker/
-$ cargo run -- --config ${CONFIG}
+cd docker && ./undeploy.sh
 ```
-
-This creates a `multi-invoker` (configured with `CONFIG`) that listens for
-requests on port 8080. The `multi-invoker` will start two instances of the
-`invoker` (the first configured with `CONFIG1` and the second with `CONFIG2`).
-The `multi-invoker` will initially direct requests to the first `invoker` on
-port 8081 to be traced. When this `invoker` quits and dies, the `multi-invoker`
-will switch and direct requests to the second `invoker` listening on port 8082.
-At this point, the first `invoker` has already traced and compiled the Rust
-code, so the second `invoker` will be servicing requests directly from the
-generated Rust function!
-
-### Debugging
-
-If compiling the JS trace fails, see `containerless_scaffold/trace.json` 
-If compiling the Rust fails, see `/rust/containerless_scaffold/src/containerless.rs`
-
-### Using The Local Mock Server
-
-[`local`](./rust/local/) acts as a local mock Datastore and mock Filestore. It
-can be started with:
-
-```
-$ cargo build
-$ cargo run
-```
-
-The server is exposed on port 7999, and can be interacted with through various
-paths.
-
 
 [Cargo]: https://rustup.rs/
 [Yarn]: https://yarnpkg.com/
 [Node]: https://nodejs.org/
 [Docker]: https://www.docker.com/
+[Microk8s]: https://microk8s.io/
+[rsyslog]: https://www.rsyslog.com/
