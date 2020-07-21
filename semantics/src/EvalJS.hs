@@ -102,6 +102,8 @@ eval s = st
            , current = TUnknown
            , traceContext = KEmpty
            , argsStack = []
+           , eventAddr = 0
+           , eventHandlers = Map.empty
            })
         Map.empty
         s

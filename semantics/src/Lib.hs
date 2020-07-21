@@ -6,7 +6,8 @@ module Lib (Val(..),
             alloc,
             updateStore,
             extendEnv,
-            evalMeta) where
+            evalMeta,
+            freshEventAddr) where
 
 import           Data.Map.Strict as Map hiding (take)
 import           Syntax          hiding (Env)
@@ -33,39 +34,23 @@ data State =
     , current       :: Trace
     , traceContext  :: TraceContext
     , argsStack     :: [Trace]
+    , eventAddr     :: Int
+    , eventHandlers :: EventHandlers
     }
   deriving (Show)
 
 alloc :: State -> Val -> (State, Addr)
-alloc (State { nextAddr = nextAddr
-             , store = store
-             , current = current
-             , traceContext = traceContext
-             , argsStack = argsStack
-             }) v =
-  (State
-      { nextAddr = nextAddr + 1
-      , store = insert nextAddr v store
-      , current = current
-      , traceContext = traceContext
-      , argsStack = argsStack
-      }
-  , nextAddr)
+alloc st v = (st { nextAddr = addr+1, store = store' }, addr) where
+  addr = nextAddr st
+  store' = insert addr v (store st)
+
+freshEventAddr :: State -> (Int, State)
+freshEventAddr st = (addr, st { eventAddr = addr+1 }) where
+  addr = eventAddr st
 
 updateStore :: State -> Addr -> Val -> State
-updateStore (State { nextAddr = nextAddr
-                   , store = store
-                   , current = current
-                   , traceContext = traceContext
-                   , argsStack = argsStack
-                   }) addr v =
-  (State
-     { nextAddr = nextAddr
-     , store = insert addr v store
-     , current = current
-     , traceContext = traceContext
-     , argsStack = argsStack
-     })
+updateStore st addr v = st { store = store' } where
+  store' = insert addr v (store st)
 
 extendEnv :: State -> Env -> [Id] -> [Val] -> (State, Env)
 extendEnv st env [] [] = (st, env)

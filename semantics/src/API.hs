@@ -3,27 +3,15 @@ module API where
 import Syntax hiding (Env)
 import Lib
 
-type Callback = String -> ()
+type Callback = String -> Int
 
 popArg :: State -> (Trace, State)
-popArg (State { nextAddr = nextAddr
-                , store = store
-                , current = current
-                , traceContext = traceContext
-                , argsStack = argsStack
-            }) =
-    (a, nextState) where
-    (a:args) = argsStack
-    nextState = (State {
-        nextAddr = nextAddr,
-        store = store,
-        current = current,
-        traceContext = traceContext,
-        argsStack = args
-    })
+popArg st = (a, st {argsStack = args}) where
+    (a:args) = argsStack st
 
 newHandler :: State -> Event -> Trace -> Trace -> (Int, State)
-newHandler st ev tUri tCb = (0, st)
+newHandler st ev tUri tCb = (0, st') where
+    (n, st') = freshEventAddr st
 
 loadHandler :: Int -> ()
 loadHandler n = ()
@@ -37,7 +25,7 @@ getImmediate st env resp cb = do
     let (State { nextAddr=nextAddr, store=store, current=c, traceContext=k, argsStack=a }) = st
     let (_:tUri:tCb:a') = a
     let (n, st') = newHandler (st {argsStack=a'}) EvGet tUri tCb
-    -- perform request
+    -- get request is sent here
     let st''' = loadHandler n
-    cb resp
+    let x = cb resp
     saveHandler n
