@@ -1,4 +1,12 @@
-module Lib (Val(..), Env, Addr, Result(..), State(..), alloc, updateStore, extendEnv) where
+module Lib (Val(..),
+            Env,
+            Addr,
+            Result(..),
+            State(..),
+            alloc,
+            updateStore,
+            extendEnv,
+            evalMeta) where
 
 import           Data.Map.Strict as Map hiding (take)
 import           Syntax          hiding (Env)
@@ -65,50 +73,40 @@ extendEnv st env (x:xs) (v:vs) = extendEnv st' (insert x addr env) xs vs
   where
     (st', addr) = alloc st v
 
-updateMetaState (tr, traceContext) st = st {current = tr, traceContext = traceContext}
+updateMetaState (c, k) st = st {current = c, traceContext = k}
+updateMetaState2 (c, k, a) st = st {current = c, traceContext = k, argsStack = a}
 
 evalTraceBinding :: [Trace] -> TraceBinding -> (Trace, [Trace])
 evalTraceBinding args (TBTrace t)    = (t, args)
 evalTraceBinding (a:args) (TBPopArg) = (a, args)
 
 evalMeta :: State -> Env -> Meta -> State
-evalMeta st env (MLet x trb) =
-  st {current = current', traceContext = traceContext', argsStack = argsStack'}
-  where
-    (tr, argsStack') = evalTraceBinding (argsStack st) trb
-    (current', traceContext') = traceLet (current st) (traceContext st) x tr
-evalMeta st env (MSet lval trb) =
-  st {current = current', traceContext = traceContext', argsStack = argsStack'}
-  where
-    (tr, argsStack') = evalTraceBinding (argsStack st) trb
-    (current', traceContext') = traceSet (current st) (traceContext st) lval tr
-evalMeta st env (MNamed x) =
-  updateMetaState (traceNamed (current st) (traceContext st) x) st
-evalMeta st env (MIfTrue cond) =
-  updateMetaState (traceIfTrue (current st) (traceContext st) cond) st
-  where
-
-evalMeta st env (MIfFalse cond) =
-  updateMetaState (traceIfFalse (current st) (traceContext st) cond) st
-  where
-
-evalMeta st env (MWhile cond) =
-  updateMetaState (traceWhile (current st) (traceContext st) cond) st
-  where
-
-evalMeta st env (MLabel l) =
-  updateMetaState (traceLabel (current st) (traceContext st) l) st
-evalMeta st env (MBreak l tr) =
-  updateMetaState (traceBreak (current st) (traceContext st) l tr) st
-  where
-
-evalMeta st env (MEnterSeq n) =
-  updateMetaState (traceSeq (current st) (traceContext st) n) st
-evalMeta st env MSeqNext =
-  updateMetaState (traceSeqNext (current st) (traceContext st)) st
-evalMeta st env MPop = updateMetaState (tracePop (current st) (traceContext st)) st
-evalMeta st env (MPopTo l) =
-  updateMetaState (tracePopTo (current st) (traceContext st) l) st
+evalMeta st env (MLet x trb) = updateMetaState2 (c, k, a) st where
+  (tr, a) = evalTraceBinding (argsStack st) trb
+  (c, k) = traceLet (current st) (traceContext st) x tr
+evalMeta st env (MSet lval trb) = updateMetaState2 (c, k, a) st where
+  (tr, a) = evalTraceBinding (argsStack st) trb
+  (c, k) = traceSet (current st) (traceContext st) lval tr
+evalMeta st env (MNamed x) = updateMetaState (c, k) st where
+  (c, k) = traceNamed (current st) (traceContext st) x
+evalMeta st env (MIfTrue cond) = updateMetaState (c, k) st where
+  (c, k) = traceIfTrue (current st) (traceContext st) cond
+evalMeta st env (MIfFalse cond) = updateMetaState (c, k) st where
+  (c, k) = traceIfFalse (current st) (traceContext st) cond
+evalMeta st env (MWhile cond) = updateMetaState (c, k) st where
+  (c, k) = traceWhile (current st) (traceContext st) cond
+evalMeta st env (MLabel l) = updateMetaState (c, k) st where
+  (c, k) = traceLabel (current st) (traceContext st) l
+evalMeta st env (MBreak l tr) = updateMetaState (c, k) st where
+  (c, k) = traceBreak (current st) (traceContext st) l tr
+evalMeta st env (MEnterSeq n) = updateMetaState (c, k) st where
+  (c, k) = traceSeq (current st) (traceContext st) n
+evalMeta st env MSeqNext = updateMetaState (c, k) st where
+  (c, k) = traceSeqNext (current st) (traceContext st)
+evalMeta st env MPop = updateMetaState (c, k) st where
+  (c, k) = tracePop (current st) (traceContext st)
+evalMeta st env (MPopTo l) = updateMetaState (c, k) st where
+  (c, k) = tracePopTo (current st) (traceContext st) l
 evalMeta st env (MPushArg arg) = st {argsStack = arg : prev}
   where
     prev = (argsStack st)

@@ -22,8 +22,8 @@ popArg (State { nextAddr = nextAddr
         argsStack = args
     })
 
-newHandler :: Event -> Trace -> Trace -> Int
-newHandler ev tUri tCb = 0
+newHandler :: State -> Event -> Trace -> Trace -> (Int, State)
+newHandler st ev tUri tCb = (0, st)
 
 loadHandler :: Int -> ()
 loadHandler n = ()
@@ -32,7 +32,12 @@ saveHandler :: Int -> ()
 saveHandler n = ()
 
 -- get(response, callback)
-get :: State -> Env -> String -> Callback -> ()
-get st env resp cb = () where
-    (State { nextAddr=nextAddr, store=store, current=current, traceContext=traceContext, argsStack=argsStack }) = st
-    (_:tUri:tCb:args) = argsStack
+getImmediate :: State -> Env -> String -> Callback -> ()
+getImmediate st env resp cb = do
+    let (State { nextAddr=nextAddr, store=store, current=c, traceContext=k, argsStack=a }) = st
+    let (_:tUri:tCb:a') = a
+    let (n, st') = newHandler (st {argsStack=a'}) EvGet tUri tCb
+    -- perform request
+    let st''' = loadHandler n
+    cb resp
+    saveHandler n
