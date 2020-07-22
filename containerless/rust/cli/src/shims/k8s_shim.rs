@@ -1,8 +1,6 @@
-use crate::error::Error;
+use crate::error::CLIResult;
 
 use std::process::Command;
-
-type CLIResult<T> = Result<T, Error>;
 
 pub fn get_all() -> CLIResult<String> {
     let output = Command::new("microk8s.kubectl")

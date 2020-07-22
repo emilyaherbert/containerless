@@ -1,5 +1,7 @@
-mod k8s_shim;
+mod shims;
 mod error;
+
+use shims::*;
 
 use clap::Clap;
 
@@ -14,11 +16,16 @@ struct Opts {
 
 #[derive(Clap)]
 enum SubCommand {
+    Deploy(Deploy),
     Status(Status),
     CreateFunction(CreateFunction),
     DeleteFunction(DeleteFunction),
     ListFunctions(ListFunctions),
 }
+
+/// Deploys the Containerless system.
+#[derive(Clap)]
+struct Deploy { }
 
 /// Queries the status of Containerless.
 #[derive(Clap)]
@@ -27,7 +34,7 @@ struct Status { }
 /// Creates a function.
 #[derive(Clap)]
 struct CreateFunction {
-    /// Print debug info
+    /// Name of the function to create
     #[clap(short)]
     name: String
 }
@@ -35,7 +42,7 @@ struct CreateFunction {
 /// Deletes a function.
 #[derive(Clap)]
 struct DeleteFunction {
-    /// Print debug info
+    /// Name of the function to delete
     #[clap(short)]
     name: String
 }
@@ -47,9 +54,8 @@ struct ListFunctions { }
 fn main() {
     let opts: Opts = Opts::parse();
 
-    // You can handle information about subcommands by requesting their matches by name
-    // (as below), requesting just the name used, or both at the same time
     match opts.subcmd {
+        SubCommand::Deploy(_) => unimplemented!(),
         SubCommand::Status(_) => {
             let status = k8s_shim::get_all().unwrap();
             println!("{}", status);
@@ -64,6 +70,4 @@ fn main() {
             println!("You called list functions!");
         }
     }
-
-    // more program logic goes here...
 }

@@ -7,6 +7,8 @@ pub enum Error {
     Parsing(String)
 }
 
+pub type CLIResult<T> = Result<T, Error>;
+
 impl std::convert::From<io::Error> for Error {
     fn from(error: io::Error) -> Error {
         Error::IO(error)
