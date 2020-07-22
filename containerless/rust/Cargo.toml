@@ -1,0 +1,13 @@
+[workspace]
+members = [
+    "shared2",
+    "controller-agent",
+    "dispatcher-agent",
+    "dispatcher-launcher-agent",
+    "function-runner-agent",
+    "function-storage-agent",
+    "k8s",
+    "integration-tests",
+    "dispatcher-agent-lib",
+]
+exclude = [ "local" ]
