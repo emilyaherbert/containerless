@@ -14,7 +14,7 @@ use compiler::Compiler;
 use graceful_sigterm::handle_sigterm;
 
 async fn ready() -> Result<impl warp::Reply, warp::Rejection> {
-    return Ok(Response::builder().status(200).body("Controller agent\n"));
+    Ok(Response::builder().status(200).body("Controller agent\n"))
 }
 
 async fn recv_trace(
@@ -22,25 +22,25 @@ async fn recv_trace(
 ) -> Result<impl warp::Reply, warp::Rejection> {
     info!(target: "controller", "received trace for {} ({} bytes)", &name, trace.len());
     compiler.compile(name, trace);
-    return Ok(Response::builder().status(200).body(""));
+    Ok(Response::builder().status(200).body(""))
 }
 
 async fn ok_if_not_compiling_handler(
     compiler: Arc<Compiler>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    return Ok(compiler.ok_if_not_compiling());
+    Ok(compiler.ok_if_not_compiling())
 }
 
 async fn restart_dispatcher_handler(
     compiler: Arc<Compiler>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    return Ok(compiler.recompile_dispatcher().await);
+    Ok(compiler.recompile_dispatcher().await)
 }
 
 async fn reset_dispatcher_handler(
     compiler: Arc<Compiler>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    return Ok(compiler.reset_dispatcher().await);
+    Ok(compiler.reset_dispatcher().await)
 }
 
 #[tokio::main]

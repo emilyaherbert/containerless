@@ -143,11 +143,11 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
     while let Some(message) = recv_message.next().await {
         match message {
             Message::RecompileDispatcher { started_compiling } => {
-                if compiler.cargo_build(Some(started_compiling)).await == false {
+                if !(compiler.cargo_build(Some(started_compiling)).await) {
                     error!(target: "controller", "The code for dispatcher-agent is in a broken state. The system may not work.");
                     continue;
                 }
-                next_version = next_version + 1;
+                next_version += 1;
                 crate::graceful_sigterm::delete_dynamic_resources(&k8s, false)
                     .await
                     .expect("deleting dynamically created resources");
@@ -160,11 +160,11 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                 info!(target: "controller", "clearing Controller state");
                 known_functions.clear();
                 generate_decontainerized_functions_mod(&known_functions);
-                if compiler.cargo_build(Some(started_compiling)).await == false {
+                if !(compiler.cargo_build(Some(started_compiling)).await) {
                     error!(target: "controller", "The code for dispatcher-agent is in a broken state. The system may not work.");
                     continue;
                 }
-                next_version = next_version + 1;
+                next_version += 1;
                 crate::graceful_sigterm::delete_dynamic_resources(&k8s, false)
                     .await
                     .expect("deleting dynamically created resources");
@@ -175,7 +175,7 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
             }
             Message::Compile { name, code } => {
                 info!(target: "controller", "compiler task received trace for {}", &name);
-                next_version = next_version + 1;
+                next_version += 1;
                 fs::write(
                     format!(
                         "{}/dispatcher-agent/src/decontainerized_functions/function_{}.json",
@@ -203,7 +203,7 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                 known_functions.insert(name.clone(), CompileStatus::Compiling);
                 generate_decontainerized_functions_mod(&known_functions);
 
-                if compiler.cargo_build(None).await == false {
+                if !(compiler.cargo_build(None).await) {
                     known_functions.insert(name.clone(), CompileStatus::Error);
                     generate_decontainerized_functions_mod(&known_functions);
                     continue;
@@ -264,7 +264,7 @@ impl Compiler {
             .await
             .expect("waiting for cargo to complete");
         self.is_compiling_now.store(false, SeqCst);
-        if cargo_result.status.success() == false {
+        if !cargo_result.status.success() {
             io::stderr().write(&cargo_result.stderr).unwrap();
             io::stdout().write(&cargo_result.stdout).unwrap();
             error!(target: "dispatcher", "cargo build failed");
@@ -298,7 +298,7 @@ impl Compiler {
     }
 
     pub fn ok_if_not_compiling(&self) -> http::StatusCode {
-        if self.is_compiling_now.load(SeqCst) == false {
+        if !self.is_compiling_now.load(SeqCst) {
             return http::StatusCode::OK;
         } else {
             return http::StatusCode::SERVICE_UNAVAILABLE;

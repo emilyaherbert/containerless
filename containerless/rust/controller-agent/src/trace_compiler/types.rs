@@ -130,7 +130,7 @@ impl Typ {
             Typ::Metavar(_) => true,
             Typ::Unionvar(_) => true,
             Typ::Ref(t) => t.has_vars(),
-            Typ::Union(hs) => hs.iter().fold(false, |b, t| b || t.has_vars()),
+            Typ::Union(hs) => hs.iter().any(|t| t.has_vars()),
             Typ::I32 => false,
             Typ::F64 => false,
             Typ::Bool => false,
@@ -148,7 +148,7 @@ impl Typ {
         match self {
             Typ::Metavar(y) => x == *y,
             Typ::Ref(t) => t.occurs_in(x),
-            Typ::Union(hs) => hs.iter().fold(false, |b, t| b || t.occurs_in(x)),
+            Typ::Union(hs) => hs.iter().any(|t| t.occurs_in(x)),
             Typ::I32 => false,
             Typ::F64 => false,
             Typ::Bool => false,
@@ -197,7 +197,7 @@ impl Typ {
                     let new_t = t.flatten();
                     match new_t {
                         Typ::Union(typ_vec) => {
-                            let mut typ_vec2 = typ_vec.clone();
+                            let mut typ_vec2 = typ_vec;
                             // Don't include my own name in my union type.
                             typ_vec2.remove(&Typ::Unionvar(*x));
                             *self = Typ::Union(typ_vec2);
@@ -247,7 +247,7 @@ impl Typ {
                         }
                     }
                 }
-                if new_typ_vec.len() == 0 {
+                if new_typ_vec.is_empty() {
                     panic!("Did not expect to find empty Union type.")
                 } else if new_typ_vec.len() == 1 {
                     match new_typ_vec.iter().next() {
@@ -544,7 +544,7 @@ pub mod constructors {
     pub fn t_union(t1: Typ, t2: Typ) -> Typ {
         match t1 {
             Typ::Union(ts) => {
-                let mut ts2 = ts.clone();
+                let mut ts2 = ts;
                 ts2.insert(t2);
                 return Typ::Union(ts2);
             }
@@ -562,11 +562,11 @@ pub mod constructors {
         for t in ts.iter() {
             hs.insert(t.to_owned());
         }
-        return Typ::Union(hs);
+        Typ::Union(hs)
     }
 
     pub fn t_obj(tm: ImHashMap<String, Typ>) -> Typ {
-        return Typ::Object(tm);
+        Typ::Object(tm)
     }
 
     pub fn t_obj_2(tm: &[(&str, Typ)]) -> Typ {
@@ -574,7 +574,7 @@ pub mod constructors {
         for (k, v) in tm.iter() {
             hm.insert(k.to_string(), v.to_owned());
         }
-        return Typ::Object(hm);
+        Typ::Object(hm)
     }
 
     pub fn t_ref(t: Typ) -> Typ {
@@ -582,98 +582,98 @@ pub mod constructors {
     }
 
     pub fn t_array(t: Typ) -> Typ {
-        return Typ::Array(Box::new(t));
+        Typ::Array(Box::new(t))
     }
 
     pub fn unknown() -> Exp {
-        return Unknown {};
+        Unknown {}
     }
 
     pub fn integer(value: i32) -> Exp {
-        return Integer { value };
+        Integer { value }
     }
 
     pub fn number(value: f64) -> Exp {
-        return Number { value };
+        Number { value }
     }
 
     pub fn bool_(value: bool) -> Exp {
-        return Bool { value };
+        Bool { value }
     }
 
     pub fn id(name: &str) -> Exp {
-        return Identifier {
+        Identifier {
             name: name.to_string(),
-        };
+        }
     }
 
     pub fn from(exp: Exp, field: &str) -> Exp {
-        return From {
+        From {
             exp: Box::new(exp),
             field: field.to_string(),
-        };
+        }
     }
 
     pub fn get(exp: Exp, field: &str) -> Exp {
-        return Get {
+        Get {
             exp: Box::new(exp),
             field: field.to_string(),
-        };
+        }
     }
 
     pub fn string(value: &str) -> Exp {
-        return Stringg {
+        Stringg {
             value: value.to_string(),
-        };
+        }
     }
 
     pub fn undefined() -> Exp {
-        return Undefined {};
+        Undefined {}
     }
 
     pub fn binop(op: &Op2, e1: Exp, e2: Exp) -> Exp {
-        return BinOp {
+        BinOp {
             op: op.clone(),
             e1: Box::new(e1),
             e2: Box::new(e2),
-        };
+        }
     }
 
     pub fn op1(op: &Op1, e: Exp) -> Exp {
-        return Exp::Op1 {
+        Exp::Op1 {
             op: op.clone(),
             e: Box::new(e),
-        };
+        }
     }
 
     pub fn if_(cond: Exp, true_part: Vec<Exp>, false_part: Vec<Exp>) -> Exp {
-        return If {
+        If {
             cond: Box::new(cond),
             true_part,
             false_part,
-        };
+        }
     }
 
     pub fn while_(cond: Exp, body: Vec<Exp>) -> Exp {
-        return While {
+        While {
             cond: Box::new(cond),
             body,
-        };
+        }
     }
 
     pub fn let_(name: &str, typ: Option<Typ>, named: Exp) -> Exp {
-        return Let {
+        Let {
             name: name.to_string(),
             typ,
             named: Box::new(named),
-        };
+        }
     }
 
     pub fn set(name: LVal, named: Exp) -> Exp {
-        return Set {
+        Set {
             name,
             named: Box::new(named),
-        };
+        }
     }
 
     pub fn ref_(e: Exp) -> Exp {
@@ -694,79 +694,79 @@ pub mod constructors {
     // NOTE(emily): Apparently its bad Rust to receive a Vec<T>
     // NOTE(arjun): What is the alternative?
     pub fn block(body: Vec<Exp>) -> Exp {
-        return Block { body };
+        Block { body }
     }
 
     pub fn callback(
         event: &str, event_arg: Exp, callback_args: Vec<Arg>, callback_clos: Exp, body: Vec<Exp>,
     ) -> Exp {
-        return Callback {
+        Callback {
             event: event.to_string(),
             event_arg: Box::new(event_arg),
             callback_args,
             callback_clos: Box::new(callback_clos),
             body,
-        };
+        }
     }
 
     pub fn arg(name: &str, typ: Option<Typ>) -> Arg {
-        return Arg {
+        Arg {
             name: name.to_string(),
             typ,
-        };
+        }
     }
 
     pub fn loopback(event: &str, event_arg: Exp, callback_clos: Exp, id: i32) -> Exp {
-        return Loopback {
+        Loopback {
             event: event.to_string(),
             callback_clos: Box::new(callback_clos),
             event_arg: Box::new(event_arg),
             id,
-        };
+        }
     }
 
     pub fn label(name: &str, body: Vec<Exp>) -> Exp {
-        return Label {
+        Label {
             name: name.to_string(),
             body,
-        };
+        }
     }
 
     pub fn break_(name: &str, value: Exp) -> Exp {
-        return Break {
+        Break {
             name: name.to_string(),
             value: Box::new(value),
-        };
+        }
     }
 
     pub fn array(exps: Vec<Exp>) -> Exp {
-        return Array { exps };
+        Array { exps }
     }
 
     pub fn index_(e1: Exp, e2: Exp) -> Exp {
-        return Index {
+        Index {
             e1: Box::new(e1),
             e2: Box::new(e2),
-        };
+        }
     }
 
     pub fn prim_app(event: &str, event_args: Vec<Exp>) -> Exp {
-        return PrimApp {
+        PrimApp {
             event: event.to_string(),
             event_args,
-        };
+        }
     }
 
     pub fn method_call(e: Exp, method: &str, method_call_args: Vec<Exp>) -> Exp {
-        return MethodCall {
+        MethodCall {
             e: Box::new(e),
             method: method.to_string(),
             method_call_args,
-        };
+        }
     }
 
     pub fn obj(tenv: HashMap<String, Exp>) -> Exp {
-        return Object { properties: tenv };
+        Object { properties: tenv }
     }
 
     pub fn obj_2(tenv: &[(&str, Exp)]) -> Exp {
@@ -774,13 +774,13 @@ pub mod constructors {
         for (k, v) in tenv.iter() {
             hm.insert(k.to_string(), v.to_owned());
         }
-        return Object { properties: hm };
+        Object { properties: hm }
     }
 
     pub fn lval_index(exp: Exp, index: Exp) -> LVal {
-        return LVal::Index {
+        LVal::Index {
             exp: Box::new(exp),
             index: Box::new(index),
-        };
+        }
     }
 }

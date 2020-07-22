@@ -27,5 +27,5 @@ pub fn compile(
     let mut rustify = Rustify::new();
     rustify.rustify(&mut exp3);
     codegen::codegen(&exp3, dest_file);
-    return Ok(());
+    Ok(())
 }

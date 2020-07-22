@@ -48,7 +48,7 @@ pub async fn retry_get(
             if tries == 0 {
                 return RetryPolicy::ForwardError(err);
             }
-            tries = tries - 1;
+            tries -= 1;
             return RetryPolicy::WaitRetry(Duration::from_secs(delay_secs));
         },
     )

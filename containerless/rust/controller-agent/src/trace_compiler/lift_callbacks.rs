@@ -20,7 +20,7 @@ impl LiftCallbacks {
     }
 
     fn fresh_id(&mut self) -> i32 {
-        self.next_id = self.next_id + 1;
+        self.next_id += 1;
         return self.next_id - 1;
     }
 

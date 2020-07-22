@@ -79,7 +79,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             // generate the Rust code "x". This code is based on the following
             // example:
             // https://docs.rs/quote/0.6.12/quote/macro.quote.html#constructing-identifiers
-            let q_id = Ident::new(&format!("{}", name), Span::call_site());
+            let q_id = Ident::new(&name.to_string(), Span::call_site());
             quote! { #q_id }
         }
         Exp::From { exp: _, field: _ } => panic!("Exp::From should be eliminated"),
@@ -134,7 +134,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             typ: _,
             named,
         } => {
-            let q_name = Ident::new(&format!("{}", name), Span::call_site());
+            let q_name = Ident::new(&name.to_string(), Span::call_site());
             let q_named = codegen_exp(named);
             quote! {
                 let #q_name = #q_named;
@@ -188,12 +188,15 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
         }
         Exp::Label { name, body } => {
             let q_name = match name.chars().next() {
-                Some(s) => {
+                Some(_s) => {
+                    /*
                     if s == '\'' {
-                        Lifetime::new(&format!("{}", name), Span::call_site())
+                        Lifetime::new(&name.to_string(), Span::call_site())
                     } else {
-                        Lifetime::new(&format!("'{}", name), Span::call_site())
+                        Lifetime::new(&name.to_string(), Span::call_site())
                     }
+                    */
+                    Lifetime::new(&name.to_string(), Span::call_site())
                 }
                 None => panic!("This should not happen."),
             };
@@ -207,7 +210,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
             }
         }
         Exp::Break { name, value } => {
-            let q_name = Lifetime::new(&format!("{}", name), Span::call_site());
+            let q_name = Lifetime::new(&name.to_string(), Span::call_site());
             let q_value = codegen_exp(value);
             quote! {
                 break #q_name #q_value;
@@ -251,7 +254,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
                     }
                 }
                 _ => {
-                    let q_event = Ident::new(&format!("{}", event), Span::call_site());
+                    let q_event = Ident::new(&event.to_string(), Span::call_site());
                     quote! {
                         ec.#q_event(#(#q_event_args),*)?
                     }
@@ -265,7 +268,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
         } => {
             let q_e = codegen_exp(e);
             let q_method_call_args = method_call_args.iter().map(|e| codegen_exp(e));
-            let q_method = Ident::new(&format!("{}", method), Span::call_site());
+            let q_method = Ident::new(&method.to_string(), Span::call_site());
             quote! {
                 #q_e.#q_method(#(#q_method_call_args),*)?
             }
@@ -295,7 +298,7 @@ pub fn codegen(e: &Exp, dest_file: &str) {
     };
 
     std::fs::write(dest_file, format!("{}", tokens))
-        .expect(&format!("could not write to {}", dest_file));
+        .unwrap_or_else(|_| panic!("could not write to {}", dest_file));
 
     // NOTE(arjun): If we ever measure compilation time, this line *must* be
     // removed.

@@ -446,7 +446,7 @@ impl State {
                                         send,
                                         util::text_response(
                                             200,
-                                            format!("extracted and sent trace"),
+                                            "extracted and sent trace".to_string(),
                                         ),
                                     );
                                     return Ok(());
@@ -459,7 +459,7 @@ impl State {
                     } else {
                         util::send_log_error(
                             send,
-                            util::text_response(403, format!("function is not tracing")),
+                            util::text_response(403, "function is not tracing".to_string()),
                         );
                     }
                 }
@@ -536,20 +536,14 @@ impl FunctionManager {
         self.send_requests
             .send(Message::Shutdown)
             .await
-            .expect(&format!(
-                "error sending Message::Shutdown for {}",
-                self.state.name
-            ));
+            .unwrap_or_else(|_| panic!("error sending Message::Shutdown for {}", self.state.name));
     }
 
     pub async fn orphan(mut self) {
         self.send_requests
             .send(Message::Orphan)
             .await
-            .expect(&format!(
-                "error sending Message::Orphan for {}",
-                self.state.name
-            ));
+            .unwrap_or_else(|_| panic!("error sending Message::Orphan for {}", self.state.name));
     }
 
     pub async fn invoke(
