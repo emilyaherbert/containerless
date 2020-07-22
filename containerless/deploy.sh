@@ -1,4 +1,5 @@
 #!/bin/sh
+cd docker
 export EXAMPLES_PATH=$(dirname $(dirname $(realpath $0)))/examples
 export RUST_SRC_PATH=$(dirname $(dirname $(realpath $0)))/rust
 export CONTROLLER_PORT=7999
