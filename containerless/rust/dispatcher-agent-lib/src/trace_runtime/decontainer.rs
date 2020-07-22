@@ -17,10 +17,7 @@ use std::str;
 // raises a type error if the future is not sendable. Having the type error
 // locally within this file makes it easier to debug.
 fn _statically_assert_sendable(
-    func: Containerless,
-    client: HttpClient,
-    url_path: &str,
-    body: &[u8],
+    func: Containerless, client: HttpClient, url_path: &str, body: &[u8],
 ) {
     fn _check_send<F>(_f: F)
     where
@@ -31,10 +28,7 @@ fn _statically_assert_sendable(
 }
 
 pub async fn run_decontainerized_function(
-    func: Containerless,
-    client: HttpClient,
-    url_path: &str,
-    body: &[u8],
+    func: Containerless, client: HttpClient, url_path: &str, body: &[u8],
 ) -> Result<Response, Error> {
     let arena = Bump::new();
     let affine_factory = AffineBoxFactory::new();

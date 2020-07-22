@@ -233,11 +233,8 @@ impl State {
     }
 
     async fn invoke_err(
-        &self,
-        authority: uri::Authority,
-        serverless_request: ServerlessRequest,
-        autoscaler: Arc<Autoscaler>,
-        containerless_mode_header: &'static str,
+        &self, authority: uri::Authority, serverless_request: ServerlessRequest,
+        autoscaler: Arc<Autoscaler>, containerless_mode_header: &'static str,
     ) {
         let uri = hyper::Uri::builder()
             .scheme("http")
@@ -341,9 +338,7 @@ impl State {
     }
 
     async fn maybe_start_vanilla(
-        self_: Arc<State>,
-        create_mode: &CreateMode,
-        containerless: Option<Containerless>,
+        self_: Arc<State>, create_mode: &CreateMode, containerless: Option<Containerless>,
     ) -> Result<(), Error> {
         if *create_mode == CreateMode::New && containerless.is_none() {
             return self_.start_vanilla_pod_and_service().await;
@@ -352,9 +347,7 @@ impl State {
     }
 
     async fn maybe_start_tracing(
-        self_: Arc<State>,
-        upgrade_pending: bool,
-        create_mode: &CreateMode,
+        self_: Arc<State>, upgrade_pending: bool, create_mode: &CreateMode,
         containerless: Option<Containerless>,
     ) -> Result<(), Error> {
         if upgrade_pending {
@@ -367,12 +360,9 @@ impl State {
     }
 
     async fn function_manager_task(
-        self_: Arc<State>,
-        mut recv_requests: mpsc::Receiver<Message>,
-        function_table: Weak<FunctionTable>,
-        create_mode: CreateMode,
-        containerless: Option<Containerless>,
-        upgrade_pending: Arc<AtomicBool>,
+        self_: Arc<State>, mut recv_requests: mpsc::Receiver<Message>,
+        function_table: Weak<FunctionTable>, create_mode: CreateMode,
+        containerless: Option<Containerless>, upgrade_pending: Arc<AtomicBool>,
     ) -> Result<(), Error> {
         try_join!(
             Self::maybe_start_tracing(
@@ -517,12 +507,8 @@ impl State {
 
 impl FunctionManager {
     pub async fn new(
-        k8s_client: K8sClient,
-        http_client: HttpClient,
-        function_table: Weak<FunctionTable>,
-        name: String,
-        create_mode: CreateMode,
-        containerless: Option<Containerless>,
+        k8s_client: K8sClient, http_client: HttpClient, function_table: Weak<FunctionTable>,
+        name: String, create_mode: CreateMode, containerless: Option<Containerless>,
         upgrade_pending: Arc<AtomicBool>,
     ) -> FunctionManager {
         let (send_requests, recv_requests) = mpsc::channel(1);
@@ -567,17 +553,14 @@ impl FunctionManager {
     }
 
     pub async fn invoke(
-        &mut self,
-        method: http::Method,
-        path_and_query: &str,
-        body: hyper::Body,
+        &mut self, method: http::Method, path_and_query: &str, body: hyper::Body,
     ) -> Result<Response, hyper::Error> {
         let (send_resp, recv_resp) = oneshot::channel();
         let req = ServerlessRequest {
             payload: RequestPayload {
-                method: method,
+                method,
                 path_and_query: String::from(path_and_query),
-                body: body,
+                body,
             },
             send: send_resp,
         };

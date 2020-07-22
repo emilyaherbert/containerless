@@ -590,7 +590,7 @@ pub mod constructors {
     }
 
     pub fn integer(value: i32) -> Exp {
-        return Integer { value: value };
+        return Integer { value };
     }
 
     pub fn number(value: f64) -> Exp {
@@ -664,14 +664,14 @@ pub mod constructors {
     pub fn let_(name: &str, typ: Option<Typ>, named: Exp) -> Exp {
         return Let {
             name: name.to_string(),
-            typ: typ,
+            typ,
             named: Box::new(named),
         };
     }
 
     pub fn set(name: LVal, named: Exp) -> Exp {
         return Set {
-            name: name,
+            name,
             named: Box::new(named),
         };
     }
@@ -694,29 +694,25 @@ pub mod constructors {
     // NOTE(emily): Apparently its bad Rust to receive a Vec<T>
     // NOTE(arjun): What is the alternative?
     pub fn block(body: Vec<Exp>) -> Exp {
-        return Block { body: body };
+        return Block { body };
     }
 
     pub fn callback(
-        event: &str,
-        event_arg: Exp,
-        callback_args: Vec<Arg>,
-        callback_clos: Exp,
-        body: Vec<Exp>,
+        event: &str, event_arg: Exp, callback_args: Vec<Arg>, callback_clos: Exp, body: Vec<Exp>,
     ) -> Exp {
         return Callback {
             event: event.to_string(),
             event_arg: Box::new(event_arg),
-            callback_args: callback_args,
+            callback_args,
             callback_clos: Box::new(callback_clos),
-            body: body,
+            body,
         };
     }
 
     pub fn arg(name: &str, typ: Option<Typ>) -> Arg {
         return Arg {
             name: name.to_string(),
-            typ: typ,
+            typ,
         };
     }
 
@@ -725,14 +721,14 @@ pub mod constructors {
             event: event.to_string(),
             callback_clos: Box::new(callback_clos),
             event_arg: Box::new(event_arg),
-            id: id,
+            id,
         };
     }
 
     pub fn label(name: &str, body: Vec<Exp>) -> Exp {
         return Label {
             name: name.to_string(),
-            body: body,
+            body,
         };
     }
 
@@ -744,7 +740,7 @@ pub mod constructors {
     }
 
     pub fn array(exps: Vec<Exp>) -> Exp {
-        return Array { exps: exps };
+        return Array { exps };
     }
 
     pub fn index_(e1: Exp, e2: Exp) -> Exp {
@@ -757,7 +753,7 @@ pub mod constructors {
     pub fn prim_app(event: &str, event_args: Vec<Exp>) -> Exp {
         return PrimApp {
             event: event.to_string(),
-            event_args: event_args,
+            event_args,
         };
     }
 
@@ -765,7 +761,7 @@ pub mod constructors {
         return MethodCall {
             e: Box::new(e),
             method: method.to_string(),
-            method_call_args: method_call_args,
+            method_call_args,
         };
     }
 

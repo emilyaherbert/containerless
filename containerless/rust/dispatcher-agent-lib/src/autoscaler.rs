@@ -46,9 +46,7 @@ impl Autoscaler {
     }
 
     async fn update_latency(
-        autoscaler: Arc<Autoscaler>,
-        function_table: Weak<FunctionTable>,
-        init_num_replicas: i32,
+        autoscaler: Arc<Autoscaler>, function_table: Weak<FunctionTable>, init_num_replicas: i32,
     ) {
         let mut max_pending_requests_vec = WindowedMax::new(NUM_INTERVALS);
 
@@ -80,11 +78,8 @@ impl Autoscaler {
     }
 
     pub fn new(
-        k8s_client: K8sClient,
-        replica_set: String,
-        function_table: Weak<FunctionTable>,
-        init_num_replicas: i32,
-        name: String,
+        k8s_client: K8sClient, replica_set: String, function_table: Weak<FunctionTable>,
+        init_num_replicas: i32, name: String,
     ) -> Arc<Autoscaler> {
         let max_pending_requests = AtomicUsize::new(1);
         let pending_requests = AtomicUsize::new(0);

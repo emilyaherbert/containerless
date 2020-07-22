@@ -50,10 +50,7 @@ impl TestRunner {
     }
 
     async fn send_post_request(
-        &self,
-        path_suffix: &str,
-        body: JsonValue,
-        expected_mode: &str,
+        &self, path_suffix: &str, body: JsonValue, expected_mode: &str,
     ) -> Result<String, String> {
         let url = reqwest::Url::parse(&format!(
             "http://localhost/dispatcher/{}/{}",
@@ -89,9 +86,7 @@ impl TestRunner {
 }
 
 pub async fn run_test_async(
-    name: &str,
-    js_code: &str,
-    js_requests: Vec<(&str, JsonValue)>,
+    name: &str, js_code: &str, js_requests: Vec<(&str, JsonValue)>,
     rs_requests: Vec<(&str, JsonValue)>,
 ) -> Vec<String> {
     assert!(
@@ -164,9 +159,7 @@ pub async fn run_test_async(
 
 #[allow(unused)]
 pub fn run_test(
-    name: &str,
-    js_code: &str,
-    js_requests: Vec<(&str, JsonValue)>,
+    name: &str, js_code: &str, js_requests: Vec<(&str, JsonValue)>,
     rs_requests: Vec<(&str, JsonValue)>,
 ) -> Vec<String> {
     if name.contains("-") || name.contains("_") {

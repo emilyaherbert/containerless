@@ -18,9 +18,7 @@ async fn ready() -> Result<impl warp::Reply, warp::Rejection> {
 }
 
 async fn recv_trace(
-    name: String,
-    trace: bytes::Bytes,
-    compiler: Arc<Compiler>,
+    name: String, trace: bytes::Bytes, compiler: Arc<Compiler>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     info!(target: "controller", "received trace for {} ({} bytes)", &name, trace.len());
     compiler.compile(name, trace);

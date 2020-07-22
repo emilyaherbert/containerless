@@ -19,10 +19,7 @@ where
 }
 
 pub async fn retry_get(
-    client: &HttpClient,
-    mut tries: usize,
-    delay_secs: u64,
-    uri: Uri,
+    client: &HttpClient, mut tries: usize, delay_secs: u64, uri: Uri,
 ) -> Result<(), ()> {
     let mk_req = || {
         hyper::Request::builder()
@@ -63,8 +60,7 @@ pub async fn retry_get(
 }
 
 pub async fn wait_for_service(
-    http_client: &HttpClient,
-    authority: uri::Authority,
+    http_client: &HttpClient, authority: uri::Authority,
 ) -> Result<(), Error> {
     let uri = http::Uri::builder()
         .scheme("http")
@@ -91,9 +87,7 @@ where
 }
 
 pub async fn wait_for_pod_running(
-    k8s_client: &K8sClient,
-    pod_name: &str,
-    timeout_secs: usize,
+    k8s_client: &K8sClient, pod_name: &str, timeout_secs: usize,
 ) -> Result<(), Error> {
     use k8s::{PodCondition, PodPhase};
     for _i in 0..timeout_secs {

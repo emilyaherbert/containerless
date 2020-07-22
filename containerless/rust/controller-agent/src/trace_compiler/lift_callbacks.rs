@@ -25,11 +25,7 @@ impl LiftCallbacks {
     }
 
     fn lift_callback(
-        &mut self,
-        event: &str,
-        event_arg: &Exp,
-        callback_args: &[Arg],
-        callback_clos: &Exp,
+        &mut self, event: &str, event_arg: &Exp, callback_args: &[Arg], callback_clos: &Exp,
         body: &[Exp],
     ) -> Exp {
         let x = self.fresh_id();

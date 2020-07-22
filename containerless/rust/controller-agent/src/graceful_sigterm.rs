@@ -66,8 +66,7 @@ async fn delete_replica_sets(k8s: &k8s::Client) -> Result<(), kube::Error> {
 }
 
 pub async fn delete_dynamic_resources(
-    k8s_client: &k8s::Client,
-    delete_dispatcher: bool,
+    k8s_client: &k8s::Client, delete_dispatcher: bool,
 ) -> Result<(), kube::Error> {
     future::try_join4(
         delete_replica_sets(&k8s_client),

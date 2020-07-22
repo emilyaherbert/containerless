@@ -16,8 +16,7 @@ pub struct Client {
 
 impl Client {
     pub async fn from_config(
-        config: Configuration,
-        namespace: &str,
+        config: Configuration, namespace: &str,
     ) -> Result<Client, kube::Error> {
         let client = kube::client::APIClient::new(config);
         let pods = kube::api::Api::v1Pod(client.clone()).within(namespace);
@@ -182,8 +181,7 @@ impl Client {
     }
 
     pub async fn get_deployment_status(
-        &self,
-        name: &str,
+        &self, name: &str,
     ) -> Result<t::DeploymentStatus, kube::Error> {
         let raw_status = self
             .deployment
@@ -201,8 +199,7 @@ impl Client {
     }
 
     pub async fn get_pod_phase_and_readiness(
-        &self,
-        name: &str,
+        &self, name: &str,
     ) -> Result<(t::PodPhase, t::PodCondition), kube::Error> {
         let status = self.pods.get_status(name).await?.status;
         match status {

@@ -11,10 +11,7 @@ pub struct TimeoutError {
 }
 
 async fn poll_url_internal<'a, U>(
-    client: &'a reqwest::Client,
-    url: U,
-    interval: Duration,
-    timeout: Option<Duration>,
+    client: &'a reqwest::Client, url: U, interval: Duration, timeout: Option<Duration>,
 ) -> Result<(), TimeoutError>
 where
     U: IntoUrl + Clone + Display,
@@ -39,9 +36,7 @@ where
 }
 
 pub async fn poll_url_no_timeout<'a, U>(
-    client: &'a reqwest::Client,
-    url: U,
-    interval: Duration,
+    client: &'a reqwest::Client, url: U, interval: Duration,
 ) -> ()
 where
     U: IntoUrl + Clone + Display,
@@ -52,10 +47,7 @@ where
 }
 
 pub async fn poll_url_with_timeout<'a, U>(
-    client: &'a reqwest::Client,
-    url: U,
-    interval: Duration,
-    timeout: Duration,
+    client: &'a reqwest::Client, url: U, interval: Duration, timeout: Duration,
 ) -> Result<(), TimeoutError>
 where
     U: IntoUrl + Clone + Display,
