@@ -1,5 +1,7 @@
+mod k8s_shim;
+mod error;
+
 use clap::Clap;
-use std::process::Command;
 
 /// This doc string acts as a help message when the user runs '--help'
 /// as do all doc strings on fields
@@ -49,12 +51,8 @@ fn main() {
     // (as below), requesting just the name used, or both at the same time
     match opts.subcmd {
         SubCommand::Status(_) => {
-            let output = Command::new("microk8s.kubectl")
-                .args(&["get", "all", "-n", "containerless"])
-                .output()
-                .expect("failed to execute process");
-            let stdout_str = String::from_utf8(output.stdout).expect("Could not convert stdout to string.");
-            println!("{}", stdout_str);
+            let status = k8s_shim::get_all().unwrap();
+            println!("{}", status);
         },
         SubCommand::CreateFunction(t) => {
             println!("You called create function with {:?}!", t.name);
