@@ -18,7 +18,6 @@ impl Rustify {
             if ix < len - 1 {
                 if let Exp::Let {
                     name: _,
-                    typ: _,
                     named: _,
                 } = e
                 {
@@ -27,7 +26,6 @@ impl Rustify {
                     let inner = std::mem::replace(e, Exp::Undefined {});
                     *e = Exp::Let {
                         name: "_".to_string(),
-                        typ: None,
                         named: Box::new(inner),
                     };
                 }
@@ -71,7 +69,6 @@ impl Rustify {
                         body: vec![
                             Exp::Let {
                                 name: "l".to_string(),
-                                typ: None,
                                 named: Box::new(inner),
                             },
                             Exp::Identifier {
@@ -120,7 +117,6 @@ impl Rustify {
             }
             Exp::Let {
                 name: _,
-                typ: _,
                 named,
             } => self.rustify(named),
             Exp::Set { name: _, named } => self.rustify(named),

@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use super::types::{Arg, Exp, Exp::*};
+use super::types::{Exp, Exp::*};
 
 pub struct Assertions {
     names: HashSet<String>,
@@ -99,7 +99,6 @@ impl Assertions {
             }
             Let {
                 name: _,
-                typ: _,
                 named,
             } => {
                 self.assert_exp(named);
@@ -196,7 +195,6 @@ impl Assertions {
             }
             Let {
                 name,
-                typ: _,
                 named: _,
             } => {
                 let first = name.chars().next().unwrap();
@@ -261,135 +259,6 @@ impl Assertions {
             SetRef { e1, e2 } => {
                 self.assert_unique_names(e1);
                 self.assert_unique_names(e2);
-            }
-            _ => {
-                panic!("Not implemented.");
-            }
-        }
-    }
-
-    fn assert_all_options_are_none_vec(&mut self, exps: &[Exp]) {
-        for e in exps.iter() {
-            self.assert_all_options_are_none(e);
-        }
-    }
-
-    fn assert_all_options_are_none_tenv(&mut self, exps: &HashMap<String, Exp>) {
-        for (_k, v) in exps.iter() {
-            self.assert_all_options_are_none(v);
-        }
-    }
-
-    pub fn assert_all_options_are_none(&mut self, exp: &Exp) {
-        match exp {
-            Unknown {} => {}
-            Number { value: _ } => {}
-            Bool { value: _ } => {}
-            Identifier { name: _ } => {}
-            From { exp, field: _ } => {
-                self.assert_all_options_are_none(exp);
-            }
-            Index { e1, e2 } => {
-                self.assert_all_options_are_none(e1);
-                self.assert_all_options_are_none(e2);
-            }
-            Get { exp, field: _ } => self.assert_all_options_are_none(exp),
-            Stringg { value: _ } => {}
-            Undefined {} => {}
-            BinOp { op: _, e1, e2 } => {
-                self.assert_all_options_are_none(e1);
-                self.assert_all_options_are_none(e2);
-            }
-            Op1 { op: _, e } => self.assert_all_options_are_none(e),
-            If {
-                cond: _,
-                true_part,
-                false_part,
-            } => {
-                self.assert_all_options_are_none_vec(true_part);
-                self.assert_all_options_are_none_vec(false_part);
-            }
-            While { cond: _, body } => {
-                self.assert_all_options_are_none_vec(body);
-            }
-            Let {
-                name: _,
-                typ,
-                named,
-            } => match typ {
-                Some(_) => panic!("Not Some"),
-                None => {
-                    self.assert_all_options_are_none(named);
-                }
-            },
-            Set { name: _, named } => {
-                self.assert_all_options_are_none(named);
-            }
-            Block { body } => {
-                self.assert_all_options_are_none_vec(body);
-            }
-            Callback {
-                event: _,
-                event_arg,
-                callback_args,
-                callback_clos,
-                body,
-            } => {
-                for Arg { name: _, typ } in callback_args.iter() {
-                    match typ {
-                        Some(_) => panic!("Found some"),
-                        None => {}
-                    }
-                }
-                self.assert_all_options_are_none(event_arg);
-                self.assert_all_options_are_none(callback_clos);
-                self.assert_all_options_are_none_vec(body);
-            }
-            Label { name: _, body } => {
-                self.assert_all_options_are_none_vec(body);
-            }
-            Break { name: _, value } => {
-                self.assert_all_options_are_none(value);
-            }
-            Object { properties } => {
-                self.assert_all_options_are_none_tenv(properties);
-            }
-            Clos { tenv } => self.assert_all_options_are_none_tenv(tenv),
-            Array { exps } => {
-                self.assert_all_options_are_none_vec(exps);
-            }
-            PrimApp {
-                event: _,
-                event_args,
-            } => {
-                self.assert_all_options_are_none_vec(event_args);
-            }
-            Loopback {
-                event: _,
-                event_arg,
-                callback_clos,
-                id: _,
-            } => {
-                self.assert_all_options_are_none(event_arg);
-                self.assert_all_options_are_none(callback_clos);
-            }
-            Ref { e } => {
-                self.assert_all_options_are_none(e);
-            }
-            Deref { e } => {
-                self.assert_all_options_are_none(e);
-            }
-            SetRef { e1, e2 } => {
-                self.assert_all_options_are_none(e1);
-                self.assert_all_options_are_none(e2);
-            }
-            MethodCall {
-                e,
-                method: _,
-                method_call_args,
-            } => {
-                self.assert_all_options_are_none(e);
-                self.assert_all_options_are_none_vec(method_call_args);
             }
             _ => {
                 panic!("Not implemented.");

@@ -36,7 +36,6 @@ fn codegen_block(block: &[Exp], to_break: Option<Lifetime>) -> TokenStream {
         Some(Exp::Let {
             name: _,
             named: _,
-            typ: _,
         }) => (&undef, block),
         Some(_) => block.split_last().unwrap(),
         None => (&undef, block),
@@ -131,7 +130,6 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
         }
         Exp::Let {
             name,
-            typ: _,
             named,
         } => {
             let q_name = Ident::new(&name.to_string(), Span::call_site());

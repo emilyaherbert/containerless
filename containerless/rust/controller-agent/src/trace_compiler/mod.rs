@@ -19,7 +19,6 @@ pub fn compile(
     let mut assertions = Assertions::new();
     assertions.assert_supposed_grammar(&exp);
     assertions.assert_unique_names(&exp);
-    assertions.assert_all_options_are_none(&exp);
     let mut transformer = Transformer::new();
     let exp2 = transformer.transform(&exp);
     let mut lift_callbacks = LiftCallbacks::new();

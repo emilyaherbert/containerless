@@ -20,15 +20,12 @@
 //   Instead, I guessed that it existed and it worked!
 use std::collections::HashMap;
 
-use im_rc::{HashMap as ImHashMap, HashSet as ImHashSet};
-
 use serde::Deserialize;
 use std::fmt;
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Arg {
-    pub name: String,
-    pub typ: Option<Typ>,
+    pub name: String
 }
 
 // https://users.rust-lang.org/t/need-help-with-serde-deserialize-with/18374
@@ -52,8 +49,7 @@ impl<'de> ::serde::Deserialize<'de> for Arg {
                 E: ::serde::de::Error,
             {
                 Ok(Arg {
-                    name: v.to_string(),
-                    typ: None,
+                    name: v.to_string()
                 })
             }
         }
@@ -91,178 +87,6 @@ where
     }
 
     deserializer.deserialize_any(Visitor(::std::marker::PhantomData))
-}
-
-/*
-
-    What I really want to do is to use Union(HashSet<Typ>)
-    and to derive Hash, so that Typ's could be used as hash values.
-    HashSet itself can't be hashed though because its elements are ordered.
-    It might be possible to use + or XOR to create our own HashSet hashing,
-    but that would be slightly unsafe.
-
-    The other set implementation we could use is BTreeSet.
-
-*/
-#[derive(PartialEq, Eq, Debug, Deserialize, Clone, Hash)]
-pub enum Typ {
-    I32,
-    F64,
-    Bool,
-    String,
-    Unknown,
-    Undefined,
-    Metavar(usize),
-    Unionvar(usize),
-    Ref(Box<Typ>),
-    #[serde(skip)]
-    Union(ImHashSet<Typ>),
-    #[serde(skip)]
-    Object(ImHashMap<String, Typ>),
-    Array(Box<Typ>),
-    ResponseCallback,
-    RustType(usize),
-}
-
-impl Typ {
-    pub fn has_vars(&self) -> bool {
-        match self {
-            Typ::Metavar(_) => true,
-            Typ::Unionvar(_) => true,
-            Typ::Ref(t) => t.has_vars(),
-            Typ::Union(hs) => hs.iter().any(|t| t.has_vars()),
-            Typ::I32 => false,
-            Typ::F64 => false,
-            Typ::Bool => false,
-            Typ::String => false,
-            Typ::Unknown => false,
-            Typ::Undefined => false,
-            Typ::Object(ts) => ts.iter().fold(false, |b, (_, t)| b || t.has_vars()),
-            Typ::ResponseCallback => false,
-            Typ::Array(t) => t.has_vars(),
-            _ => unimplemented!(),
-        }
-    }
-
-    pub fn occurs_in(&self, x: usize) -> bool {
-        match self {
-            Typ::Metavar(y) => x == *y,
-            Typ::Ref(t) => t.occurs_in(x),
-            Typ::Union(hs) => hs.iter().any(|t| t.occurs_in(x)),
-            Typ::I32 => false,
-            Typ::F64 => false,
-            Typ::Bool => false,
-            Typ::String => false,
-            Typ::Unknown => false,
-            Typ::Undefined => false,
-            _ => unimplemented!(),
-        }
-    }
-
-    pub fn apply_subst(&mut self, subst: &std::collections::HashMap<usize, Typ>) -> () {
-        match self {
-            Typ::Metavar(x) => match subst.get(x) {
-                None => (),
-                Some(t) => *self = t.flatten(),
-            },
-            Typ::Unionvar(_) => (),
-            Typ::Ref(t) => t.apply_subst(subst),
-            Typ::Union(hs) => {
-                for t in hs.iter_mut() {
-                    t.apply_subst(subst);
-                }
-            }
-            Typ::I32 => (),
-            Typ::F64 => (),
-            Typ::Bool => (),
-            Typ::String => (),
-            Typ::Unknown => (),
-            Typ::Undefined => (),
-            Typ::Object(_) => (),
-            Typ::ResponseCallback => (),
-            Typ::Array(t) => t.apply_subst(subst),
-            _ => unimplemented!(),
-        }
-    }
-
-    pub fn apply_subst_strict(&mut self, subst: &std::collections::HashMap<usize, Typ>) -> () {
-        match self {
-            Typ::Metavar(x) => match subst.get(x) {
-                None => panic!("Found free metavar."),
-                Some(t) => *self = t.flatten(),
-            },
-            Typ::Unionvar(x) => match subst.get(x) {
-                None => panic!("Did not find {} in subst.", x.to_string()),
-                Some(t) => {
-                    let new_t = t.flatten();
-                    match new_t {
-                        Typ::Union(typ_vec) => {
-                            let mut typ_vec2 = typ_vec;
-                            // Don't include my own name in my union type.
-                            typ_vec2.remove(&Typ::Unionvar(*x));
-                            *self = Typ::Union(typ_vec2);
-                        }
-                        new_t => {
-                            *self = new_t;
-                        }
-                    }
-                }
-            },
-            Typ::Ref(t) => t.apply_subst_strict(subst),
-            Typ::Union(hs) => {
-                for t in hs.iter_mut() {
-                    t.apply_subst_strict(subst);
-                }
-                *self = self.flatten();
-            }
-            Typ::I32 => (),
-            Typ::F64 => (),
-            Typ::Bool => (),
-            Typ::String => (),
-            Typ::Unknown => (),
-            Typ::Undefined => (),
-            Typ::Object(ts) => {
-                for t in ts.iter_mut() {
-                    t.apply_subst_strict(subst)
-                }
-            }
-            Typ::ResponseCallback => (),
-            Typ::Array(t) => t.apply_subst_strict(subst),
-            _ => unimplemented!(),
-        }
-    }
-
-    fn flatten(&self) -> Typ {
-        match self {
-            Typ::Union(typ_vec) => {
-                let mut new_typ_vec = ImHashSet::new();
-                for t in typ_vec.iter() {
-                    let t2 = t.flatten();
-                    match t2 {
-                        Typ::Union(typ_vec2) => {
-                            new_typ_vec = new_typ_vec.union(typ_vec2);
-                        }
-                        t => {
-                            new_typ_vec.insert(t);
-                        }
-                    }
-                }
-                if new_typ_vec.is_empty() {
-                    panic!("Did not expect to find empty Union type.")
-                } else if new_typ_vec.len() == 1 {
-                    match new_typ_vec.iter().next() {
-                        Some(new_typ) => return new_typ.to_owned(),
-                        None => panic!("Something went wrong."),
-                    }
-                } else {
-                    return Typ::Union(new_typ_vec);
-                }
-            }
-            t => {
-                return t.clone();
-            }
-        }
-    }
 }
 
 #[derive(PartialEq, Debug, Deserialize, Clone)]
@@ -358,8 +182,6 @@ pub enum Exp {
     },
     Let {
         name: String,
-        #[serde(default)]
-        typ: Option<Typ>,
         named: Box<Exp>,
     },
     Set {
@@ -477,7 +299,7 @@ impl fmt::Display for Exp {
                 vec_to_string(false_part)
             ),
             Exp::While { cond, body } => write!(f, "While({}, {:?})", cond, body),
-            Exp::Let { name, typ, named } => write!(f, "Let({} : {:?}, {})", name, typ, named),
+            Exp::Let { name, named } => write!(f, "Let({}, {})", name, named),
             Exp::Set { name, named } => write!(f, "Set({:?}, {})", name, named),
             Exp::Block { body } => write!(f, "Block(\n[{}])", vec_to_string(body)),
             Exp::Callback {
@@ -537,53 +359,8 @@ pub mod constructors {
     // constructors to take care of allocating strings and boxes.
 
     use super::Exp::*;
-    use super::{Arg, Exp, LVal, Op1, Op2, Typ};
-    use im_rc::{HashMap as ImHashMap, HashSet as ImHashSet};
+    use super::{Arg, Exp, LVal, Op1, Op2};
     use std::collections::HashMap;
-
-    pub fn t_union(t1: Typ, t2: Typ) -> Typ {
-        match t1 {
-            Typ::Union(ts) => {
-                let mut ts2 = ts;
-                ts2.insert(t2);
-                return Typ::Union(ts2);
-            }
-            _ => {
-                let mut ts2 = ImHashSet::new();
-                ts2.insert(t1);
-                ts2.insert(t2);
-                return Typ::Union(ts2);
-            }
-        }
-    }
-
-    pub fn t_union_2(ts: &[Typ]) -> Typ {
-        let mut hs = ImHashSet::new();
-        for t in ts.iter() {
-            hs.insert(t.to_owned());
-        }
-        Typ::Union(hs)
-    }
-
-    pub fn t_obj(tm: ImHashMap<String, Typ>) -> Typ {
-        Typ::Object(tm)
-    }
-
-    pub fn t_obj_2(tm: &[(&str, Typ)]) -> Typ {
-        let mut hm = ImHashMap::new();
-        for (k, v) in tm.iter() {
-            hm.insert(k.to_string(), v.to_owned());
-        }
-        Typ::Object(hm)
-    }
-
-    pub fn t_ref(t: Typ) -> Typ {
-        Typ::Ref(Box::new(t))
-    }
-
-    pub fn t_array(t: Typ) -> Typ {
-        Typ::Array(Box::new(t))
-    }
 
     pub fn unknown() -> Exp {
         Unknown {}
@@ -661,10 +438,9 @@ pub mod constructors {
         }
     }
 
-    pub fn let_(name: &str, typ: Option<Typ>, named: Exp) -> Exp {
+    pub fn let_(name: &str, named: Exp) -> Exp {
         Let {
             name: name.to_string(),
-            typ,
             named: Box::new(named),
         }
     }
@@ -709,10 +485,9 @@ pub mod constructors {
         }
     }
 
-    pub fn arg(name: &str, typ: Option<Typ>) -> Arg {
+    pub fn arg(name: &str) -> Arg {
         Arg {
-            name: name.to_string(),
-            typ,
+            name: name.to_string()
         }
     }
 
