@@ -5,7 +5,7 @@ This directory contains several scripts that help run and test Containerless.
   within this repository as volumes for storage agent, to make re-deploying
   Containerless faster after you have made changes.
 
-- `./controller.sh` starts and stops the controller. Run `./controller.sh start`
+- `./controller.sh` (EXPIRED) starts and stops the controller. Run `./controller.sh start`
   to start the controller after running `./deploy.sh`.
 
 - `./test.sh` runs the integration tests.
