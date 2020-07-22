@@ -14,32 +14,32 @@ jobs:
       run: |
         yarn
         yarn run build
-      working-directory: ./javascript/js-transform
+      working-directory: ./containerless/javascript/js-transform
     - name: Build javascript/containerless/
       run: |
         yarn
         yarn run build
-      working-directory: ./javascript/containerless
+      working-directory: ./containerless/javascript/containerless
     - name: Test javascript/containerless/
       run: yarn run test
-      working-directory: ./javascript/containerless
+      working-directory: ./containerless/javascript/containerless
     - name: Build rust/
       run: cargo build
-      working-directory: ./rust
+      working-directory: ./containerless/rust
     - name: Build Containers
       run: make
-      working-directory: ./docker
+      working-directory: ./containerless/docker
     - name: Deploy Containerless to microk8s
       run: ./deploy.sh
-      working-directory: ./docker
+      working-directory: ./containerless/docker
     - name: Check status
       run: |
         sleep 10
         microk8s.kubectl get pods -n containerless
     - name: Run integration tests
       run: ./test.sh
-      working-directory: ./docker
+      working-directory: ./containerless/docker
     - name: Delete Containerless from microk8s
       if: always()
       run: ./undeploy.sh
-      working-directory: ./docker
+      working-directory: ./containerless/docker
