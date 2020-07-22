@@ -13,4 +13,4 @@ k8s = { path = "../k8s" }
 machine-ip = "*"
 nix = "*"
 reqwest = "*"
-shared2 = { path = "../shared2" }
+shared = { path = "../shared" }

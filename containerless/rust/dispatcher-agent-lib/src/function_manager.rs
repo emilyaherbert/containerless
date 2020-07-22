@@ -233,11 +233,8 @@ impl State {
     }
 
     async fn invoke_err(
-        &self,
-        authority: uri::Authority,
-        serverless_request: ServerlessRequest,
-        autoscaler: Arc<Autoscaler>,
-        containerless_mode_header: &'static str,
+        &self, authority: uri::Authority, serverless_request: ServerlessRequest,
+        autoscaler: Arc<Autoscaler>, containerless_mode_header: &'static str,
     ) {
         let uri = hyper::Uri::builder()
             .scheme("http")
@@ -340,11 +337,9 @@ impl State {
         // task::spawn(Self::invoke_decontainerized(Arc::clone(&self_), func, req));
     }
 
-
     async fn maybe_start_vanilla(
-        self_: Arc<State>,
-        create_mode: &CreateMode,
-        containerless: Option<Containerless>) -> Result<(), Error> {
+        self_: Arc<State>, create_mode: &CreateMode, containerless: Option<Containerless>,
+    ) -> Result<(), Error> {
         if *create_mode == CreateMode::New && containerless.is_none() {
             return self_.start_vanilla_pod_and_service().await;
         }
@@ -352,10 +347,9 @@ impl State {
     }
 
     async fn maybe_start_tracing(
-        self_: Arc<State>,
-        upgrade_pending: bool,
-        create_mode: &CreateMode,
-        containerless: Option<Containerless>) -> Result<(), Error> {
+        self_: Arc<State>, upgrade_pending: bool, create_mode: &CreateMode,
+        containerless: Option<Containerless>,
+    ) -> Result<(), Error> {
         if upgrade_pending {
             return Ok(());
         }
@@ -366,20 +360,26 @@ impl State {
     }
 
     async fn function_manager_task(
-        self_: Arc<State>,
-        mut recv_requests: mpsc::Receiver<Message>,
-        function_table: Weak<FunctionTable>,
-        create_mode: CreateMode,
-        containerless: Option<Containerless>,
-        upgrade_pending: Arc<AtomicBool>,
+        self_: Arc<State>, mut recv_requests: mpsc::Receiver<Message>,
+        function_table: Weak<FunctionTable>, create_mode: CreateMode,
+        containerless: Option<Containerless>, upgrade_pending: Arc<AtomicBool>,
     ) -> Result<(), Error> {
         try_join!(
-            Self::maybe_start_tracing(self_.clone(), upgrade_pending.load(SeqCst), &create_mode, containerless),
-            Self::maybe_start_vanilla(self_.clone(), &create_mode, containerless))?;
+            Self::maybe_start_tracing(
+                self_.clone(),
+                upgrade_pending.load(SeqCst),
+                &create_mode,
+                containerless
+            ),
+            Self::maybe_start_vanilla(self_.clone(), &create_mode, containerless)
+        )?;
 
         let init_num_replicas = match create_mode {
             CreateMode::New => 1,
-            CreateMode::Adopt { num_replicas, is_tracing: _ } => num_replicas,
+            CreateMode::Adopt {
+                num_replicas,
+                is_tracing: _,
+            } => num_replicas,
         };
 
         let autoscaler = Autoscaler::new(
@@ -446,7 +446,7 @@ impl State {
                                         send,
                                         util::text_response(
                                             200,
-                                            format!("extracted and sent trace"),
+                                            "extracted and sent trace".to_string(),
                                         ),
                                     );
                                     return Ok(());
@@ -459,7 +459,7 @@ impl State {
                     } else {
                         util::send_log_error(
                             send,
-                            util::text_response(403, format!("function is not tracing")),
+                            util::text_response(403, "function is not tracing".to_string()),
                         );
                     }
                 }
@@ -507,12 +507,8 @@ impl State {
 
 impl FunctionManager {
     pub async fn new(
-        k8s_client: K8sClient,
-        http_client: HttpClient,
-        function_table: Weak<FunctionTable>,
-        name: String,
-        create_mode: CreateMode,
-        containerless: Option<Containerless>,
+        k8s_client: K8sClient, http_client: HttpClient, function_table: Weak<FunctionTable>,
+        name: String, create_mode: CreateMode, containerless: Option<Containerless>,
         upgrade_pending: Arc<AtomicBool>,
     ) -> FunctionManager {
         let (send_requests, recv_requests) = mpsc::channel(1);
@@ -540,34 +536,25 @@ impl FunctionManager {
         self.send_requests
             .send(Message::Shutdown)
             .await
-            .expect(&format!(
-                "error sending Message::Shutdown for {}",
-                self.state.name
-            ));
+            .unwrap_or_else(|_| panic!("error sending Message::Shutdown for {}", self.state.name));
     }
 
     pub async fn orphan(mut self) {
         self.send_requests
             .send(Message::Orphan)
             .await
-            .expect(&format!(
-                "error sending Message::Orphan for {}",
-                self.state.name
-            ));
+            .unwrap_or_else(|_| panic!("error sending Message::Orphan for {}", self.state.name));
     }
 
     pub async fn invoke(
-        &mut self,
-        method: http::Method,
-        path_and_query: &str,
-        body: hyper::Body,
+        &mut self, method: http::Method, path_and_query: &str, body: hyper::Body,
     ) -> Result<Response, hyper::Error> {
         let (send_resp, recv_resp) = oneshot::channel();
         let req = ServerlessRequest {
             payload: RequestPayload {
-                method: method,
+                method,
                 path_and_query: String::from(path_and_query),
-                body: body,
+                body,
             },
             send: send_resp,
         };

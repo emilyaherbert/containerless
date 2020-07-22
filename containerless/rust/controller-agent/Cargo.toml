@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-shared2 = { path = "../shared2" }
+shared = { path = "../shared" }
 warp = "*"
 hyper = "*"
 k8s = { path = "../k8s" }

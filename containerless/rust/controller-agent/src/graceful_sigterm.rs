@@ -42,7 +42,10 @@ async fn delete_services(k8s: &k8s::Client) -> Result<(), kube::Error> {
 }
 
 async fn delete_tracing_pods(k8s: &k8s::Client) -> Result<(), kube::Error> {
-    let pods = k8s.list_pods().await?.into_iter()
+    let pods = k8s
+        .list_pods()
+        .await?
+        .into_iter()
         .map(|(name, _)| name)
         .filter(is_tracing_function)
         .collect::<Vec<_>>();
@@ -62,8 +65,9 @@ async fn delete_replica_sets(k8s: &k8s::Client) -> Result<(), kube::Error> {
     return Ok(());
 }
 
-
-pub async fn delete_dynamic_resources(k8s_client: &k8s::Client, delete_dispatcher: bool) -> Result<(), kube::Error> {
+pub async fn delete_dynamic_resources(
+    k8s_client: &k8s::Client, delete_dispatcher: bool,
+) -> Result<(), kube::Error> {
     future::try_join4(
         delete_replica_sets(&k8s_client),
         delete_services(&k8s_client),
@@ -71,9 +75,10 @@ pub async fn delete_dynamic_resources(k8s_client: &k8s::Client, delete_dispatche
             future::Either::Left(k8s_client.delete_deployment("dispatcher"))
         } else {
             future::Either::Right(future::ok(()))
-        }, 
+        },
         delete_tracing_pods(&k8s_client),
-    ).await?;
+    )
+    .await?;
     return Ok(());
 }
 

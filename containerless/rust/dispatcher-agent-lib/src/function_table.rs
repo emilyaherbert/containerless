@@ -16,12 +16,12 @@ struct FunctionTableImpl {
 pub struct FunctionTable {
     inner: Mutex<FunctionTableImpl>,
     decontainerized_functions: HashMap<&'static str, Containerless>,
-    upgrade_pending: Arc<AtomicBool>
+    upgrade_pending: Arc<AtomicBool>,
 }
 
 impl FunctionTable {
     pub async fn new(
-        decontainerized_functions: HashMap <&'static str, Containerless>,
+        decontainerized_functions: HashMap<&'static str, Containerless>,
     ) -> Arc<FunctionTable> {
         let functions = HashMap::new();
         let k8s_client = Arc::new(
@@ -49,7 +49,13 @@ impl FunctionTable {
         }
         let mut inner = self_.inner.lock().await;
         let replica_sets = inner.k8s_client.list_replica_sets().await?;
-        let pods: Vec<String> = inner.k8s_client.list_pods().await?.into_iter().map(|(name, _)| name).collect();
+        let pods: Vec<String> = inner
+            .k8s_client
+            .list_pods()
+            .await?
+            .into_iter()
+            .map(|(name, _)| name)
+            .collect();
         for (rs_name, spec) in replica_sets.into_iter() {
             match RE.captures(&rs_name) {
                 None => {
@@ -65,7 +71,10 @@ impl FunctionTable {
                         inner.http_client.clone(),
                         Arc::downgrade(self_),
                         name.to_string(),
-                        function_manager::CreateMode::Adopt { num_replicas, is_tracing },
+                        function_manager::CreateMode::Adopt {
+                            num_replicas,
+                            is_tracing,
+                        },
                         self_
                             .decontainerized_functions
                             .get(name)

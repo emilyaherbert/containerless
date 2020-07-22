@@ -20,24 +20,19 @@ impl LiftCallbacks {
     }
 
     fn fresh_id(&mut self) -> i32 {
-        self.next_id = self.next_id + 1;
+        self.next_id += 1;
         return self.next_id - 1;
     }
 
     fn lift_callback(
-        &mut self,
-        event: &str,
-        event_arg: &Exp,
-        callback_args: &[Arg],
-        callback_clos: &Exp,
+        &mut self, event: &str, event_arg: &Exp, callback_args: &[Arg], callback_clos: &Exp,
         body: &[Exp],
     ) -> Exp {
         let x = self.fresh_id();
         let mut lifted_body: Vec<Exp> = vec![];
-        for (i, Arg { name, typ }) in callback_args.iter().enumerate() {
+        for (i, Arg { name }) in callback_args.iter().enumerate() {
             lifted_body.push(let_(
                 name,
-                typ.clone(),
                 ref_(index_(id(&self.cbargs), integer(i as i32))),
             ));
         }
@@ -127,7 +122,7 @@ impl LiftCallbacks {
                 )
             }
             While { cond, body } => return while_(self.lift_exp(cond), self.lift_exps(body)),
-            Let { name, typ, named } => return let_(name, typ.clone(), self.lift_exp(named)),
+            Let { name, named } => return let_(name, self.lift_exp(named)),
             Block { body } => return block(self.lift_exps(body)),
             Callback {
                 event,

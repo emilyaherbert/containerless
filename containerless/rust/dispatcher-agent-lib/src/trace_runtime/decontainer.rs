@@ -17,10 +17,7 @@ use std::str;
 // raises a type error if the future is not sendable. Having the type error
 // locally within this file makes it easier to debug.
 fn _statically_assert_sendable(
-    func: Containerless,
-    client: HttpClient,
-    url_path: &str,
-    body: &[u8],
+    func: Containerless, client: HttpClient, url_path: &str, body: &[u8],
 ) {
     fn _check_send<F>(_f: F)
     where
@@ -31,10 +28,7 @@ fn _statically_assert_sendable(
 }
 
 pub async fn run_decontainerized_function(
-    func: Containerless,
-    client: HttpClient,
-    url_path: &str,
-    body: &[u8],
+    func: Containerless, client: HttpClient, url_path: &str, body: &[u8],
 ) -> Result<Response, Error> {
     let arena = Bump::new();
     let affine_factory = AffineBoxFactory::new();
@@ -47,10 +41,10 @@ pub async fn run_decontainerized_function(
 
         let body_json = serde_json::from_slice(&body)
             .map(|j| Dyn::from_json(&arena, j))
-            .map_err(|err| Error::Json(err));
+            .map_err(Error::Json);
         let body_str = str::from_utf8(&body)
             .map(|s| Dyn::str(&arena, s))
-            .map_err(|err| Error::String(err));
+            .map_err(Error::String);
         let body = body_json.or(body_str).unwrap();
 
         request.set_field("body", body).unwrap();
@@ -61,7 +55,7 @@ pub async fn run_decontainerized_function(
 
     let mut pending_futures = Vec::new();
     pending_futures.push(Box::pin(PendingOp::initial().to_future2(&client)));
-    while pending_futures.is_empty() == false {
+    while !pending_futures.is_empty() {
         // Wait for a single asynchronous operation to complete.
         let (outcome_result, _, new_pending_futures) =
             futures::future::select_all(pending_futures).await;

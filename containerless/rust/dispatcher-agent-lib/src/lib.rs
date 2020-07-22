@@ -27,10 +27,7 @@ async fn readiness_handler() -> Result<impl warp::Reply, warp::Rejection> {
 }
 
 async fn dispatcher_handler(
-    function_name: String,
-    mut function_path: String,
-    method: http::Method,
-    body: bytes::Bytes,
+    function_name: String, mut function_path: String, method: http::Method, body: bytes::Bytes,
     state: Arc<FunctionTable>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     debug!(target: "dispatcher", "received request for function {} with path {}", function_name, function_path);
@@ -51,25 +48,21 @@ async fn dispatcher_handler(
 }
 
 async fn compile_handler(
-    function_name: String,
-    state: Arc<FunctionTable>,
+    function_name: String, state: Arc<FunctionTable>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     let mut fm = FunctionTable::get_function(&state, &function_name).await;
     return Ok(fm.extract_and_compile().await);
 }
 
 async fn get_mode_handler(
-    function_name: String,
-    state: Arc<FunctionTable>,
+    function_name: String, state: Arc<FunctionTable>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     let mut fm = FunctionTable::get_function(&state, &function_name).await;
     return Ok(fm.get_mode().await);
 }
 
-pub async fn main(
-    decontainerized_functions: HashMap <&'static str, Containerless>,
-    ) {
-    shared2::rsyslog::init_using_env();
+pub async fn main(decontainerized_functions: HashMap<&'static str, Containerless>) {
+    shared::rsyslog::init_using_env();
 
     info!(target: "dispatcher", "Started dispatcher");
     let state = FunctionTable::new(decontainerized_functions).await;

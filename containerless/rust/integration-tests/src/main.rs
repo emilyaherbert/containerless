@@ -4,7 +4,7 @@ mod tests;
 use machine_ip;
 use nix::sys::signal::{self, Signal};
 use nix::unistd::Pid;
-use shared2::net;
+use shared::net;
 use std::convert::TryInto;
 use std::time::Duration;
 use tokio::process::{Child, Command};
@@ -25,7 +25,7 @@ async fn run_tests() -> Child {
     return Command::new("cargo")
         .args(&["test", "--", "--test-threads=1"])
         .spawn()
-        .expect("spawning cargo test")
+        .expect("spawning cargo test");
 }
 
 fn child_pid(child: &Child) -> Pid {
@@ -34,9 +34,11 @@ fn child_pid(child: &Child) -> Pid {
 
 #[tokio::main]
 async fn main() {
-
     Command::new("git")
-        .args(&["checkout", "../dispatcher-agent/src/decontainerized_functions/mod.rs"])
+        .args(&[
+            "checkout",
+            "../dispatcher-agent/src/decontainerized_functions/mod.rs",
+        ])
         .spawn()
         .expect("spawning git")
         .await

@@ -1,4 +1,4 @@
-use super::{types as t};
+use super::types as t;
 use k8s_openapi::api::apps::v1::{
     Deployment, DeploymentSpec, DeploymentStatus, ReplicaSet, ReplicaSetSpec, ReplicaSetStatus,
 };
@@ -16,8 +16,7 @@ pub struct Client {
 
 impl Client {
     pub async fn from_config(
-        config: Configuration,
-        namespace: &str,
+        config: Configuration, namespace: &str,
     ) -> Result<Client, kube::Error> {
         let client = kube::client::APIClient::new(config);
         let pods = kube::api::Api::v1Pod(client.clone()).within(namespace);
@@ -181,18 +180,26 @@ impl Client {
         return Ok(());
     }
 
-    pub async fn get_deployment_status(&self, name: &str) -> Result<t::DeploymentStatus, kube::Error> {
-        let raw_status = self.deployment.get_status(name).await?.status.expect("status not set");
+    pub async fn get_deployment_status(
+        &self, name: &str,
+    ) -> Result<t::DeploymentStatus, kube::Error> {
+        let raw_status = self
+            .deployment
+            .get_status(name)
+            .await?
+            .status
+            .expect("status not set");
         let status = t::DeploymentStatus {
             replicas: raw_status.replicas.expect("replicas is not set") as usize,
-            observed_generation: raw_status.observed_generation.expect("observed_generation is not set") as usize,
+            observed_generation: raw_status
+                .observed_generation
+                .expect("observed_generation is not set") as usize,
         };
         return Ok(status);
     }
 
     pub async fn get_pod_phase_and_readiness(
-        &self,
-        name: &str,
+        &self, name: &str,
     ) -> Result<(t::PodPhase, t::PodCondition), kube::Error> {
         let status = self.pods.get_status(name).await?.status;
         match status {

@@ -59,9 +59,7 @@ impl Transformer {
             While { cond, body } => {
                 return while_(self.transform_exp(cond), self.transform_exps(body))
             }
-            Let { name, typ, named } => {
-                return let_(name, typ.clone(), ref_(self.transform_exp(named)))
-            }
+            Let { name, named } => return let_(name, ref_(self.transform_exp(named))),
             Set {
                 name: LVal::Identifier { name },
                 named,

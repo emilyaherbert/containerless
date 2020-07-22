@@ -1,10 +1,10 @@
 use k8s::Client as K8sClient;
 use reqwest;
 use serde_json::Value as JsonValue;
+use shared::net::poll_url_with_timeout;
 use std::fs;
 use std::time::Duration;
 use tokio::time::delay_for;
-use shared2::net::poll_url_with_timeout;
 
 struct TestRunner {
     http_client: reqwest::Client,
@@ -50,10 +50,7 @@ impl TestRunner {
     }
 
     async fn send_post_request(
-        &self,
-        path_suffix: &str,
-        body: JsonValue,
-        expected_mode: &str,
+        &self, path_suffix: &str, body: JsonValue, expected_mode: &str,
     ) -> Result<String, String> {
         let url = reqwest::Url::parse(&format!(
             "http://localhost/dispatcher/{}/{}",
@@ -89,9 +86,7 @@ impl TestRunner {
 }
 
 pub async fn run_test_async(
-    name: &str,
-    js_code: &str,
-    js_requests: Vec<(&str, JsonValue)>,
+    name: &str, js_code: &str, js_requests: Vec<(&str, JsonValue)>,
     rs_requests: Vec<(&str, JsonValue)>,
 ) -> Vec<String> {
     assert!(
@@ -140,9 +135,10 @@ pub async fn run_test_async(
         &runner.http_client,
         "http://localhost/controller/ok_if_not_compiling",
         Duration::from_secs(1),
-        Duration::from_secs(60))
-        .await
-        .expect("compiler took too long");
+        Duration::from_secs(60),
+    )
+    .await
+    .expect("compiler took too long");
 
     runner
         .poll_dispatcher_for_decontainerized(dispatcher_generation)
@@ -163,9 +159,7 @@ pub async fn run_test_async(
 
 #[allow(unused)]
 pub fn run_test(
-    name: &str,
-    js_code: &str,
-    js_requests: Vec<(&str, JsonValue)>,
+    name: &str, js_code: &str, js_requests: Vec<(&str, JsonValue)>,
     rs_requests: Vec<(&str, JsonValue)>,
 ) -> Vec<String> {
     if name.contains("-") || name.contains("_") {

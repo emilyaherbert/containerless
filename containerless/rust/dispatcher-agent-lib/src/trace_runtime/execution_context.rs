@@ -134,8 +134,7 @@ unsafe impl<T> Send for SendBox<T> {}
 
 impl<'a> PendingOp<'a> {
     pub fn to_future2(
-        self,
-        client: &'a HttpClient,
+        self, client: &'a HttpClient,
     ) -> impl Future<Output = Result<(AsyncOpOutcome, i32, Dyn<'a>), Error>> + Send {
         let indicator = self.indicator;
         let closure = SendBox {
@@ -191,10 +190,7 @@ impl<'a> ExecutionContext<'a> {
     }
 
     pub fn loopback(
-        &mut self,
-        event_name: &'static str,
-        event_arg: Dyn<'a>,
-        event_clos: Dyn<'a>,
+        &mut self, event_name: &'static str, event_arg: Dyn<'a>, event_clos: Dyn<'a>,
         indicator: i32,
     ) -> DynResult<'a> {
         if event_name == "listen" {

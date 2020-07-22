@@ -8,17 +8,26 @@ use proc_macro2::Span;
 use quote::__private::TokenStream;
 use quote::quote;
 use std::fs;
+use std::io::{self, Write};
+use std::process::Stdio;
 use syn::Ident;
 use tokio::process::Command;
 use tokio::task;
-use std::process::Stdio;
-use std::io::{self, Write};
 
 enum Message {
-    Compile { name: String, code: Bytes },
-    Shutdown { done: oneshot::Sender<()> },
-    RecompileDispatcher { started_compiling: oneshot::Sender<()> },
-    ResetDispatcher { started_compiling: oneshot::Sender<()> },
+    Compile {
+        name: String,
+        code: Bytes,
+    },
+    Shutdown {
+        done: oneshot::Sender<()>,
+    },
+    RecompileDispatcher {
+        started_compiling: oneshot::Sender<()>,
+    },
+    ResetDispatcher {
+        started_compiling: oneshot::Sender<()>,
+    },
 }
 
 #[derive(PartialEq)]
@@ -30,7 +39,7 @@ enum CompileStatus {
 
 pub struct Compiler {
     send_message: mpsc::Sender<Message>,
-    is_compiling_now: AtomicBool
+    is_compiling_now: AtomicBool,
 }
 
 fn gen_function_table_entry(name: &str) -> TokenStream {
@@ -92,10 +101,7 @@ pub fn dispatcher_deployment_spec(version: usize) -> k8s::Deployment {
                                             "LOG_RSYSLOG_ADDR",
                                             std::env::var("LOG_RSYSLOG_ADDR").unwrap(),
                                         )
-                                        .env(
-                                            "LOG_LEVEL",
-                                            std::env::var("LOG_LEVEL").unwrap(),
-                                        )                                        
+                                        .env("LOG_LEVEL", std::env::var("LOG_LEVEL").unwrap())
                                         .env("Version", format!("V{}", version))
                                         .http_readiness_probe(1, "/readinessProbe/", 8080)
                                         .build(),
@@ -117,7 +123,10 @@ fn generate_decontainerized_functions_mod(known_functions: &HashMap<String, Comp
         .collect::<Vec<_>>();
 
     std::fs::write(
-        format!("{}/dispatcher-agent/src/decontainerized_functions/mod.rs", ROOT.as_str()),
+        format!(
+            "{}/dispatcher-agent/src/decontainerized_functions/mod.rs",
+            ROOT.as_str()
+        ),
         format!("{}", gen_function_table_file(&available_functions)),
     )
     .expect("cannot write function table file");
@@ -134,35 +143,39 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
     while let Some(message) = recv_message.next().await {
         match message {
             Message::RecompileDispatcher { started_compiling } => {
-                if compiler.cargo_build(Some(started_compiling)).await == false {
+                if !(compiler.cargo_build(Some(started_compiling)).await) {
                     error!(target: "controller", "The code for dispatcher-agent is in a broken state. The system may not work.");
                     continue;
                 }
-                next_version = next_version + 1;
-                crate::graceful_sigterm::delete_dynamic_resources(&k8s, false).await
+                next_version += 1;
+                crate::graceful_sigterm::delete_dynamic_resources(&k8s, false)
+                    .await
                     .expect("deleting dynamically created resources");
-                k8s.patch_deployment(dispatcher_deployment_spec(next_version)).await
+                k8s.patch_deployment(dispatcher_deployment_spec(next_version))
+                    .await
                     .expect("patching dispatcher deployment");
                 info!(target: "controller", "Patched dispatcher deployment");
-            },
+            }
             Message::ResetDispatcher { started_compiling } => {
                 info!(target: "controller", "clearing Controller state");
                 known_functions.clear();
                 generate_decontainerized_functions_mod(&known_functions);
-                if compiler.cargo_build(Some(started_compiling)).await == false {
+                if !(compiler.cargo_build(Some(started_compiling)).await) {
                     error!(target: "controller", "The code for dispatcher-agent is in a broken state. The system may not work.");
                     continue;
                 }
-                next_version = next_version + 1;
-                crate::graceful_sigterm::delete_dynamic_resources(&k8s, false).await
+                next_version += 1;
+                crate::graceful_sigterm::delete_dynamic_resources(&k8s, false)
+                    .await
                     .expect("deleting dynamically created resources");
-                k8s.patch_deployment(dispatcher_deployment_spec(next_version)).await
+                k8s.patch_deployment(dispatcher_deployment_spec(next_version))
+                    .await
                     .expect("patching dispatcher deployment");
                 info!(target: "controller", "Patched dispatcher deployment");
-            },
+            }
             Message::Compile { name, code } => {
                 info!(target: "controller", "compiler task received trace for {}", &name);
-                next_version = next_version + 1;
+                next_version += 1;
                 fs::write(
                     format!(
                         "{}/dispatcher-agent/src/decontainerized_functions/function_{}.json",
@@ -190,7 +203,7 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                 known_functions.insert(name.clone(), CompileStatus::Compiling);
                 generate_decontainerized_functions_mod(&known_functions);
 
-                if compiler.cargo_build(None).await == false {
+                if !(compiler.cargo_build(None).await) {
                     known_functions.insert(name.clone(), CompileStatus::Error);
                     generate_decontainerized_functions_mod(&known_functions);
                     continue;
@@ -199,12 +212,14 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
 
                 // TODO(arjun): If several traces are queued up, we should batch
                 // them together before updating the deployment.
-                k8s.patch_deployment(dispatcher_deployment_spec(next_version)).await
+                k8s.patch_deployment(dispatcher_deployment_spec(next_version))
+                    .await
                     .expect("patching dispatcher deployment");
                 info!(target: "controller", "Patched dispatcher deployment");
             }
             Message::Shutdown { done } => {
-                crate::graceful_sigterm::delete_dynamic_resources(&k8s, true).await
+                crate::graceful_sigterm::delete_dynamic_resources(&k8s, true)
+                    .await
                     .expect("deleting dynamically created resources");
                 info!(target: "controller", "ending compiler task (received shutdown message)");
                 done.send(()).expect("sending done");
@@ -217,13 +232,14 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
     return;
 }
 
-
 impl Compiler {
-
     pub fn new() -> Arc<Self> {
         let (send_message, recv_message) = mpsc::channel(1);
         let is_compiling_now = AtomicBool::new(false);
-        let compiler = Arc::new(Compiler { send_message, is_compiling_now });
+        let compiler = Arc::new(Compiler {
+            send_message,
+            is_compiling_now,
+        });
         task::spawn(compiler_task(compiler.clone(), recv_message));
         return compiler;
     }
@@ -234,7 +250,9 @@ impl Compiler {
             panic!("cargo was already running. This should not happen");
         }
         if let Some(sender) = started_compiling {
-            sender.send(()).expect("could not send started_compiling message");
+            sender
+                .send(())
+                .expect("could not send started_compiling message");
         }
         info!(target: "controller", "Running cargo build on dispatcher-agent. Output is suppressed unless an error occurs.");
         let cargo_result = Command::new("cargo")
@@ -246,7 +264,7 @@ impl Compiler {
             .await
             .expect("waiting for cargo to complete");
         self.is_compiling_now.store(false, SeqCst);
-        if cargo_result.status.success() == false {
+        if !cargo_result.status.success() {
             io::stderr().write(&cargo_result.stderr).unwrap();
             io::stdout().write(&cargo_result.stdout).unwrap();
             error!(target: "dispatcher", "cargo build failed");
@@ -254,11 +272,14 @@ impl Compiler {
         }
         return true;
     }
-    
+
     fn send_message_non_blocking(&self, message: Message) {
         let mut send_message = self.send_message.clone();
         task::spawn(async move {
-            send_message.send(message).await.expect("compiler task shutdown")
+            send_message
+                .send(message)
+                .await
+                .expect("compiler task shutdown")
         });
     }
 
@@ -269,15 +290,17 @@ impl Compiler {
     pub async fn shutdown(&self) {
         let (send, recv) = oneshot::channel();
         let mut send_message = self.send_message.clone();
-        send_message.send(Message::Shutdown { done: send }).await.expect("compiler task shutdown");
+        send_message
+            .send(Message::Shutdown { done: send })
+            .await
+            .expect("compiler task shutdown");
         return recv.await.expect("compiler task shutdown");
     }
 
     pub fn ok_if_not_compiling(&self) -> http::StatusCode {
-        if self.is_compiling_now.load(SeqCst) == false {
+        if !self.is_compiling_now.load(SeqCst) {
             return http::StatusCode::OK;
-        }
-        else {
+        } else {
             return http::StatusCode::SERVICE_UNAVAILABLE;
         }
     }
@@ -285,14 +308,18 @@ impl Compiler {
     /// recompile_dispatcher blocks until "cargo build" starts running.
     pub async fn recompile_dispatcher(&self) -> http::StatusCode {
         let (send, recv) = oneshot::channel();
-        self.send_message_non_blocking(Message::RecompileDispatcher { started_compiling: send });
+        self.send_message_non_blocking(Message::RecompileDispatcher {
+            started_compiling: send,
+        });
         recv.await.expect("compiler task shutdown");
         return http::StatusCode::OK;
     }
 
     pub async fn reset_dispatcher(&self) -> http::StatusCode {
         let (send, recv) = oneshot::channel();
-        self.send_message_non_blocking(Message::ResetDispatcher { started_compiling: send });
+        self.send_message_non_blocking(Message::ResetDispatcher {
+            started_compiling: send,
+        });
         recv.await.expect("compiler task shutdown");
         return http::StatusCode::OK;
     }
