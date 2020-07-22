@@ -1,10 +1,10 @@
 use k8s::Client as K8sClient;
 use reqwest;
 use serde_json::Value as JsonValue;
+use shared::net::poll_url_with_timeout;
 use std::fs;
 use std::time::Duration;
 use tokio::time::delay_for;
-use shared::net::poll_url_with_timeout;
 
 struct TestRunner {
     http_client: reqwest::Client,
@@ -140,9 +140,10 @@ pub async fn run_test_async(
         &runner.http_client,
         "http://localhost/controller/ok_if_not_compiling",
         Duration::from_secs(1),
-        Duration::from_secs(60))
-        .await
-        .expect("compiler took too long");
+        Duration::from_secs(60),
+    )
+    .await
+    .expect("compiler took too long");
 
     runner
         .poll_dispatcher_for_decontainerized(dispatcher_generation)

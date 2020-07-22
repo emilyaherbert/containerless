@@ -1,8 +1,8 @@
-use std::time::{Instant, Duration};
-use std::fmt::Display;
 use reqwest::IntoUrl;
-use tokio::time;
+use std::fmt::Display;
+use std::time::{Duration, Instant};
 use thiserror::Error;
+use tokio::time;
 
 #[derive(Error, Debug)]
 #[error("timeout error: {reason}")]
@@ -14,9 +14,11 @@ async fn poll_url_internal<'a, U>(
     client: &'a reqwest::Client,
     url: U,
     interval: Duration,
-    timeout: Option<Duration>) -> Result<(), TimeoutError> where
-    U : IntoUrl + Clone + Display {
-
+    timeout: Option<Duration>,
+) -> Result<(), TimeoutError>
+where
+    U: IntoUrl + Clone + Display,
+{
     let end_time = timeout.map(|t| Instant::now() + t);
 
     loop {
@@ -28,7 +30,7 @@ async fn poll_url_internal<'a, U>(
         if let Some(t) = end_time {
             if Instant::now() >= t {
                 return Err(TimeoutError {
-                    reason: format!("polling {}", &url)
+                    reason: format!("polling {}", &url),
                 });
             }
         }
@@ -39,16 +41,24 @@ async fn poll_url_internal<'a, U>(
 pub async fn poll_url_no_timeout<'a, U>(
     client: &'a reqwest::Client,
     url: U,
-    interval: Duration) -> () where
-    U : IntoUrl + Clone + Display {
-    poll_url_internal(client, url, interval, None).await.unwrap();
+    interval: Duration,
+) -> ()
+where
+    U: IntoUrl + Clone + Display,
+{
+    poll_url_internal(client, url, interval, None)
+        .await
+        .unwrap();
 }
 
 pub async fn poll_url_with_timeout<'a, U>(
     client: &'a reqwest::Client,
     url: U,
     interval: Duration,
-    timeout: Duration) -> Result<(), TimeoutError> where
-    U : IntoUrl + Clone + Display {
+    timeout: Duration,
+) -> Result<(), TimeoutError>
+where
+    U: IntoUrl + Clone + Display,
+{
     return poll_url_internal(client, url, interval, Some(timeout)).await;
 }

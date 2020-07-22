@@ -340,11 +340,11 @@ impl State {
         // task::spawn(Self::invoke_decontainerized(Arc::clone(&self_), func, req));
     }
 
-
     async fn maybe_start_vanilla(
         self_: Arc<State>,
         create_mode: &CreateMode,
-        containerless: Option<Containerless>) -> Result<(), Error> {
+        containerless: Option<Containerless>,
+    ) -> Result<(), Error> {
         if *create_mode == CreateMode::New && containerless.is_none() {
             return self_.start_vanilla_pod_and_service().await;
         }
@@ -355,7 +355,8 @@ impl State {
         self_: Arc<State>,
         upgrade_pending: bool,
         create_mode: &CreateMode,
-        containerless: Option<Containerless>) -> Result<(), Error> {
+        containerless: Option<Containerless>,
+    ) -> Result<(), Error> {
         if upgrade_pending {
             return Ok(());
         }
@@ -374,12 +375,21 @@ impl State {
         upgrade_pending: Arc<AtomicBool>,
     ) -> Result<(), Error> {
         try_join!(
-            Self::maybe_start_tracing(self_.clone(), upgrade_pending.load(SeqCst), &create_mode, containerless),
-            Self::maybe_start_vanilla(self_.clone(), &create_mode, containerless))?;
+            Self::maybe_start_tracing(
+                self_.clone(),
+                upgrade_pending.load(SeqCst),
+                &create_mode,
+                containerless
+            ),
+            Self::maybe_start_vanilla(self_.clone(), &create_mode, containerless)
+        )?;
 
         let init_num_replicas = match create_mode {
             CreateMode::New => 1,
-            CreateMode::Adopt { num_replicas, is_tracing: _ } => num_replicas,
+            CreateMode::Adopt {
+                num_replicas,
+                is_tracing: _,
+            } => num_replicas,
         };
 
         let autoscaler = Autoscaler::new(

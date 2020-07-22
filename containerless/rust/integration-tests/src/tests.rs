@@ -165,7 +165,10 @@ fn else_before_if() {
             }
             containerless.respond("24");
         });"#,
-        vec![("/hello", json!({ "x": 1 })), ("/hello", json!({ "x": 11 }))],
+        vec![
+            ("/hello", json!({ "x": 1 })),
+            ("/hello", json!({ "x": 11 })),
+        ],
         vec![("/hello", json!({ "x": 11 }))],
     );
     assert_eq!(results, vec!["24", "42", "42"]);

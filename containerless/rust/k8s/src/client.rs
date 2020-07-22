@@ -1,4 +1,4 @@
-use super::{types as t};
+use super::types as t;
 use k8s_openapi::api::apps::v1::{
     Deployment, DeploymentSpec, DeploymentStatus, ReplicaSet, ReplicaSetSpec, ReplicaSetStatus,
 };
@@ -181,11 +181,21 @@ impl Client {
         return Ok(());
     }
 
-    pub async fn get_deployment_status(&self, name: &str) -> Result<t::DeploymentStatus, kube::Error> {
-        let raw_status = self.deployment.get_status(name).await?.status.expect("status not set");
+    pub async fn get_deployment_status(
+        &self,
+        name: &str,
+    ) -> Result<t::DeploymentStatus, kube::Error> {
+        let raw_status = self
+            .deployment
+            .get_status(name)
+            .await?
+            .status
+            .expect("status not set");
         let status = t::DeploymentStatus {
             replicas: raw_status.replicas.expect("replicas is not set") as usize,
-            observed_generation: raw_status.observed_generation.expect("observed_generation is not set") as usize,
+            observed_generation: raw_status
+                .observed_generation
+                .expect("observed_generation is not set") as usize,
         };
         return Ok(status);
     }
