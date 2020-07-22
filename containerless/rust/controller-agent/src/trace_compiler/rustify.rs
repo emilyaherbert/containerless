@@ -16,11 +16,7 @@ impl Rustify {
         for (ix, e) in block.iter_mut().enumerate() {
             self.rustify(e);
             if ix < len - 1 {
-                if let Exp::Let {
-                    name: _,
-                    named: _,
-                } = e
-                {
+                if let Exp::Let { name: _, named: _ } = e {
                     // empty body
                 } else {
                     let inner = std::mem::replace(e, Exp::Undefined {});
@@ -115,10 +111,7 @@ impl Rustify {
                     body: vec![inner, Exp::Undefined {}],
                 };
             }
-            Exp::Let {
-                name: _,
-                named,
-            } => self.rustify(named),
+            Exp::Let { name: _, named } => self.rustify(named),
             Exp::Set { name: _, named } => self.rustify(named),
             Exp::Block { body } => self.rustify_block(body),
             Exp::Callback {

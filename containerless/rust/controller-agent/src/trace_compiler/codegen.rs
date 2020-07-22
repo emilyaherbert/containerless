@@ -33,10 +33,7 @@ fn codegen_op(op: &Op2) -> TokenStream {
 fn codegen_block(block: &[Exp], to_break: Option<Lifetime>) -> TokenStream {
     let undef = Exp::Undefined {};
     let (last, all_but_last) = match block.last() {
-        Some(Exp::Let {
-            name: _,
-            named: _,
-        }) => (&undef, block),
+        Some(Exp::Let { name: _, named: _ }) => (&undef, block),
         Some(_) => block.split_last().unwrap(),
         None => (&undef, block),
     };
@@ -128,10 +125,7 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
                 }
             }
         }
-        Exp::Let {
-            name,
-            named,
-        } => {
+        Exp::Let { name, named } => {
             let q_name = Ident::new(&name.to_string(), Span::call_site());
             let q_named = codegen_exp(named);
             quote! {

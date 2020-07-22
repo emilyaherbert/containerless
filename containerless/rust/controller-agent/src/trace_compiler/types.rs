@@ -25,7 +25,7 @@ use std::fmt;
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Arg {
-    pub name: String
+    pub name: String,
 }
 
 // https://users.rust-lang.org/t/need-help-with-serde-deserialize-with/18374
@@ -49,7 +49,7 @@ impl<'de> ::serde::Deserialize<'de> for Arg {
                 E: ::serde::de::Error,
             {
                 Ok(Arg {
-                    name: v.to_string()
+                    name: v.to_string(),
                 })
             }
         }
@@ -487,7 +487,7 @@ pub mod constructors {
 
     pub fn arg(name: &str) -> Arg {
         Arg {
-            name: name.to_string()
+            name: name.to_string(),
         }
     }
 

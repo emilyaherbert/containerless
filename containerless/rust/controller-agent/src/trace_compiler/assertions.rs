@@ -97,10 +97,7 @@ impl Assertions {
                 self.assert_exp(cond);
                 self.assert_stmts(body);
             }
-            Let {
-                name: _,
-                named,
-            } => {
+            Let { name: _, named } => {
                 self.assert_exp(named);
             }
             Set { name: _, named } => {
@@ -193,10 +190,7 @@ impl Assertions {
             While { cond: _, body } => {
                 self.assert_unique_names_vec(body);
             }
-            Let {
-                name,
-                named: _,
-            } => {
+            Let { name, named: _ } => {
                 let first = name.chars().next().unwrap();
                 if first != '$' {
                     if self.names.contains(name) {
