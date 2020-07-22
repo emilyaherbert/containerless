@@ -226,7 +226,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
- "shared2",
+ "shared",
  "syn",
  "tokio",
  "warp",
@@ -331,7 +331,7 @@ dependencies = [
  "log 0.3.9",
  "regex",
  "serde_json",
- "shared2",
+ "shared",
  "thiserror",
  "tokio",
  "warp",
@@ -830,7 +830,7 @@ dependencies = [
  "nix",
  "reqwest",
  "serde_json",
- "shared2",
+ "shared",
  "tokio",
 ]
 
@@ -1792,7 +1792,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2579985fda508104f7587689507983eadd6a6e84dd35d6d115361f530916fa0d"
 
 [[package]]
-name = "shared2"
+name = "shared"
 version = "0.1.0"
 dependencies = [
  "log 0.4.8",

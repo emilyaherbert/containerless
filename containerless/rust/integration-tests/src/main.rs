@@ -4,7 +4,7 @@ mod tests;
 use machine_ip;
 use nix::sys::signal::{self, Signal};
 use nix::unistd::Pid;
-use shared2::net;
+use shared::net;
 use std::convert::TryInto;
 use std::time::Duration;
 use tokio::process::{Child, Command};

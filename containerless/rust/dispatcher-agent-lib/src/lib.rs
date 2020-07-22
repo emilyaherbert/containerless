@@ -69,7 +69,7 @@ async fn get_mode_handler(
 pub async fn main(
     decontainerized_functions: HashMap <&'static str, Containerless>,
     ) {
-    shared2::rsyslog::init_using_env();
+    shared::rsyslog::init_using_env();
 
     info!(target: "dispatcher", "Started dispatcher");
     let state = FunctionTable::new(decontainerized_functions).await;

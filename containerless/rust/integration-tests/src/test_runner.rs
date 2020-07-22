@@ -4,7 +4,7 @@ use serde_json::Value as JsonValue;
 use std::fs;
 use std::time::Duration;
 use tokio::time::delay_for;
-use shared2::net::poll_url_with_timeout;
+use shared::net::poll_url_with_timeout;
 
 struct TestRunner {
     http_client: reqwest::Client,
