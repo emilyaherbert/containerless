@@ -55,7 +55,10 @@ fn main() {
     let opts: Opts = Opts::parse();
 
     match opts.subcmd {
-        SubCommand::Deploy(_) => unimplemented!(),
+        SubCommand::Deploy(_) => {
+            let output = containerless_shim::deploy().unwrap();
+            println!("{}", output);
+        },
         SubCommand::Status(_) => {
             let status = k8s_shim::get_all().unwrap();
             println!("{}", status);

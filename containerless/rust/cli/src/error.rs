@@ -4,7 +4,8 @@ use std::string;
 #[derive(Debug)]
 pub enum Error {
     IO(io::Error),
-    Parsing(String)
+    Parsing(String),
+    Configuration(String)
 }
 
 pub type CLIResult<T> = Result<T, Error>;
@@ -18,5 +19,11 @@ impl std::convert::From<io::Error> for Error {
 impl std::convert::From<string::FromUtf8Error> for Error {
     fn from(error: string::FromUtf8Error) -> Error {
         Error::Parsing(error.to_string())
+    }
+}
+
+impl std::convert::From<std::env::VarError> for Error {
+    fn from(error: std::env::VarError) -> Error {
+        Error::Configuration(error.to_string())
     }
 }
