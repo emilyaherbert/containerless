@@ -10,3 +10,4 @@ edition = "2018"
 warp = "*"
 tokio = { version = "*", features = ["macros", "fs"] }
 hyper = "*"
+bytes = "*"

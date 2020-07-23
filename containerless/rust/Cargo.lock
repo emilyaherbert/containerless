@@ -552,6 +552,7 @@ dependencies = [
 name = "function-storage-agent"
 version = "0.1.0"
 dependencies = [
+ "bytes",
  "hyper",
  "tokio",
  "warp",

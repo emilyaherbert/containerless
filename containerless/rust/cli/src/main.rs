@@ -36,7 +36,10 @@ struct Status { }
 struct CreateFunction {
     /// Name of the function to create
     #[clap(short)]
-    name: String
+    name: String,
+    /// The file in the current directory
+    #[clap(short)]
+    filename: String
 }
 
 /// Deletes a function.
