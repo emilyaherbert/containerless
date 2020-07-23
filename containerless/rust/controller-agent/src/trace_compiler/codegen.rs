@@ -180,15 +180,12 @@ fn codegen_exp(exp: &Exp) -> TokenStream {
         }
         Exp::Label { name, body } => {
             let q_name = match name.chars().next() {
-                Some(_s) => {
-                    /*
+                Some(s) => {
                     if s == '\'' {
-                        Lifetime::new(&name.to_string(), Span::call_site())
+                        Lifetime::new(&format!("{}", name), Span::call_site())
                     } else {
-                        Lifetime::new(&name.to_string(), Span::call_site())
+                        Lifetime::new(&format!("'{}", name), Span::call_site())
                     }
-                    */
-                    Lifetime::new(&name.to_string(), Span::call_site())
                 }
                 None => panic!("This should not happen."),
             };
