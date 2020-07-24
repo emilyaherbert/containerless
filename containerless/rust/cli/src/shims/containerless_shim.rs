@@ -13,3 +13,7 @@ pub fn deploy() -> CLIResult<String> {
     //let output = Command::new(command).output()?;
     //Ok(output)
 }
+
+pub fn create_function(name: &str) -> CLIResult<String> {
+    unimplemented!()
+}

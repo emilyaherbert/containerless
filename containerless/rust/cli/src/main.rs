@@ -37,9 +37,9 @@ struct CreateFunction {
     /// Name of the function to create
     #[clap(short)]
     name: String,
-    /// The file in the current directory
-    #[clap(short)]
-    filename: String
+    // /// The file in the current directory
+    //#[clap(short)]
+    //filename: String
 }
 
 /// Deletes a function.
@@ -67,7 +67,8 @@ fn main() {
             println!("{}", status);
         },
         SubCommand::CreateFunction(t) => {
-            println!("You called create function with {:?}!", t.name);
+            let output = containerless_shim::create_function(&t.name).unwrap();
+            println!("{}", output);
         },
         SubCommand::DeleteFunction(t) => {
             println!("You called create function with {:?}!", t.name);
