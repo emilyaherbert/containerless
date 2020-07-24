@@ -56,10 +56,11 @@ struct ListFunctions { }
 
 fn main() {
     let opts: Opts = Opts::parse();
+    let containerless_shim = containerless_shim::ContainerlessShim::new();
 
     match opts.subcmd {
         SubCommand::Deploy(_) => {
-            let output = containerless_shim::deploy().unwrap();
+            let output = containerless_shim.deploy().unwrap();
             println!("{}", output);
         },
         SubCommand::Status(_) => {
@@ -67,14 +68,15 @@ fn main() {
             println!("{}", status);
         },
         SubCommand::CreateFunction(t) => {
-            let output = containerless_shim::create_function(&t.name).unwrap();
+            let output = containerless_shim.create_function(&t.name).unwrap();
             println!("{}", output);
         },
         SubCommand::DeleteFunction(t) => {
-            println!("You called create function with {:?}!", t.name);
+            println!("You called delete function with {:?}!", t.name);
         },
         SubCommand::ListFunctions(_) => {
-            println!("You called list functions!");
+            let output = containerless_shim.list_functions().unwrap();
+            println!("{}", output);
         }
     }
 }
