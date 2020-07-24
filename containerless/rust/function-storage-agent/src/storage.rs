@@ -55,6 +55,31 @@ impl Storage {
         }
     }
 
+    pub fn get_all_keys(&self) -> Vec<String> {
+        let mut keys: Vec<String> = self.files.keys().cloned().collect();
+        keys.sort();
+        keys
+    }
+
+    pub fn get_all(&self) -> Result<Vec<StorageFile>, Error> {
+        let mut keys: Vec<String> = self.files.keys().cloned().collect();
+        keys.sort();
+        let mut ordered_files = Vec::new();
+        for key in keys {
+            let file = self.files.get(&key).unwrap();
+            ordered_files.push(file.clone());
+            /*
+            self.files.get(&key)
+                .and_then(|file| {
+                    ordered_files.push(file.clone());
+                    Some(file)
+                })
+                .ok_or(Error::FileNotFound(format!("{} not found.", name)));
+            */
+        }
+        Ok(ordered_files)
+    }
+
     // TODO: Need to test file before storing.
     pub fn set(&mut self, name: &str) {
         self.files.insert(name.to_string(), StorageFile::new(name));

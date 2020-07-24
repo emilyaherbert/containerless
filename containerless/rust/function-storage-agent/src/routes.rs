@@ -10,8 +10,9 @@ pub fn routes(
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     ping_route()
         .or(echo_route())
-        .or(get_route(storage.clone()))
-        .or(set_route(storage.clone()))
+        .or(get_function_route(storage.clone()))
+        .or(create_function_route(storage.clone()))
+        .or(list_functions_route(storage.clone()))
 }
 
 fn ping_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
@@ -26,18 +27,25 @@ fn echo_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and_then(handlers::echo)
 }
 
-fn get_route(storage: SharedStorage) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    warp::path!("get" / String)
+fn get_function_route(storage: SharedStorage) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path!("get-function" / String)
         .and(warp::get())
         .and(with_storage(storage))
-        .and_then(handlers::get)
+        .and_then(handlers::get_function)
 }
 
-fn set_route(storage: SharedStorage) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    warp::path!("set" / String)
+fn create_function_route(storage: SharedStorage) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path!("create-function" / String)
         .and(warp::get())
         .and(with_storage(storage))
-        .and_then(handlers::set)
+        .and_then(handlers::create_function)
+}
+
+fn list_functions_route(storage: SharedStorage) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path!("list-functions")
+        .and(warp::get())
+        .and(with_storage(storage))
+        .and_then(handlers::list_functions)
 }
 
 fn with_storage(storage: SharedStorage) -> impl Filter<Extract = (SharedStorage,), Error = std::convert::Infallible> + Clone {
