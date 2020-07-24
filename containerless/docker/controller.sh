@@ -14,6 +14,7 @@ start)
     ./poll-ready.sh http://127.0.0.1:7999/ready 300 || ((./controller.sh stop) && (exit 1))
 ;;
 stop)
+  echo "Attempting to stop controller..."
   rm .controller.pid
   killall controller-agent
 ;;

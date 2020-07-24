@@ -14,8 +14,8 @@ We test Containerless using [MicroK8s], which you can install on Ubuntu
 as follows:
 
 ```
-sudo snap install microk8s --classic
-microk8s.enable dns registry ingress
+$ sudo snap install microk8s --classic
+$ microk8s.enable dns registry ingress
 ```
 
 After installation, follow the on-screen directions to gain unprivileged access
@@ -58,9 +58,11 @@ The logs will now appear in `/var/log/rsyslog-containerless.log`.
 
 ## Building
 
-```
-./build.sh
-```
+1. Build the containerless system.
+
+   ```
+   $ ./build.sh
+   ```
 
 ## Deploying
 

@@ -1,13 +1,10 @@
 [package]
-name = "function-storage-agent"
+name = "cli"
 version = "0.1.0"
-authors = ["arjun"]
+authors = ["Emily Herbert <emilyherbert@cs.umass.edu>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-warp = "*"
-tokio = { version = "*", features = ["macros", "fs"] }
-hyper = "*"
-bytes = "*"
+clap = "3.0.0-beta.1"

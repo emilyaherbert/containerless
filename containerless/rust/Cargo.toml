@@ -9,5 +9,6 @@ members = [
     "k8s",
     "integration-tests",
     "dispatcher-agent-lib",
+    "cli"
 ]
 exclude = [ "local" ]
