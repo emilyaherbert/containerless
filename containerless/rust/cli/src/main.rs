@@ -16,16 +16,12 @@ struct Opts {
 
 #[derive(Clap)]
 enum SubCommand {
-    Deploy(Deploy),
     Status(Status),
     CreateFunction(CreateFunction),
     DeleteFunction(DeleteFunction),
+    DescribeFunction(DescribeFunction),
     ListFunctions(ListFunctions),
 }
-
-/// Deploys the Containerless system.
-#[derive(Clap)]
-struct Deploy { }
 
 /// Queries the status of Containerless.
 #[derive(Clap)]
@@ -37,9 +33,9 @@ struct CreateFunction {
     /// Name of the function to create
     #[clap(short)]
     name: String,
-    // /// The file in the current directory
-    //#[clap(short)]
-    //filename: String
+    /// The file in the current directory
+    #[clap(short)]
+    filename: String
 }
 
 /// Deletes a function.
@@ -50,31 +46,45 @@ struct DeleteFunction {
     name: String
 }
 
+/// Deletes a function.
+#[derive(Clap)]
+struct DescribeFunction {
+    /// Name of the function to describe
+    #[clap(short)]
+    name: String
+}
+
 /// Lists all functions.
 #[derive(Clap)]
 struct ListFunctions { }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let opts: Opts = Opts::parse();
+    let containerless_shim = containerless_shim::ContainerlessShim::new();
 
     match opts.subcmd {
-        SubCommand::Deploy(_) => {
-            let output = containerless_shim::deploy().unwrap();
-            println!("{}", output);
-        },
         SubCommand::Status(_) => {
             let status = k8s_shim::get_all().unwrap();
             println!("{}", status);
         },
         SubCommand::CreateFunction(t) => {
-            let output = containerless_shim::create_function(&t.name).unwrap();
+            let output = containerless_shim.create_function(&t.name, &t.filename).await.unwrap();
             println!("{}", output);
         },
         SubCommand::DeleteFunction(t) => {
-            println!("You called create function with {:?}!", t.name);
+            let output = containerless_shim.delete_function(&t.name).await.unwrap();
+            println!("{}", output);
+        },
+        SubCommand::DescribeFunction(t) => {
+            let output = containerless_shim.describe_function(&t.name).await.unwrap();
+            println!("{}", output);
         },
         SubCommand::ListFunctions(_) => {
-            println!("You called list functions!");
+            let output = containerless_shim.list_functions().await.unwrap();
+            println!("{}", output);
         }
     }
+
+    //Ok(())
 }

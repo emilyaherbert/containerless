@@ -11,3 +11,5 @@ warp = "*"
 tokio = { version = "*", features = ["macros", "fs"] }
 hyper = "*"
 bytes = "*"
+serde_json = "*"
+serde = { version = "1.0", features = ["derive"] }
