@@ -88,8 +88,14 @@ impl Storage {
     }
 
     // TODO: Need to test file before storing.
-    pub fn set(&mut self, name: &str) {
-        self.files.insert(name.to_string(), StorageFile::new(name));
+    pub fn set(&mut self, name: &str) -> Result<String, Error> {
+        //self.files.insert(name.to_string(), StorageFile::new(name));
+        if self.files.contains_key(name) {
+            Err(Error::FileConflict(format!("The name {} is already in use.", name)))
+        } else {
+            self.files.insert(name.to_string(), StorageFile::new(name));
+            Ok(name.to_string())
+        }
     }
     /*
     pub fn set(&mut self, name: &str, contents: bytes::Bytes) {
