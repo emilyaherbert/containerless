@@ -23,8 +23,8 @@ pub async fn get_function(path: String, storage: SharedStorage) -> Result<impl w
             return Ok(Response::builder()
                 .status(404)
                 .body("Could not read file".to_string() + "\n"));
-        }
-        Ok(file) => {
+        },
+        Ok(_file) => {
             // TODO(emily): Do something better than this.
             //return Ok(Response::builder().status(200).body(String::from_utf8(file.contents.to_vec()).expect("oh no")));
             return Ok(Response::builder().status(200).body(format!("{:?} contents\n", path)));
@@ -36,6 +36,21 @@ pub async fn create_function(path: String, storage: SharedStorage) -> Result<imp
     let mut storage = storage.lock().await;
     storage.set(&path);
     return Ok(Response::builder().status(200).body("File stored!\n"));
+}
+
+pub async fn delete_function(path: String, storage: SharedStorage) -> Result<impl warp::Reply, warp::Rejection> {
+    let mut storage = storage.lock().await;
+    match storage.remove(&path) {
+        Err(err) => {
+            eprintln!("Error deleting file {}: {:?}", path, err);
+            return Ok(Response::builder()
+                .status(404)
+                .body("Could not delete file".to_string() + "\n"));
+        },
+        Ok(_file) => {
+            return Ok(Response::builder().status(200).body(format!("{:?} deleted!\n", path)));
+        }
+    }
 }
 
 /*

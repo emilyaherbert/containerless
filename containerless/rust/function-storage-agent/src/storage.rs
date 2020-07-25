@@ -80,6 +80,13 @@ impl Storage {
         Ok(ordered_files)
     }
 
+    pub fn remove(&mut self, name: &str) -> Result<StorageFile, Error> {
+        match self.files.remove(name) {
+            Some(file) => Ok(file),
+            None => Err(Error::FileNotFound(format!("{} not found.", name)))
+        }
+    }
+
     // TODO: Need to test file before storing.
     pub fn set(&mut self, name: &str) {
         self.files.insert(name.to_string(), StorageFile::new(name));

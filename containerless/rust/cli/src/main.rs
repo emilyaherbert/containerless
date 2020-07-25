@@ -72,7 +72,8 @@ fn main() {
             println!("{}", output);
         },
         SubCommand::DeleteFunction(t) => {
-            println!("You called delete function with {:?}!", t.name);
+            let output = containerless_shim.delete_function(&t.name).unwrap();
+            println!("{}", output);
         },
         SubCommand::ListFunctions(_) => {
             let output = containerless_shim.list_functions().unwrap();

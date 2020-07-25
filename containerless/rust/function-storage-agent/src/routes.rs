@@ -12,6 +12,7 @@ pub fn routes(
         .or(echo_route())
         .or(get_function_route(storage.clone()))
         .or(create_function_route(storage.clone()))
+        .or(delete_function_route(storage.clone()))
         .or(list_functions_route(storage.clone()))
 }
 
@@ -39,6 +40,13 @@ fn create_function_route(storage: SharedStorage) -> impl Filter<Extract = impl w
         .and(warp::get())
         .and(with_storage(storage))
         .and_then(handlers::create_function)
+}
+
+fn delete_function_route(storage: SharedStorage) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path!("delete-function" / String)
+        .and(warp::get())
+        .and(with_storage(storage))
+        .and_then(handlers::delete_function)
 }
 
 fn list_functions_route(storage: SharedStorage) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {

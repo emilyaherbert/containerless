@@ -33,6 +33,14 @@ impl ContainerlessShim {
         Ok(stdout_str)
     }
 
+    pub fn delete_function(&self, name: &str) -> CLIResult<String> {
+        let output = Command::new("curl")
+            .arg(format!("{}/delete-function/{}", self.storage, name))
+            .output()?;
+        let stdout_str = String::from_utf8(output.stdout)?;
+        Ok(stdout_str)
+    }
+
     pub fn list_functions(&self) -> CLIResult<String> {
         let output = Command::new("curl")
             .arg(format!("{}/list-functions", self.storage))
