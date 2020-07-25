@@ -20,6 +20,7 @@ enum SubCommand {
     Status(Status),
     CreateFunction(CreateFunction),
     DeleteFunction(DeleteFunction),
+    DescribeFunction(DescribeFunction),
     ListFunctions(ListFunctions),
 }
 
@@ -50,6 +51,14 @@ struct DeleteFunction {
     name: String
 }
 
+/// Deletes a function.
+#[derive(Clap)]
+struct DescribeFunction {
+    /// Name of the function to describe
+    #[clap(short)]
+    name: String
+}
+
 /// Lists all functions.
 #[derive(Clap)]
 struct ListFunctions { }
@@ -73,6 +82,10 @@ fn main() {
         },
         SubCommand::DeleteFunction(t) => {
             let output = containerless_shim.delete_function(&t.name).unwrap();
+            println!("{}", output);
+        },
+        SubCommand::DescribeFunction(t) => {
+            let output = containerless_shim.describe_function(&t.name).unwrap();
             println!("{}", output);
         },
         SubCommand::ListFunctions(_) => {

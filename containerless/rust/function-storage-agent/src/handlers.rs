@@ -6,13 +6,13 @@ use hyper::Response;
 pub async fn ping() -> Result<impl warp::Reply, warp::Rejection> {
     return Ok(Response::builder()
         .status(200)
-        .body("Pinged function storage agent.\n"));
+        .body("Pinged function storage agent."));
 }
 
 pub async fn echo(message: String) -> Result<impl warp::Reply, warp::Rejection> {
     return Ok(Response::builder()
         .status(200)
-        .body(message + "\n"));
+        .body(message));
 }
 
 pub async fn get_function(path: String, storage: SharedStorage) -> Result<impl warp::Reply, warp::Rejection> {
@@ -27,7 +27,7 @@ pub async fn get_function(path: String, storage: SharedStorage) -> Result<impl w
         Ok(_file) => {
             // TODO(emily): Do something better than this.
             //return Ok(Response::builder().status(200).body(String::from_utf8(file.contents.to_vec()).expect("oh no")));
-            return Ok(Response::builder().status(200).body(format!("{:?} contents\n", path)));
+            return Ok(Response::builder().status(200).body(format!("{:?} contents...", path)));
         }
     }
 }
