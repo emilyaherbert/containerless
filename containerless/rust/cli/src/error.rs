@@ -5,7 +5,8 @@ use std::string;
 pub enum Error {
     IO(io::Error),
     Parsing(String),
-    Configuration(String)
+    Configuration(String),
+    HTTP(reqwest::Error)
 }
 
 pub type CLIResult<T> = Result<T, Error>;
@@ -25,5 +26,11 @@ impl std::convert::From<string::FromUtf8Error> for Error {
 impl std::convert::From<std::env::VarError> for Error {
     fn from(error: std::env::VarError) -> Error {
         Error::Configuration(error.to_string())
+    }
+}
+
+impl std::convert::From<reqwest::Error> for Error {
+    fn from(error: reqwest::Error) -> Error {
+        Error::HTTP(error)
     }
 }

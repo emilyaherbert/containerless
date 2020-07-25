@@ -5,29 +5,26 @@ use std::clone::Clone;
 //use bytes;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use serde::{Deserialize, Serialize};
+
+#[derive(Deserialize, Serialize)]
+pub struct FileContents {
+    pub contents: String
+}
 
 #[derive(Debug, Clone)]
 pub struct StorageFile {
     name: String,
-    //pub contents: bytes::Bytes
+    pub contents: String
 }
 
 impl StorageFile {
-    pub fn new(name: &str) -> StorageFile {
+    pub fn new(name: &str, contents: &str) -> StorageFile {
         StorageFile {
             name: name.to_string(),
-            //contents: contents
+            contents: contents.to_string()
         }
     }
-
-    /*
-    pub fn new(name: &str, contents: bytes::Bytes) -> StorageFile {
-        StorageFile {
-            name: name.to_string(),
-            contents: contents
-        }
-    }
-    */
 }
 
 pub type SharedStorage = Arc<Mutex<Storage>>;
@@ -88,12 +85,12 @@ impl Storage {
     }
 
     // TODO: Need to test file before storing.
-    pub fn set(&mut self, name: &str) -> Result<String, Error> {
+    pub fn set(&mut self, name: &str, contents: &str) -> Result<String, Error> {
         //self.files.insert(name.to_string(), StorageFile::new(name));
         if self.files.contains_key(name) {
             Err(Error::FileConflict(format!("The name {} is already in use.", name)))
         } else {
-            self.files.insert(name.to_string(), StorageFile::new(name));
+            self.files.insert(name.to_string(), StorageFile::new(name, contents));
             Ok(name.to_string())
         }
     }

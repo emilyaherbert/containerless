@@ -1,9 +1,9 @@
 
 use crate::handlers;
 use crate::storage::SharedStorage;
+use crate::storage::FileContents;
 
 use warp::Filter;
-//use bytes;
 
 pub fn routes(
     storage: SharedStorage,
@@ -37,7 +37,8 @@ fn get_function_route(storage: SharedStorage) -> impl Filter<Extract = impl warp
 
 fn create_function_route(storage: SharedStorage) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::path!("create-function" / String)
-        .and(warp::get())
+        .and(warp::post())
+        .and(warp::body::json())
         .and(with_storage(storage))
         .and_then(handlers::create_function)
 }

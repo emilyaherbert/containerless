@@ -1,4 +1,5 @@
 use crate::storage::SharedStorage;
+use crate::storage::FileContents;
 
 use hyper::Response;
 //use bytes;
@@ -24,17 +25,15 @@ pub async fn get_function(path: String, storage: SharedStorage) -> Result<impl w
                 .status(404)
                 .body(format!("Could not read function {}.\n{:?}", path, err)));
         },
-        Ok(_file) => {
-            // TODO(emily): Do something better than this.
-            //return Ok(Response::builder().status(200).body(String::from_utf8(file.contents.to_vec()).expect("oh no")));
-            return Ok(Response::builder().status(200).body(format!("{:?} contents...", path)));
+        Ok(file) => {
+            return Ok(Response::builder().status(200).body(file.contents));
         }
     }
 }
 
-pub async fn create_function(path: String, storage: SharedStorage) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn create_function(path: String, contents: FileContents, storage: SharedStorage) -> Result<impl warp::Reply, warp::Rejection> {
     let mut storage = storage.lock().await;
-    match storage.set(&path) {
+    match storage.set(&path, &contents.contents) {
         Err(err) => {
             eprintln!("Error creating file {} : {:?} ", path, err);
             return Ok(Response::builder()
