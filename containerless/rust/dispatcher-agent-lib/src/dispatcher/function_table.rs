@@ -1,4 +1,3 @@
-use super::function_manager;
 use super::function_manager::FunctionManager;
 use super::types::*;
 use futures::lock::Mutex;
@@ -71,7 +70,7 @@ impl FunctionTable {
                         inner.http_client.clone(),
                         Arc::downgrade(self_),
                         name.to_string(),
-                        function_manager::CreateMode::Adopt {
+                        super::state::CreateMode::Adopt {
                             num_replicas,
                             is_tracing,
                         },
@@ -117,7 +116,7 @@ impl FunctionTable {
                     inner.http_client.clone(),
                     Arc::downgrade(self_),
                     name.to_string(),
-                    function_manager::CreateMode::New,
+                    super::state::CreateMode::New,
                     self_
                         .decontainerized_functions
                         .get(name)
