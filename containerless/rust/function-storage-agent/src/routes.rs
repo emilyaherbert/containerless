@@ -1,7 +1,6 @@
 
 use crate::handlers;
 use crate::storage::SharedStorage;
-use crate::storage::FileContents;
 
 use warp::Filter;
 

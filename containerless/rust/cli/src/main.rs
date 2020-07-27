@@ -21,6 +21,7 @@ enum SubCommand {
     DeleteFunction(DeleteFunction),
     DescribeFunction(DescribeFunction),
     ListFunctions(ListFunctions),
+    Invoke(Invoke)
 }
 
 /// Queries the status of Containerless.
@@ -58,6 +59,14 @@ struct DescribeFunction {
 #[derive(Clap)]
 struct ListFunctions { }
 
+/// Invokes a function.
+#[derive(Clap)]
+struct Invoke {
+    /// Name of the function to describe
+    #[clap(short)]
+    name: String
+}
+
 #[tokio::main]
 async fn main() {
     let opts: Opts = Opts::parse();
@@ -82,6 +91,10 @@ async fn main() {
         },
         SubCommand::ListFunctions(_) => {
             let output = containerless_shim.list_functions().await.unwrap();
+            println!("{}", output);
+        },
+        SubCommand::Invoke(t) => {
+            let output = containerless_shim.invoke(&t.name).await.unwrap();
             println!("{}", output);
         }
     }

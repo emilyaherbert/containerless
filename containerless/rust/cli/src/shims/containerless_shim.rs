@@ -1,18 +1,19 @@
 use crate::error::CLIResult;
 
-use std::process::Command;
 //use std::env;
 use std::fs;
 use serde_json::json;
 
 pub struct ContainerlessShim {
-    storage: String
+    storage: String,
+    dispatcher: String
 }
 
 impl ContainerlessShim {
     pub fn new() -> ContainerlessShim {
         ContainerlessShim {
-            storage: "http://localhost/storage".to_string()
+            storage: "http://localhost/storage".to_string(),
+            dispatcher: "http://localhost/dispatcher".to_string()
         }
     }
 
@@ -30,17 +31,6 @@ impl ContainerlessShim {
     */
     
     pub async fn create_function(&self, name: &str, filename: &str) -> CLIResult<String> {
-        /*
-        let data = json!({
-            "contents": fs::read_to_string(filename)?
-        });
-        println!("{}", data.to_string());
-        let output = Command::new("curl")
-            .arg(format!("{}/create-function/{}", self.storage, name))
-            .output()?;
-        let stdout_str = String::from_utf8(output.stdout)?;
-        Ok(stdout_str)
-        */
         Ok(reqwest::Client::new()
             .post(&format!("{}/create-function/{}", self.storage, name))
             .json(&json!({
@@ -62,5 +52,9 @@ impl ContainerlessShim {
 
     pub async fn list_functions(&self) -> CLIResult<String> {
         Ok(reqwest::get(&format!("{}/list-functions", self.storage)).await?.text().await?)
+    }
+
+    pub async fn invoke(&self, name: &str) -> CLIResult<String> {
+        Ok(reqwest::get(&format!("{}/{}/foo", self.dispatcher, name)).await?.text().await?)
     }
 }
