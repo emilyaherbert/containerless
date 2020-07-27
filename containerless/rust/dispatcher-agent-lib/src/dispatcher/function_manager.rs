@@ -1,5 +1,5 @@
 use super::autoscaler::Autoscaler;
-use super::error::*;
+use crate::error::*;
 use super::function_table::FunctionTable;
 use super::types::*;
 use super::util;
@@ -310,7 +310,7 @@ impl State {
                 )))
                 .unwrap(),
             Ok(body) => {
-                match super::trace_runtime::run_decontainerized_function(
+                match crate::trace_runtime::run_decontainerized_function(
                     func,
                     self_.http_client.clone(),
                     &req.payload.path_and_query,

@@ -11,8 +11,8 @@
 //! and another five in the next second, the number of replicas will be 10, instead
 //! of five.
 use super::function_table::FunctionTable;
-use crate::types::*;
-use crate::windowed_max::WindowedMax;
+use super::types::*;
+use super::windowed_max::WindowedMax;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::task;

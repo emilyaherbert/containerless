@@ -1,6 +1,6 @@
 use super::function_manager;
 use super::function_manager::FunctionManager;
-use crate::types::*;
+use super::types::*;
 use futures::lock::Mutex;
 use k8s;
 use lazy_static::lazy_static;
