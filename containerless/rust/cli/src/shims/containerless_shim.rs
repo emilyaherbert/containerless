@@ -1,4 +1,4 @@
-use crate::error::CLIResult;
+use crate::error::*;
 
 //use std::env;
 use std::fs;
@@ -31,15 +31,20 @@ impl ContainerlessShim {
     */
     
     pub async fn create_function(&self, name: &str, filename: &str) -> CLIResult<String> {
-        Ok(reqwest::Client::new()
-            .post(&format!("{}/create-function/{}", self.storage, name))
-            .json(&json!({
-                "contents": fs::read_to_string(filename)?
-            }))
-            .send()
-            .await?
-            .text()
-            .await?)
+        let acceptable_chars: Vec<char> = "abcdefghijklmnopqrstuvwxyz1234567890.-".chars().collect();
+        if name.chars().all(|c| acceptable_chars.contains(&c)) {
+            Ok(reqwest::Client::new()
+                .post(&format!("{}/create-function/{}", self.storage, name))
+                .json(&json!({
+                    "contents": fs::read_to_string(filename)?
+                }))
+                .send()
+                .await?
+                .text()
+                .await?)
+        } else {
+            Err(Error::Parsing("Function names can only contain lower case alphanumeric characters, '.', and ','.".to_string()))
+        }
     }
 
     pub async fn delete_function(&self, name: &str) -> CLIResult<String> {

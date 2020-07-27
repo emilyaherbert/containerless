@@ -7,7 +7,6 @@ use tokio::signal::unix::{signal, SignalKind};
 use dispatcher::{types, types::*};
 use warp::Filter;
 
-#[macro_use]
 extern crate log;
 
 pub type Containerless = types::Containerless;
