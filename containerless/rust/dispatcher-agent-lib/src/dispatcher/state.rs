@@ -323,6 +323,35 @@ impl State {
         return Ok(());
     }
 
+    async fn delete_instances(self_: Arc<State>, is_tracing: bool) -> Result<(), Error> {
+        info!(target: "dispatcher", "deleting Kubernetes resources for {}", self_.name);
+        try_join!(
+            util::maybe_run(
+                is_tracing,
+                self_.k8s_client.delete_pod(&self_.tracing_pod_name)
+            ),
+            util::maybe_run(
+                is_tracing,
+                self_.k8s_client.delete_service(&self_.tracing_pod_name)
+            ),
+            self_.k8s_client.delete_service(&self_.vanilla_name),
+            self_.k8s_client.delete_replica_set(&self_.vanilla_name)
+        )?;
+        Ok(())
+    }
+
+    async fn shutdown(self_: Arc<State>, mode: Mode) -> Result<(), Error> {
+        let is_tracing = match mode {
+            Mode::Tracing(_) => true,
+            _ => false,
+        };
+        State::delete_instances(self_, is_tracing).await?;
+        if let Mode::Decontainerized(_) = mode {
+            // Do not terminate the task if decontainerized.
+        }
+        return Ok(());
+    }
+
     pub async fn function_manager_task(
         self_: Arc<State>, mut recv_requests: mpsc::Receiver<Message>,
         function_table: Weak<FunctionTable>, create_mode: CreateMode,
@@ -367,29 +396,8 @@ impl State {
                     return Ok(());
                 }
                 (_, Message::Shutdown) => {
-                    let is_tracing = match mode {
-                        Mode::Tracing(_) => true,
-                        _ => false,
-                    };
-                    info!(target: "dispatcher", "deleting Kubernetes resources for {}", self_.name);
-                    try_join!(
-                        util::maybe_run(
-                            is_tracing,
-                            self_.k8s_client.delete_pod(&self_.tracing_pod_name)
-                        ),
-                        util::maybe_run(
-                            is_tracing,
-                            self_.k8s_client.delete_service(&self_.tracing_pod_name)
-                        ),
-                        self_.k8s_client.delete_service(&self_.vanilla_name),
-                        self_.k8s_client.delete_replica_set(&self_.vanilla_name)
-                    )?;
-                    if let Mode::Decontainerized(_) = mode {
-                        // Do not terminate the task if decontainerized.
-                        continue;
-                    }
-                    return Ok(());
-                }
+                    return State::shutdown(self_, mode).await;
+                },
                 (_, Message::GetMode(send)) => {
                     util::send_log_error(send, util::text_response(200, format!("{}", mode)));
                 }
