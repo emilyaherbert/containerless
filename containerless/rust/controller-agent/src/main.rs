@@ -1,47 +1,13 @@
-use bytes;
-use hyper::Response;
-use warp::Filter;
 #[macro_use]
 extern crate lazy_static;
 
-mod common;
-mod compiler;
-mod graceful_sigterm;
+mod controller;
 mod trace_compiler;
 
-use common::*;
-use compiler::Compiler;
-use graceful_sigterm::handle_sigterm;
-
-async fn ready() -> Result<impl warp::Reply, warp::Rejection> {
-    Ok(Response::builder().status(200).body("Controller agent\n"))
-}
-
-async fn recv_trace(
-    name: String, trace: bytes::Bytes, compiler: Arc<Compiler>,
-) -> Result<impl warp::Reply, warp::Rejection> {
-    info!(target: "controller", "received trace for {} ({} bytes)", &name, trace.len());
-    compiler.compile(name, trace);
-    Ok(Response::builder().status(200).body(""))
-}
-
-async fn ok_if_not_compiling_handler(
-    compiler: Arc<Compiler>,
-) -> Result<impl warp::Reply, warp::Rejection> {
-    Ok(compiler.ok_if_not_compiling())
-}
-
-async fn restart_dispatcher_handler(
-    compiler: Arc<Compiler>,
-) -> Result<impl warp::Reply, warp::Rejection> {
-    Ok(compiler.recompile_dispatcher().await)
-}
-
-async fn reset_dispatcher_handler(
-    compiler: Arc<Compiler>,
-) -> Result<impl warp::Reply, warp::Rejection> {
-    Ok(compiler.reset_dispatcher().await)
-}
+use controller::common::*;
+use controller::compiler;
+use controller::graceful_sigterm::handle_sigterm;
+use controller::routes;
 
 #[tokio::main]
 async fn main() {
@@ -53,7 +19,7 @@ async fn main() {
             .expect("creating k8s::Client"),
     );
 
-    let compiler = Compiler::new();
+    let compiler = compiler::Compiler::new();
     assert!(
         compiler.cargo_build(None).await,
         "initial cargo build failed"
@@ -64,53 +30,8 @@ async fn main() {
         .await
         .expect("failed to create initial dispatcher");
 
-    let ready_route = warp::path!("ready").and(warp::get()).and_then(ready);
-    let download_dispatcher_route =
-        warp::path("download_dispatcher")
-            .and(warp::get())
-            .and(warp::fs::file(format!(
-                "{}/target/debug/dispatcher-agent",
-                ROOT.as_str()
-            )));
-    let recv_trace_route = {
-        let compiler = compiler.clone();
-        warp::path!("recv_trace" / String)
-            .and(warp::body::bytes())
-            .and(warp::post())
-            .and(warp::any().map(move || compiler.clone()))
-            .and_then(recv_trace)
-    };
-    let is_compiling_route = {
-        let compiler = compiler.clone();
-        warp::path!("ok_if_not_compiling")
-            .and(warp::get())
-            .and(warp::any().map(move || compiler.clone()))
-            .and_then(ok_if_not_compiling_handler)
-    };
-    let restart_dispatcher_route = {
-        let compiler = compiler.clone();
-        warp::path!("restart_dispatcher")
-            .and(warp::post())
-            .and(warp::any().map(move || compiler.clone()))
-            .and_then(restart_dispatcher_handler)
-    };
-    let reset_dispatcher_route = {
-        let compiler = compiler.clone();
-        warp::path!("reset_dispatcher")
-            .and(warp::post())
-            .and(warp::any().map(move || compiler.clone()))
-            .and_then(reset_dispatcher_handler)
-    };
-
-    let paths = ready_route
-        .or(download_dispatcher_route)
-        .or(recv_trace_route)
-        .or(restart_dispatcher_route)
-        .or(reset_dispatcher_route)
-        .or(is_compiling_route);
-
     info!(target: "controller", "Controller listening");
-    let (_addr, server) = warp::serve(paths).bind_with_graceful_shutdown(
+    let (_addr, server) = warp::serve(routes::routes(compiler.clone(), ROOT.as_str())).bind_with_graceful_shutdown(
         ([0, 0, 0, 0], 7999),
         suppress_and_log_err(handle_sigterm(compiler)),
     );

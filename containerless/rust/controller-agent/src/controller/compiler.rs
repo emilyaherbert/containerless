@@ -1,7 +1,7 @@
 //! The compiler uses `cargo build` in the `/src` directory, so it must
 //! run as a single threaded task.
-use super::trace_compiler;
-use crate::common::*;
+use crate::trace_compiler;
+use super::common::*;
 use futures::channel::mpsc;
 use k8s;
 use proc_macro2::Span;
@@ -148,7 +148,7 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                     continue;
                 }
                 next_version += 1;
-                crate::graceful_sigterm::delete_dynamic_resources(&k8s, false)
+                super::graceful_sigterm::delete_dynamic_resources(&k8s, false)
                     .await
                     .expect("deleting dynamically created resources");
                 k8s.patch_deployment(dispatcher_deployment_spec(next_version))
@@ -165,7 +165,7 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                     continue;
                 }
                 next_version += 1;
-                crate::graceful_sigterm::delete_dynamic_resources(&k8s, false)
+                super::graceful_sigterm::delete_dynamic_resources(&k8s, false)
                     .await
                     .expect("deleting dynamically created resources");
                 k8s.patch_deployment(dispatcher_deployment_spec(next_version))
@@ -218,7 +218,7 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                 info!(target: "controller", "Patched dispatcher deployment");
             }
             Message::Shutdown { done } => {
-                crate::graceful_sigterm::delete_dynamic_resources(&k8s, true)
+                super::graceful_sigterm::delete_dynamic_resources(&k8s, true)
                     .await
                     .expect("deleting dynamically created resources");
                 info!(target: "controller", "ending compiler task (received shutdown message)");

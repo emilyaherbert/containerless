@@ -2,7 +2,6 @@ use crate::error::Error;
 
 use std::collections::HashMap;
 use std::clone::Clone;
-//use bytes;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use serde::{Deserialize, Serialize};
@@ -58,27 +57,6 @@ impl Storage {
         keys
     }
 
-    /*
-    pub fn get_all(&self) -> Result<Vec<StorageFile>, Error> {
-        let mut keys: Vec<String> = self.files.keys().cloned().collect();
-        keys.sort();
-        let mut ordered_files = Vec::new();
-        for key in keys {
-            let file = self.files.get(&key).unwrap();
-            ordered_files.push(file.clone());
-            /*
-            self.files.get(&key)
-                .and_then(|file| {
-                    ordered_files.push(file.clone());
-                    Some(file)
-                })
-                .ok_or(Error::FileNotFound(format!("{} not found.", name)));
-            */
-        }
-        Ok(ordered_files)
-    }
-    */
-
     pub fn remove(&mut self, name: &str) -> Result<StorageFile, Error> {
         match self.files.remove(name) {
             Some(file) => Ok(file),
@@ -86,9 +64,7 @@ impl Storage {
         }
     }
 
-    // TODO: Need to test file before storing.
     pub fn set(&mut self, name: &str, contents: &str) -> Result<String, Error> {
-        //self.files.insert(name.to_string(), StorageFile::new(name));
         if self.files.contains_key(name) {
             Err(Error::FileConflict(format!("The name {} is already in use.", name)))
         } else {
@@ -96,9 +72,4 @@ impl Storage {
             Ok(name.to_string())
         }
     }
-    /*
-    pub fn set(&mut self, name: &str, contents: bytes::Bytes) {
-        self.files.insert(name.to_string(), StorageFile::new(name, contents));
-    }
-    */
 }
