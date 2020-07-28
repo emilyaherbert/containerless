@@ -46,6 +46,7 @@ async fn initialize(function_name: String, tracing_enabled: bool) -> Result<(), 
     let resp = reqwest::get(&format!("http://storage:8080/get-function/{}", &function_name)).await?;
     let function_code = resp.text().await?;
     eprintln!("Downloaded function ({} bytes)", function_code.len());
+    eprintln!("Function code: {}", function_code);
 
     // Write the serverless function to a file. This is needed whether or
     // not we are tracing.

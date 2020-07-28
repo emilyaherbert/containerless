@@ -36,7 +36,7 @@ impl ContainerlessShim {
             Ok(reqwest::Client::new()
                 .post(&format!("{}/create-function/{}", self.storage, name))
                 .json(&json!({
-                    "contents": fs::read_to_string(filename)?
+                    "contents": format!("{}", fs::read_to_string(filename)?.trim())
                 }))
                 .send()
                 .await?

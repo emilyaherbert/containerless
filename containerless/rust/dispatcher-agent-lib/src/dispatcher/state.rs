@@ -64,10 +64,14 @@ impl State {
         let builder = PodSpecBuilder::new().container(
             ContainerBuilder::new()
                 .name("function")
-                .image("localhost:32000/function-runner")
+                .image("localhost:32000/function-runner:latest")
                 .expose_port("manager", 8080)
                 .expose_port("server", 8081)
-                .pull_if_not_present()
+                // NOTE(emily): This line prevents the dispatcher from seeing
+                // any updates to the function-runner. This is ideal in a
+                // production setting, but not in a systems building setting.
+                // Possible make this a flag or something?
+                //.pull_if_not_present()
                 // A readiness probe ensures that we don't direct
                 // requests to an instance until it is ready. By
                 // default, wait ten seconds between each probe.
