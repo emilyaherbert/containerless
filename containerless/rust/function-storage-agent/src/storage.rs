@@ -58,6 +58,7 @@ impl Storage {
         keys
     }
 
+    /*
     pub fn get_all(&self) -> Result<Vec<StorageFile>, Error> {
         let mut keys: Vec<String> = self.files.keys().cloned().collect();
         keys.sort();
@@ -76,6 +77,7 @@ impl Storage {
         }
         Ok(ordered_files)
     }
+    */
 
     pub fn remove(&mut self, name: &str) -> Result<StorageFile, Error> {
         match self.files.remove(name) {

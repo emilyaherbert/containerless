@@ -1,8 +1,10 @@
 use super::autoscaler::Autoscaler;
-use super::error::*;
+use crate::error::*;
 use super::function_table::FunctionTable;
 use super::types::*;
 use super::util;
+use super::serverless_request::*;
+
 use futures::prelude::*;
 use hyper::header::HeaderValue;
 use tokio::task;
@@ -13,61 +15,19 @@ pub enum CreateMode {
     Adopt { num_replicas: i32, is_tracing: bool },
 }
 
-#[derive(Copy, Clone)]
-enum Mode {
-    Tracing(usize),
-    Vanilla,
-    Decontainerized(Containerless),
-}
-
-struct RequestPayload {
-    method: http::Method,
-    path_and_query: String,
-    body: hyper::Body,
-}
-
-pub struct ServerlessRequest {
-    payload: RequestPayload,
-    send: oneshot::Sender<HttpResponseResult>,
-}
-
-enum Message {
-    Request(ServerlessRequest),
-    ExtractAndCompile(oneshot::Sender<Response>),
-    GetMode(oneshot::Sender<Response>),
-    Shutdown,
-    Orphan,
-}
-
-struct State {
-    name: String,
+pub struct State {
+    pub name: String,
+    pub tracing_pod_name: String,
+    pub vanilla_name: String,
     k8s_client: K8sClient,
     http_client: HttpClient,
-    tracing_pod_name: String,
-    vanilla_name: String,
     tracing_pod_available: AtomicBool,
     tracing_authority: uri::Authority,
     vanilla_authority: uri::Authority,
 }
 
-#[derive(Clone)]
-pub struct FunctionManager {
-    send_requests: mpsc::Sender<Message>,
-    state: Arc<State>,
-}
-
-impl std::fmt::Display for Mode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Mode::Decontainerized(_) => f.write_str("Decontainerized"),
-            Mode::Tracing(_) => f.write_str("Tracing"),
-            Mode::Vanilla => f.write_str("Vanilla"),
-        }
-    }
-}
-
 impl State {
-    fn new(name: String, k8s_client: K8sClient, http_client: HttpClient) -> Arc<Self> {
+    pub fn new(name: String, k8s_client: K8sClient, http_client: HttpClient) -> Arc<Self> {
         let tracing_pod_name = format!("function-tracing-{}", &name);
         let vanilla_name = format!("function-vanilla-{}", &name);
         let tracing_pod_available = AtomicBool::new(true);
@@ -104,10 +64,14 @@ impl State {
         let builder = PodSpecBuilder::new().container(
             ContainerBuilder::new()
                 .name("function")
-                .image("localhost:32000/function-runner")
+                .image("localhost:32000/function-runner:latest")
                 .expose_port("manager", 8080)
                 .expose_port("server", 8081)
-                .pull_if_not_present()
+                // NOTE(emily): This line prevents the dispatcher from seeing
+                // any updates to the function-runner. This is ideal in a
+                // production setting, but not in a systems building setting.
+                // Possible make this a flag or something?
+                //.pull_if_not_present()
                 // A readiness probe ensures that we don't direct
                 // requests to an instance until it is ready. By
                 // default, wait ten seconds between each probe.
@@ -310,7 +274,7 @@ impl State {
                 )))
                 .unwrap(),
             Ok(body) => {
-                match super::trace_runtime::run_decontainerized_function(
+                match crate::trace_runtime::run_decontainerized_function(
                     func,
                     self_.http_client.clone(),
                     &req.payload.path_and_query,
@@ -359,7 +323,7 @@ impl State {
         return Ok(());
     }
 
-    async fn function_manager_task(
+    pub async fn function_manager_task(
         self_: Arc<State>, mut recv_requests: mpsc::Receiver<Message>,
         function_table: Weak<FunctionTable>, create_mode: CreateMode,
         containerless: Option<Containerless>, upgrade_pending: Arc<AtomicBool>,
@@ -502,121 +466,5 @@ impl State {
         }
 
         return Ok(());
-    }
-}
-
-impl FunctionManager {
-    pub async fn new(
-        k8s_client: K8sClient, http_client: HttpClient, function_table: Weak<FunctionTable>,
-        name: String, create_mode: CreateMode, containerless: Option<Containerless>,
-        upgrade_pending: Arc<AtomicBool>,
-    ) -> FunctionManager {
-        let (send_requests, recv_requests) = mpsc::channel(1);
-        let err_msg = format!("error raised by task for {}", &name);
-        let state = State::new(name, k8s_client, http_client);
-        task::spawn(util::log_error(
-            State::function_manager_task(
-                Arc::clone(&state),
-                recv_requests,
-                function_table,
-                create_mode,
-                containerless,
-                upgrade_pending,
-            ),
-            err_msg,
-        ));
-        let fm = FunctionManager {
-            send_requests,
-            state,
-        };
-        return fm;
-    }
-
-    pub async fn shutdown(&mut self) {
-        self.send_requests
-            .send(Message::Shutdown)
-            .await
-            .unwrap_or_else(|_| panic!("error sending Message::Shutdown for {}", self.state.name));
-    }
-
-    pub async fn orphan(mut self) {
-        self.send_requests
-            .send(Message::Orphan)
-            .await
-            .unwrap_or_else(|_| panic!("error sending Message::Orphan for {}", self.state.name));
-    }
-
-    pub async fn invoke(
-        &mut self, method: http::Method, path_and_query: &str, body: hyper::Body,
-    ) -> Result<Response, hyper::Error> {
-        let (send_resp, recv_resp) = oneshot::channel();
-        let req = ServerlessRequest {
-            payload: RequestPayload {
-                method,
-                path_and_query: String::from(path_and_query),
-                body,
-            },
-            send: send_resp,
-        };
-        self.send_requests
-            .send(Message::Request(req))
-            .await
-            .unwrap();
-        match recv_resp.await {
-            Ok(result) => {
-                return result;
-            }
-            Err(futures::channel::oneshot::Canceled) => {
-                error!(target: "dispatcher", "dispatcher shutdown before before request for {} could be made", self.state.name);
-                return Ok(hyper::Response::builder()
-                    .status(500)
-                    .body(hyper::Body::from("dispatcher shutdown"))
-                    .unwrap());
-            }
-        }
-    }
-
-    pub async fn extract_and_compile(&mut self) -> Response {
-        let (send_resp, recv_resp) = oneshot::channel();
-        self.send_requests
-            .send(Message::ExtractAndCompile(send_resp))
-            .await
-            .unwrap();
-        match recv_resp.await {
-            Ok(resp) => {
-                return resp;
-            }
-            Err(oneshot::Canceled) => {
-                return util::text_response(
-                    500,
-                    format!(
-                        "dispatcher shutdown before trace could be extracted for {}",
-                        self.state.name
-                    ),
-                );
-            }
-        }
-    }
-
-    pub async fn get_mode(&mut self) -> Response {
-        let (send_resp, recv_resp) = oneshot::channel();
-        self.send_requests
-            .send(Message::GetMode(send_resp))
-            .await
-            .unwrap();
-        match recv_resp.await {
-            Ok(resp) => {
-                return resp;
-            }
-            Err(oneshot::Canceled) => {
-                return util::text_response(
-                    500,
-                    format!(
-                        "dispatcher shutdown before mode could be queried for {}",
-                        self.state.name
-                    ),
-                );
-            }
-        }
     }
 }

@@ -1,18 +1,12 @@
-mod autoscaler;
 mod error;
-mod function_manager;
-mod function_table;
 pub mod trace_runtime;
-mod types;
-mod util;
-mod windowed_max;
+mod dispatcher;
 
-use function_table::FunctionTable;
+use dispatcher::function_table::FunctionTable;
 use tokio::signal::unix::{signal, SignalKind};
-use types::*;
+use dispatcher::{types, types::*};
 use warp::Filter;
 
-#[macro_use]
 extern crate log;
 
 pub type Containerless = types::Containerless;

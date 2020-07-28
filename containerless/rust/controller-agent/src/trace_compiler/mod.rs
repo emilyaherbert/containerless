@@ -13,7 +13,7 @@ use transformer::Transformer;
 use types::Exp;
 
 pub fn compile(
-    serverless_function_name: String, dest_file: &str, trace: &str,
+    _serverless_function_name: String, dest_file: &str, trace: &str,
 ) -> Result<(), error::Error> {
     let exp = serde_json::from_str::<Exp>(trace)?;
     let mut assertions = Assertions::new();
