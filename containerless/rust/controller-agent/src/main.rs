@@ -1,17 +1,13 @@
-use warp::Filter;
 #[macro_use]
 extern crate lazy_static;
 
-mod common;
-mod compiler;
-mod graceful_sigterm;
+mod controller;
 mod trace_compiler;
-mod handlers;
-mod routes;
 
-use common::*;
-use compiler::Compiler;
-use graceful_sigterm::handle_sigterm;
+use controller::common::*;
+use controller::compiler;
+use controller::graceful_sigterm::handle_sigterm;
+use controller::routes;
 
 #[tokio::main]
 async fn main() {
@@ -23,7 +19,7 @@ async fn main() {
             .expect("creating k8s::Client"),
     );
 
-    let compiler = Compiler::new();
+    let compiler = compiler::Compiler::new();
     assert!(
         compiler.cargo_build(None).await,
         "initial cargo build failed"

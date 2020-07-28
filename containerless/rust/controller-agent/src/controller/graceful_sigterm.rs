@@ -1,5 +1,5 @@
 use super::compiler::Compiler;
-use crate::common::*;
+use super::common::*;
 use k8s;
 use kube;
 use lazy_static::lazy_static;

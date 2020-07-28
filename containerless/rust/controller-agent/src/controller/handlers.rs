@@ -1,8 +1,8 @@
 use bytes;
 use hyper::Response;
 
-use crate::common::*;
-use crate::compiler::Compiler;
+use super::common::*;
+use super::compiler::Compiler;
 
 pub async fn ready() -> Result<impl warp::Reply, warp::Rejection> {
     Ok(Response::builder().status(200).body("Controller agent\n"))
