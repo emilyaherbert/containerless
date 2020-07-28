@@ -59,6 +59,14 @@ fn reset_dispatcher_route(compiler: Arc<Compiler>) -> impl Filter<Extract = impl
         .and_then(handlers::reset_dispatcher_handler)
 }
 
+fn create_function_route(compiler: Arc<Compiler>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path!("create_function" / String)
+        .and(warp::post())
+        .and(warp::body::bytes())
+        .and(with_compiler(compiler))
+        .and_then(handlers::create_function)
+}
+
 fn with_compiler(compiler: Arc<Compiler>) -> impl Filter<Extract = (Arc<Compiler>,), Error = std::convert::Infallible> + Clone {
     warp::any().map(move || compiler.clone())
 }
