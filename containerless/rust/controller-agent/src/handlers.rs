@@ -60,17 +60,27 @@ pub async fn create_function(name: String, body: bytes::Bytes) -> Result<impl wa
 }
 
 pub async fn delete_function(name: String) -> Result<impl warp::Reply, warp::Rejection> {
-    // TODO: shut down function instances
-    // TODO: delete decontainerized version
-    match delete_from_storage(&name).await {
+    // NOTE(emily): This is not good style, do something with combinging results or something
+    match shutdown_function_instances_via_dispatcher(&name).await {
         Err(err) => {
-            eprintln!("Error deleting function {} : {:?} ", name, err);
-            return Ok(Response::builder()
+            eprintln!("Error shutting down instances for function {} : {:?} ", name, err);
+            Ok(Response::builder()
                 .status(404)
-                .body(format!("Could not delete function: {:?}", err)));
+                .body(format!("Could not shut down instances for function: {:?}", err)))
         },
-        Ok(resp) => {
-            return Ok(Response::builder().status(200).body(resp));
+        Ok(resp1) => {
+            // TODO: delete decontainerized version
+            match delete_from_storage(&name).await {
+                Err(err) => {
+                    eprintln!("Error deleting function {} : {:?} ", name, err);
+                    return Ok(Response::builder()
+                        .status(404)
+                        .body(format!("Could not delete function: {:?}", err)));
+                },
+                Ok(resp2) => {
+                    return Ok(Response::builder().status(200).body(resp1 + "\n" + &resp2));
+                }
+            }
         }
     }
 }
@@ -79,12 +89,12 @@ pub async fn shutdown_function_instances(name: String) -> Result<impl warp::Repl
     match shutdown_function_instances_via_dispatcher(&name).await {
         Err(err) => {
             eprintln!("Error shutting down instances for function {} : {:?} ", name, err);
-            return Ok(Response::builder()
+            Ok(Response::builder()
                 .status(404)
-                .body(format!("Could not shut down instances for function: {:?}", err)));
+                .body(format!("Could not shut down instances for function: {:?}", err)))
         },
         Ok(resp) => {
-            return Ok(Response::builder().status(200).body(resp));
+            Ok(Response::builder().status(200).body(resp))
         }
     }
 }
