@@ -97,6 +97,4 @@ async fn main() {
             println!("{}", output);
         }
     }
-
-    //Ok(())
 }

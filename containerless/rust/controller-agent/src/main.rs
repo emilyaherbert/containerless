@@ -3,11 +3,12 @@ extern crate lazy_static;
 
 mod controller;
 mod trace_compiler;
+mod handlers;
+mod routes;
 
 use controller::common::*;
 use controller::compiler;
 use controller::graceful_sigterm::handle_sigterm;
-use controller::routes;
 
 #[tokio::main]
 async fn main() {
