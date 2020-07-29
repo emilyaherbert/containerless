@@ -77,7 +77,9 @@ async fn main() {
             let status = k8s_shim::get_all().unwrap();
             println!("{}", status);
         },
-        SubCommand::CreateFunction(t) => { containerless_shim.create_function(&t.name, &t.filename).await.unwrap(); },
+        SubCommand::CreateFunction(t) => {
+            println!("{}", containerless_shim.create_function(&t.name, &t.filename).await.unwrap());
+        },
         SubCommand::DeleteFunction(t) => { containerless_shim.delete_function(&t.name).await.unwrap(); }
         SubCommand::DescribeFunction(t) => {
             let output = containerless_shim.describe_function(&t.name).await.unwrap();

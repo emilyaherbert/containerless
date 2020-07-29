@@ -13,6 +13,7 @@ pub fn routes(
         .or(is_compiling_route(compiler.clone()))
         .or(restart_dispatcher_route(compiler.clone()))
         .or(reset_dispatcher_route(compiler.clone()))
+        .or(create_function_route(compiler.clone()))
 }
 
 fn ready_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
@@ -63,7 +64,6 @@ fn create_function_route(compiler: Arc<Compiler>) -> impl Filter<Extract = impl 
     warp::path!("create_function" / String)
         .and(warp::post())
         .and(warp::body::bytes())
-        .and(with_compiler(compiler))
         .and_then(handlers::create_function)
 }
 
