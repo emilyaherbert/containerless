@@ -60,6 +60,8 @@ pub async fn create_function(name: String, body: bytes::Bytes) -> Result<impl wa
 }
 
 pub async fn delete_function(name: String) -> Result<impl warp::Reply, warp::Rejection> {
+    // TODO: shut down function instances
+    // TODO: delete decontainerized version
     match delete_from_storage(&name).await {
         Err(err) => {
             eprintln!("Error deleting function {} : {:?} ", name, err);
@@ -68,7 +70,20 @@ pub async fn delete_function(name: String) -> Result<impl warp::Reply, warp::Rej
                 .body(format!("Could not delete function: {:?}", err)));
         },
         Ok(resp) => {
-            // TODO: delete function instances here
+            return Ok(Response::builder().status(200).body(resp));
+        }
+    }
+}
+
+pub async fn shutdown_function_instances(name: String) -> Result<impl warp::Reply, warp::Rejection> {
+    match shutdown_function_instances_via_dispatcher(&name).await {
+        Err(err) => {
+            eprintln!("Error shutting down instances for function {} : {:?} ", name, err);
+            return Ok(Response::builder()
+                .status(404)
+                .body(format!("Could not shut down instances for function: {:?}", err)));
+        },
+        Ok(resp) => {
             return Ok(Response::builder().status(200).body(resp));
         }
     }
@@ -122,4 +137,8 @@ async fn get_from_storage(name: &str) -> Result<String, Error> {
 
 async fn list_from_storage() -> Result<String, Error> {
     Ok(reqwest::get("http://localhost/storage/list_functions").await?.text().await?)
+}
+
+async fn shutdown_function_instances_via_dispatcher(name: &str) -> Result<String, Error> {
+    Ok(reqwest::get(&format!("http://localhost/dispatcher/shutdown_function_instances/{}", name)).await?.text().await?)
 }

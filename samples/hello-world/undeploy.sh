@@ -2,4 +2,4 @@
 
 CONTAINERLESS=$HOME/decontainerization/containerless/rust/target/debug/cli
 
-$CONTAINERLESS delete-function -n hello
+$CONTAINERLESS delete-function -n hi

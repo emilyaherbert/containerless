@@ -45,3 +45,10 @@ pub async fn get_mode_handler(
     let mut fm = FunctionTable::get_function(&state, &function_name).await;
     return Ok(fm.get_mode().await);
 }
+
+pub async fn shutdown_function_instances(
+    function_name: String, state: Arc<FunctionTable>,
+) -> Result<impl warp::Reply, warp::Rejection> {
+    let mut fm = FunctionTable::get_function(&state, &function_name).await;
+    return Ok(fm.shutdown().await);
+}

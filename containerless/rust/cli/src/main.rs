@@ -19,6 +19,7 @@ enum SubCommand {
     Status(Status),
     CreateFunction(CreateFunction),
     DeleteFunction(DeleteFunction),
+    ShutdownFunction(ShutdownFunction),
     GetFunction(GetFunction),
     ListFunctions(ListFunctions),
     Invoke(Invoke)
@@ -43,6 +44,14 @@ struct CreateFunction {
 #[derive(Clap)]
 struct DeleteFunction {
     /// Name of the function to delete
+    #[clap(short)]
+    name: String
+}
+
+/// Shuts down all the function instances for a particular function.
+#[derive(Clap)]
+struct ShutdownFunction {
+    /// Name of the function to shut down
     #[clap(short)]
     name: String
 }
@@ -82,6 +91,10 @@ async fn main() {
         },
         SubCommand::DeleteFunction(t) => {
             let output = containerless_shim.delete_function(&t.name).await.unwrap();
+            println!("{}", output);
+        },
+        SubCommand::ShutdownFunction(t) => {
+            let output = containerless_shim.shutdown_function_instances(&t.name).await.unwrap();
             println!("{}", output);
         },
         SubCommand::GetFunction(t) => {

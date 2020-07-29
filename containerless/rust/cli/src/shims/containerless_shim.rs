@@ -32,6 +32,10 @@ impl ContainerlessShim {
         Ok(reqwest::get(&format!("{}/delete_function/{}", self.controller, name)).await?.text().await?)
     }
 
+    pub async fn shutdown_function_instances(&self, name: &str) -> CLIResult<String> {
+        Ok(reqwest::get(&format!("{}/shutdown_function_instances/{}", self.controller, name)).await?.text().await?)
+    }
+
     pub async fn get_function(&self, name: &str) -> CLIResult<String> {
         Ok(reqwest::get(&format!("{}/get_function/{}", self.controller, name)).await?.text().await?)
     }

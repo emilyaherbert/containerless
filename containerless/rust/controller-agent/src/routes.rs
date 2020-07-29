@@ -15,6 +15,7 @@ pub fn routes(
         .or(reset_dispatcher_route(compiler.clone()))
         .or(create_function_route())
         .or(delete_function_route())
+        .or(shutdown_function_instances_route())
         .or(get_function_route())
         .or(list_functions_route())
 }
@@ -74,6 +75,12 @@ fn delete_function_route() -> impl Filter<Extract = impl warp::Reply, Error = wa
     warp::path!("delete_function" / String)
         .and(warp::get())
         .and_then(handlers::delete_function)
+}
+
+fn shutdown_function_instances_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path!("shutdown_function_instances" / String)
+        .and(warp::get())
+        .and_then(handlers::shutdown_function_instances)
 }
 
 fn get_function_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {

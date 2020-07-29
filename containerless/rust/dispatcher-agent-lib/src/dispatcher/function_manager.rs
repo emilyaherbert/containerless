@@ -40,11 +40,21 @@ impl FunctionManager {
         return fm;
     }
 
-    pub async fn shutdown(&mut self) {
-        self.send_requests
-            .send(Message::Shutdown)
-            .await
-            .unwrap_or_else(|_| panic!("error sending Message::Shutdown for {}", self.state.name));
+    pub async fn shutdown(&mut self) -> Response {
+        match self.send_requests.send(Message::Shutdown).await {
+            Err(err) => {
+                return util::text_response(
+                    500,
+                    format!("dispatcher could not shut down function instances for {}: {:?}", self.state.name, err),
+                );
+            },
+            Ok(_) => {
+                return util::text_response(
+                    200,
+                    format!("All function instances shut down for {}.", self.state.name),
+                );
+            }
+        }
     }
 
     pub async fn orphan(mut self) {
