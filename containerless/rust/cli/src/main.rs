@@ -19,7 +19,7 @@ enum SubCommand {
     Status(Status),
     CreateFunction(CreateFunction),
     DeleteFunction(DeleteFunction),
-    DescribeFunction(DescribeFunction),
+    GetFunction(GetFunction),
     ListFunctions(ListFunctions),
     Invoke(Invoke)
 }
@@ -47,10 +47,10 @@ struct DeleteFunction {
     name: String
 }
 
-/// Deletes a function.
+/// Gets the body of a function.
 #[derive(Clap)]
-struct DescribeFunction {
-    /// Name of the function to describe
+struct GetFunction {
+    /// Name of the function to get
     #[clap(short)]
     name: String
 }
@@ -62,7 +62,7 @@ struct ListFunctions { }
 /// Invokes a function.
 #[derive(Clap)]
 struct Invoke {
-    /// Name of the function to describe
+    /// Name of the function to invoke
     #[clap(short)]
     name: String
 }
@@ -80,9 +80,12 @@ async fn main() {
         SubCommand::CreateFunction(t) => {
             println!("{}", containerless_shim.create_function(&t.name, &t.filename).await.unwrap());
         },
-        SubCommand::DeleteFunction(t) => { containerless_shim.delete_function(&t.name).await.unwrap(); }
-        SubCommand::DescribeFunction(t) => {
-            let output = containerless_shim.describe_function(&t.name).await.unwrap();
+        SubCommand::DeleteFunction(t) => {
+            let output = containerless_shim.delete_function(&t.name).await.unwrap();
+            println!("{}", output);
+        },
+        SubCommand::GetFunction(t) => {
+            let output = containerless_shim.get_function(&t.name).await.unwrap();
             println!("{}", output);
         },
         SubCommand::ListFunctions(_) => {

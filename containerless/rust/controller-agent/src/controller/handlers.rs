@@ -59,6 +59,49 @@ pub async fn create_function(name: String, body: bytes::Bytes) -> Result<impl wa
     }
 }
 
+pub async fn delete_function(name: String) -> Result<impl warp::Reply, warp::Rejection> {
+    match delete_from_storage(&name).await {
+        Err(err) => {
+            eprintln!("Error deleting function {} : {:?} ", name, err);
+            return Ok(Response::builder()
+                .status(404)
+                .body(format!("Could not delete function: {:?}", err)));
+        },
+        Ok(resp) => {
+            // TODO: delete function instances here
+            return Ok(Response::builder().status(200).body(resp));
+        }
+    }
+}
+
+pub async fn get_function(name: String) -> Result<impl warp::Reply, warp::Rejection> {
+    match get_from_storage(&name).await {
+        Err(err) => {
+            eprintln!("Error describing function {} : {:?} ", name, err);
+            return Ok(Response::builder()
+                .status(404)
+                .body(format!("Could not describe function: {:?}", err)));
+        },
+        Ok(resp) => {
+            return Ok(Response::builder().status(200).body(resp));
+        }
+    }
+}
+
+pub async fn list_functions() -> Result<impl warp::Reply, warp::Rejection> {
+    match list_from_storage().await {
+        Err(err) => {
+            eprintln!("Error listing functions: {:?} ", err);
+            return Ok(Response::builder()
+                .status(404)
+                .body(format!("Could not list functions: {:?}", err)));
+        },
+        Ok(resp) => {
+            return Ok(Response::builder().status(200).body(resp));
+        }
+    }
+}
+
 async fn add_to_storage(name: &str, body: bytes::Bytes) -> Result<String, Error> {
     Ok(reqwest::Client::new()
         .post(&format!("http://localhost/storage/create_function/{}", name))
@@ -67,4 +110,16 @@ async fn add_to_storage(name: &str, body: bytes::Bytes) -> Result<String, Error>
         .await?
         .text()
         .await?)
+}
+
+async fn delete_from_storage(name: &str) -> Result<String, Error> {
+    Ok(reqwest::get(&format!("http://localhost/storage/delete_function/{}", name)).await?.text().await?)
+}
+
+async fn get_from_storage(name: &str) -> Result<String, Error> {
+    Ok(reqwest::get(&format!("http://localhost/storage/get_function/{}", name)).await?.text().await?)
+}
+
+async fn list_from_storage() -> Result<String, Error> {
+    Ok(reqwest::get("http://localhost/storage/list_functions").await?.text().await?)
 }
