@@ -92,6 +92,10 @@ export function respond(response: any) {
     return cb.respond(response);
 }
 
+export function hello() {
+    return cb.hello();
+}
+
 // Check if the application called listening. If not, blow up.
 setImmediate(() => {
     // If this library is loaded using require, this code will run after the

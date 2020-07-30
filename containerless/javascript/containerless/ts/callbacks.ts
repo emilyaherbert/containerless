@@ -5,7 +5,7 @@ import * as bodyParser from "body-parser";
 import * as state from './state';
 import { newTrace } from './tracing';
 import { newMockTrace } from './mockTracing';
-import { number, identifier } from './exp';
+import { number, identifier, string } from './exp';
 import { TracingInterface } from './types';
 
 const defaultEventArg = number(0);
@@ -253,6 +253,19 @@ export class Callbacks {
 
     public respond(response: any) {
         let [_, $response] = this.trace.popArgs();
+        this.trace.tracePrimApp('send', [$response]);
+        if(this.response !== undefined) {
+            this.response.set('X-Server-Hostname', hostname); 
+            this.response.send('' + response);
+        } else if(state.getListenPort() !== 'test') {
+            throw new Error("No express.Response found.");
+        }
+    }
+
+    public hello() {
+        let response = "Hello from JavaScript!";
+        let $response = string("Hello from Rust!");
+        let [_] = this.trace.popArgs();
         this.trace.tracePrimApp('send', [$response]);
         if(this.response !== undefined) {
             this.response.set('X-Server-Hostname', hostname); 
