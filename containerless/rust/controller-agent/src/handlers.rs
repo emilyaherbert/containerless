@@ -59,26 +59,35 @@ pub async fn create_function(name: String, body: bytes::Bytes) -> Result<impl wa
     }
 }
 
-pub async fn delete_function(name: String) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn delete_function(name: String, compiler: Arc<Compiler>) -> Result<impl warp::Reply, warp::Rejection> {
     // NOTE(emily): This is not good style, do something with combinging results or something
-    match shutdown_function_instances_via_dispatcher(&name).await {
+    match delete_from_storage(&name).await {
         Err(err) => {
-            eprintln!("Error shutting down instances for function {} : {:?} ", name, err);
-            Ok(Response::builder()
+            eprintln!("Error deleting function {} : {:?} ", name, err);
+            return Ok(Response::builder()
                 .status(404)
-                .body(format!("Could not shut down instances for function: {:?}", err)))
+                .body(format!("Could not delete function: {:?}", err)));
         },
         Ok(resp1) => {
-            // TODO: delete decontainerized version
-            match delete_from_storage(&name).await {
+            match shutdown_function_instances_via_dispatcher(&name).await {
                 Err(err) => {
-                    eprintln!("Error deleting function {} : {:?} ", name, err);
-                    return Ok(Response::builder()
+                    eprintln!("Error shutting down instances for function {} : {:?} ", name, err);
+                    Ok(Response::builder()
                         .status(404)
-                        .body(format!("Could not delete function: {:?}", err)));
+                        .body(format!("Could not shut down instances for function: {:?}", err)))
                 },
                 Ok(resp2) => {
-                    return Ok(Response::builder().status(200).body(resp1 + "\n" + &resp2));
+                    match reset_function_via_compiler(&name, compiler).await {
+                        Err(err) => {
+                            eprintln!("Error reseting function {} : {:?} ", name, err);
+                            return Ok(Response::builder()
+                                .status(404)
+                                .body(format!("Could not reset function: {:?}", err)));
+                        },
+                        Ok(resp3) => {
+                            return Ok(Response::builder().status(200).body(resp1 + "\n" + &resp2 + "\n" + &resp3));
+                        }
+                    }
                 }
             }
         }
@@ -103,7 +112,17 @@ pub async fn reset_function(
     name: String,
     compiler: Arc<Compiler>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    Ok(compiler.reset_function(&name).await)
+    match reset_function_via_compiler(&name, compiler).await {
+        Err(err) => {
+            eprintln!("Error reseting function {} : {:?} ", name, err);
+            return Ok(Response::builder()
+                .status(404)
+                .body(format!("Could not reset function: {:?}", err)));
+        },
+        Ok(resp) => {
+            return Ok(Response::builder().status(200).body(resp));
+        }
+    }
 }
 
 pub async fn get_function(name: String) -> Result<impl warp::Reply, warp::Rejection> {
@@ -158,4 +177,12 @@ async fn list_from_storage() -> Result<String, Error> {
 
 async fn shutdown_function_instances_via_dispatcher(name: &str) -> Result<String, Error> {
     Ok(reqwest::get(&format!("http://localhost/dispatcher/shutdown_function_instances/{}", name)).await?.text().await?)
+}
+
+async fn reset_function_via_compiler(name: &str, compiler: Arc<Compiler>) -> Result<String, Error> {
+    if compiler.reset_function(&name).await.is_success() {
+        Ok(format!("Trace reset for function {}!", name))
+    } else {
+        Err(Error::Containerless(format!("Trace could not be reset for function {}!", name)))
+    }
 }

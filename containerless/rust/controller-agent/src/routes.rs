@@ -14,7 +14,7 @@ pub fn routes(
         .or(restart_dispatcher_route(compiler.clone()))
         .or(reset_dispatcher_route(compiler.clone()))
         .or(create_function_route())
-        .or(delete_function_route())
+        .or(delete_function_route(compiler.clone()))
         .or(shutdown_function_instances_route())
         .or(reset_function_route(compiler.clone()))
         .or(get_function_route())
@@ -72,9 +72,10 @@ fn create_function_route() -> impl Filter<Extract = impl warp::Reply, Error = wa
         .and_then(handlers::create_function)
 }
 
-fn delete_function_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+fn delete_function_route(compiler: Arc<Compiler>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::path!("delete_function" / String)
         .and(warp::get())
+        .and(with_compiler(compiler))
         .and_then(handlers::delete_function)
 }
 

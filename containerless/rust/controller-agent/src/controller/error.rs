@@ -4,7 +4,8 @@ use std::io;
 pub enum Error {
     IO(io::Error),
     HTTP(reqwest::Error),
-    Parsing(String)
+    Parsing(String),
+    Containerless(String)
 }
 
 impl std::convert::From<reqwest::Error> for Error {

@@ -179,22 +179,47 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
             },
             Message::ResetFunction { name, started_compiling } => {
                 info!(target: "controller", "clearing compiled function {}", name);
+                let path = format!(
+                    "{}/dispatcher-agent/src/decontainerized_functions/function_{}.rs",
+                    ROOT.as_str(),
+                    &name
+                );
                 match known_functions.remove(&name) {
                     None => {
+                        known_functions.insert(name.clone(), CompileStatus::Error);
                         error!(target: "controller", "clearing compiled function {}: did not find function in known_functions", name);
+                        continue;
                     },
-                    Some(_) => {
-                        info!(target: "controller", "clearing compiled function {}: found function in known_functions", name);
-                        generate_decontainerized_functions_mod(&known_functions);
-                        if !(compiler.cargo_build(Some(started_compiling)).await) {
-                            error!(target: "controller", "The code for dispatcher-agent is in a broken state. The system may not work.");
-                            continue;
+                    Some(status) => {
+                        match status {
+                            CompileStatus::Compiled => {
+                                info!(target: "controller", "clearing compiled function {}: found function in known_functions", name);
+                                if let Err(err) = fs::remove_file(path) {
+                                    known_functions.insert(name.clone(), CompileStatus::Error);
+                                    error!(target: "controller", "error reseting trace for {}: {}", &name, err);
+                                    continue;
+                                }
+                                generate_decontainerized_functions_mod(&known_functions);
+                                if !(compiler.cargo_build(Some(started_compiling)).await) {
+                                    known_functions.insert(name.clone(), CompileStatus::Error);
+                                    error!(target: "controller", "The code for dispatcher-agent is in a broken state. The system may not work.");
+                                    continue;
+                                }
+                                next_version += 1;
+                                k8s.patch_deployment(dispatcher_deployment_spec(next_version))
+                                    .await
+                                    .expect("patching dispatcher deployment");
+                                info!(target: "controller", "Patched dispatcher deployment");
+                            },
+                            CompileStatus::Compiling => {
+                                error!(target: "controller", "trace not currently yet built for function {}", name);
+                                continue;
+                            },
+                            CompileStatus::Error => {
+                                error!(target: "controller", "calling reset on a function with an error: {}", name);
+                                continue;
+                            }
                         }
-                        next_version += 1;
-                        k8s.patch_deployment(dispatcher_deployment_spec(next_version))
-                            .await
-                            .expect("patching dispatcher deployment");
-                        info!(target: "controller", "Patched dispatcher deployment");
                     }
                 }
             },
