@@ -17,10 +17,12 @@ struct Opts {
 #[derive(Clap)]
 enum SubCommand {
     Status(Status),
-    CreateFunction(CreateFunction),
-    DeleteFunction(DeleteFunction),
-    DescribeFunction(DescribeFunction),
-    ListFunctions(ListFunctions),
+    Create(Create),
+    Delete(Delete),
+    Shutdown(Shutdown),
+    Reset(Reset),
+    Get(Get),
+    List(List),
     Invoke(Invoke)
 }
 
@@ -30,7 +32,7 @@ struct Status { }
 
 /// Creates a function.
 #[derive(Clap)]
-struct CreateFunction {
+struct Create {
     /// Name of the function to create
     #[clap(short)]
     name: String,
@@ -41,28 +43,44 @@ struct CreateFunction {
 
 /// Deletes a function.
 #[derive(Clap)]
-struct DeleteFunction {
+struct Delete {
     /// Name of the function to delete
     #[clap(short)]
     name: String
 }
 
-/// Deletes a function.
+/// Shuts down all the function instances for a particular function.
 #[derive(Clap)]
-struct DescribeFunction {
-    /// Name of the function to describe
+struct Shutdown {
+    /// Name of the function to shut down
+    #[clap(short)]
+    name: String
+}
+
+/// Resets the compiled trace for a function.
+#[derive(Clap)]
+struct Reset {
+    /// Name of the function to reset
+    #[clap(short)]
+    name: String
+}
+
+/// Gets the body of a function.
+#[derive(Clap)]
+struct Get {
+    /// Name of the function to get
     #[clap(short)]
     name: String
 }
 
 /// Lists all functions.
 #[derive(Clap)]
-struct ListFunctions { }
+struct List { }
 
 /// Invokes a function.
 #[derive(Clap)]
 struct Invoke {
-    /// Name of the function to describe
+    /// Name of the function to invoke
     #[clap(short)]
     name: String
 }
@@ -77,13 +95,26 @@ async fn main() {
             let status = k8s_shim::get_all().unwrap();
             println!("{}", status);
         },
-        SubCommand::CreateFunction(t) => { containerless_shim.create_function(&t.name, &t.filename).await.unwrap(); },
-        SubCommand::DeleteFunction(t) => { containerless_shim.delete_function(&t.name).await.unwrap(); }
-        SubCommand::DescribeFunction(t) => {
-            let output = containerless_shim.describe_function(&t.name).await.unwrap();
+        SubCommand::Create(t) => {
+            println!("{}", containerless_shim.create_function(&t.name, &t.filename).await.unwrap());
+        },
+        SubCommand::Delete(t) => {
+            let output = containerless_shim.delete_function(&t.name).await.unwrap();
             println!("{}", output);
         },
-        SubCommand::ListFunctions(_) => {
+        SubCommand::Shutdown(t) => {
+            let output = containerless_shim.shutdown_function_instances(&t.name).await.unwrap();
+            println!("{}", output);
+        },
+        SubCommand::Reset(t) => {
+            let output = containerless_shim.reset_function(&t.name).await.unwrap();
+            println!("{}", output);
+        },
+        SubCommand::Get(t) => {
+            let output = containerless_shim.get_function(&t.name).await.unwrap();
+            println!("{}", output);
+        },
+        SubCommand::List(_) => {
             let output = containerless_shim.list_functions().await.unwrap();
             println!("{}", output);
         },
@@ -92,6 +123,4 @@ async fn main() {
             println!("{}", output);
         }
     }
-
-    //Ok(())
 }

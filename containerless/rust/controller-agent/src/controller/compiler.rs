@@ -28,6 +28,10 @@ enum Message {
     ResetDispatcher {
         started_compiling: oneshot::Sender<()>,
     },
+    ResetFunction {
+        name: String,
+        started_compiling: oneshot::Sender<()>
+    }
 }
 
 #[derive(PartialEq)]
@@ -172,7 +176,63 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                     .await
                     .expect("patching dispatcher deployment");
                 info!(target: "controller", "Patched dispatcher deployment");
-            }
+            },
+            Message::ResetFunction { name, started_compiling } => {
+                info!(target: "controller", "clearing compiled function {}", name);
+                let rs_path = format!(
+                    "{}/dispatcher-agent/src/decontainerized_functions/function_{}.rs",
+                    ROOT.as_str(),
+                    &name
+                );
+                let json_path = format!(
+                    "{}/dispatcher-agent/src/decontainerized_functions/function_{}.json",
+                    ROOT.as_str(),
+                    &name
+                );
+                match known_functions.remove(&name) {
+                    None => {
+                        known_functions.insert(name.clone(), CompileStatus::Error);
+                        error!(target: "controller", "clearing compiled function {}: did not find function in known_functions", name);
+                        continue;
+                    },
+                    Some(status) => {
+                        match status {
+                            CompileStatus::Compiled => {
+                                info!(target: "controller", "clearing compiled function {}: found function in known_functions", name);
+                                if let Err(err) = fs::remove_file(rs_path) {
+                                    known_functions.insert(name.clone(), CompileStatus::Error);
+                                    error!(target: "controller", "error reseting trace for {}: {}", &name, err);
+                                    continue;
+                                }
+                                if let Err(err) = fs::remove_file(json_path) {
+                                    known_functions.insert(name.clone(), CompileStatus::Error);
+                                    error!(target: "controller", "error reseting trace for {}: {}", &name, err);
+                                    continue;
+                                }
+                                generate_decontainerized_functions_mod(&known_functions);
+                                if !(compiler.cargo_build(Some(started_compiling)).await) {
+                                    known_functions.insert(name.clone(), CompileStatus::Error);
+                                    error!(target: "controller", "The code for dispatcher-agent is in a broken state. The system may not work.");
+                                    continue;
+                                }
+                                next_version += 1;
+                                k8s.patch_deployment(dispatcher_deployment_spec(next_version))
+                                    .await
+                                    .expect("patching dispatcher deployment");
+                                info!(target: "controller", "Patched dispatcher deployment");
+                            },
+                            CompileStatus::Compiling => {
+                                error!(target: "controller", "trace not currently yet built for function {}", name);
+                                continue;
+                            },
+                            CompileStatus::Error => {
+                                error!(target: "controller", "calling reset on a function with an error: {}", name);
+                                continue;
+                            }
+                        }
+                    }
+                }
+            },
             Message::Compile { name, code } => {
                 info!(target: "controller", "compiler task received trace for {}", &name);
                 next_version += 1;
@@ -318,6 +378,16 @@ impl Compiler {
     pub async fn reset_dispatcher(&self) -> http::StatusCode {
         let (send, recv) = oneshot::channel();
         self.send_message_non_blocking(Message::ResetDispatcher {
+            started_compiling: send,
+        });
+        recv.await.expect("compiler task shutdown");
+        return http::StatusCode::OK;
+    }
+
+    pub async fn reset_function(&self, name: &str) -> http::StatusCode {
+        let (send, recv) = oneshot::channel();
+        self.send_message_non_blocking(Message::ResetFunction {
+            name: name.to_string(),
             started_compiling: send,
         });
         recv.await.expect("compiler task shutdown");

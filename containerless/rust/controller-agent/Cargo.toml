@@ -20,9 +20,10 @@ bytes = "*"
 lazy_static = "*"
 duct = "*"
 im-rc = "*"
-serde = { version = "*", features = ["derive"] }
 serde_json = "*"
+serde = { version = "1.0", features = ["derive"] }
 quote = "*"
 proc-macro2 = "*"
 syn = "*"
 http = "*"
+reqwest = { version = "0.10", features = ["json"] }

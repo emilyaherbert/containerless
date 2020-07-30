@@ -28,14 +28,14 @@ fn echo_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
 }
 
 fn get_function_route(storage: SharedStorage) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    warp::path!("get-function" / String)
+    warp::path!("get_function" / String)
         .and(warp::get())
         .and(with_storage(storage))
         .and_then(handlers::get_function)
 }
 
 fn create_function_route(storage: SharedStorage) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    warp::path!("create-function" / String)
+    warp::path!("create_function" / String)
         .and(warp::post())
         .and(warp::body::json())
         .and(with_storage(storage))
@@ -43,14 +43,14 @@ fn create_function_route(storage: SharedStorage) -> impl Filter<Extract = impl w
 }
 
 fn delete_function_route(storage: SharedStorage) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    warp::path!("delete-function" / String)
+    warp::path!("delete_function" / String)
         .and(warp::get())
         .and(with_storage(storage))
         .and_then(handlers::delete_function)
 }
 
 fn list_functions_route(storage: SharedStorage) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    warp::path!("list-functions")
+    warp::path!("list_functions")
         .and(warp::get())
         .and(with_storage(storage))
         .and_then(handlers::list_functions)

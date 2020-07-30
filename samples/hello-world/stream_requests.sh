@@ -2,4 +2,8 @@
 
 CONTAINERLESS=$HOME/decontainerization/containerless/rust/target/debug/cli
 
-$CONTAINERLESS delete -n hi
+while :
+do
+  sleep 1s
+  $CONTAINERLESS invoke -n hi
+done

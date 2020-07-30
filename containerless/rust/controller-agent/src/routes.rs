@@ -13,6 +13,12 @@ pub fn routes(
         .or(is_compiling_route(compiler.clone()))
         .or(restart_dispatcher_route(compiler.clone()))
         .or(reset_dispatcher_route(compiler.clone()))
+        .or(create_function_route())
+        .or(delete_function_route(compiler.clone()))
+        .or(shutdown_function_instances_route())
+        .or(reset_function_route(compiler.clone()))
+        .or(get_function_route())
+        .or(list_functions_route())
 }
 
 fn ready_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
@@ -57,6 +63,45 @@ fn reset_dispatcher_route(compiler: Arc<Compiler>) -> impl Filter<Extract = impl
         .and(warp::post())
         .and(with_compiler(compiler))
         .and_then(handlers::reset_dispatcher_handler)
+}
+
+fn create_function_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path!("create_function" / String)
+        .and(warp::post())
+        .and(warp::body::bytes())
+        .and_then(handlers::create_function)
+}
+
+fn delete_function_route(compiler: Arc<Compiler>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path!("delete_function" / String)
+        .and(warp::get())
+        .and(with_compiler(compiler))
+        .and_then(handlers::delete_function)
+}
+
+fn shutdown_function_instances_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path!("shutdown_function_instances" / String)
+        .and(warp::get())
+        .and_then(handlers::shutdown_function_instances)
+}
+
+fn reset_function_route(compiler: Arc<Compiler>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path!("reset_function" / String)
+        .and(warp::get())
+        .and(with_compiler(compiler))
+        .and_then(handlers::reset_function)
+}
+
+fn get_function_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path!("get_function" / String)
+        .and(warp::get())
+        .and_then(handlers::get_function)
+}
+
+fn list_functions_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path!("list_functions")
+        .and(warp::get())
+        .and_then(handlers::list_functions)
 }
 
 fn with_compiler(compiler: Arc<Compiler>) -> impl Filter<Extract = (Arc<Compiler>,), Error = std::convert::Infallible> + Clone {

@@ -2,4 +2,4 @@
 
 CONTAINERLESS=$HOME/decontainerization/containerless/rust/target/debug/cli
 
-$CONTAINERLESS create-function -n hello -f helloWorld.js
+$CONTAINERLESS create -n hi -f helloWorld.js
