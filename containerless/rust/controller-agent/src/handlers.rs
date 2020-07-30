@@ -99,6 +99,13 @@ pub async fn shutdown_function_instances(name: String) -> Result<impl warp::Repl
     }
 }
 
+pub async fn reset_function(
+    name: String,
+    compiler: Arc<Compiler>,
+) -> Result<impl warp::Reply, warp::Rejection> {
+    Ok(compiler.reset_function(&name).await)
+}
+
 pub async fn get_function(name: String) -> Result<impl warp::Reply, warp::Rejection> {
     match get_from_storage(&name).await {
         Err(err) => {

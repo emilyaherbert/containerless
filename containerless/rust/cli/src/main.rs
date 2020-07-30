@@ -20,6 +20,7 @@ enum SubCommand {
     Create(Create),
     Delete(Delete),
     Shutdown(Shutdown),
+    Reset(Reset),
     Get(Get),
     List(List),
     Invoke(Invoke)
@@ -52,6 +53,14 @@ struct Delete {
 #[derive(Clap)]
 struct Shutdown {
     /// Name of the function to shut down
+    #[clap(short)]
+    name: String
+}
+
+/// Resets the compiled trace for a function.
+#[derive(Clap)]
+struct Reset {
+    /// Name of the function to reset
     #[clap(short)]
     name: String
 }
@@ -95,6 +104,10 @@ async fn main() {
         },
         SubCommand::Shutdown(t) => {
             let output = containerless_shim.shutdown_function_instances(&t.name).await.unwrap();
+            println!("{}", output);
+        },
+        SubCommand::Reset(t) => {
+            let output = containerless_shim.reset_function(&t.name).await.unwrap();
             println!("{}", output);
         },
         SubCommand::Get(t) => {
