@@ -179,8 +179,13 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
             },
             Message::ResetFunction { name, started_compiling } => {
                 info!(target: "controller", "clearing compiled function {}", name);
-                let path = format!(
+                let rs_path = format!(
                     "{}/dispatcher-agent/src/decontainerized_functions/function_{}.rs",
+                    ROOT.as_str(),
+                    &name
+                );
+                let json_path = format!(
+                    "{}/dispatcher-agent/src/decontainerized_functions/function_{}.json",
                     ROOT.as_str(),
                     &name
                 );
@@ -194,7 +199,12 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                         match status {
                             CompileStatus::Compiled => {
                                 info!(target: "controller", "clearing compiled function {}: found function in known_functions", name);
-                                if let Err(err) = fs::remove_file(path) {
+                                if let Err(err) = fs::remove_file(rs_path) {
+                                    known_functions.insert(name.clone(), CompileStatus::Error);
+                                    error!(target: "controller", "error reseting trace for {}: {}", &name, err);
+                                    continue;
+                                }
+                                if let Err(err) = fs::remove_file(json_path) {
                                     known_functions.insert(name.clone(), CompileStatus::Error);
                                     error!(target: "controller", "error reseting trace for {}: {}", &name, err);
                                     continue;
