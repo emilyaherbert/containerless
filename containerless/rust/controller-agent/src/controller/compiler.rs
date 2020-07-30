@@ -181,9 +181,10 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                 info!(target: "controller", "clearing compiled function {}", name);
                 match known_functions.remove(&name) {
                     None => {
-                        error!(target: "controller", "Failed to clear the compiled trace for function {}", name);
+                        error!(target: "controller", "clearing compiled function {}: did not find function in known_functions", name);
                     },
                     Some(_) => {
+                        info!(target: "controller", "clearing compiled function {}: found function in known_functions", name);
                         generate_decontainerized_functions_mod(&known_functions);
                         if !(compiler.cargo_build(Some(started_compiling)).await) {
                             error!(target: "controller", "The code for dispatcher-agent is in a broken state. The system may not work.");
@@ -191,8 +192,8 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                         }
                         next_version += 1;
                         k8s.patch_deployment(dispatcher_deployment_spec(next_version))
-                        .await
-                        .expect("patching dispatcher deployment");
+                            .await
+                            .expect("patching dispatcher deployment");
                         info!(target: "controller", "Patched dispatcher deployment");
                     }
                 }

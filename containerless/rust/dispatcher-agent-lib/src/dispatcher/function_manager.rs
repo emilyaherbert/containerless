@@ -76,7 +76,6 @@ impl FunctionManager {
             },
             send: send_resp,
         };
-        error!(target: "dispatcher", "{}, {}, {}", self.state.name, self.state.tracing_pod_name, self.state.vanilla_name);
         self.send_requests
             .send(Message::Request(req))
             .await
