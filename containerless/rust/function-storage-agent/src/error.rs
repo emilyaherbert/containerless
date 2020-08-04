@@ -4,7 +4,7 @@ use std::io;
 pub enum Error {
     IO(io::Error),
     FileNotFound(String),
-    FileConflict(String)
+    FileConflict(String),
 }
 
 impl std::convert::From<io::Error> for Error {

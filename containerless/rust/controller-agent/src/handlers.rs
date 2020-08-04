@@ -1,15 +1,15 @@
-use crate::controller::common::*;
 use super::compiler::Compiler;
+use crate::controller::common::*;
 use crate::controller::error::Error;
 
 use shared::file_contents::FileContents;
 
 use bytes;
 use hyper::Response;
+use std::env;
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::process::{Command, Stdio};
-use std::env;
 
 pub async fn ready() -> Result<impl warp::Reply, warp::Rejection> {
     Ok(Response::builder().status(200).body("Controller agent\n"))
@@ -41,10 +41,15 @@ pub async fn reset_dispatcher_handler(
     Ok(compiler.reset_dispatcher().await)
 }
 
-pub async fn create_function(name: String, contents: FileContents, compiler: Arc<Compiler>) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn create_function(
+    name: String, contents: FileContents, compiler: Arc<Compiler>,
+) -> Result<impl warp::Reply, warp::Rejection> {
     let acceptable_chars: Vec<char> = "abcdefghijklmnopqrstuvwxyz1234567890.-".chars().collect();
     if !name.chars().all(|c| acceptable_chars.contains(&c)) {
-        let err = Error::Parsing("Function names can only contain lower case alphanumeric characters, '.', and ','.".to_string());
+        let err = Error::Parsing(
+            "Function names can only contain lower case alphanumeric characters, '.', and ','."
+                .to_string(),
+        );
         error!(target: "controller", "Error creating function {} : {:?} ", name, err);
         return Ok(Response::builder()
             .status(404)
@@ -67,10 +72,14 @@ pub async fn create_function(name: String, contents: FileContents, compiler: Arc
             .status(404)
             .body(format!("Could not create function: {:?}", err)));
     }
-    return Ok(Response::builder().status(200).body(format!("Function {} successfully created!", name)));
+    return Ok(Response::builder()
+        .status(200)
+        .body(format!("Function {} successfully created!", name)));
 }
 
-pub async fn delete_function(name: String, compiler: Arc<Compiler>) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn delete_function(
+    name: String, compiler: Arc<Compiler>,
+) -> Result<impl warp::Reply, warp::Rejection> {
     if let Err(err) = reset_function_via_compiler(&name, compiler).await {
         error!(target: "controller", "Error reseting function {} : {:?} ", name, err);
         return Ok(Response::builder()
@@ -85,30 +94,33 @@ pub async fn delete_function(name: String, compiler: Arc<Compiler>) -> Result<im
     }
     if let Err(err) = shutdown_function_instances_via_dispatcher(&name).await {
         error!(target: "controller", "Error shutting down instances for function {} : {:?} ", name, err);
-        return Ok(Response::builder()
-            .status(404)
-            .body(format!("Could not shut down instances for function: {:?}", err)));
+        return Ok(Response::builder().status(404).body(format!(
+            "Could not shut down instances for function: {:?}",
+            err
+        )));
     }
-    return Ok(Response::builder().status(200).body(format!("Function {} successfully deleted!", name)));
+    return Ok(Response::builder()
+        .status(200)
+        .body(format!("Function {} successfully deleted!", name)));
 }
 
-pub async fn shutdown_function_instances(name: String) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn shutdown_function_instances(
+    name: String,
+) -> Result<impl warp::Reply, warp::Rejection> {
     match shutdown_function_instances_via_dispatcher(&name).await {
         Err(err) => {
             error!(target: "controller", "Error shutting down instances for function {} : {:?} ", name, err);
-            Ok(Response::builder()
-                .status(404)
-                .body(format!("Could not shut down instances for function: {:?}", err)))
-        },
-        Ok(resp) => {
-            Ok(Response::builder().status(200).body(resp))
+            Ok(Response::builder().status(404).body(format!(
+                "Could not shut down instances for function: {:?}",
+                err
+            )))
         }
+        Ok(resp) => Ok(Response::builder().status(200).body(resp)),
     }
 }
 
 pub async fn reset_function(
-    name: String,
-    compiler: Arc<Compiler>,
+    name: String, compiler: Arc<Compiler>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     match reset_function_via_compiler(&name, compiler).await {
         Err(err) => {
@@ -116,7 +128,7 @@ pub async fn reset_function(
             return Ok(Response::builder()
                 .status(404)
                 .body(format!("Could not reset function: {:?}", err)));
-        },
+        }
         Ok(resp) => {
             return Ok(Response::builder().status(200).body(resp));
         }
@@ -130,7 +142,7 @@ pub async fn get_function(name: String) -> Result<impl warp::Reply, warp::Reject
             return Ok(Response::builder()
                 .status(404)
                 .body(format!("Could not describe function: {:?}", err)));
-        },
+        }
         Ok(resp) => {
             return Ok(Response::builder().status(200).body(resp));
         }
@@ -144,7 +156,7 @@ pub async fn list_functions() -> Result<impl warp::Reply, warp::Rejection> {
             return Ok(Response::builder()
                 .status(404)
                 .body(format!("Could not list functions: {:?}", err)));
-        },
+        }
         Ok(resp) => {
             return Ok(Response::builder().status(200).body(resp));
         }
@@ -153,7 +165,10 @@ pub async fn list_functions() -> Result<impl warp::Reply, warp::Rejection> {
 
 async fn add_to_storage(name: &str, contents: FileContents) -> Result<String, Error> {
     Ok(reqwest::Client::new()
-        .post(&format!("http://localhost/storage/create_function/{}", name))
+        .post(&format!(
+            "http://localhost/storage/create_function/{}",
+            name
+        ))
         .json(&contents)
         .send()
         .await?
@@ -165,37 +180,63 @@ async fn add_to_compiler(name: &str, compiler: Arc<Compiler>) -> Result<String, 
     if compiler.create_function(&name).await.is_success() {
         Ok(format!("Function {} created!", name))
     } else {
-        Err(Error::Containerless(format!("Function {} could not be created.", name)))
+        Err(Error::Containerless(format!(
+            "Function {} could not be created.",
+            name
+        )))
     }
 }
 
 async fn delete_from_storage(name: &str) -> Result<String, Error> {
-    Ok(reqwest::get(&format!("http://localhost/storage/delete_function/{}", name)).await?.text().await?)
+    Ok(reqwest::get(&format!(
+        "http://localhost/storage/delete_function/{}",
+        name
+    ))
+    .await?
+    .text()
+    .await?)
 }
 
 async fn get_from_storage(name: &str) -> Result<String, Error> {
-    Ok(reqwest::get(&format!("http://localhost/storage/get_function/{}", name)).await?.text().await?)
+    Ok(
+        reqwest::get(&format!("http://localhost/storage/get_function/{}", name))
+            .await?
+            .text()
+            .await?,
+    )
 }
 
 async fn list_from_storage() -> Result<String, Error> {
-    Ok(reqwest::get("http://localhost/storage/list_functions").await?.text().await?)
+    Ok(reqwest::get("http://localhost/storage/list_functions")
+        .await?
+        .text()
+        .await?)
 }
 
 async fn shutdown_function_instances_via_dispatcher(name: &str) -> Result<String, Error> {
-    Ok(reqwest::get(&format!("http://localhost/dispatcher/shutdown_function_instances/{}", name)).await?.text().await?)
+    Ok(reqwest::get(&format!(
+        "http://localhost/dispatcher/shutdown_function_instances/{}",
+        name
+    ))
+    .await?
+    .text()
+    .await?)
 }
 
 async fn reset_function_via_compiler(name: &str, compiler: Arc<Compiler>) -> Result<String, Error> {
     if compiler.reset_function(&name).await.is_success() {
         Ok(format!("Trace reset for function {}!", name))
     } else {
-        Err(Error::Containerless(format!("Trace could not be reset for function {}!", name)))
+        Err(Error::Containerless(format!(
+            "Trace could not be reset for function {}!",
+            name
+        )))
     }
 }
 
 fn check_function_compatibility(code: &str) -> Result<String, Error> {
     let mut path_vec: Vec<&str> = env!("CARGO_MANIFEST_DIR").split("/").collect();
-    path_vec.truncate(path_vec.len()-2);
+    path_vec.truncate(path_vec.len() - 2);
     path_vec.push("javascript");
     path_vec.push("js-transform");
     path_vec.push("dist");

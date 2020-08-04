@@ -1,5 +1,5 @@
-use crate::error::*;
 use super::types::*;
+use crate::error::*;
 use futures::future::FutureExt;
 use futures::prelude::*;
 use futures_retry::{FutureRetry, RetryPolicy};

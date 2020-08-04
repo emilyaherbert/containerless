@@ -6,7 +6,7 @@ pub enum Error {
     IO(io::Error),
     Parsing(String),
     Configuration(String),
-    HTTP(reqwest::Error)
+    HTTP(reqwest::Error),
 }
 
 pub type CLIResult<T> = Result<T, Error>;

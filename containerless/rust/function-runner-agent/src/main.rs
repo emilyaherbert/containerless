@@ -43,7 +43,11 @@ async fn monitor_nodejs_process(handle: process::Child) -> () {
 }
 
 async fn initialize(function_name: String, tracing_enabled: bool) -> Result<(), error::Error> {
-    let resp = reqwest::get(&format!("http://storage:8080/get_function/{}", &function_name)).await?;
+    let resp = reqwest::get(&format!(
+        "http://storage:8080/get_function/{}",
+        &function_name
+    ))
+    .await?;
     let function_code = resp.text().await?;
     eprintln!("Downloaded function ({} bytes)", function_code.len());
     eprintln!("Function code: {}", function_code);

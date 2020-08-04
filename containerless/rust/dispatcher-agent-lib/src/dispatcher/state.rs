@@ -1,9 +1,9 @@
 use super::autoscaler::Autoscaler;
-use crate::error::*;
 use super::function_table::FunctionTable;
+use super::serverless_request::*;
 use super::types::*;
 use super::util;
-use super::serverless_request::*;
+use crate::error::*;
 
 use futures::prelude::*;
 use hyper::header::HeaderValue;
@@ -397,7 +397,7 @@ impl State {
                 }
                 (_, Message::Shutdown) => {
                     return State::shutdown(self_, mode).await;
-                },
+                }
                 (_, Message::GetMode(send)) => {
                     util::send_log_error(send, util::text_response(200, format!("{}", mode)));
                 }

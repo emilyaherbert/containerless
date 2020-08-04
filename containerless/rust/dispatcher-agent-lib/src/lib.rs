@@ -1,12 +1,12 @@
-mod error;
-pub mod trace_runtime;
 mod dispatcher;
-mod routes;
+mod error;
 mod handlers;
+mod routes;
+pub mod trace_runtime;
 
 use dispatcher::function_table::FunctionTable;
-use tokio::signal::unix::{signal, SignalKind};
 use dispatcher::{types, types::*};
+use tokio::signal::unix::{signal, SignalKind};
 
 #[macro_use]
 extern crate log;

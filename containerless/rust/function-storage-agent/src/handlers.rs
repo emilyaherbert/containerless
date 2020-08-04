@@ -11,12 +11,12 @@ pub async fn ping() -> Result<impl warp::Reply, warp::Rejection> {
 }
 
 pub async fn echo(message: String) -> Result<impl warp::Reply, warp::Rejection> {
-    return Ok(Response::builder()
-        .status(200)
-        .body(message));
+    return Ok(Response::builder().status(200).body(message));
 }
 
-pub async fn get_function(path: String, storage: SharedStorage) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn get_function(
+    path: String, storage: SharedStorage,
+) -> Result<impl warp::Reply, warp::Rejection> {
     let mut storage = storage.lock().await;
     match storage.get(&path) {
         Err(err) => {
@@ -24,14 +24,16 @@ pub async fn get_function(path: String, storage: SharedStorage) -> Result<impl w
             return Ok(Response::builder()
                 .status(404)
                 .body(format!("Could not read function {}.\n{:?}", path, err)));
-        },
+        }
         Ok(file) => {
             return Ok(Response::builder().status(200).body(file.contents));
         }
     }
 }
 
-pub async fn create_function(path: String, contents: FileContents, storage: SharedStorage) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn create_function(
+    path: String, contents: FileContents, storage: SharedStorage,
+) -> Result<impl warp::Reply, warp::Rejection> {
     let mut storage = storage.lock().await;
     match storage.set(&path, &contents.contents) {
         Err(err) => {
@@ -39,14 +41,18 @@ pub async fn create_function(path: String, contents: FileContents, storage: Shar
             return Ok(Response::builder()
                 .status(404)
                 .body(format!("Could not create function {}.\n{:?}", path, err)));
-        },
+        }
         Ok(_file) => {
-            return Ok(Response::builder().status(200).body(format!("{} created!", path)));
+            return Ok(Response::builder()
+                .status(200)
+                .body(format!("{} created!", path)));
         }
     }
 }
 
-pub async fn delete_function(path: String, storage: SharedStorage) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn delete_function(
+    path: String, storage: SharedStorage,
+) -> Result<impl warp::Reply, warp::Rejection> {
     let mut storage = storage.lock().await;
     match storage.remove(&path) {
         Err(err) => {
@@ -54,9 +60,11 @@ pub async fn delete_function(path: String, storage: SharedStorage) -> Result<imp
             return Ok(Response::builder()
                 .status(404)
                 .body(format!("Could not delete function {}.\n{:?}", path, err)));
-        },
+        }
         Ok(_file) => {
-            return Ok(Response::builder().status(200).body(format!("{} deleted!", path)));
+            return Ok(Response::builder()
+                .status(200)
+                .body(format!("{} deleted!", path)));
         }
     }
 }
