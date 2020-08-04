@@ -13,3 +13,4 @@ machine-ip = "*"
 tokio = { version = "*", features = [ "rt-threaded", "time", "macros", "process" ] }
 reqwest = "*"
 thiserror = "*"
+serde = { version = "1.0", features = ["derive"] }

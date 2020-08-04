@@ -1,8 +1,8 @@
 use super::function_table::FunctionTable;
+use super::serverless_request::*;
+use super::state::{CreateMode, State};
 use super::types::*;
 use super::util;
-use super::state::{State, CreateMode};
-use super::serverless_request::*;
 
 use futures::prelude::*;
 use tokio::task;
@@ -45,9 +45,12 @@ impl FunctionManager {
             Err(err) => {
                 return util::text_response(
                     500,
-                    format!("dispatcher could not shut down function instances for {}: {:?}", self.state.name, err),
+                    format!(
+                        "dispatcher could not shut down function instances for {}: {:?}",
+                        self.state.name, err
+                    ),
                 );
-            },
+            }
             Ok(_) => {
                 return util::text_response(
                     200,
@@ -83,7 +86,7 @@ impl FunctionManager {
         match recv_resp.await {
             Ok(result) => {
                 return result;
-            },
+            }
             Err(futures::channel::oneshot::Canceled) => {
                 error!(target: "dispatcher", "dispatcher shutdown before before request for {} could be made", self.state.name);
                 return Ok(hyper::Response::builder()

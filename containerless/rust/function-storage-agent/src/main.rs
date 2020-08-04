@@ -1,7 +1,10 @@
-mod storage;
-mod routes;
-mod handlers;
+#[macro_use]
+extern crate log;
+
 mod error;
+mod handlers;
+mod routes;
+mod storage;
 
 use storage::Storage;
 
@@ -11,6 +14,8 @@ use storage::Storage;
 #[tokio::main]
 async fn main() {
     let storage = Storage::new_shared_storage();
-    warp::serve(routes::routes(storage)).run(([0, 0, 0, 0], 8080)).await;
+    warp::serve(routes::routes(storage))
+        .run(([0, 0, 0, 0], 8080))
+        .await;
     println!("Function Runner Agent terminated");
 }
