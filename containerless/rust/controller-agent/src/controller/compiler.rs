@@ -28,6 +28,10 @@ enum Message {
     ResetDispatcher {
         started_compiling: oneshot::Sender<()>,
     },
+    CreateFunction {
+        name: String,
+        done: oneshot::Sender<()>,
+    },
     ResetFunction {
         name: String,
         started_compiling: oneshot::Sender<()>
@@ -36,6 +40,7 @@ enum Message {
 
 #[derive(PartialEq)]
 enum CompileStatus {
+    Vanilla,
     Compiling,
     Compiled,
     Error,
@@ -177,6 +182,15 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                     .expect("patching dispatcher deployment");
                 info!(target: "controller", "Patched dispatcher deployment");
             },
+            Message::CreateFunction { name, done } => {
+                if known_functions.contains_key(&name) {
+                    known_functions.insert(name.clone(), CompileStatus::Error);
+                    error!(target: "controller", "creating function {} twice", name);
+                    continue;
+                }
+                known_functions.insert(name.clone(), CompileStatus::Vanilla);
+                done.send(()).expect("sending done");
+            },
             Message::ResetFunction { name, started_compiling } => {
                 info!(target: "controller", "clearing compiled function {}", name);
                 let rs_path = format!(
@@ -197,6 +211,10 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                     },
                     Some(status) => {
                         match status {
+                            CompileStatus::Vanilla => {
+                                info!(target: "controller", "calling reset on vanilla function: {}", name);
+                                started_compiling.send(()).expect("sending done");
+                            },
                             CompileStatus::Compiled => {
                                 info!(target: "controller", "clearing compiled function {}: found function in known_functions", name);
                                 if let Err(err) = fs::remove_file(rs_path) {
@@ -276,7 +294,7 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                     .await
                     .expect("patching dispatcher deployment");
                 info!(target: "controller", "Patched dispatcher deployment");
-            }
+            },
             Message::Shutdown { done } => {
                 super::graceful_sigterm::delete_dynamic_resources(&k8s, true)
                     .await
@@ -389,6 +407,16 @@ impl Compiler {
         self.send_message_non_blocking(Message::ResetFunction {
             name: name.to_string(),
             started_compiling: send,
+        });
+        recv.await.expect("compiler task shutdown");
+        return http::StatusCode::OK;
+    }
+
+    pub async fn create_function(&self, name: &str) -> http::StatusCode {
+        let (send, recv) = oneshot::channel();
+        self.send_message_non_blocking(Message::CreateFunction {
+            name: name.to_string(),
+            done: send
         });
         recv.await.expect("compiler task shutdown");
         return http::StatusCode::OK;

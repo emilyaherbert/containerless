@@ -2,8 +2,12 @@ use crate::controller::common::*;
 use super::compiler::Compiler;
 use crate::controller::error::Error;
 
+use shared::file_contents::FileContents;
+
 use bytes;
 use hyper::Response;
+use std::process::{Command, Stdio};
+use std::env;
 
 pub async fn ready() -> Result<impl warp::Reply, warp::Rejection> {
     Ok(Response::builder().status(200).body("Controller agent\n"))
@@ -35,69 +39,56 @@ pub async fn reset_dispatcher_handler(
     Ok(compiler.reset_dispatcher().await)
 }
 
-pub async fn create_function(name: String, body: bytes::Bytes) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn create_function(name: String, contents: FileContents, compiler: Arc<Compiler>) -> Result<impl warp::Reply, warp::Rejection> {
     let acceptable_chars: Vec<char> = "abcdefghijklmnopqrstuvwxyz1234567890.-".chars().collect();
     if !name.chars().all(|c| acceptable_chars.contains(&c)) {
         let err = Error::Parsing("Function names can only contain lower case alphanumeric characters, '.', and ','.".to_string());
-        eprintln!("Error creating function {} : {:?} ", name, err);
+        error!(target: "controller", "Error creating function {} : {:?} ", name, err);
         return Ok(Response::builder()
             .status(404)
             .body(format!("Could not create function: {:?}", err)));
     }
-    info!("Adding function to storage...");
-    match add_to_storage(&name, body).await {
-        Err(err) => {
-            eprintln!("Error creating function {} : {:?} ", name, err);
-            return Ok(Response::builder()
-                .status(404)
-                .body(format!("Could not create function: {:?}", err)));
-        },
-        Ok(resp) => { 
-            // TODO: test function here
-            return Ok(Response::builder().status(200).body(resp));
-        }
+    if let Err(err) = add_to_compiler(&name, compiler).await {
+        error!(target: "controller", "Error adding function {} to compiler : {:?} ", name, err);
+        return Ok(Response::builder()
+            .status(404)
+            .body(format!("Could not create function: {:?}", err)));
     }
+    if let Err(err) = add_to_storage(&name, contents).await {
+        error!(target: "controller", "Error adding function {} to storage : {:?} ", name, err);
+        return Ok(Response::builder()
+            .status(404)
+            .body(format!("Could not create function: {:?}", err)));
+    }
+    return Ok(Response::builder().status(200).body(format!("Function {} successfully created!", name)));
 }
 
 pub async fn delete_function(name: String, compiler: Arc<Compiler>) -> Result<impl warp::Reply, warp::Rejection> {
-    // NOTE(emily): This is not good style, do something with combinging results or something
-    match delete_from_storage(&name).await {
-        Err(err) => {
-            eprintln!("Error deleting function {} : {:?} ", name, err);
-            return Ok(Response::builder()
-                .status(404)
-                .body(format!("Could not delete function: {:?}", err)));
-        },
-        Ok(resp1) => {
-            match shutdown_function_instances_via_dispatcher(&name).await {
-                Err(err) => {
-                    eprintln!("Error shutting down instances for function {} : {:?} ", name, err);
-                    Ok(Response::builder()
-                        .status(404)
-                        .body(format!("Could not shut down instances for function: {:?}", err)))
-                },
-                Ok(resp2) => {
-                    match reset_function_via_compiler(&name, compiler).await {
-                        Err(err) => {
-                            eprintln!("Error reseting function {} : {:?} ", name, err);
-                            return Ok(Response::builder()
-                                .status(404)
-                                .body(format!("Could not reset function: {:?}", err)));
-                        },
-                        Ok(resp3) => {
-                            return Ok(Response::builder().status(200).body(resp1 + "\n" + &resp2 + "\n" + &resp3));
-                        }
-                    }
-                }
-            }
-        }
+    if let Err(err) = reset_function_via_compiler(&name, compiler).await {
+        error!(target: "controller", "Error reseting function {} : {:?} ", name, err);
+        return Ok(Response::builder()
+            .status(404)
+            .body(format!("Could not reset function: {:?}", err)));
     }
+    if let Err(err) = delete_from_storage(&name).await {
+        error!(target: "controller", "Error deleting function {} : {:?} ", name, err);
+        return Ok(Response::builder()
+            .status(404)
+            .body(format!("Could not delete function: {:?}", err)));
+    }
+    if let Err(err) = shutdown_function_instances_via_dispatcher(&name).await {
+        error!(target: "controller", "Error shutting down instances for function {} : {:?} ", name, err);
+        return Ok(Response::builder()
+            .status(404)
+            .body(format!("Could not shut down instances for function: {:?}", err)));
+    }
+    return Ok(Response::builder().status(200).body(format!("Function {} successfully deleted!", name)));
 }
 
 pub async fn shutdown_function_instances(name: String) -> Result<impl warp::Reply, warp::Rejection> {
     match shutdown_function_instances_via_dispatcher(&name).await {
         Err(err) => {
-            eprintln!("Error shutting down instances for function {} : {:?} ", name, err);
+            error!(target: "controller", "Error shutting down instances for function {} : {:?} ", name, err);
             Ok(Response::builder()
                 .status(404)
                 .body(format!("Could not shut down instances for function: {:?}", err)))
@@ -114,7 +105,7 @@ pub async fn reset_function(
 ) -> Result<impl warp::Reply, warp::Rejection> {
     match reset_function_via_compiler(&name, compiler).await {
         Err(err) => {
-            eprintln!("Error reseting function {} : {:?} ", name, err);
+            error!("Error reseting function {} : {:?} ", name, err);
             return Ok(Response::builder()
                 .status(404)
                 .body(format!("Could not reset function: {:?}", err)));
@@ -128,7 +119,7 @@ pub async fn reset_function(
 pub async fn get_function(name: String) -> Result<impl warp::Reply, warp::Rejection> {
     match get_from_storage(&name).await {
         Err(err) => {
-            eprintln!("Error describing function {} : {:?} ", name, err);
+            error!("Error describing function {} : {:?} ", name, err);
             return Ok(Response::builder()
                 .status(404)
                 .body(format!("Could not describe function: {:?}", err)));
@@ -142,7 +133,7 @@ pub async fn get_function(name: String) -> Result<impl warp::Reply, warp::Reject
 pub async fn list_functions() -> Result<impl warp::Reply, warp::Rejection> {
     match list_from_storage().await {
         Err(err) => {
-            eprintln!("Error listing functions: {:?} ", err);
+            error!("Error listing functions: {:?} ", err);
             return Ok(Response::builder()
                 .status(404)
                 .body(format!("Could not list functions: {:?}", err)));
@@ -153,14 +144,22 @@ pub async fn list_functions() -> Result<impl warp::Reply, warp::Rejection> {
     }
 }
 
-async fn add_to_storage(name: &str, body: bytes::Bytes) -> Result<String, Error> {
+async fn add_to_storage(name: &str, contents: FileContents) -> Result<String, Error> {
     Ok(reqwest::Client::new()
         .post(&format!("http://localhost/storage/create_function/{}", name))
-        .body(body)
+        .json(&contents)
         .send()
         .await?
         .text()
         .await?)
+}
+
+async fn add_to_compiler(name: &str, compiler: Arc<Compiler>) -> Result<String, Error> {
+    if compiler.create_function(&name).await.is_success() {
+        Ok(format!("Function {} created!", name))
+    } else {
+        Err(Error::Containerless(format!("Function {} could not be created.", name)))
+    }
 }
 
 async fn delete_from_storage(name: &str) -> Result<String, Error> {
@@ -185,4 +184,72 @@ async fn reset_function_via_compiler(name: &str, compiler: Arc<Compiler>) -> Res
     } else {
         Err(Error::Containerless(format!("Trace could not be reset for function {}!", name)))
     }
+}
+
+fn check_function_compatibility() -> Result<String, Error> {
+    /*
+    let output = process::Command::new("./javascript/js-transform.sh")
+        .arg("index.js")
+        .stderr(Stdio::inherit())
+        .output()
+        .await?;
+    eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+    if output.status.success() == false {
+        println!("{}", String::from_utf8_lossy(&output.stdout));
+        eprintln!("js-transform aborted with exit code {:?}", output.status);
+        return Err(error::Error::CompileError);
+    }
+
+    let mut traced = File::create("traced.js").await?;
+    traced.write_all(&output.stdout).await?;
+    eprintln!("Trace compilation complete.");
+    */
+
+    let mut path_vec: Vec<&str> = env!("CARGO_MANIFEST_DIR").split("/").collect();
+    path_vec.truncate(path_vec.len()-2);
+    path_vec.push("javascript");
+    path_vec.push("js-transform");
+    path_vec.push("dist");
+    path_vec.push("index.js");
+    let path = path_vec.join("/");
+
+    /*
+    let mut transform = Command::new("node")
+        .arg(path)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()?;
+
+    transform
+        .stdin
+        .as_mut()
+        .expect("opening stdin")
+        .write_all(code.as_bytes())
+        .expect("Failed to pipe code to transform.");
+
+    let exit = transform.wait().unwrap();
+    println!("Finished with status {:?}", exit);
+
+    let out = if let Some(ref mut stdout) = transform.stdout {
+        let mut br = BufReader::new(stdout);
+        let mut s = String::new();
+        br.read_to_string(&mut s)
+            .expect("Could not read BufReader to String.");
+        Some(s)
+    } else {
+        None
+    };
+
+    let err = if let Some(ref mut stderr) = transform.stderr {
+        let mut br = BufReader::new(stderr);
+        let mut s = String::new();
+        br.read_to_string(&mut s)
+            .expect("Could not read BufReader to String.");
+        Some(s)
+    } else {
+        None
+    };
+    */
+
+    Ok("Done!".to_string())
 }

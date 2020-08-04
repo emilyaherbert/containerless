@@ -4,12 +4,6 @@ use std::collections::HashMap;
 use std::clone::Clone;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use serde::{Deserialize, Serialize};
-
-#[derive(Deserialize, Serialize)]
-pub struct FileContents {
-    pub contents: String
-}
 
 #[derive(Debug, Clone)]
 pub struct StorageFile {

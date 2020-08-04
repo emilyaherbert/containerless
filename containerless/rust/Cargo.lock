@@ -558,8 +558,10 @@ version = "0.1.0"
 dependencies = [
  "bytes",
  "hyper",
+ "log 0.3.9",
  "serde",
  "serde_json",
+ "shared",
  "tokio",
  "warp",
 ]
@@ -1885,6 +1887,7 @@ dependencies = [
  "log 0.4.8",
  "machine-ip",
  "reqwest",
+ "serde",
  "syslog",
  "thiserror",
  "tokio",
