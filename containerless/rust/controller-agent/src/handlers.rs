@@ -6,6 +6,8 @@ use shared::file_contents::FileContents;
 
 use bytes;
 use hyper::Response;
+use std::io::prelude::*;
+use std::io::BufReader;
 use std::process::{Command, Stdio};
 use std::env;
 
@@ -47,6 +49,11 @@ pub async fn create_function(name: String, contents: FileContents, compiler: Arc
         return Ok(Response::builder()
             .status(404)
             .body(format!("Could not create function: {:?}", err)));
+    }
+    if let Err(err) = check_function_compatibility(&contents.contents) {
+        return Ok(Response::builder()
+            .status(404)
+            .body(format!("Function not compatible: {:?}", err)));
     }
     if let Err(err) = add_to_compiler(&name, compiler).await {
         error!(target: "controller", "Error adding function {} to compiler : {:?} ", name, err);
@@ -186,25 +193,7 @@ async fn reset_function_via_compiler(name: &str, compiler: Arc<Compiler>) -> Res
     }
 }
 
-fn check_function_compatibility() -> Result<String, Error> {
-    /*
-    let output = process::Command::new("./javascript/js-transform.sh")
-        .arg("index.js")
-        .stderr(Stdio::inherit())
-        .output()
-        .await?;
-    eprintln!("{}", String::from_utf8_lossy(&output.stderr));
-    if output.status.success() == false {
-        println!("{}", String::from_utf8_lossy(&output.stdout));
-        eprintln!("js-transform aborted with exit code {:?}", output.status);
-        return Err(error::Error::CompileError);
-    }
-
-    let mut traced = File::create("traced.js").await?;
-    traced.write_all(&output.stdout).await?;
-    eprintln!("Trace compilation complete.");
-    */
-
+fn check_function_compatibility(code: &str) -> Result<String, Error> {
     let mut path_vec: Vec<&str> = env!("CARGO_MANIFEST_DIR").split("/").collect();
     path_vec.truncate(path_vec.len()-2);
     path_vec.push("javascript");
@@ -213,7 +202,6 @@ fn check_function_compatibility() -> Result<String, Error> {
     path_vec.push("index.js");
     let path = path_vec.join("/");
 
-    /*
     let mut transform = Command::new("node")
         .arg(path)
         .stdin(Stdio::piped())
@@ -224,32 +212,29 @@ fn check_function_compatibility() -> Result<String, Error> {
         .stdin
         .as_mut()
         .expect("opening stdin")
-        .write_all(code.as_bytes())
-        .expect("Failed to pipe code to transform.");
+        .write_all(code.as_bytes())?;
 
-    let exit = transform.wait().unwrap();
-    println!("Finished with status {:?}", exit);
+    let exit = transform.wait()?;
 
-    let out = if let Some(ref mut stdout) = transform.stdout {
-        let mut br = BufReader::new(stdout);
-        let mut s = String::new();
-        br.read_to_string(&mut s)
-            .expect("Could not read BufReader to String.");
-        Some(s)
+    if exit.success() {
+        let out = if let Some(ref mut stdout) = transform.stdout {
+            let mut br = BufReader::new(stdout);
+            let mut s = String::new();
+            br.read_to_string(&mut s)?;
+            Ok(s)
+        } else {
+            Ok("".to_string())
+        };
+        return out;
     } else {
-        None
-    };
-
-    let err = if let Some(ref mut stderr) = transform.stderr {
-        let mut br = BufReader::new(stderr);
-        let mut s = String::new();
-        br.read_to_string(&mut s)
-            .expect("Could not read BufReader to String.");
-        Some(s)
-    } else {
-        None
-    };
-    */
-
-    Ok("Done!".to_string())
+        let err = if let Some(ref mut stderr) = transform.stderr {
+            let mut br = BufReader::new(stderr);
+            let mut s = String::new();
+            br.read_to_string(&mut s)?;
+            Err(Error::Parsing(s))
+        } else {
+            Err(Error::Parsing("error".to_string()))
+        };
+        return err;
+    }
 }
