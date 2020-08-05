@@ -35,33 +35,33 @@ impl fmt::Display for SystemStatus {
 
         output_vec.push("controller:".to_string());
         if self.controller_service {
-            output_vec.push("\t✓\t\tservice".to_string());
+            output_vec.push("\t✓  service".to_string());
         } else {
-            output_vec.push("\tX\t\tservice".to_string());
+            output_vec.push("\tX  service".to_string());
         }
 
         output_vec.push("\ndispatcher:".to_string());
         if self.dispatcher_service {
-            output_vec.push("\t✓\t\tservice".to_string());
+            output_vec.push("\t✓  service".to_string());
         } else {
-            output_vec.push("\tX\t\tservice".to_string());
+            output_vec.push("\tX  service".to_string());
         }
         if self.dispatcher_pod {
-            output_vec.push("\t✓\t\tpod".to_string());
+            output_vec.push("\t✓  pod".to_string());
         } else {
-            output_vec.push("\tX\t\tpod".to_string());
+            output_vec.push("\tX  pod".to_string());
         }
 
         output_vec.push("\nstorage:".to_string());
         if self.storage_service {
-            output_vec.push("\t✓\t\tservice".to_string());
+            output_vec.push("\t✓  service".to_string());
         } else {
-            output_vec.push("\tX\t\tservice".to_string());
+            output_vec.push("\tX  service".to_string());
         }
         if self.storage_pod {
-            output_vec.push("\t✓\t\tpod".to_string());
+            output_vec.push("\t✓  pod".to_string());
         } else {
-            output_vec.push("\tX\t\tpod".to_string());
+            output_vec.push("\tX  pod".to_string());
         }
 
         output_vec.push("\nTODO: function status stuff!".to_string());

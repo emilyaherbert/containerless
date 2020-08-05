@@ -141,11 +141,43 @@ impl FunctionTable {
         let dispatcher_service = snapshot.services.contains_key("dispatcher");
         let storage_service = snapshot.services.contains_key("storage");
 
+        let possible_dispatcher_pods: Vec<String> = snapshot.pods
+            .keys()
+            .into_iter()
+            .filter(|pod_name| pod_name.contains("dispatcher"))
+            .cloned()
+            .collect();
+        let mut dispatcher_pod = false;
+        for pod_name in possible_dispatcher_pods.into_iter() {
+            if let Some(pod) = snapshot.pods.get(&pod_name) {
+                match pod.phase {
+                    k8s::types::PodPhase::Running => dispatcher_pod = true,
+                    _ => {}
+                }
+            }
+        }
+
+        let possible_storage_pods: Vec<String> = snapshot.pods
+            .keys()
+            .into_iter()
+            .filter(|pod_name| pod_name.contains("storage"))
+            .cloned()
+            .collect();
+        let mut storage_pod = false;
+        for pod_name in possible_storage_pods.into_iter() {
+            if let Some(pod) = snapshot.pods.get(&pod_name) {
+                match pod.phase {
+                    k8s::types::PodPhase::Running => storage_pod = true,
+                    _ => {}
+                }
+            }
+        }
+
         Ok(SystemStatus {
             controller_service: controller_service,
-            dispatcher_pod: false,
+            dispatcher_pod: dispatcher_pod,
             dispatcher_service: dispatcher_service,
-            storage_pod: false,
+            storage_pod: storage_pod,
             storage_service: storage_service,
             function_services: HashMap::new(),
             function_pods: HashMap::new()
