@@ -60,14 +60,17 @@ pub async fn create_function(
             .status(404)
             .body(format!("Function not compatible: {:?}", err)));
     }
-    if let Err(err) = add_to_compiler(&name, compiler).await {
-        error!(target: "controller", "Error adding function {} to compiler : {:?} ", name, err);
+    if let Err(err) = add_to_storage(&name, contents).await {
+        error!(target: "controller", "Error adding function {} to storage : {:?} ", name, err);
         return Ok(Response::builder()
             .status(404)
             .body(format!("Could not create function: {:?}", err)));
     }
-    if let Err(err) = add_to_storage(&name, contents).await {
-        error!(target: "controller", "Error adding function {} to storage : {:?} ", name, err);
+    if let Err(err) = add_to_compiler(&name, compiler.clone()).await {
+        error!(target: "controller", "Error adding function {} to compiler : {:?} ", name, err);
+        if let Err(err) = delete_from_storage(&name).await {
+            error!(target: "controller", "Error deleting function {} : {:?} ", name, err);
+        }
         return Ok(Response::builder()
             .status(404)
             .body(format!("Could not create function: {:?}", err)));
