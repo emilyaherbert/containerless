@@ -133,15 +133,44 @@ impl FunctionTable {
         }
     }
 
-    pub async fn system_status(self_: &Arc<FunctionTable>) -> Result<k8s::types::SystemSnapshot, kube::Error> {
+    fn extract_status(snapshot: k8s::types::SystemSnapshot) -> k8s::types::SystemStatus {
+
+        unimplemented!()
+    }
+
+    /// Returns a snapshot of the current system.
+    pub async fn system_status(self_: &Arc<FunctionTable>) -> Result<k8s::types::SystemStatus, kube::Error> {
         let inner = self_.inner.lock().await;
         let pods = inner.k8s_client.list_pods().await?;
         let services = inner.k8s_client.list_services().await?;
         error!(target: "dispatcher", "{:?}", pods);
         error!(target: "dispatcher", "{:?}", services);
-        Ok(k8s::types::SystemSnapshot {
-            pods: pods,
-            services: services
-        })
+        let mut pods_hm = HashMap::new();
+        for pod in pods.into_iter() {
+            pods_hm.insert(pod.name.clone(), pod);
+        }
+        let mut services_hm = HashMap::new();
+        for service in services.into_iter() {
+            services_hm.insert(service.name.clone(), service);
+        }
+        let snapshot = k8s::types::SystemSnapshot {
+            pods: pods_hm,
+            services: services_hm
+        };
+        Ok(FunctionTable::extract_status(snapshot))
+    }
+
+    /// Checks to ensure that the core system is in an okay status.
+    /// This means that the system must have:
+    /// 1. Running controller service.
+    /// 2. Running dispatcher service and pod.
+    /// 3. Running storage service and pod.
+    pub async fn system_status_ok(self_: &Arc<FunctionTable>) -> Result<bool, kube::Error> {
+        let status = FunctionTable::system_status(self_).await?;
+        if status.controller_service && status.dispatcher_service && status.dispatcher_pod && status.storage_service && status.storage_pod {
+            // TODO: check function status
+            return Ok(true)
+        }
+        return Ok(false);
     }
 }

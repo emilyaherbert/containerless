@@ -61,10 +61,33 @@ pub async fn system_status_handler(state: Arc<FunctionTable>,) -> Result<impl wa
                 .status(500)
                 .body(format!("Could not get system status: {:?}", err)))
         },
-        Ok(_resp) => {
+        Ok(resp) => {
             Ok(hyper::Response::builder()
             .status(200)
-            .body("*system state*".to_string()))
+            .body(format!("{}", resp)))
+        }
+    }
+}
+
+pub async fn system_status_ok_handler(state: Arc<FunctionTable>,) -> Result<impl warp::Reply, warp::Rejection> {
+    match FunctionTable::system_status_ok(&state).await {
+        Err(err) => {
+            error!(target: "dispatcher", "Error getting system status : {:?} ", err);
+            Ok(hyper::Response::builder()
+                .status(500)
+                .body(format!("Could not get system status: {:?}", err)))
+        },
+        Ok(resp) => {
+            if !resp {
+                error!(target: "dispatcher", "System in broken state.");
+                Ok(hyper::Response::builder()
+                    .status(500)
+                    .body("System in broken state.".to_string()))
+            } else {
+                Ok(hyper::Response::builder()
+                    .status(200)
+                    .body("System is okay.".to_string()))
+            }
         }
     }
 }
