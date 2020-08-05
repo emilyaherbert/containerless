@@ -133,14 +133,15 @@ impl FunctionTable {
         }
     }
 
-    pub async fn system_status(self_: &Arc<FunctionTable>) -> Result<(), kube::Error> {
+    pub async fn system_status(self_: &Arc<FunctionTable>) -> Result<k8s::types::SystemSnapshot, kube::Error> {
         let inner = self_.inner.lock().await;
         let pods = inner.k8s_client.list_pods().await?;
         let services = inner.k8s_client.list_services().await?;
-        let replica_sets = inner.k8s_client.list_replica_sets().await?;
         error!(target: "dispatcher", "{:?}", pods);
         error!(target: "dispatcher", "{:?}", services);
-        error!(target: "dispatcher", "{:?}", replica_sets);
-        Ok(())
+        Ok(k8s::types::SystemSnapshot {
+            pods: pods,
+            services: services
+        })
     }
 }

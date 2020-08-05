@@ -111,14 +111,17 @@ impl Client {
         return Ok(());
     }
 
-    pub async fn list_services(&self) -> Result<Vec<(String, ServiceSpec)>, kube::Error> {
+    pub async fn list_services(&self) -> Result<Vec<t::ServiceSnapshot>, kube::Error> {
         let params = ListParams::default();
         let svcs = self.services.list(&params).await?;
 
         return Ok(svcs
             .items
             .into_iter()
-            .map(|item| (item.metadata.name, item.spec))
+            .map(|item| t::ServiceSnapshot {
+                name: item.metadata.name,
+                spec: item.spec
+            })
             .collect());
     }
 

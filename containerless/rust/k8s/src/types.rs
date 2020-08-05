@@ -1,4 +1,4 @@
-use k8s_openapi::api::core::v1::PodSpec;
+use k8s_openapi::api::core::v1::{PodSpec, ServiceSpec};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum PodPhase {
@@ -32,11 +32,12 @@ pub struct PodSnapshot {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ServiceSnapshot {
-
+    pub name: String,
+    pub spec: ServiceSpec
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct SystemStatus {
+pub struct SystemSnapshot {
     pub pods: Vec<PodSnapshot>,
     pub services: Vec<ServiceSnapshot>
 
