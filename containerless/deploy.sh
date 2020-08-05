@@ -27,5 +27,6 @@ echo "Waiting for dispather to come online..."
 ./poll-ready.sh http://localhost/dispatcher/readinessProbe 300 || exit 1
 echo "Dispatcher is running at http://localhost/dispatcher\n"
 
-echo "System is fully deployed, but will take a short time to become operational."
-echo "Check system status with 'c status'.\n"
+echo "System is fully deployed.\n"
+
+curl http://localhost/dispatcher/system_status
