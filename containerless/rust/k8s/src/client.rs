@@ -138,15 +138,21 @@ impl Client {
         return Ok(());
     }
 
-    pub async fn list_pods(&self) -> Result<Vec<(String, PodSpec)>, kube::Error> {
+    pub async fn list_pods(&self) -> Result<Vec<t::PodSnapshot>, kube::Error> {
         let params = ListParams::default();
         let pods = self.pods.list(&params).await?;
-
-        return Ok(pods
-            .items
-            .into_iter()
-            .map(|item| (item.metadata.name, item.spec))
-            .collect());
+        let mut snapshots = vec!();
+        for item in pods.into_iter() {
+            let name = item.metadata.name;
+            let (phase, condition) = self.get_pod_phase_and_readiness(&name).await?;
+            snapshots.push(t::PodSnapshot {
+                name: name,
+                spec: item.spec,
+                phase: phase,
+                condition: condition
+            })
+        }
+        Ok(snapshots)
     }
 
     pub async fn new_deployment(&self, deployment: Deployment) -> Result<(), kube::Error> {

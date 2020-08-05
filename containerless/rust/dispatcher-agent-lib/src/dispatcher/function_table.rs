@@ -53,7 +53,7 @@ impl FunctionTable {
             .list_pods()
             .await?
             .into_iter()
-            .map(|(name, _)| name)
+            .map(|snapshot| snapshot.name)
             .collect();
         for (rs_name, spec) in replica_sets.into_iter() {
             match RE.captures(&rs_name) {

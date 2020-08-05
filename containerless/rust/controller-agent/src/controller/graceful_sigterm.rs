@@ -46,7 +46,7 @@ async fn delete_tracing_pods(k8s: &k8s::Client) -> Result<(), kube::Error> {
         .list_pods()
         .await?
         .into_iter()
-        .map(|(name, _)| name)
+        .map(|snapshot| snapshot.name)
         .filter(is_tracing_function)
         .collect::<Vec<_>>();
     let deleters = pods.iter().map(|name| k8s.delete_pod(&name));
