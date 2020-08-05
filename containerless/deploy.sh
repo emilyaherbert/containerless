@@ -21,7 +21,11 @@ echo "Deployed on k8s.\n"
 
 echo "Starting the controller..."
 ./controller.sh start
-echo "Controller is running at http://$CONTROLLER_IP:$CONTROLLER_PORT\n"
+echo "Controller is running at http://localhost/controller\n"
+
+echo "Waiting for dispather to come online..."
+./poll-ready.sh http://localhost/dispatcher/readinessProbe 300 || exit 1
+echo "Dispatcher is running at http://localhost/dispatcher\n"
 
 echo "System is fully deployed, but will take a short time to become operational."
 echo "Check system status with 'c status'.\n"

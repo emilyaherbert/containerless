@@ -16,6 +16,13 @@ impl ContainerlessShim {
         }
     }
 
+    pub async fn system_status(&self) -> CLIResult<String> {
+        Ok(reqwest::get(&format!("{}/system_status", self.dispatcher))
+            .await?
+            .text()
+            .await?)
+    }
+
     pub async fn create_function(&self, name: &str, filename: &str) -> CLIResult<String> {
         Ok(reqwest::Client::new()
             .post(&format!("{}/create_function/{}", self.controller, name))
