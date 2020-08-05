@@ -7,6 +7,8 @@ use kube;
 use kube::api::{Api, DeleteParams, ListParams, Object, PatchParams, PostParams};
 use kube::config::Configuration;
 
+use std::collections::HashMap;
+
 pub struct Client {
     pods: Api<Object<PodSpec, PodStatus>>,
     services: Api<Object<ServiceSpec, ServiceStatus>>,
@@ -238,5 +240,23 @@ impl Client {
                 return Ok((friendly_phase, friendly_ready));
             }
         }
+    }
+
+    /// Returns a snapshot of the current system.
+    pub async fn system_snapshot(&self) -> Result<t::SystemSnapshot, kube::Error> {
+        let pods = self.list_pods().await?;
+        let services = self.list_services().await?;
+        let mut pods_hm = HashMap::new();
+        for pod in pods.into_iter() {
+            pods_hm.insert(pod.name.clone(), pod);
+        }
+        let mut services_hm = HashMap::new();
+        for service in services.into_iter() {
+            services_hm.insert(service.name.clone(), service);
+        }
+        Ok(t::SystemSnapshot {
+            pods: pods_hm,
+            services: services_hm
+        })
     }
 }

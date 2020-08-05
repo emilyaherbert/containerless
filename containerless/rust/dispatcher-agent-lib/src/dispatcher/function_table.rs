@@ -133,31 +133,23 @@ impl FunctionTable {
         }
     }
 
-    fn extract_status(snapshot: k8s::types::SystemSnapshot) -> k8s::types::SystemStatus {
-
-        unimplemented!()
-    }
-
-    /// Returns a snapshot of the current system.
-    pub async fn system_status(self_: &Arc<FunctionTable>) -> Result<k8s::types::SystemStatus, kube::Error> {
+    pub async fn system_status(self_: &Arc<FunctionTable>) -> Result<SystemStatus, kube::Error> {
         let inner = self_.inner.lock().await;
-        let pods = inner.k8s_client.list_pods().await?;
-        let services = inner.k8s_client.list_services().await?;
-        error!(target: "dispatcher", "{:?}", pods);
-        error!(target: "dispatcher", "{:?}", services);
-        let mut pods_hm = HashMap::new();
-        for pod in pods.into_iter() {
-            pods_hm.insert(pod.name.clone(), pod);
-        }
-        let mut services_hm = HashMap::new();
-        for service in services.into_iter() {
-            services_hm.insert(service.name.clone(), service);
-        }
-        let snapshot = k8s::types::SystemSnapshot {
-            pods: pods_hm,
-            services: services_hm
-        };
-        Ok(FunctionTable::extract_status(snapshot))
+        let snapshot = inner.k8s_client.system_snapshot().await?;
+        
+        let controller_service = snapshot.services.contains_key("controller");
+        let dispatcher_service = snapshot.services.contains_key("dispatcher");
+        let storage_service = snapshot.services.contains_key("storage");
+
+        Ok(SystemStatus {
+            controller_service: controller_service,
+            dispatcher_pod: false,
+            dispatcher_service: dispatcher_service,
+            storage_pod: false,
+            storage_service: storage_service,
+            function_services: HashMap::new(),
+            function_pods: HashMap::new()
+        })
     }
 
     /// Checks to ensure that the core system is in an okay status.
