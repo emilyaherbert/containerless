@@ -139,6 +139,7 @@ impl Client {
 
     pub async fn delete_pod(&self, name: &str) -> Result<(), kube::Error> {
         let params = DeleteParams::default();
+        // NOTE(emily): Maybe supposed to be a '?' here?
         let _ = self.pods.delete(name, &params).await;
         return Ok(());
     }
