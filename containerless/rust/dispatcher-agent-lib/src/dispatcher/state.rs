@@ -8,7 +8,6 @@ use crate::error::*;
 use futures::prelude::*;
 use hyper::header::HeaderValue;
 use tokio::task;
-use std::{thread, time};
 
 #[derive(Debug, PartialEq)]
 pub enum CreateMode {

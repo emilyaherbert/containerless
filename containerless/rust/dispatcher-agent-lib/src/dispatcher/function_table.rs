@@ -134,51 +134,29 @@ impl FunctionTable {
     }
 
     pub async fn system_status(self_: &Arc<FunctionTable>) -> Result<SystemStatus, kube::Error> {
+        fn find_running_pod(pods: Vec<k8s::types::PodSnapshot>) -> Option<k8s::types::PodSnapshot> {
+            let filtered: Vec<k8s::types::PodSnapshot> = pods.iter()
+                .filter(|snapshot| snapshot.phase == k8s::types::PodPhase::Running)
+                .cloned()
+                .collect();
+            filtered.first()
+                .map(|x| x.clone())
+        }
+
         let inner = self_.inner.lock().await;
-        let snapshot = inner.k8s_client.system_snapshot().await?;
-        
-        let controller_service = snapshot.services.contains_key("controller");
-        let dispatcher_service = snapshot.services.contains_key("dispatcher");
-        let storage_service = snapshot.services.contains_key("storage");
 
-        let possible_dispatcher_pods: Vec<String> = snapshot.pods
-            .keys()
-            .into_iter()
-            .filter(|pod_name| pod_name.contains("dispatcher"))
-            .cloned()
-            .collect();
-        let mut dispatcher_pod = false;
-        for pod_name in possible_dispatcher_pods.into_iter() {
-            if let Some(pod) = snapshot.pods.get(&pod_name) {
-                match pod.phase {
-                    k8s::types::PodPhase::Running => dispatcher_pod = true,
-                    _ => {}
-                }
-            }
-        }
-
-        let possible_storage_pods: Vec<String> = snapshot.pods
-            .keys()
-            .into_iter()
-            .filter(|pod_name| pod_name.contains("storage"))
-            .cloned()
-            .collect();
-        let mut storage_pod = false;
-        for pod_name in possible_storage_pods.into_iter() {
-            if let Some(pod) = snapshot.pods.get(&pod_name) {
-                match pod.phase {
-                    k8s::types::PodPhase::Running => storage_pod = true,
-                    _ => {}
-                }
-            }
-        }
+        let possible_controller_services = inner.k8s_client.list_services_by_label("app=controller").await?;
+        let possible_dispatcher_services = inner.k8s_client.list_services_by_label("app=dispatcher").await?;
+        let possible_dispatcher_pods = inner.k8s_client.list_pods_by_label("app=dispatcher").await?;
+        let possible_storage_services = inner.k8s_client.list_services_by_label("app=storage").await?;
+        let possible_storage_pods = inner.k8s_client.list_pods_by_label("app=storage").await?;
 
         Ok(SystemStatus {
-            controller_service: controller_service,
-            dispatcher_pod: dispatcher_pod,
-            dispatcher_service: dispatcher_service,
-            storage_pod: storage_pod,
-            storage_service: storage_service,
+            controller_service: possible_controller_services.len() == 1,
+            dispatcher_pod: find_running_pod(possible_dispatcher_pods).is_some(),
+            dispatcher_service: possible_dispatcher_services.len() == 1,
+            storage_pod:find_running_pod(possible_storage_pods).is_some(),
+            storage_service: possible_storage_services.len() == 1,
             function_services: HashMap::new(),
             function_pods: HashMap::new()
         })
