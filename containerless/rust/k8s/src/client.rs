@@ -127,8 +127,42 @@ impl Client {
             .collect());
     }
 
+    pub async fn list_services_by_label(&self, label: &str) -> Result<Vec<t::ServiceSnapshot>, kube::Error> {
+        let params = ListParams {
+            field_selector: None,
+            include_uninitialized: false,
+            label_selector: Some(label.to_string()),
+            timeout: None
+        };
+        let svcs = self.services.list(&params).await?;
+
+        return Ok(svcs
+            .items
+            .into_iter()
+            .map(|item| t::ServiceSnapshot {
+                name: item.metadata.name,
+                spec: item.spec
+            })
+            .collect());
+    }
+
     pub async fn list_replica_sets(&self) -> Result<Vec<(String, ReplicaSetSpec)>, kube::Error> {
         let params = ListParams::default();
+        let replica_sets = self.replica_set.list(&params).await?;
+        return Ok(replica_sets
+            .items
+            .into_iter()
+            .map(|item| (item.metadata.name, item.spec))
+            .collect());
+    }
+
+    pub async fn list_replica_sets_by_label(&self, label: &str) -> Result<Vec<(String, ReplicaSetSpec)>, kube::Error> {
+        let params = ListParams {
+            field_selector: None,
+            include_uninitialized: false,
+            label_selector: Some(label.to_string()),
+            timeout: None
+        };
         let replica_sets = self.replica_set.list(&params).await?;
         return Ok(replica_sets
             .items
@@ -146,6 +180,28 @@ impl Client {
 
     pub async fn list_pods(&self) -> Result<Vec<t::PodSnapshot>, kube::Error> {
         let params = ListParams::default();
+        let pods = self.pods.list(&params).await?;
+        let mut snapshots = vec!();
+        for item in pods.into_iter() {
+            let name = item.metadata.name;
+            let (phase, condition) = self.get_pod_phase_and_readiness(&name).await?;
+            snapshots.push(t::PodSnapshot {
+                name: name,
+                spec: item.spec,
+                phase: phase,
+                condition: condition
+            })
+        }
+        Ok(snapshots)
+    }
+
+    pub async fn list_pods_by_label(&self, label: &str) -> Result<Vec<t::PodSnapshot>, kube::Error> {
+        let params = ListParams {
+            field_selector: None,
+            include_uninitialized: false,
+            label_selector: Some(label.to_string()),
+            timeout: None
+        };
         let pods = self.pods.list(&params).await?;
         let mut snapshots = vec!();
         for item in pods.into_iter() {

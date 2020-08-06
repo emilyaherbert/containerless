@@ -89,6 +89,7 @@ pub fn dispatcher_deployment_spec(version: usize) -> k8s::Deployment {
             ObjectMetaBuilder::new()
                 .name("dispatcher")
                 .namespace(NAMESPACE)
+                .label("app", "dispatcher")
                 .build(),
         )
         .spec(
