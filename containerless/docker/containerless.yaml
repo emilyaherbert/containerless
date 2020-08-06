@@ -52,6 +52,8 @@ kind: ReplicaSet
 metadata:
   name: storage
   namespace: containerless
+  labels:
+    app: storage
 spec:
   replicas: 1
   selector:
