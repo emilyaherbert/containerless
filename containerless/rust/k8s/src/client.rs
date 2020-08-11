@@ -1,4 +1,5 @@
 use super::types as t;
+
 use k8s_openapi::api::apps::v1::{
     Deployment, DeploymentSpec, DeploymentStatus, ReplicaSet, ReplicaSetSpec, ReplicaSetStatus,
 };
@@ -6,8 +7,9 @@ use k8s_openapi::api::core::v1::{Pod, PodSpec, PodStatus, Service, ServiceSpec, 
 use kube;
 use kube::api::{Api, DeleteParams, ListParams, Object, PatchParams, PostParams};
 use kube::config::Configuration;
-
+use http;
 use std::collections::HashMap;
+use futures::{Stream, StreamExt};
 
 pub struct Client {
     pods: Api<Object<PodSpec, PodStatus>>,
@@ -215,6 +217,18 @@ impl Client {
             })
         }
         Ok(snapshots)
+    }
+
+    pub async fn watch_pods_by_label(&self, label: &str, timeout: u32) -> Result<http::Request<Vec<u8>>, kube::Error> {
+        let params = ListParams {
+            field_selector: None,
+            include_uninitialized: false,
+            label_selector: Some(label.to_string()),
+            timeout: Some(timeout)
+        };
+        let what = self.pods.watch(&params, "v1").await?;
+
+        unimplemented!()
     }
 
     pub async fn new_deployment(&self, deployment: Deployment) -> Result<(), kube::Error> {

@@ -10,3 +10,5 @@ edition = "2018"
 kube = { version = "0.25.0", features = ["openapi"] }
 k8s-openapi = { version = "0.7.1", default-features = false, features = ["v1_17"] }
 serde_json = "*"
+http = "*"
+futures = "*"
