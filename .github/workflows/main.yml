@@ -1,37 +1,25 @@
 name: CI
 
-on: [pull_request]
+on: [push, pull_request]
 
 jobs:
   build:
     runs-on: self-hosted
     steps:
     - uses: actions/checkout@v1
-    #- name: Delete Containerless from microk8s (stale resources)
-    #  run: ./undeploy.sh
-    #  working-directory: ./docker
-    - name: Build javascript/js-transform/
-      run: |
-        yarn
-        yarn run build
-      working-directory: ./containerless/javascript/js-transform
-    - name: Build javascript/containerless/
-      run: |
-        yarn
-        yarn run build
-      working-directory: ./containerless/javascript/containerless
+    - name: Build
+      run: ./build.sh
+      working-directory: ./containerless
     - name: Test javascript/containerless/
       run: yarn run test
       working-directory: ./containerless/javascript/containerless
-    - name: Build rust/
-      run: cargo build
-      working-directory: ./containerless/rust
-    - name: Build Containers
-      run: make
-      working-directory: ./containerless/docker
-    - name: Deploy Containerless to microk8s
+    - name: Check status
+      run: |
+        sleep 10
+        microk8s.kubectl get pods -n containerless
+    - name: Deploy
       run: ./deploy.sh
-      working-directory: ./containerless/docker
+      working-directory: ./containerless
     - name: Check status
       run: |
         sleep 10
@@ -39,7 +27,7 @@ jobs:
     - name: Run integration tests
       run: ./test.sh
       working-directory: ./containerless/docker
-    - name: Delete Containerless from microk8s
+    - name: Undeploy
       if: always()
       run: ./undeploy.sh
-      working-directory: ./containerless/docker
+      working-directory: ./containerless
