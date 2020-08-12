@@ -9,7 +9,7 @@ use kube::api::{Api, DeleteParams, ListParams, Object, PatchParams, PostParams};
 use kube::config::Configuration;
 use http;
 use std::collections::HashMap;
-use futures::{Stream, StreamExt};
+//use futures::{Stream, StreamExt};
 
 pub struct Client {
     pods: Api<Object<PodSpec, PodStatus>>,
@@ -226,7 +226,7 @@ impl Client {
             label_selector: Some(label.to_string()),
             timeout: Some(timeout)
         };
-        let what = self.pods.watch(&params, "v1").await?;
+        let _what = self.pods.watch(&params, "v1").await?;
 
         unimplemented!()
     }
