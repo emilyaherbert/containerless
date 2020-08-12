@@ -1,5 +1,5 @@
-use super::compiler::Compiler;
 use super::common::*;
+use super::compiler::Compiler;
 use k8s;
 use kube;
 use lazy_static::lazy_static;
@@ -34,7 +34,7 @@ async fn delete_services(k8s: &k8s::Client) -> Result<(), kube::Error> {
     let services = k8s.list_services().await?;
     let deleters = services
         .into_iter()
-        .map(|(name, _)| name)
+        .map(|snapshot| snapshot.name)
         .filter(is_function)
         .map(|name| delete_service(&k8s, name));
     future::try_join_all(deleters).await?;
@@ -46,7 +46,7 @@ async fn delete_tracing_pods(k8s: &k8s::Client) -> Result<(), kube::Error> {
         .list_pods()
         .await?
         .into_iter()
-        .map(|(name, _)| name)
+        .map(|snapshot| snapshot.name)
         .filter(is_tracing_function)
         .collect::<Vec<_>>();
     let deleters = pods.iter().map(|name| k8s.delete_pod(&name));
@@ -58,7 +58,7 @@ async fn delete_replica_sets(k8s: &k8s::Client) -> Result<(), kube::Error> {
     let replica_sets = k8s.list_services().await?;
     let deleters = replica_sets
         .into_iter()
-        .map(|(name, _)| name)
+        .map(|snapshot| snapshot.name)
         .filter(is_function)
         .map(|name| delete_replica_set(&k8s, name));
     future::try_join_all(deleters).await?;

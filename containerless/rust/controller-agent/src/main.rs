@@ -2,9 +2,9 @@
 extern crate lazy_static;
 
 mod controller;
-mod trace_compiler;
 mod handlers;
 mod routes;
+mod trace_compiler;
 
 use controller::common::*;
 use controller::compiler;
@@ -32,9 +32,10 @@ async fn main() {
         .expect("failed to create initial dispatcher");
 
     info!(target: "controller", "Controller listening");
-    let (_addr, server) = warp::serve(routes::routes(compiler.clone(), ROOT.as_str())).bind_with_graceful_shutdown(
-        ([0, 0, 0, 0], 7999),
-        suppress_and_log_err(handle_sigterm(compiler)),
-    );
+    let (_addr, server) = warp::serve(routes::routes(compiler.clone(), ROOT.as_str()))
+        .bind_with_graceful_shutdown(
+            ([0, 0, 0, 0], 7999),
+            suppress_and_log_err(handle_sigterm(compiler)),
+        );
     server.await;
 }

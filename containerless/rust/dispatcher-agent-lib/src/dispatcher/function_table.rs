@@ -53,7 +53,7 @@ impl FunctionTable {
             .list_pods()
             .await?
             .into_iter()
-            .map(|(name, _)| name)
+            .map(|snapshot| snapshot.name)
             .collect();
         for (rs_name, spec) in replica_sets.into_iter() {
             match RE.captures(&rs_name) {
@@ -131,5 +131,48 @@ impl FunctionTable {
                 return value.clone();
             }
         }
+    }
+
+    pub async fn system_status(self_: &Arc<FunctionTable>) -> Result<SystemStatus, kube::Error> {
+        fn find_running_pod(pods: Vec<k8s::types::PodSnapshot>) -> Option<k8s::types::PodSnapshot> {
+            let filtered: Vec<k8s::types::PodSnapshot> = pods.iter()
+                .filter(|snapshot| snapshot.phase == k8s::types::PodPhase::Running)
+                .cloned()
+                .collect();
+            filtered.first()
+                .map(|x| x.clone())
+        }
+
+        let inner = self_.inner.lock().await;
+
+        let possible_controller_services = inner.k8s_client.list_services_by_label("app=controller").await?;
+        let possible_dispatcher_services = inner.k8s_client.list_services_by_label("app=dispatcher").await?;
+        let possible_dispatcher_pods = inner.k8s_client.list_pods_by_label("app=dispatcher").await?;
+        let possible_storage_services = inner.k8s_client.list_services_by_label("app=storage").await?;
+        let possible_storage_pods = inner.k8s_client.list_pods_by_label("app=storage").await?;
+
+        Ok(SystemStatus {
+            controller_service: possible_controller_services.len() == 1,
+            dispatcher_pod: find_running_pod(possible_dispatcher_pods).is_some(),
+            dispatcher_service: possible_dispatcher_services.len() == 1,
+            storage_pod:find_running_pod(possible_storage_pods).is_some(),
+            storage_service: possible_storage_services.len() == 1,
+            function_services: HashMap::new(),
+            function_pods: HashMap::new()
+        })
+    }
+
+    /// Checks to ensure that the core system is in an okay status.
+    /// This means that the system must have:
+    /// 1. Running controller service.
+    /// 2. Running dispatcher service and pod.
+    /// 3. Running storage service and pod.
+    pub async fn system_status_ok(self_: &Arc<FunctionTable>) -> Result<bool, kube::Error> {
+        let status = FunctionTable::system_status(self_).await?;
+        if status.controller_service && status.dispatcher_service && status.dispatcher_pod && status.storage_service && status.storage_pod {
+            // TODO: check function status
+            return Ok(true)
+        }
+        return Ok(false);
     }
 }
