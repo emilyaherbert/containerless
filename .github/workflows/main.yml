@@ -29,7 +29,7 @@ jobs:
         microk8s.kubectl get pods -n containerless
     - name: Run integration tests
       run: ./test.sh
-      working-directory: ./containerless/docker
+      working-directory: ./containerless
     - name: Undeploy
       if: always()
       run: ./undeploy.sh
