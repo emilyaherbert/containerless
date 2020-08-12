@@ -15,6 +15,10 @@ pub async fn ready() -> Result<impl warp::Reply, warp::Rejection> {
     Ok(Response::builder().status(200).body("Controller agent\n"))
 }
 
+pub async fn system_ready() -> Result<impl warp::Reply, warp::Rejection> {
+    Ok(Response::builder().status(200).body("Controller agent\n"))
+}
+
 pub async fn recv_trace(
     name: String, trace: bytes::Bytes, compiler: Arc<Compiler>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
@@ -52,18 +56,18 @@ pub async fn create_function(
         );
         error!(target: "controller", "Error creating function {} : {:?} ", name, err);
         return Ok(Response::builder()
-            .status(404)
+            .status(500)
             .body(format!("Could not create function: {:?}", err)));
     }
     if let Err(err) = check_function_compatibility(&contents.contents) {
         return Ok(Response::builder()
-            .status(404)
+            .status(500)
             .body(format!("Function not compatible: {:?}", err)));
     }
     if let Err(err) = add_to_storage(&name, contents).await {
         error!(target: "controller", "Error adding function {} to storage : {:?} ", name, err);
         return Ok(Response::builder()
-            .status(404)
+            .status(500)
             .body(format!("Could not create function: {:?}", err)));
     }
     if let Err(err) = add_to_compiler(&name, compiler.clone()).await {
@@ -72,7 +76,7 @@ pub async fn create_function(
             error!(target: "controller", "Error deleting function {} : {:?} ", name, err);
         }
         return Ok(Response::builder()
-            .status(404)
+            .status(500)
             .body(format!("Could not create function: {:?}", err)));
     }
     return Ok(Response::builder()
@@ -86,18 +90,18 @@ pub async fn delete_function(
     if let Err(err) = reset_function_via_compiler(&name, compiler).await {
         error!(target: "controller", "Error reseting function {} : {:?} ", name, err);
         return Ok(Response::builder()
-            .status(404)
+            .status(500)
             .body(format!("Could not reset function: {:?}", err)));
     }
     if let Err(err) = delete_from_storage(&name).await {
         error!(target: "controller", "Error deleting function {} : {:?} ", name, err);
         return Ok(Response::builder()
-            .status(404)
+            .status(500)
             .body(format!("Could not delete function: {:?}", err)));
     }
     if let Err(err) = shutdown_function_instances_via_dispatcher(&name).await {
         error!(target: "controller", "Error shutting down instances for function {} : {:?} ", name, err);
-        return Ok(Response::builder().status(404).body(format!(
+        return Ok(Response::builder().status(500).body(format!(
             "Could not shut down instances for function: {:?}",
             err
         )));
@@ -113,7 +117,7 @@ pub async fn shutdown_function_instances(
     match shutdown_function_instances_via_dispatcher(&name).await {
         Err(err) => {
             error!(target: "controller", "Error shutting down instances for function {} : {:?} ", name, err);
-            Ok(Response::builder().status(404).body(format!(
+            Ok(Response::builder().status(500).body(format!(
                 "Could not shut down instances for function: {:?}",
                 err
             )))
@@ -129,7 +133,7 @@ pub async fn reset_function(
         Err(err) => {
             error!("Error reseting function {} : {:?} ", name, err);
             return Ok(Response::builder()
-                .status(404)
+                .status(500)
                 .body(format!("Could not reset function: {:?}", err)));
         }
         Ok(resp) => {
@@ -143,7 +147,7 @@ pub async fn get_function(name: String) -> Result<impl warp::Reply, warp::Reject
         Err(err) => {
             error!("Error describing function {} : {:?} ", name, err);
             return Ok(Response::builder()
-                .status(404)
+                .status(500)
                 .body(format!("Could not describe function: {:?}", err)));
         }
         Ok(resp) => {
@@ -157,7 +161,7 @@ pub async fn list_functions() -> Result<impl warp::Reply, warp::Rejection> {
         Err(err) => {
             error!("Error listing functions: {:?} ", err);
             return Ok(Response::builder()
-                .status(404)
+                .status(500)
                 .body(format!("Could not list functions: {:?}", err)));
         }
         Ok(resp) => {

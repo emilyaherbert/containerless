@@ -8,6 +8,7 @@ pub fn routes(
     compiler: Arc<Compiler>, root_str: &str,
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     ready_route()
+        .or(system_ready_route())
         .or(download_dispatcher_route(root_str))
         .or(recv_trace_route(compiler.clone()))
         .or(is_compiling_route(compiler.clone()))
@@ -25,6 +26,12 @@ fn ready_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Reject
     warp::path!("ready")
         .and(warp::get())
         .and_then(handlers::ready)
+}
+
+fn system_ready_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path!("system_ready")
+        .and(warp::get())
+        .and_then(handlers::system_ready)
 }
 
 fn download_dispatcher_route(

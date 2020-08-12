@@ -323,6 +323,7 @@ impl State {
         return Ok(());
     }
 
+    /*
     async fn delete_instances(self_: Arc<State>, is_tracing: bool) -> Result<(), Error> {
         info!(target: "dispatcher", "deleting Kubernetes resources for {}", self_.name);
         try_join!(
@@ -339,13 +340,41 @@ impl State {
         )?;
         Ok(())
     }
+    */
 
     async fn shutdown(self_: Arc<State>, mode: Mode) -> Result<(), Error> {
         let is_tracing = match mode {
             Mode::Tracing(_) => true,
             _ => false,
         };
-        State::delete_instances(self_, is_tracing).await?;
+        //State::delete_instances(self_, is_tracing).await?;
+        info!(target: "dispatcher", "deleting Kubernetes resources for {}", self_.name);
+        try_join!(
+            util::maybe_run(
+                is_tracing,
+                self_.k8s_client.delete_pod(&self_.tracing_pod_name)
+            ),
+            util::maybe_run(
+                is_tracing,
+                self_.k8s_client.delete_service(&self_.tracing_pod_name)
+            ),
+            self_.k8s_client.delete_service(&self_.vanilla_name),
+            self_.k8s_client.delete_replica_set(&self_.vanilla_name)
+        )?;
+        /*
+        let mut iters_left = 100;
+        while iters_left > 0 {
+            let half_sec = time::Duration::from_secs_f64(0.5);
+            thread::sleep(half_sec);
+            let snapshot = self_.k8s_client.system_snapshot().await?;
+            let pod_names = snapshot.pods.keys();
+            let service_names = snapshot.services.keys();
+            // TODO(emily): finish this
+
+
+        }
+        */
+        //https://docs.rs/k8s-openapi/0.9.0/k8s_openapi/api/core/v1/struct.Pod.html#method.watch_namespaced_pod
         if let Mode::Decontainerized(_) = mode {
             // Do not terminate the task if decontainerized.
         }

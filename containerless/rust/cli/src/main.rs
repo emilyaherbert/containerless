@@ -96,17 +96,12 @@ async fn main() {
 
     match opts.subcmd {
         SubCommand::Status(_) => {
-            let status = k8s_shim::get_all().unwrap();
+            let status = containerless_shim.system_status().await.unwrap();
             println!("{}", status);
         }
         SubCommand::Create(t) => {
-            println!(
-                "{}",
-                containerless_shim
-                    .create_function(&t.name, &t.filename)
-                    .await
-                    .unwrap()
-            );
+            let output = containerless_shim.create_function(&t.name, &t.filename).await.unwrap();
+            println!("{}", output);
         }
         SubCommand::Delete(t) => {
             let output = containerless_shim.delete_function(&t.name).await.unwrap();

@@ -21,6 +21,8 @@ kind: Service
 metadata:
   name: controller
   namespace: containerless
+  labels:
+    app: controller
 spec:
   ports:
     - name: http
@@ -32,6 +34,8 @@ kind: Service
 metadata:
   name: dispatcher
   namespace: containerless
+  labels:
+    app: dispatcher
 spec:
   type: NodePort
   selector:
@@ -48,6 +52,8 @@ kind: ReplicaSet
 metadata:
   name: storage
   namespace: containerless
+  labels:
+    app: storage
 spec:
   replicas: 1
   selector:
@@ -77,6 +83,8 @@ kind: Service
 metadata:
   name: storage
   namespace: containerless
+  labels:
+    app: storage
 spec:
   type: NodePort
   selector:

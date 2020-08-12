@@ -1,4 +1,5 @@
 use super::types as t;
+
 use k8s_openapi::api::apps::v1::{
     Deployment, DeploymentSpec, DeploymentStatus, ReplicaSet, ReplicaSetSpec, ReplicaSetStatus,
 };
@@ -6,6 +7,9 @@ use k8s_openapi::api::core::v1::{Pod, PodSpec, PodStatus, Service, ServiceSpec, 
 use kube;
 use kube::api::{Api, DeleteParams, ListParams, Object, PatchParams, PostParams};
 use kube::config::Configuration;
+use http;
+use std::collections::HashMap;
+//use futures::{Stream, StreamExt};
 
 pub struct Client {
     pods: Api<Object<PodSpec, PodStatus>>,
@@ -111,14 +115,36 @@ impl Client {
         return Ok(());
     }
 
-    pub async fn list_services(&self) -> Result<Vec<(String, ServiceSpec)>, kube::Error> {
+    pub async fn list_services(&self) -> Result<Vec<t::ServiceSnapshot>, kube::Error> {
         let params = ListParams::default();
         let svcs = self.services.list(&params).await?;
 
         return Ok(svcs
             .items
             .into_iter()
-            .map(|item| (item.metadata.name, item.spec))
+            .map(|item| t::ServiceSnapshot {
+                name: item.metadata.name,
+                spec: item.spec
+            })
+            .collect());
+    }
+
+    pub async fn list_services_by_label(&self, label: &str) -> Result<Vec<t::ServiceSnapshot>, kube::Error> {
+        let params = ListParams {
+            field_selector: None,
+            include_uninitialized: false,
+            label_selector: Some(label.to_string()),
+            timeout: None
+        };
+        let svcs = self.services.list(&params).await?;
+
+        return Ok(svcs
+            .items
+            .into_iter()
+            .map(|item| t::ServiceSnapshot {
+                name: item.metadata.name,
+                spec: item.spec
+            })
             .collect());
     }
 
@@ -132,21 +158,77 @@ impl Client {
             .collect());
     }
 
-    pub async fn delete_pod(&self, name: &str) -> Result<(), kube::Error> {
-        let params = DeleteParams::default();
-        let _ = self.pods.delete(name, &params).await;
-        return Ok(());
-    }
-
-    pub async fn list_pods(&self) -> Result<Vec<(String, PodSpec)>, kube::Error> {
-        let params = ListParams::default();
-        let pods = self.pods.list(&params).await?;
-
-        return Ok(pods
+    pub async fn list_replica_sets_by_label(&self, label: &str) -> Result<Vec<(String, ReplicaSetSpec)>, kube::Error> {
+        let params = ListParams {
+            field_selector: None,
+            include_uninitialized: false,
+            label_selector: Some(label.to_string()),
+            timeout: None
+        };
+        let replica_sets = self.replica_set.list(&params).await?;
+        return Ok(replica_sets
             .items
             .into_iter()
             .map(|item| (item.metadata.name, item.spec))
             .collect());
+    }
+
+    pub async fn delete_pod(&self, name: &str) -> Result<(), kube::Error> {
+        let params = DeleteParams::default();
+        // NOTE(emily): Maybe supposed to be a '?' here?
+        let _ = self.pods.delete(name, &params).await;
+        return Ok(());
+    }
+
+    pub async fn list_pods(&self) -> Result<Vec<t::PodSnapshot>, kube::Error> {
+        let params = ListParams::default();
+        let pods = self.pods.list(&params).await?;
+        let mut snapshots = vec!();
+        for item in pods.into_iter() {
+            let name = item.metadata.name;
+            let (phase, condition) = self.get_pod_phase_and_readiness(&name).await?;
+            snapshots.push(t::PodSnapshot {
+                name: name,
+                spec: item.spec,
+                phase: phase,
+                condition: condition
+            })
+        }
+        Ok(snapshots)
+    }
+
+    pub async fn list_pods_by_label(&self, label: &str) -> Result<Vec<t::PodSnapshot>, kube::Error> {
+        let params = ListParams {
+            field_selector: None,
+            include_uninitialized: false,
+            label_selector: Some(label.to_string()),
+            timeout: None
+        };
+        let pods = self.pods.list(&params).await?;
+        let mut snapshots = vec!();
+        for item in pods.into_iter() {
+            let name = item.metadata.name;
+            let (phase, condition) = self.get_pod_phase_and_readiness(&name).await?;
+            snapshots.push(t::PodSnapshot {
+                name: name,
+                spec: item.spec,
+                phase: phase,
+                condition: condition
+            })
+        }
+        Ok(snapshots)
+    }
+
+    pub async fn watch_pods_by_label(&self, label: &str, timeout: u32) -> Result<http::Request<Vec<u8>>, kube::Error> {
+        let params = ListParams {
+            field_selector: None,
+            include_uninitialized: false,
+            label_selector: Some(label.to_string()),
+            timeout: Some(timeout)
+        };
+        let _what = self.pods.watch(&params, "v1").await?;
+
+        unimplemented!()
     }
 
     pub async fn new_deployment(&self, deployment: Deployment) -> Result<(), kube::Error> {
@@ -229,5 +311,23 @@ impl Client {
                 return Ok((friendly_phase, friendly_ready));
             }
         }
+    }
+
+    /// Returns a snapshot of the current system.
+    pub async fn system_snapshot(&self) -> Result<t::SystemSnapshot, kube::Error> {
+        let pods = self.list_pods().await?;
+        let services = self.list_services().await?;
+        let mut pods_hm = HashMap::new();
+        for pod in pods.into_iter() {
+            pods_hm.insert(pod.name.clone(), pod);
+        }
+        let mut services_hm = HashMap::new();
+        for service in services.into_iter() {
+            services_hm.insert(service.name.clone(), service);
+        }
+        Ok(t::SystemSnapshot {
+            pods: pods_hm,
+            services: services_hm
+        })
     }
 }
