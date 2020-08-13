@@ -12,8 +12,11 @@ fi
 set -e
 export NAME=$1
 export MODE=$2
+CONTAINERLESS=$HOME/decontainerization/containerless/rust/target/debug/cli
+
 echo $NAME
 envsubst < lone-template.yaml | microk8s.kubectl apply -f -
+$CONTAINERLESS create -n $NAME -f ../examples/$NAME.js
 ./poll-ready.sh http://localhost/lone-$MODE-$NAME/readinessProbe 10
 echo "You can now invoke the function:"
 echo ""
