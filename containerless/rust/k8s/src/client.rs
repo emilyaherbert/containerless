@@ -218,19 +218,7 @@ impl Client {
         }
         Ok(snapshots)
     }
-
-    pub async fn watch_pods_by_label(&self, label: &str, timeout: u32) -> Result<http::Request<Vec<u8>>, kube::Error> {
-        let params = ListParams {
-            field_selector: None,
-            include_uninitialized: false,
-            label_selector: Some(label.to_string()),
-            timeout: Some(timeout)
-        };
-        let _what = self.pods.watch(&params, "v1").await?;
-
-        unimplemented!()
-    }
-
+    
     pub async fn new_deployment(&self, deployment: Deployment) -> Result<(), kube::Error> {
         let params = PostParams::default();
         let _ = self

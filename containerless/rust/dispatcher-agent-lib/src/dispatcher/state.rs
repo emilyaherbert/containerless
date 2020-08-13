@@ -8,6 +8,8 @@ use crate::error::*;
 use futures::prelude::*;
 use hyper::header::HeaderValue;
 use tokio::task;
+use std::time::{Duration, Instant};
+use tokio::time;
 
 #[derive(Debug, PartialEq)]
 pub enum CreateMode {
@@ -323,31 +325,12 @@ impl State {
         return Ok(());
     }
 
-    /*
-    async fn delete_instances(self_: Arc<State>, is_tracing: bool) -> Result<(), Error> {
-        info!(target: "dispatcher", "deleting Kubernetes resources for {}", self_.name);
-        try_join!(
-            util::maybe_run(
-                is_tracing,
-                self_.k8s_client.delete_pod(&self_.tracing_pod_name)
-            ),
-            util::maybe_run(
-                is_tracing,
-                self_.k8s_client.delete_service(&self_.tracing_pod_name)
-            ),
-            self_.k8s_client.delete_service(&self_.vanilla_name),
-            self_.k8s_client.delete_replica_set(&self_.vanilla_name)
-        )?;
-        Ok(())
-    }
-    */
-
     async fn shutdown(self_: Arc<State>, mode: Mode) -> Result<(), Error> {
         let is_tracing = match mode {
             Mode::Tracing(_) => true,
             _ => false,
         };
-        //State::delete_instances(self_, is_tracing).await?;
+
         info!(target: "dispatcher", "deleting Kubernetes resources for {}", self_.name);
         try_join!(
             util::maybe_run(
@@ -361,20 +344,26 @@ impl State {
             self_.k8s_client.delete_service(&self_.vanilla_name),
             self_.k8s_client.delete_replica_set(&self_.vanilla_name)
         )?;
-        /*
-        let mut iters_left = 100;
-        while iters_left > 0 {
-            let half_sec = time::Duration::from_secs_f64(0.5);
-            thread::sleep(half_sec);
-            let snapshot = self_.k8s_client.system_snapshot().await?;
-            let pod_names = snapshot.pods.keys();
-            let service_names = snapshot.services.keys();
-            // TODO(emily): finish this
 
+        let interval = Duration::from_secs(1);
+        let timeout = Duration::from_secs(60);
+        let end_time = Instant::now() + timeout;
 
+        let label = format!("function={}", self_.name);
+        info!(target: "dispatcher", "{}", label);
+        loop {
+            info!(target: "dispatcher", "cycle");
+            if let Ok(resp) = self_.k8s_client.list_pods_by_label(&label).await {
+                if resp.is_empty() {
+                    break;
+                }
+            }
+            if Instant::now() >= end_time {
+                return Err(Error::TimeoutReason("waiting for pods to delete".to_string()));
+            }
+            time::delay_for(interval).await;
         }
-        */
-        //https://docs.rs/k8s-openapi/0.9.0/k8s_openapi/api/core/v1/struct.Pod.html#method.watch_namespaced_pod
+
         if let Mode::Decontainerized(_) = mode {
             // Do not terminate the task if decontainerized.
         }
