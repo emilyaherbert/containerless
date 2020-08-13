@@ -404,6 +404,7 @@ impl State {
             } => num_replicas,
         };
 
+
         let autoscaler = Autoscaler::new(
             Arc::clone(&self_.k8s_client),
             self_.vanilla_name.clone(),

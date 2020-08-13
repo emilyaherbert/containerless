@@ -883,6 +883,7 @@ name = "integration-tests"
 version = "0.1.0"
 dependencies = [
  "k8s",
+ "log 0.3.9",
  "machine-ip",
  "nix",
  "reqwest",
