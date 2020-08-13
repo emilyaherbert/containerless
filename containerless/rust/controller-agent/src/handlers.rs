@@ -23,7 +23,8 @@ pub async fn recv_trace(
     name: String, trace: bytes::Bytes, compiler: Arc<Compiler>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     info!(target: "controller", "received trace for {} ({} bytes)", &name, trace.len());
-    compiler.compile(name, trace);
+    let mut log : () = todo();
+    compiler.compile(log, name, trace);
     Ok(Response::builder().status(200).body(""))
 }
 
@@ -48,6 +49,7 @@ pub async fn reset_dispatcher_handler(
 pub async fn create_function(
     name: String, contents: FileContents, compiler: Arc<Compiler>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
+    let mut log : () = todo!();
     let acceptable_chars: Vec<char> = "abcdefghijklmnopqrstuvwxyz1234567890.-".chars().collect();
     if !name.chars().all(|c| acceptable_chars.contains(&c)) {
         let err = Error::Parsing(
@@ -65,6 +67,8 @@ pub async fn create_function(
             .body(format!("Function not compatible: {:?}", err)));
     }
     if let Err(err) = add_to_storage(&name, contents).await {
+        log.error(format!("Error adding function {} to storage : {:?} ", name, err));
+
         error!(target: "controller", "Error adding function {} to storage : {:?} ", name, err);
         return Ok(Response::builder()
             .status(500)

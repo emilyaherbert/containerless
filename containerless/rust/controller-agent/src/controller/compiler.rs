@@ -150,7 +150,7 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
 
     let mut known_functions: HashMap<String, CompileStatus> = HashMap::new();
 
-    while let Some(message) = recv_message.next().await {
+    while let Some((message, log)) = recv_message.next().await {
         match message {
             Message::RecompileDispatcher { started_compiling } => {
                 if !(compiler.cargo_build(Some(started_compiling)).await) {
@@ -253,8 +253,8 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                     },
                 }
             }
-            Message::Compile { name, code } => {
-                info!(target: "controller", "compiler task received trace for {}", &name);
+            Message::Compile { log, name, code } => {
+                log.info(target: "controller", "compiler task received trace for {}", &name);
                 next_version += 1;
                 fs::write(
                     format!(
@@ -364,7 +364,7 @@ impl Compiler {
     }
 
     pub fn compile(&self, name: String, code: Bytes) {
-        self.send_message_non_blocking(Message::Compile { name, code });
+        self.send_message_non_blocking(Message::Compile { log, name, code });
     }
 
     pub async fn shutdown(&self) {
