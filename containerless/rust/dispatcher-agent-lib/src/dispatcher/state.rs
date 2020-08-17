@@ -7,9 +7,11 @@ use crate::error::*;
 
 use futures::prelude::*;
 use hyper::header::HeaderValue;
-use tokio::task;
+use tokio::{task, time};
 use std::time::{Duration, Instant};
-use tokio::time;
+use futures::channel::mpsc;
+use k8s;
+use futures_retry::{FutureRetry, RetryPolicy};
 
 #[derive(Debug, PartialEq)]
 pub enum CreateMode {
@@ -345,29 +347,96 @@ impl State {
             self_.k8s_client.delete_replica_set(&self_.vanilla_name)
         )?;
 
-        let interval = Duration::from_secs(1);
-        let timeout = Duration::from_secs(60);
-        let end_time = Instant::now() + timeout;
-
-        let label = format!("function={}", self_.name);
-        info!(target: "dispatcher", "{}", label);
-        loop {
-            info!(target: "dispatcher", "cycle");
-            if let Ok(resp) = self_.k8s_client.list_pods_by_label(&label).await {
-                if resp.is_empty() {
-                    break;
-                }
-            }
-            if Instant::now() >= end_time {
-                return Err(Error::TimeoutReason("waiting for pods to delete".to_string()));
-            }
-            time::delay_for(interval).await;
-        }
-
         if let Mode::Decontainerized(_) = mode {
             // Do not terminate the task if decontainerized.
         }
-        return Ok(());
+
+        // https://stackoverflow.com/questions/57466422/how-do-i-write-an-asynchronous-function-which-polls-a-resource-and-returns-when
+        // https://stjepang.github.io/2019/12/04/blocking-inside-async-code.html
+        // https://async.rs/blog/announcing-async-std/
+
+        /*
+        async fn check_shutdown_status(self_: Arc<State>, done: oneshot::Sender<()>) {
+            let interval = Duration::from_secs(1);
+            let timeout = Duration::from_secs(60);
+            let end_time = Instant::now() + timeout;
+            let label = format!("function={}", self_.name);
+            loop {
+                if let Ok(resp) = self_.k8s_client.list_pods_by_label_and_field(&label, "status.phase=Running").await {
+                    if resp.is_empty() {
+                        if let Ok(resp) = self_.k8s_client.list_pods_by_label_and_field(&label, "status.phase=Pending").await {
+                            if resp.is_empty() {
+                                info!(target: "dispatcher", "break");
+                                done.send(());
+                            }
+                        }
+                    }
+                }
+                if Instant::now() >= end_time {
+                    error!(target: "dispatcher", "Waiting for function instances to go down.");
+                    done.send(());
+                }
+                time::delay_for(interval).await;
+            }
+        }
+
+        let (send, recv) = oneshot::channel();
+        recv.await.expect("Something went wrong shutting down function instances.");
+        */
+
+        /*
+        futures::executor::block_on(async {
+            let interval = Duration::from_secs(1);
+            let timeout = Duration::from_secs(60);
+            let end_time = Instant::now() + timeout;
+            let label = format!("function={}", self_.name);
+            loop {
+                if let Ok(resp) = self_.k8s_client.list_pods_by_label_and_field(&label, "status.phase=Running").await {
+                    if resp.is_empty() {
+                        if let Ok(resp) = self_.k8s_client.list_pods_by_label_and_field(&label, "status.phase=Pending").await {
+                            if resp.is_empty() {
+                                info!(target: "dispatcher", "break");
+                                return Ok(());
+                            }
+                        }
+                    }
+                }
+                if Instant::now() >= end_time {
+                    return Err(Error::TimeoutReason("Waiting for function instances to go down.".to_string()));
+                }
+                time::delay_for(interval).await;
+            }
+        })
+        */
+
+        pub async fn check_shutdown_status_blocking(self_: Arc<State>) -> Result<(), ()> {
+            let mut tries: usize = 60;
+            let delay_secs: u64 = 1;
+            let resp_result = FutureRetry::new(
+                || {
+                    let label = format!("function={}", self_.name);
+                    let check1 = self_.k8s_client.list_pods_by_label_and_field(label, "status.phase=Running");
+                    let check2 = self_.k8s_client.list_pods_by_label_and_field(label, "status.phase=Pending");
+                    unimplemented!()
+                },
+                |err| {
+                    eprintln!("Pinging ({} tries left)", tries);
+                    if tries == 0 {
+                        return RetryPolicy::ForwardError(err);
+                    }
+                    tries -= 1;
+                    return RetryPolicy::WaitRetry(Duration::from_secs(delay_secs));
+                },
+            )
+            .await;
+            return match resp_result {
+                Ok(_) => Ok(()),
+                Err(_) => Err(()),
+            };
+        }
+
+        unimplemented!()
+
     }
 
     pub async fn function_manager_task(
@@ -415,7 +484,8 @@ impl State {
                     return Ok(());
                 }
                 (_, Message::Shutdown) => {
-                    return State::shutdown(self_, mode).await;
+                    State::shutdown(self_, mode).await?;
+                    return Ok(());
                 }
                 (_, Message::GetMode(send)) => {
                     util::send_log_error(send, util::text_response(200, format!("{}", mode)));

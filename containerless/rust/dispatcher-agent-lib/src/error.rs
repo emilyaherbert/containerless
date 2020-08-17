@@ -15,6 +15,8 @@ pub enum Error {
     TimeoutReason(String),
     #[error("communicating with controller: {0}")]
     Controller(String),
+    #[error("{0}")]
+    Join(#[from] tokio::task::JoinError)
 }
 
 impl Error {
