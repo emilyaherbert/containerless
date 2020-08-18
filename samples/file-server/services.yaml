@@ -1,0 +1,15 @@
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: my-release-nodep-svc 
+  labels:
+    app: couch
+spec:
+  type: NodePort            # NodePort service
+  ports:
+  - port: 5984
+    nodePort: 30984         # external port
+    protocol: TCP
+  selector:
+    app: couchdb       # label selector
