@@ -47,6 +47,10 @@ export function post(obj: any, callback: (response: undefined | string) => void)
     return cb.post(obj, callback);
 }
 
+export function put(obj: any, callback: (response: undefined | string) => void) {
+    return cb.put(obj, callback);
+}
+
 function validateRequests(requests: unknown): requests is callbacks.Request[] {
     // NOTE(arjun): TS doesn't let us statically check this function in any
     // meaningful way.

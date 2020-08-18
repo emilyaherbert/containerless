@@ -16,6 +16,7 @@ pub enum AsyncOp {
     Request(String),
     Get(String),
     Post(String, Bytes),
+    Put(String, Bytes)
 }
 
 pub enum AsyncOpOutcome {
@@ -89,7 +90,32 @@ impl AsyncOp {
                     .await
                     .map_err(|_err| Error::TypeError("Reading response body".to_string()))?;
                 return Ok(AsyncOpOutcome::GetResponse(body));
-            }
+            },
+            AsyncOp::Put(url, body) => {
+                if url.starts_with("data:") {
+                    return Ok(AsyncOpOutcome::MockGetResponse(
+                        serde_json::from_str(&url[5..])
+                            .expect("malformed JSON in data: URL to PUT"),
+                    ));
+                }
+                use hyper::{Body, Request, Uri};
+                let uri = Uri::from_str(&url)
+                    .map_err(|_err| Error::TypeError("invalid URL in PUT request".to_string()))?;
+                let req = Request::builder()
+                    .method("PUT")
+                    .uri(uri)
+                    .body(Body::from(body))
+                    .map_err(|_err| {
+                        Error::TypeError("could not build request in PUT".to_string())
+                    })?;
+                let resp_result = client.request(req).await;
+                let resp = resp_result
+                    .map_err(|err| Error::TypeError(format!("PUT failed: {:?}", err)))?;
+                let body = hyper::body::to_bytes(resp.into_body())
+                    .await
+                    .map_err(|_err| Error::TypeError("Reading response body".to_string()))?;
+                return Ok(AsyncOpOutcome::GetResponse(body));
+            },
             AsyncOp::Get(url) => {
                 if url.starts_with("data:") {
                     return Ok(AsyncOpOutcome::MockGetResponse(
@@ -230,6 +256,27 @@ impl<'a> ExecutionContext<'a> {
                     _ => type_error("missing body/url to post"),
                 },
                 Err(()) => type_error(format!("ec.loopback(\"post\", {:?}, ...)", event_arg)),
+            }
+        } else if event_name == "put" {
+            match TryInto::<DynObject<'a>>::try_into(event_arg) {
+                Ok(obj) => match (
+                    TryInto::<String>::try_into(obj.get("url")),
+                    obj.get("body").to_json(),
+                ) {
+                    (Ok(url), Some(body)) => {
+                        let body = Bytes::from(
+                            serde_json::to_vec(&body).expect("JSON serialization failed"),
+                        );
+                        self.new_ops.push(PendingOp {
+                            async_op: AsyncOp::Put(url, body),
+                            indicator,
+                            closure: event_clos,
+                        });
+                        return Ok(Dyn::int(0));
+                    }
+                    _ => type_error("missing body/url to put"),
+                },
+                Err(()) => type_error(format!("ec.loopback(\"put\", {:?}, ...)", event_arg)),
             }
         } else {
             return type_error(format!(
