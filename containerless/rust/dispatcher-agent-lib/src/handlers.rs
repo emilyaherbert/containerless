@@ -12,14 +12,14 @@ pub async fn readiness_handler() -> Result<impl warp::Reply, warp::Rejection> {
 }
 
 pub async fn dispatcher_handler(
-    function_name: String, mut function_path: String, method: http::Method, body: bytes::Bytes,
+    function_name: String, mut function_path: String, function_query: String, method: http::Method, body: bytes::Bytes,
     state: Arc<FunctionTable>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    debug!(target: "dispatcher", "received request for function {} with path {}", function_name, function_path);
+    debug!(target: "dispatcher", "received request for function {} with path {} and query {}", function_name, function_path, function_query);
     let mut fm = FunctionTable::get_function(&state, &function_name).await;
-    debug!(target: "dispatcher", "invoking function {} with path {}", function_name, function_path);
+    debug!(target: "dispatcher", "invoking function {} with path {} and query {}", function_name, function_path, function_query);
     let body = hyper::Body::from(body);
-    function_path = format!("/{}", function_path);
+    function_path = format!("/{}?{}", function_path, function_query);
     return match fm.invoke(method, &function_path, body).await {
         Ok(resp) => Ok(resp),
         Err(err) => Ok(hyper::Response::builder()
