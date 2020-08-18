@@ -217,7 +217,7 @@ export class Callbacks {
                         callback(undefined);
                     }
                     else {
-                        callback(JSON.parse(String(resp.body)));
+                        callback(JSON.parse(String(resp)));
                     }
                 });
             });

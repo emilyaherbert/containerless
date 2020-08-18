@@ -63,4 +63,10 @@ server.
 
 ## Invoking
 
+Invoke using the `<username>` and `<password>` from step 5 above.
+
+```
+curl -X POST -H "Content-Type: application/json" "http://localhost/dispatcher/fileserver/upload?username=<username>&password=<password>&filename=grocerylist" -d @groceries.json
+```
+
 ## Undeploying
