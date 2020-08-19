@@ -21,6 +21,30 @@ $ microk8s.enable dns registry ingress
 After installation, follow the on-screen directions to gain unprivileged access
 to Docker and MicroK8s, which will involve logging out and logging back in.
 
+*NOTE:* In this demo, the Containerless controller does not run in Kubernetes.
+(It is easy to do so, but building a container that runs the Rust
+compiler toolchain is a pain.) For the controller to interact with the
+rest of Containerless, which runs on Kubernetes, you must run the following
+command:
+
+```
+microk8s.kubectl config view > ~/.kube/config
+```
+
+Then, edit the file to add `insecure-skip-tls-verify: true` below `server: ..`.
+For example, the file may look as follows:
+
+```
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data: DATA+OMITTED
+    server: https://127.0.0.1:16443
+    insecure-skip-tls-verify: true
+  name: microk8s-cluster
+...
+```
+
 In principle, it is possible to deploy Containerless on an arbitrary Kubernetes
 cluster. However, our deployment scripts assume you're using MicroK8s.
 
@@ -69,14 +93,14 @@ The logs will now appear in `/var/log/rsyslog-containerless.log`.
 The following command deploys Containerless to MicroK8s:
 
 ```
-cd docker && ./deploy.sh
+./deploy.sh
 ```
 
 After you run this command, you should see several Pods, Services, and
 ReplicaSets running (exact ports and IP addresses will vary):
 
 ```
-$ microk8s.kubectl get all
+$ microk8s.kubectl get all -n containerless
 NAME                         READY   STATUS    RESTARTS   AGE
 pod/dispatcher-4lbhm         1/1     Running   0          63s
 pod/function-storage-hdqzh   1/1     Running   0          63s
