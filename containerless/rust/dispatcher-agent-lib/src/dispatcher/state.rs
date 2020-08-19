@@ -4,6 +4,7 @@ use super::serverless_request::*;
 use super::types::*;
 use super::util;
 use crate::error::*;
+use std::time::Duration;
 
 use futures::prelude::*;
 use hyper::header::HeaderValue;
@@ -347,7 +348,6 @@ impl State {
             Mode::Tracing(_) => true,
             _ => false,
         };
-        //State::delete_instances(self_, is_tracing).await?;
         info!(target: "dispatcher", "deleting Kubernetes resources for {}", self_.name);
         try_join!(
             util::maybe_run(
@@ -361,6 +361,22 @@ impl State {
             self_.k8s_client.delete_service(&self_.vanilla_name),
             self_.k8s_client.delete_replica_set(&self_.vanilla_name)
         )?;
+
+        let label = format!("function={}", self_.name);
+        
+        loop {
+            let pending_pods = self_.k8s_client
+                .list_pods_by_label_and_field(label.clone(), "status.phase=Pending").await?;
+            let running_pods = self_.k8s_client
+                .list_pods_by_label_and_field(label.clone(), "status.phase=Running").await?;
+
+            if running_pods.is_empty() && pending_pods.is_empty() {
+                break;
+            }
+            tokio::time::delay_for(Duration::from_secs(1)).await;
+        }
+
+        
         /*
         let mut iters_left = 100;
         while iters_left > 0 {
@@ -425,8 +441,9 @@ impl State {
                     autoscaler.terminate();
                     return Ok(());
                 }
-                (_, Message::Shutdown) => {
-                    return State::shutdown(self_, mode).await;
+                (_, Message::Shutdown(send_complete)) => {
+                    send_complete.send(State::shutdown(self_, mode).await).unwrap();
+                    return Ok(());
                 }
                 (_, Message::GetMode(send)) => {
                     util::send_log_error(send, util::text_response(200, format!("{}", mode)));

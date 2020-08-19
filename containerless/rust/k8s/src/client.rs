@@ -330,4 +330,26 @@ impl Client {
             services: services_hm
         })
     }
+
+    pub async fn list_pods_by_label_and_field(&self, label: String, field: &str) -> Result<Vec<t::PodSnapshot>, kube::Error> {
+        let params = ListParams {
+            field_selector: Some(field.to_string()),
+            include_uninitialized: false,
+            label_selector: Some(label),
+            timeout: None
+        };
+        let pods = self.pods.list(&params).await?;
+        let mut snapshots = vec!();
+        for item in pods.into_iter() {
+            let name = item.metadata.name;
+            let (phase, condition) = self.get_pod_phase_and_readiness(&name).await?;
+            snapshots.push(t::PodSnapshot {
+                name: name,
+                spec: item.spec,
+                phase: phase,
+                condition: condition
+            })
+        }
+        Ok(snapshots)
+    }
 }
