@@ -41,19 +41,8 @@ impl FunctionManager {
     }
 
     pub async fn shutdown(&mut self) -> Response {
-        let (send, recv) = oneshot::channel();
-        self.send_requests.send(Message::Shutdown(send)).await.unwrap();
-        match recv.await {
+        match self.send_requests.send(Message::Shutdown).await {
             Err(err) => {
-                return util::text_response(
-                    500,
-                    format!(
-                        "(function manager shutdown early) dispatcher could not shut down function instances for {}: {:?}",
-                        self.state.name, err
-                    ),
-                );
-            }
-            Ok(Err(err)) => {
                 return util::text_response(
                     500,
                     format!(
@@ -61,8 +50,8 @@ impl FunctionManager {
                         self.state.name, err
                     ),
                 );
-            }                
-            Ok(Ok(())) => {
+            }
+            Ok(_) => {
                 return util::text_response(
                     200,
                     format!("All function instances shut down for {}.", self.state.name),
