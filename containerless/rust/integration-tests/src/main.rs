@@ -14,12 +14,10 @@ use tokio::process::{Child, Command};
 use tokio::signal::unix::{signal, SignalKind};
 
 async fn start_controller() -> Child {
-    let my_ip = machine_ip::get().expect("getting IP address");
     return Command::new("cargo")
         .arg("run")
         .current_dir("../controller-agent") // TODO(arjun): fix
-        .env("LOG_LEVEL", "info")
-        .env("LOG_RSYSLOG_ADDR", format!("{}:514", my_ip))
+        .env("RUST_LOG", "info")
         .spawn()
         .expect("spawning controller");
 }
