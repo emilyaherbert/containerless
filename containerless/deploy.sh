@@ -8,6 +8,7 @@ export EXAMPLES_PATH=$(dirname $(dirname $(realpath $0)))/examples
 export RUST_SRC_PATH=$(dirname $(dirname $(realpath $0)))/rust
 export CONTROLLER_PORT=7999
 export CONTROLLER_IP=$(hostname -I | cut -f 1 -d " ")
+export CONTROLLER_LOG_PATH=$(dirname $(realpath $0))
 
 echo "Clearing system state..."
 cp "${RUST_SRC_PATH}/dispatcher-agent/src/decontainerized_functions/template.txt" "${RUST_SRC_PATH}/dispatcher-agent/src/decontainerized_functions/mod.rs"

@@ -7,7 +7,7 @@ start)
         exit 1
     fi
     cd ../rust
-    ./target/debug/controller-agent  &
+    ./target/debug/controller-agent &> ../docker/controller.log &
     cd ../docker
     echo "$!" > .controller.pid
     ./poll-ready.sh http://127.0.0.1:7999/ready 300 || ((./controller.sh stop) && (exit 1))
