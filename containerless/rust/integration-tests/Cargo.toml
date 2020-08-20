@@ -10,7 +10,6 @@ edition = "2018"
 tokio = { version = "*", features = [ "rt-threaded", "time", "macros", "process", "signal"  ] }
 serde_json = "*"
 k8s = { path = "../k8s" }
-machine-ip = "*"
 nix = "*"
 reqwest = "*"
 shared = { path = "../shared" }

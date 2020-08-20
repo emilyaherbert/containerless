@@ -8,7 +8,6 @@ edition = "2018"
 
 [dependencies]
 log = "0.4.8"
-syslog = "*"
 machine-ip = "*"
 tokio = { version = "*", features = [ "rt-threaded", "time", "macros", "process" ] }
 reqwest = "*"
