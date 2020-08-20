@@ -557,6 +557,7 @@ name = "function-storage-agent"
 version = "0.1.0"
 dependencies = [
  "bytes",
+ "http",
  "hyper",
  "log 0.3.9",
  "serde",
@@ -1887,6 +1888,8 @@ checksum = "2579985fda508104f7587689507983eadd6a6e84dd35d6d115361f530916fa0d"
 name = "shared"
 version = "0.1.0"
 dependencies = [
+ "http",
+ "hyper",
  "log 0.4.8",
  "machine-ip",
  "reqwest",
@@ -1894,6 +1897,7 @@ dependencies = [
  "syslog",
  "thiserror",
  "tokio",
+ "warp",
 ]
 
 [[package]]
