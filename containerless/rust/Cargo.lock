@@ -373,6 +373,7 @@ dependencies = [
  "lazy_static",
  "log 0.4.8",
  "regex",
+ "reqwest",
  "serde_json",
  "shared",
  "thiserror",
