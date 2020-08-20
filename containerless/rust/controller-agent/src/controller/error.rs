@@ -5,7 +5,9 @@ pub enum Error {
     IO(io::Error),
     HTTP(reqwest::Error),
     Parsing(String),
-    Containerless(String),
+    Storage(String),
+    Compiler(String),
+    Dispatcher(String)
 }
 
 impl std::convert::From<reqwest::Error> for Error {

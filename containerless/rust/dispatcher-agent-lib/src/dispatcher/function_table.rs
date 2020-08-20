@@ -1,5 +1,9 @@
 use super::function_manager::FunctionManager;
 use super::types::*;
+use crate::error::Error;
+
+use shared::response::*;
+
 use futures::lock::Mutex;
 use k8s;
 use lazy_static::lazy_static;
@@ -107,10 +111,15 @@ impl FunctionTable {
         }
     }
 
-    pub async fn get_function(self_: &Arc<FunctionTable>, name: &str) -> FunctionManager {
+    pub async fn get_function(self_: &Arc<FunctionTable>, name: &str) -> Result<FunctionManager, Error> {
         let mut inner = self_.inner.lock().await;
         match inner.functions.get(name) {
             None => {
+                // Check to see if the function is available in storage
+                let storage_resp = reqwest::get(&format!("http://storage:8080/get_function/{}", name)).await?;
+                if let Err(err) = response_into_result(storage_resp.status().as_u16(), storage_resp.text().await?) {
+                    return Err(Error::Storage(format!("{:?}", err)));
+                }
                 let fm = FunctionManager::new(
                     inner.k8s_client.clone(),
                     inner.http_client.clone(),
@@ -125,10 +134,10 @@ impl FunctionTable {
                 )
                 .await;
                 inner.functions.insert(name.to_string(), fm.clone());
-                return fm;
+                return Ok(fm);
             }
             Some(value) => {
-                return value.clone();
+                return Ok(value.clone());
             }
         }
     }

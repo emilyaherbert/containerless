@@ -99,7 +99,7 @@ impl FunctionManager {
                 return result;
             }
             Err(futures::channel::oneshot::Canceled) => {
-                error!(target: "dispatcher", "dispatcher shutdown before before request for {} could be made", self.state.name);
+                error!(target: "dispatcher", "function pods shut down before request for {} could be made", self.state.name);
                 return Ok(hyper::Response::builder()
                     .status(500)
                     .body(hyper::Body::from("dispatcher shutdown"))
