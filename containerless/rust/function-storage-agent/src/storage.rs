@@ -1,4 +1,4 @@
-use shared::error::{*, constructors::*};
+use crate::error::Error;
 
 use std::clone::Clone;
 use std::collections::HashMap;
@@ -41,7 +41,7 @@ impl Storage {
     pub fn get(&mut self, name: &str) -> Result<StorageFile, Error> {
         match self.files.get(name) {
             Some(file) => Ok((*file).clone()),
-            None => Err(file_not_found_error(&format!("{} not found.", name))),
+            None => Err(Error::FileNotFound(format!("{} not found.", name))),
         }
     }
 
@@ -54,13 +54,13 @@ impl Storage {
     pub fn remove(&mut self, name: &str) -> Result<StorageFile, Error> {
         match self.files.remove(name) {
             Some(file) => Ok(file),
-            None => Err(file_not_found_error(&format!("{} not found.", name))),
+            None => Err(Error::FileNotFound(format!("{} not found.", name))),
         }
     }
 
     pub fn set(&mut self, name: &str, contents: &str) -> Result<String, Error> {
         if self.files.contains_key(name) {
-            Err(file_conflict_error(&format!(
+            Err(Error::FileConflict(format!(
                 "The name {} is already in use.",
                 name
             )))

@@ -1,7 +1,7 @@
 use super::compiler::Compiler;
 use crate::controller::common::*;
+use crate::controller::error::Error;
 
-use shared::error::{*, constructors::*};
 use shared::file_contents::FileContents;
 use shared::response::*;
 
@@ -50,24 +50,24 @@ pub async fn create_function(
 ) -> Result<std::result::Result<http::response::Response<std::string::String>, http::Error>, warp::Rejection> {
     let acceptable_chars: Vec<char> = "abcdefghijklmnopqrstuvwxyz1234567890.-".chars().collect();
     if !name.chars().all(|c| acceptable_chars.contains(&c)) {
-        let err = parsing_error("Function names can only contain lower case alphanumeric characters, '.', and ','.");
+        let err = Error::Parsing("Function names can only contain lower case alphanumeric characters, '.', and ','.".to_string());
         error!(target: "controller", "Error creating function {} : {:?} ", name, err);
-        return error_response(err);
+        return error_response(format!("{:?}", err))
     }
     if let Err(err) = check_function_compatibility(&contents.contents) {
         error!(target: "controller", "Error checking function compatibility {} to storage : {:?} ", name, err);
-        return error_response(err);
+        return error_response(format!("{:?}", err))
     }
     if let Err(err) = add_to_storage(&name, contents).await {
         error!(target: "controller", "Error adding function {} to storage : {:?} ", name, err);
-        return error_response(err);
+        return error_response(format!("{:?}", err))
     }
     if let Err(err) = add_to_compiler(&name, compiler.clone()).await {
         error!(target: "controller", "Error adding function {} to compiler : {:?} ", name, err);
         if let Err(err) = delete_from_storage(&name).await {
             error!(target: "controller", "Error deleting function {} : {:?} ", name, err);
         }
-        return error_response(err);
+        return error_response(format!("{:?}", err))
     }
     return ok_response(format!("Function {} successfully created!", name));
 }
@@ -77,15 +77,15 @@ pub async fn delete_function(
 ) -> Result<std::result::Result<http::response::Response<std::string::String>, http::Error>, warp::Rejection> {
     if let Err(err) = reset_function_via_compiler(&name, compiler).await {
         error!(target: "controller", "Error reseting function {} : {:?} ", name, err);
-        return error_response(err);
+        return error_response(format!("{:?}", err))
     }
     if let Err(err) = delete_from_storage(&name).await {
         error!(target: "controller", "Error deleting function {} : {:?} ", name, err);
-        return error_response(err);
+        return error_response(format!("{:?}", err))
     }
     if let Err(err) = shutdown_function_instances_via_dispatcher(&name).await {
         error!(target: "controller", "Error shutting down instances for function {} : {:?} ", name, err);
-        return error_response(err);
+        return error_response(format!("{:?}", err))
     }
     return ok_response(format!("Function {} successfully deleted!", name));
 }
@@ -96,7 +96,7 @@ pub async fn shutdown_function_instances(
     match shutdown_function_instances_via_dispatcher(&name).await {
         Err(err) => {
             error!(target: "controller", "Error shutting down instances for function {} : {:?} ", name, err);
-            error_response(err)
+            error_response(format!("{:?}", err))
         }
         Ok(resp) => ok_response(resp)
     }
@@ -108,7 +108,7 @@ pub async fn reset_function(
     match reset_function_via_compiler(&name, compiler).await {
         Err(err) => {
             error!("Error reseting function {} : {:?} ", name, err);
-            error_response(err)
+            error_response(format!("{:?}", err))
         }
         Ok(resp) => ok_response(resp)
     }
@@ -118,7 +118,7 @@ pub async fn get_function(name: String) -> Result<impl warp::Reply, warp::Reject
     match get_from_storage(&name).await {
         Err(err) => {
             error!("Error describing function {} : {:?} ", name, err);
-            error_response(err)
+            error_response(format!("{:?}", err))
         }
         Ok(resp) => ok_response(resp)
     }
@@ -128,7 +128,7 @@ pub async fn list_functions() -> Result<impl warp::Reply, warp::Rejection> {
     match list_from_storage().await {
         Err(err) => {
             error!("Error listing functions: {:?} ", err);
-            error_response(err)
+            error_response(format!("{:?}", err))
         }
         Ok(resp) => ok_response(resp)
     }
@@ -143,12 +143,12 @@ async fn add_to_storage(name: &str, contents: FileContents) -> Result<String, Er
         .json(&contents)
         .send()
         .await?;
-    filter_errors_from_responses(resp.status(), resp.text().await?)
+    response_into_result(resp.status().as_u16(), resp.text().await?).map_err(Error::Storage)
 }
 
 async fn add_to_compiler(name: &str, compiler: Arc<Compiler>) -> Result<String, Error> {
     let resp_status = compiler.create_function(&name).await;
-    filter_errors_from_responses(resp_status, format!("Function {} created!", name))
+    response_into_result(resp_status.as_u16(), format!("Function {} created!", name)).map_err(Error::Compiler)
 }
 
 async fn delete_from_storage(name: &str) -> Result<String, Error> {
@@ -157,17 +157,17 @@ async fn delete_from_storage(name: &str) -> Result<String, Error> {
             name
         ))
         .await?;
-    filter_errors_from_responses(resp.status(), resp.text().await?)
+    response_into_result(resp.status().as_u16(), resp.text().await?).map_err(Error::Storage)
 }
 
 async fn get_from_storage(name: &str) -> Result<String, Error> {
     let resp = reqwest::get(&format!("http://localhost/storage/get_function/{}", name)).await?;
-    filter_errors_from_responses(resp.status(), resp.text().await?)
+    response_into_result(resp.status().as_u16(), resp.text().await?).map_err(Error::Storage)
 }
 
 async fn list_from_storage() -> Result<String, Error> {
     let resp = reqwest::get("http://localhost/storage/list_functions").await?;
-    filter_errors_from_responses(resp.status(), resp.text().await?)
+    response_into_result(resp.status().as_u16(), resp.text().await?).map_err(Error::Storage)
 }
 
 async fn shutdown_function_instances_via_dispatcher(name: &str) -> Result<String, Error> {
@@ -176,12 +176,12 @@ async fn shutdown_function_instances_via_dispatcher(name: &str) -> Result<String
             name
         ))
         .await?;
-    filter_errors_from_responses(resp.status(), resp.text().await?)
+    response_into_result(resp.status().as_u16(), resp.text().await?).map_err(Error::Dispatcher)
 }
 
 async fn reset_function_via_compiler(name: &str, compiler: Arc<Compiler>) -> Result<String, Error> {
     let resp_status = compiler.reset_function(&name).await;
-    filter_errors_from_responses(resp_status, format!("Trace could not be reset for function {}!",name))
+    response_into_result(resp_status.as_u16(), format!("Trace could not be reset for function {}!",name)).map_err(Error::Compiler)
 }
 
 fn check_function_compatibility(code: &str) -> Result<String, Error> {
@@ -222,9 +222,9 @@ fn check_function_compatibility(code: &str) -> Result<String, Error> {
             let mut br = BufReader::new(stderr);
             let mut s = String::new();
             br.read_to_string(&mut s)?;
-            Err(parsing_error(&s))
+            Err(Error::Parsing(s))
         } else {
-            Err(parsing_error("error"))
+            Err(Error::Parsing("error".to_string()))
         };
         return err;
     }

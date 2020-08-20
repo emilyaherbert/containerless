@@ -1,14 +1,11 @@
 use crate::dispatcher::function_table::FunctionTable;
 
+use shared::response::*;
+
 use std::sync::Arc;
 
 pub async fn readiness_handler() -> Result<impl warp::Reply, warp::Rejection> {
-    return Ok(hyper::Response::builder()
-        .status(200)
-        .body(hyper::Body::from(
-            "To invoke: http://HOSTNAME/dispatcher/FUNCTION-NAME\n",
-        ))
-        .unwrap());
+    ok_response("To invoke: http://HOSTNAME/dispatcher/FUNCTION-NAME".to_string())
 }
 
 pub async fn dispatcher_handler(
@@ -57,15 +54,9 @@ pub async fn system_status_handler(state: Arc<FunctionTable>,) -> Result<impl wa
     match FunctionTable::system_status(&state).await {
         Err(err) => {
             error!(target: "dispatcher", "Error getting system status : {:?} ", err);
-            Ok(hyper::Response::builder()
-                .status(500)
-                .body(format!("Could not get system status: {:?}", err)))
+            error_response(format!("Could not get system status: {:?}", err))
         },
-        Ok(resp) => {
-            Ok(hyper::Response::builder()
-            .status(200)
-            .body(format!("{}", resp)))
-        }
+        Ok(resp) => ok_response(format!("{}", resp))
     }
 }
 
@@ -73,20 +64,14 @@ pub async fn system_status_ok_handler(state: Arc<FunctionTable>,) -> Result<impl
     match FunctionTable::system_status_ok(&state).await {
         Err(err) => {
             error!(target: "dispatcher", "Error getting system status : {:?} ", err);
-            Ok(hyper::Response::builder()
-                .status(500)
-                .body(format!("Could not get system status: {:?}", err)))
+            error_response(format!("Could not get system status: {:?}", err))
         },
         Ok(resp) => {
             if !resp {
                 error!(target: "dispatcher", "System in broken state.");
-                Ok(hyper::Response::builder()
-                    .status(500)
-                    .body("System in broken state.".to_string()))
+                error_response("System in broken state.".to_string())
             } else {
-                Ok(hyper::Response::builder()
-                    .status(200)
-                    .body("System is okay.".to_string()))
+                ok_response("System is okay.".to_string())
             }
         }
     }

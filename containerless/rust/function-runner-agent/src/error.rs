@@ -6,6 +6,7 @@ pub enum Error {
     IO(io::Error),
     Reqwest(reqwest::Error),
     CompileError,
+    FileNotFound
 }
 
 impl std::fmt::Display for Error {
@@ -14,6 +15,7 @@ impl std::fmt::Display for Error {
             Error::IO(err) => err.fmt(fmt),
             Error::Reqwest(err) => err.fmt(fmt),
             Error::CompileError => fmt.write_str("CompileError"),
+            Error::FileNotFound => fmt.write_str("FileNotFound")
         }
     }
 }

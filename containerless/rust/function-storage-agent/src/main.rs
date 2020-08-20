@@ -4,6 +4,7 @@ extern crate log;
 mod handlers;
 mod routes;
 mod storage;
+mod error;
 
 use storage::Storage;
 
