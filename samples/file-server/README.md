@@ -5,7 +5,7 @@ server.
 
 ## Deploying
 
-### Deploying CouchDB to Kubernetes
+### Deploy CouchDB to Kubernetes
 
 1. Install Helm
 
@@ -24,7 +24,7 @@ server.
 4. Install the Helm chart using the `<uuid>` creating in step 3
 
     ```
-    helm install my-release couchdb/couchdb \
+    $ helm install my-release couchdb/couchdb \
         --set couchdbConfig.couchdb.uuid=<uuid>
     ```
 
@@ -58,15 +58,38 @@ server.
     `<password>` retrieved from step 5
 
     ```
-    curl -X PUT http://<username>:<password>@localhost:30984/myfiles
+    $ curl -X PUT http://<username>:<password>@localhost:30984/myfiles
     ```
+
+### Deploy the file server to Containerless
+
+Create the file server serverless function:
+
+```
+$ containerless create -n fileserver -f fileServer.js
+```
 
 ## Invoking
 
-Invoke using the `<username>` and `<password>` from step 5 above.
+Invoke using the `<username>` and `<password>` from step 5 above:
 
 ```
-curl -X POST -H "Content-Type: application/json" "http://localhost/dispatcher/fileserver/upload?username=<username>&password=<password>&filename=grocerylist" -d @groceries.json
+$ curl -X POST -H "Content-Type: application/json" "http://localhost/dispatcher/fileserver/upload?username=<username>&password=<password>&filename=grocerylist" -d @groceries.json
 ```
 
 ## Undeploying
+
+You can either:
+1. Force the shutdown of all running function pods
+    ```
+    $ containerless shutdown -n fileserver
+    ```
+2. Clear the compiled trace
+    ```
+    $ containerless reset -n fileserver
+    ```
+3. Delete the function entirely -- this does (1) and (2) above, and also deletes
+    the function code from the containerless system
+    ```
+    $ containerless delete -n fileserver
+    ```
