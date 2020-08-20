@@ -4,7 +4,6 @@ extern crate log;
 mod test_runner;
 mod tests;
 
-use machine_ip;
 use nix::sys::signal::{self, Signal};
 use nix::unistd::Pid;
 use shared::net;
