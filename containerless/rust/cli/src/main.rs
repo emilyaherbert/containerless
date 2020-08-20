@@ -1,7 +1,5 @@
 mod error;
-mod shims;
-
-use shims::*;
+mod containerless_shim;
 
 use clap::Clap;
 
