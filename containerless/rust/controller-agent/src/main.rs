@@ -12,7 +12,7 @@ use controller::graceful_sigterm::handle_sigterm;
 
 #[tokio::main]
 async fn main() {
-    shared::rsyslog::init_using_env();
+    env_logger::init();
 
     let k8s_client = Arc::new(
         k8s::Client::from_kubeconfig_file(NAMESPACE)

@@ -48,38 +48,6 @@ clusters:
 In principle, it is possible to deploy Containerless on an arbitrary Kubernetes
 cluster. However, our deployment scripts assume you're using MicroK8s.
 
-### Logging
-
-Containerless uses [rsyslog] to consolidate logs from its distributed
-components. The `docker/controller.sh` script configures Containerless to to
-send log messages to an *rsyslog* server running the local machine, using
-UDP port 514 (the default). These log messages get silently discarded
-if the *rsyslog* server is not running.
-
-1. Install *rsyslog* with `apt-get install rsyslog`.
-
-2. Open the file `/etc/rsyslog.conf` as root and make two changes:
-
-   a. Add the following lines:
-   
-      ```
-      module(load="imudp")
-      input(type="imudp" port="514")
-      ```
-      
-      (By default, they are commented out, so uncomment them.)
-
-   b. At the end of the file, add the lines:
-
-      ```
-      $template remote-incoming-logs,"/var/log/rsyslog-%HOSTNAME%.log"
-      *.* ?remote-incoming-logs
-      & ~
-      ```
-3. Restart *rsyslog* with `systemctl restart rsyslog`
-
-The logs will now appear in `/var/log/rsyslog-containerless.log`.
-
 ## Building
 
 1. Build the containerless system.
@@ -124,6 +92,10 @@ NAME                    HOSTS   ADDRESS     PORTS   AGE
 containerless-ingress   *       127.0.0.1   80      2m19s
 ```
 
+## Logging
+
+See README.md in the ./logging directory.
+
 ## Integration Tests
 
 To run integration tests, use:
@@ -159,4 +131,3 @@ cd docker && ./undeploy.sh
 [Node]: https://nodejs.org/
 [Docker]: https://www.docker.com/
 [Microk8s]: https://microk8s.io/
-[rsyslog]: https://www.rsyslog.com/

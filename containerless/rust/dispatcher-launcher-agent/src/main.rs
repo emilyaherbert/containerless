@@ -1,5 +1,6 @@
+#[macro_use]
+extern crate log;
 use duct::cmd;
-use log::{error, info};
 use reqwest;
 use std::fs::File;
 use std::io::copy;

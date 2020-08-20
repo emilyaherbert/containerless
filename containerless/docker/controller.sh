@@ -1,6 +1,5 @@
 #!/bin/bash
-export LOG_LEVEL=info
-export LOG_RSYSLOG_ADDR=`hostname -i | cut -f 1 -d " "`:514
+export RUST_LOG=info
 case $1 in
 start)
     if [ -f .controller.pid ]; then
