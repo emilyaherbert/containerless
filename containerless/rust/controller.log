@@ -1,0 +1,6 @@
+[2020-08-20T13:18:42Z WARN  kube::config] failed to load client identity from kube config: Error loading kube config: Error loading kube config: Failed to get data/file with base64 format
+[2020-08-20T13:18:42Z INFO  controller_agent::controller::compiler] Running cargo build on dispatcher-agent. Output is suppressed unless an error occurs.
+[2020-08-20T13:18:42Z WARN  kube::config] failed to load client identity from kube config: Error loading kube config: Error loading kube config: Failed to get data/file with base64 format
+[2020-08-20T13:18:53Z INFO  controller_agent] Controller listening
+[2020-08-20T13:19:50Z INFO  controller_agent::controller::graceful_sigterm] Received SIGTERM
+[2020-08-20T13:19:50Z INFO  controller_agent::controller::compiler] ending compiler task (received shutdown message)

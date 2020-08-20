@@ -118,3 +118,22 @@ spec:
           backend:
             serviceName: controller
             servicePort: http
+---
+# This pod echos the controller's log file to its own standard output, so that
+# it appears in the Kubernetes log.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: controller-logger
+  namespace: containerless
+spec:
+  containers:
+  - name: controller-logger
+    image: localhost:32000/controller-logger
+    volumeMounts:
+      - name: log
+        mountPath: "/log"
+  volumes:
+    - name: log
+      hostPath:
+        path: $CONTROLLER_LOG_PATH
