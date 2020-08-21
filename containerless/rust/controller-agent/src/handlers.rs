@@ -191,11 +191,13 @@ async fn shutdown_function_instances_via_dispatcher(name: &str) -> Result<String
 
 async fn reset_function_via_compiler(name: &str, compiler: Arc<Compiler>) -> Result<String, Error> {
     let resp_status = compiler.reset_function(&name).await;
-    response_into_result(
-        resp_status.as_u16(),
-        format!("Trace could not be reset for function {}!", name),
-    )
-    .map_err(Error::Compiler)
+    match resp_status.as_u16() {
+        200 => Ok(format!("Trace reset for function {}!", name)),
+        other => Err(Error::Compiler(format!(
+            "Trace could not be reset for function {}. (ERRCODE {:?})",
+            name, other
+        ))),
+    }
 }
 
 fn check_function_compatibility(code: &str) -> Result<String, Error> {

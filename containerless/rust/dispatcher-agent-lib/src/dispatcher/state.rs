@@ -4,7 +4,7 @@ use super::serverless_request::*;
 use super::types::*;
 use super::util;
 use crate::error::*;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use futures::prelude::*;
 use hyper::header::HeaderValue;
@@ -344,6 +344,9 @@ impl State {
         )?;
 
         let label = format!("function={}", self_.name);
+        let interval = Duration::from_secs(1);
+        let timeout = Duration::from_secs(60);
+        let end_time = Instant::now() + timeout;
 
         loop {
             let pending_pods = self_
@@ -358,7 +361,11 @@ impl State {
             if running_pods.is_empty() && pending_pods.is_empty() {
                 break;
             }
-            tokio::time::delay_for(Duration::from_secs(1)).await;
+
+            tokio::time::delay_for(interval).await;
+            if Instant::now() >= end_time {
+                break;
+            }
         }
 
         //https://docs.rs/k8s-openapi/0.9.0/k8s_openapi/api/core/v1/struct.Pod.html#method.watch_namespaced_pod
