@@ -21,7 +21,6 @@ async fn wait_for_http_server() -> Result<(), error::Error> {
     let _resp = FutureRetry::new(
         move || reqwest::get("http://localhost:8081/readinessProbe"),
         move |err| {
-            eprintln!("Pinging serverless function ({} tries left)", tries);
             if tries == 0 {
                 return RetryPolicy::ForwardError(err);
             }
