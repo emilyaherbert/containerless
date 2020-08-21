@@ -1,5 +1,5 @@
-mod error;
 mod containerless_shim;
+mod error;
 
 use clap::Clap;
 
@@ -98,7 +98,10 @@ async fn main() {
             println!("{}", status);
         }
         SubCommand::Create(t) => {
-            let output = containerless_shim.create_function(&t.name, &t.filename).await.unwrap();
+            let output = containerless_shim
+                .create_function(&t.name, &t.filename)
+                .await
+                .unwrap();
             println!("{}", output);
         }
         SubCommand::Delete(t) => {

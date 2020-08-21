@@ -111,13 +111,18 @@ impl FunctionTable {
         }
     }
 
-    pub async fn get_function(self_: &Arc<FunctionTable>, name: &str) -> Result<FunctionManager, Error> {
+    pub async fn get_function(
+        self_: &Arc<FunctionTable>, name: &str,
+    ) -> Result<FunctionManager, Error> {
         let mut inner = self_.inner.lock().await;
         match inner.functions.get(name) {
             None => {
                 // Check to see if the function is available in storage
-                let storage_resp = reqwest::get(&format!("http://storage:8080/get_function/{}", name)).await?;
-                if let Err(err) = response_into_result(storage_resp.status().as_u16(), storage_resp.text().await?) {
+                let storage_resp =
+                    reqwest::get(&format!("http://storage:8080/get_function/{}", name)).await?;
+                if let Err(err) =
+                    response_into_result(storage_resp.status().as_u16(), storage_resp.text().await?)
+                {
                     return Err(Error::Storage(format!("{:?}", err)));
                 }
                 let fm = FunctionManager::new(
@@ -144,30 +149,42 @@ impl FunctionTable {
 
     pub async fn system_status(self_: &Arc<FunctionTable>) -> Result<SystemStatus, kube::Error> {
         fn find_running_pod(pods: Vec<k8s::types::PodSnapshot>) -> Option<k8s::types::PodSnapshot> {
-            let filtered: Vec<k8s::types::PodSnapshot> = pods.iter()
+            let filtered: Vec<k8s::types::PodSnapshot> = pods
+                .iter()
                 .filter(|snapshot| snapshot.phase == k8s::types::PodPhase::Running)
                 .cloned()
                 .collect();
-            filtered.first()
-                .map(|x| x.clone())
+            filtered.first().map(|x| x.clone())
         }
 
         let inner = self_.inner.lock().await;
 
-        let possible_controller_services = inner.k8s_client.list_services_by_label("app=controller").await?;
-        let possible_dispatcher_services = inner.k8s_client.list_services_by_label("app=dispatcher").await?;
-        let possible_dispatcher_pods = inner.k8s_client.list_pods_by_label("app=dispatcher").await?;
-        let possible_storage_services = inner.k8s_client.list_services_by_label("app=storage").await?;
+        let possible_controller_services = inner
+            .k8s_client
+            .list_services_by_label("app=controller")
+            .await?;
+        let possible_dispatcher_services = inner
+            .k8s_client
+            .list_services_by_label("app=dispatcher")
+            .await?;
+        let possible_dispatcher_pods = inner
+            .k8s_client
+            .list_pods_by_label("app=dispatcher")
+            .await?;
+        let possible_storage_services = inner
+            .k8s_client
+            .list_services_by_label("app=storage")
+            .await?;
         let possible_storage_pods = inner.k8s_client.list_pods_by_label("app=storage").await?;
 
         Ok(SystemStatus {
             controller_service: possible_controller_services.len() == 1,
             dispatcher_pod: find_running_pod(possible_dispatcher_pods).is_some(),
             dispatcher_service: possible_dispatcher_services.len() == 1,
-            storage_pod:find_running_pod(possible_storage_pods).is_some(),
+            storage_pod: find_running_pod(possible_storage_pods).is_some(),
             storage_service: possible_storage_services.len() == 1,
             function_services: HashMap::new(),
-            function_pods: HashMap::new()
+            function_pods: HashMap::new(),
         })
     }
 
@@ -178,9 +195,14 @@ impl FunctionTable {
     /// 3. Running storage service and pod.
     pub async fn system_status_ok(self_: &Arc<FunctionTable>) -> Result<bool, kube::Error> {
         let status = FunctionTable::system_status(self_).await?;
-        if status.controller_service && status.dispatcher_service && status.dispatcher_pod && status.storage_service && status.storage_pod {
+        if status.controller_service
+            && status.dispatcher_service
+            && status.dispatcher_pod
+            && status.storage_service
+            && status.storage_pod
+        {
             // TODO: check function status
-            return Ok(true)
+            return Ok(true);
         }
         return Ok(false);
     }

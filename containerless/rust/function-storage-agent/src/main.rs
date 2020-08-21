@@ -1,10 +1,10 @@
 #[macro_use]
 extern crate log;
 
+mod error;
 mod handlers;
 mod routes;
 mod storage;
-mod error;
 
 use storage::Storage;
 

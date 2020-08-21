@@ -1,10 +1,10 @@
 use k8s::Client as K8sClient;
 use reqwest;
+use serde_json::json;
 use serde_json::Value as JsonValue;
 use shared::net::poll_url_with_timeout;
 use std::time::Duration;
 use tokio::time::delay_for;
-use serde_json::json;
 
 struct TestRunner {
     http_client: reqwest::Client,
@@ -108,13 +108,13 @@ pub async fn run_test_async(
         .unwrap()
         .observed_generation;
 
-    
     // Register the function with Containerless
     reqwest::Client::new()
-        .post(&format!("http://localhost/controller/create_function/{}", name))
-        .json(&json!({
-            "contents": format!("{}", js_code.trim())
-        }))
+        .post(&format!(
+            "http://localhost/controller/create_function/{}",
+            name
+        ))
+        .json(&json!({ "contents": format!("{}", js_code.trim()) }))
         .send()
         .await
         .expect("Could not create function.")
@@ -130,10 +130,13 @@ pub async fn run_test_async(
                 .await
                 .map_err(move |err| async move {
                     error!(target: "integration-tests", "Error in the test runner: {:?}", err);
-                    reqwest::get(&format!("http://localhost/controller/delete_function/{}", name))
-                        .await?
-                        .text()
-                        .await
+                    reqwest::get(&format!(
+                        "http://localhost/controller/delete_function/{}",
+                        name
+                    ))
+                    .await?
+                    .text()
+                    .await
                 })
                 .map_err(|_err| "Could not delete function.")
                 .unwrap(),
@@ -149,10 +152,13 @@ pub async fn run_test_async(
         .await
         .map_err(move |err| async move {
             error!(target: "integration-tests", "Error in the test runner: {:?}", err);
-            reqwest::get(&format!("http://localhost/controller/delete_function/{}", name))
-                .await?
-                .text()
-                .await
+            reqwest::get(&format!(
+                "http://localhost/controller/delete_function/{}",
+                name
+            ))
+            .await?
+            .text()
+            .await
         })
         .map_err(|_err| "Could not delete function.")
         .expect("sending compile request");
@@ -171,10 +177,13 @@ pub async fn run_test_async(
     .await
     .map_err(move |err| async move {
         error!(target: "integration-tests", "Error in the test runner: {:?}", err);
-        reqwest::get(&format!("http://localhost/controller/delete_function/{}", name))
-            .await?
-            .text()
-            .await
+        reqwest::get(&format!(
+            "http://localhost/controller/delete_function/{}",
+            name
+        ))
+        .await?
+        .text()
+        .await
     })
     .map_err(|_err| "Could not delete function.")
     .expect("compiler took too long");
@@ -191,10 +200,13 @@ pub async fn run_test_async(
                 .await
                 .map_err(move |err| async move {
                     error!(target: "integration-tests", "Error in the test runner: {:?}", err);
-                    reqwest::get(&format!("http://localhost/controller/delete_function/{}", name))
-                        .await?
-                        .text()
-                        .await
+                    reqwest::get(&format!(
+                        "http://localhost/controller/delete_function/{}",
+                        name
+                    ))
+                    .await?
+                    .text()
+                    .await
                 })
                 .map_err(|_err| "Could not delete function.")
                 .unwrap(),

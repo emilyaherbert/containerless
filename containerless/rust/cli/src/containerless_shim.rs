@@ -36,10 +36,12 @@ impl ContainerlessShim {
     }
 
     pub async fn delete_function(&self, name: &str) -> CLIResult<String> {
-        Ok(reqwest::get(&format!("{}/delete_function/{}", self.controller, name))
+        Ok(
+            reqwest::get(&format!("{}/delete_function/{}", self.controller, name))
                 .await?
                 .text()
-                .await?)
+                .await?,
+        )
     }
 
     pub async fn shutdown_function_instances(&self, name: &str) -> CLIResult<String> {

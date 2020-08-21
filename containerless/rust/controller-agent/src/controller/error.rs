@@ -7,7 +7,7 @@ pub enum Error {
     Parsing(String),
     Storage(String),
     Compiler(String),
-    Dispatcher(String)
+    Dispatcher(String),
 }
 
 impl std::convert::From<reqwest::Error> for Error {

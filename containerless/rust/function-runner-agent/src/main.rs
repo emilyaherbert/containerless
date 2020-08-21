@@ -50,9 +50,13 @@ async fn initialize(function_name: String, tracing_enabled: bool) -> Result<(), 
     let mut function_code = "".to_string();
     match resp.status().as_u16() {
         200 => function_code = resp.text().await?,
-        _ => return Err(error::Error::FileNotFound)
+        _ => return Err(error::Error::FileNotFound),
     }
-    eprintln!("Downloaded function {} ({} bytes)", function_name, function_code.len());
+    eprintln!(
+        "Downloaded function {} ({} bytes)",
+        function_name,
+        function_code.len()
+    );
 
     // Write the serverless function to a file. This is needed whether or
     // not we are tracing.
