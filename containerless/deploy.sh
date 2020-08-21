@@ -29,5 +29,3 @@ echo "Waiting for dispather to come online..."
 echo "Dispatcher is running at http://localhost/dispatcher\n"
 
 echo "System is fully deployed.\n"
-
-curl http://localhost/dispatcher/system_status

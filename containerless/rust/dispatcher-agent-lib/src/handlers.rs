@@ -79,34 +79,3 @@ pub async fn shutdown_function_instances_handler(
             .unwrap()),
     }
 }
-
-pub async fn system_status_handler(
-    state: Arc<FunctionTable>,
-) -> Result<impl warp::Reply, warp::Rejection> {
-    match FunctionTable::system_status(&state).await {
-        Err(err) => {
-            error!(target: "dispatcher", "Error getting system status : {:?} ", err);
-            error_response(format!("Could not get system status: {:?}", err))
-        }
-        Ok(resp) => ok_response(format!("{}", resp)),
-    }
-}
-
-pub async fn system_status_ok_handler(
-    state: Arc<FunctionTable>,
-) -> Result<impl warp::Reply, warp::Rejection> {
-    match FunctionTable::system_status_ok(&state).await {
-        Err(err) => {
-            error!(target: "dispatcher", "Error getting system status : {:?} ", err);
-            error_response(format!("Could not get system status: {:?}", err))
-        }
-        Ok(resp) => {
-            if !resp {
-                error!(target: "dispatcher", "System in broken state.");
-                error_response("System in broken state.".to_string())
-            } else {
-                ok_response("System is okay.".to_string())
-            }
-        }
-    }
-}
