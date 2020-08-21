@@ -18,7 +18,6 @@ struct Opts {
 
 #[derive(Clap)]
 enum SubCommand {
-    Status(Status),
     Create(Create),
     Delete(Delete),
     RemoveContainers(RemoveContainers),
@@ -27,10 +26,6 @@ enum SubCommand {
     List(List),
     Invoke(Invoke),
 }
-
-/// Queries the status of Containerless.
-#[derive(Clap)]
-struct Status {}
 
 /// Creates a function.
 #[derive(Clap)]
@@ -93,10 +88,6 @@ async fn main() {
     let containerless_shim = containerless_shim::ContainerlessShim::new();
 
     match opts.subcmd {
-        SubCommand::Status(_) => {
-            let status = containerless_shim.system_status().await.unwrap();
-            println!("{}", status);
-        }
         SubCommand::Create(t) => {
             let output = containerless_shim
                 .create_function(&t.name, &t.filename)
