@@ -44,7 +44,6 @@ pub async fn retry_get(
             })
         },
         move |err| {
-            eprintln!("Pinging ({} tries left)", tries);
             if tries == 0 {
                 return RetryPolicy::ForwardError(err);
             }

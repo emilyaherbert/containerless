@@ -21,7 +21,6 @@ async fn wait_for_http_server() -> Result<(), error::Error> {
     let _resp = FutureRetry::new(
         move || reqwest::get("http://localhost:8081/readinessProbe"),
         move |err| {
-            eprintln!("Pinging serverless function ({} tries left)", tries);
             if tries == 0 {
                 return RetryPolicy::ForwardError(err);
             }
@@ -48,13 +47,17 @@ async fn initialize(function_name: String, tracing_enabled: bool) -> Result<(), 
         &function_name
     ))
     .await?;
-    let mut function_code = "".to_string();
-    match resp.status().as_u16() {
-        200 => function_code = resp.text().await?,
-        _ => return Err(error::Error::FileNotFound),
+
+    if resp.status().as_u16() != 200 {
+        return Err(error::Error::FileNotFound);
     }
-    eprintln!("Downloaded function ({} bytes)", function_code.len());
-    eprintln!("Function code: {}", function_code);
+
+    let function_code = resp.text().await?;
+    eprintln!(
+        "Downloaded function {} ({} bytes)",
+        function_name,
+        function_code.len()
+    );
 
     // Write the serverless function to a file. This is needed whether or
     // not we are tracing.

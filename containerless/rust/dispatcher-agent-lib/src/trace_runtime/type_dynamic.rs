@@ -211,7 +211,8 @@ impl<'a> Dyn<'a> {
     pub fn set(&mut self, index: Dyn<'a>, new_value: Dyn<'a>) -> DynResult<'a> {
         match (self, index) {
             (Dyn::Vec(v), Dyn::Float(n)) => {
-                std::mem::replace(&mut v.elems.borrow_mut()[n as usize], new_value);
+                //std::mem::replace(&mut v.elems.borrow_mut()[n as usize], new_value);
+                v.elems.borrow_mut()[n as usize] = new_value;
                 return Ok(Dyn::Undefined);
             }
             _ => type_error("Should only use index on a vec!"),
