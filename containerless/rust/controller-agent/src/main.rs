@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate lazy_static;
 
 mod controller;
@@ -6,9 +5,10 @@ mod handlers;
 mod routes;
 mod trace_compiler;
 
-use controller::common::*;
 use controller::compiler;
 use controller::graceful_sigterm::handle_sigterm;
+
+use shared::common::*;
 
 #[tokio::main]
 async fn main() {

@@ -1,7 +1,7 @@
 use super::compiler::Compiler;
-use crate::controller::common::*;
 use crate::controller::error::Error;
 
+use shared::common::*;
 use shared::file_contents::FileContents;
 use shared::response::*;
 

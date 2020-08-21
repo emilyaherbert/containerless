@@ -1,5 +1,7 @@
-use super::common::*;
 use super::compiler::Compiler;
+
+use shared::common::*;
+
 use k8s;
 use kube;
 use lazy_static::lazy_static;

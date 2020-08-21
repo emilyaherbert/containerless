@@ -1,8 +1,9 @@
 //! The compiler uses `cargo build` in the `/src` directory, so it must
 //! run as a single threaded task.
-use super::common::*;
 use super::error::Error;
 use crate::trace_compiler;
+
+use shared::common::*;
 
 use futures::channel::mpsc;
 use k8s;
