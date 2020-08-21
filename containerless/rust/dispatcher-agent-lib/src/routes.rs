@@ -49,14 +49,18 @@ fn shutdown_function_instances_route(
         .and_then(handlers::shutdown_function_instances_handler)
 }
 
-fn system_status_route(state: Arc<FunctionTable>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+fn system_status_route(
+    state: Arc<FunctionTable>,
+) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::path!("system_status")
         .and(warp::get())
         .and(with_state(state))
         .and_then(handlers::system_status_handler)
 }
 
-fn system_status_ok_route(state: Arc<FunctionTable>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+fn system_status_ok_route(
+    state: Arc<FunctionTable>,
+) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::path!("system_status")
         .and(warp::get())
         .and(with_state(state))

@@ -4,7 +4,7 @@ use super::serverless_request::*;
 use super::types::*;
 use super::util;
 use crate::error::*;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use futures::prelude::*;
 use hyper::header::HeaderValue;
@@ -344,19 +344,30 @@ impl State {
         )?;
 
         let label = format!("function={}", self_.name);
-        
+        let interval = Duration::from_secs(1);
+        let timeout = Duration::from_secs(60);
+        let end_time = Instant::now() + timeout;
+
         loop {
-            let pending_pods = self_.k8s_client
-                .list_pods_by_label_and_field(label.clone(), "status.phase=Pending").await?;
-            let running_pods = self_.k8s_client
-                .list_pods_by_label_and_field(label.clone(), "status.phase=Running").await?;
+            let pending_pods = self_
+                .k8s_client
+                .list_pods_by_label_and_field(label.clone(), "status.phase=Pending")
+                .await?;
+            let running_pods = self_
+                .k8s_client
+                .list_pods_by_label_and_field(label.clone(), "status.phase=Running")
+                .await?;
 
             if running_pods.is_empty() && pending_pods.is_empty() {
                 break;
             }
-            tokio::time::delay_for(Duration::from_secs(1)).await;
+
+            tokio::time::delay_for(interval).await;
+            if Instant::now() >= end_time {
+                break;
+            }
         }
-        
+
         //https://docs.rs/k8s-openapi/0.9.0/k8s_openapi/api/core/v1/struct.Pod.html#method.watch_namespaced_pod
         if let Mode::Decontainerized(_) = mode {
             // Do not terminate the task if decontainerized.
@@ -387,7 +398,6 @@ impl State {
             } => num_replicas,
         };
 
-
         let autoscaler = Autoscaler::new(
             Arc::clone(&self_.k8s_client),
             self_.vanilla_name.clone(),
@@ -409,7 +419,9 @@ impl State {
                     return Ok(());
                 }
                 (_, Message::Shutdown(send_complete)) => {
-                    send_complete.send(State::shutdown(self_, mode).await).unwrap();
+                    send_complete
+                        .send(State::shutdown(self_, mode).await)
+                        .unwrap();
                     return Ok(());
                 }
                 (_, Message::GetMode(send)) => {

@@ -42,7 +42,10 @@ impl FunctionManager {
 
     pub async fn shutdown(&mut self) -> Response {
         let (send, recv) = oneshot::channel();
-        self.send_requests.send(Message::Shutdown(send)).await.unwrap();
+        self.send_requests
+            .send(Message::Shutdown(send))
+            .await
+            .unwrap();
         match recv.await {
             Err(err) => {
                 return util::text_response(
@@ -61,7 +64,7 @@ impl FunctionManager {
                         self.state.name, err
                     ),
                 );
-            }                
+            }
             Ok(Ok(())) => {
                 return util::text_response(
                     200,
