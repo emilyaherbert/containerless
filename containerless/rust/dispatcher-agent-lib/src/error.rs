@@ -18,7 +18,7 @@ pub enum Error {
     #[error("communicating with controller: {0}")]
     Controller(String),
     #[error("communicating with storage: {0}")]
-    Storage(String)
+    Storage(String),
 }
 
 impl Error {

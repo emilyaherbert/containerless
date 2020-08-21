@@ -20,7 +20,7 @@ pub async fn get_function(
             error!("Error reading file {} : {:?} ", path, err);
             error_response(format!("{:?}", err))
         }
-        Ok(file) => ok_response(file.contents)
+        Ok(file) => ok_response(file.contents),
     }
 }
 
@@ -33,7 +33,7 @@ pub async fn create_function(
             error!("Error creating file {} : {:?} ", path, err);
             error_response(format!("{:?}", err))
         }
-        Ok(_file) => ok_response(format!("{} created!", path))
+        Ok(_file) => ok_response(format!("{} created!", path)),
     }
 }
 
@@ -46,7 +46,7 @@ pub async fn delete_function(
             error!("Error deleting file {}: {:?}", path, err);
             error_response(format!("{:?}", err))
         }
-        Ok(_file) => ok_response(format!("{} deleted!", path))
+        Ok(_file) => ok_response(format!("{} deleted!", path)),
     }
 }
 

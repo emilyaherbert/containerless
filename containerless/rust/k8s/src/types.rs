@@ -28,17 +28,17 @@ pub struct PodSnapshot {
     pub name: String,
     pub spec: PodSpec,
     pub phase: PodPhase,
-    pub condition: PodCondition
+    pub condition: PodCondition,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ServiceSnapshot {
     pub name: String,
-    pub spec: ServiceSpec
+    pub spec: ServiceSpec,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SystemSnapshot {
     pub pods: HashMap<String, PodSnapshot>,
-    pub services: HashMap<String, ServiceSnapshot>
+    pub services: HashMap<String, ServiceSnapshot>,
 }

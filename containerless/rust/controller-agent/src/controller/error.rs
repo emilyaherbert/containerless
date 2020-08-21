@@ -9,7 +9,7 @@ pub enum Error {
     Compiler(String),
     Dispatcher(String),
     Kube(kube::Error),
-    Containerless(String)
+    Containerless(String),
 }
 
 impl std::convert::From<reqwest::Error> for Error {

@@ -28,7 +28,8 @@ fn ready_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Reject
         .and_then(handlers::ready)
 }
 
-fn system_ready_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+fn system_ready_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone
+{
     warp::path!("system_ready")
         .and(warp::get())
         .and_then(handlers::system_ready)

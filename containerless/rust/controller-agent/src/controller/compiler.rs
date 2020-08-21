@@ -12,10 +12,10 @@ use quote::quote;
 use std::fs;
 use std::io::{self, Write};
 use std::process::Stdio;
+use std::time::{Duration, Instant};
 use syn::Ident;
 use tokio::process::Command;
 use tokio::task;
-use std::time::{Duration, Instant};
 
 enum Message {
     Compile {
@@ -38,7 +38,7 @@ enum Message {
     ResetFunction {
         name: String,
         started_compiling: oneshot::Sender<()>,
-        new_dispatcher_deployed: oneshot::Sender<()>
+        new_dispatcher_deployed: oneshot::Sender<()>,
     },
 }
 
@@ -103,10 +103,11 @@ pub fn dispatcher_deployment_spec(version: usize) -> k8s::Deployment {
                 .selector("app", "dispatcher")
                 .template(
                     PodTemplateSpecBuilder::new()
-                        .metadata(ObjectMetaBuilder::new()
-                            .label("app", "dispatcher")
-                            .label("version", version.to_string())
-                            .build()
+                        .metadata(
+                            ObjectMetaBuilder::new()
+                                .label("app", "dispatcher")
+                                .label("version", version.to_string())
+                                .build(),
                         )
                         .spec(
                             PodSpecBuilder::new()
@@ -200,7 +201,7 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
             Message::ResetFunction {
                 name,
                 started_compiling,
-                new_dispatcher_deployed
+                new_dispatcher_deployed,
             } => {
                 info!(target: "controller", "clearing compiled function {}", name);
                 let rs_path = format!(
@@ -249,13 +250,20 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                                 .expect("patching dispatcher deployment");
                             info!(target: "controller", "Patched dispatcher deployment");
 
-                            async fn wait_for_dispatcher_patch_to_complete(k8s: &k8s::Client, desired_version: usize) -> Result<(), Error> {
+                            async fn wait_for_dispatcher_patch_to_complete(
+                                k8s: &k8s::Client, desired_version: usize,
+                            ) -> Result<(), Error> {
                                 let interval = Duration::from_secs(1);
                                 let timeout = Duration::from_secs(60);
                                 let end_time = Instant::now() + timeout;
                                 let label = format!("app=dispatcher,version={}", desired_version);
                                 loop {
-                                    let dispatcher_pods = k8s.list_pods_by_label_and_field(label.clone(), "status.phase=Running").await?;
+                                    let dispatcher_pods = k8s
+                                        .list_pods_by_label_and_field(
+                                            label.clone(),
+                                            "status.phase=Running",
+                                        )
+                                        .await?;
                                     if dispatcher_pods.len() == 1 {
                                         return Ok(());
                                     }
@@ -264,16 +272,19 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                                         break;
                                     }
                                 }
-                                return Err(Error::Containerless("Could not patch dispatcher deployment.".to_string()));
+                                return Err(Error::Containerless(
+                                    "Could not patch dispatcher deployment.".to_string(),
+                                ));
                             }
 
-                            if let Err(err) = wait_for_dispatcher_patch_to_complete(&k8s, next_version).await {
+                            if let Err(err) =
+                                wait_for_dispatcher_patch_to_complete(&k8s, next_version).await
+                            {
                                 error!(target: "controller", "Error while waiting for dispatcher to patch: {:?}", err);
                                 continue;
                             }
 
                             new_dispatcher_deployed.send(()).expect("sending done");
-
                         }
                         CompileStatus::Compiling => {
                             error!(target: "controller", "trace not currently yet built for function {}", name);
@@ -443,7 +454,7 @@ impl Compiler {
         self.send_message_non_blocking(Message::ResetFunction {
             name: name.to_string(),
             started_compiling: send,
-            new_dispatcher_deployed: send2
+            new_dispatcher_deployed: send2,
         });
 
         match (recv.await, recv2.await) {

@@ -13,17 +13,17 @@ pub async fn dispatcher_handler(
     state: Arc<FunctionTable>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     debug!(target: "dispatcher", "received request for function {} with path {}", function_name, function_path);
-    
+
     // Create the Function Manager for the function
     let fm_res = FunctionTable::get_function(&state, &function_name).await;
     if let Err(err) = fm_res {
         return Ok(hyper::Response::builder()
-        .status(500)
-        .body(hyper::Body::from(format!(
-            "Error invoking function {}",
-            err
-        )))
-        .unwrap());
+            .status(500)
+            .body(hyper::Body::from(format!(
+                "Error invoking function {}",
+                err
+            )))
+            .unwrap());
     }
     let mut fm = fm_res.unwrap();
 
@@ -49,10 +49,10 @@ pub async fn compile_handler(
 ) -> Result<impl warp::Reply, warp::Rejection> {
     match FunctionTable::get_function(&state, &function_name).await {
         Ok(mut fm) => Ok(fm.extract_and_compile().await),
-        Err(err) =>  Ok(hyper::Response::builder()
+        Err(err) => Ok(hyper::Response::builder()
             .status(500)
             .body(hyper::Body::from(format!("{:?}", err)))
-            .unwrap())
+            .unwrap()),
     }
 }
 
@@ -61,10 +61,10 @@ pub async fn get_mode_handler(
 ) -> Result<impl warp::Reply, warp::Rejection> {
     match FunctionTable::get_function(&state, &function_name).await {
         Ok(mut fm) => Ok(fm.get_mode().await),
-        Err(err) =>  Ok(hyper::Response::builder()
+        Err(err) => Ok(hyper::Response::builder()
             .status(500)
             .body(hyper::Body::from(format!("{:?}", err)))
-            .unwrap())
+            .unwrap()),
     }
 }
 
@@ -73,29 +73,33 @@ pub async fn shutdown_function_instances_handler(
 ) -> Result<impl warp::Reply, warp::Rejection> {
     match FunctionTable::get_function(&state, &function_name).await {
         Ok(mut fm) => Ok(fm.shutdown().await),
-        Err(err) =>  Ok(hyper::Response::builder()
+        Err(err) => Ok(hyper::Response::builder()
             .status(500)
             .body(hyper::Body::from(format!("{:?}", err)))
-            .unwrap())
+            .unwrap()),
     }
 }
 
-pub async fn system_status_handler(state: Arc<FunctionTable>,) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn system_status_handler(
+    state: Arc<FunctionTable>,
+) -> Result<impl warp::Reply, warp::Rejection> {
     match FunctionTable::system_status(&state).await {
         Err(err) => {
             error!(target: "dispatcher", "Error getting system status : {:?} ", err);
             error_response(format!("Could not get system status: {:?}", err))
-        },
-        Ok(resp) => ok_response(format!("{}", resp))
+        }
+        Ok(resp) => ok_response(format!("{}", resp)),
     }
 }
 
-pub async fn system_status_ok_handler(state: Arc<FunctionTable>,) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn system_status_ok_handler(
+    state: Arc<FunctionTable>,
+) -> Result<impl warp::Reply, warp::Rejection> {
     match FunctionTable::system_status_ok(&state).await {
         Err(err) => {
             error!(target: "dispatcher", "Error getting system status : {:?} ", err);
             error_response(format!("Could not get system status: {:?}", err))
-        },
+        }
         Ok(resp) => {
             if !resp {
                 error!(target: "dispatcher", "System in broken state.");
