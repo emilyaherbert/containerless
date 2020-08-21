@@ -47,11 +47,12 @@ async fn initialize(function_name: String, tracing_enabled: bool) -> Result<(), 
         &function_name
     ))
     .await?;
-    let mut function_code = "".to_string();
-    match resp.status().as_u16() {
-        200 => function_code = resp.text().await?,
-        _ => return Err(error::Error::FileNotFound),
+
+    if resp.status().as_u16() != 200 {
+        return Err(error::Error::FileNotFound);
     }
+
+    let function_code = resp.text().await?;
     eprintln!(
         "Downloaded function {} ({} bytes)",
         function_name,
