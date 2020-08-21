@@ -3,6 +3,27 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from sys import argv
 import json
 
+# FilterDups(N) is a logger that filters duplicate messages. To do so, it stores the last N messages
+# in an internal buffer, and the 'maybe_log' method will only display message if it is not in the
+# buffer. This class is effective because our log messages have precise timestamps. So, we are
+# unlikely to mistakenly suppress a message that should have been repeated.
+class FilterDups:
+    def __init__(self, max_buf_len):
+        self.buf = [ ]
+        self.max_buf_len = max_buf_len
+        self.index = 0
+    
+    def maybe_log(self, message):
+        if not (message in self.buf):
+            print(message)
+        if len(self.buf) < self.max_buf_len:
+            self.buf.append(message)
+        else:
+            self.buf[self.index] = message
+        self.index = (self.index + 1) % self.max_buf_len
+
+filter_dups = FilterDups(500)
+
 class S(BaseHTTPRequestHandler):
     # The implementation of log_message in the base class logs the request. The definition below
     # supresses logging.
@@ -16,7 +37,7 @@ class S(BaseHTTPRequestHandler):
         for log_line in json_log:
             if log_line['kubernetes']['namespace_name'] != 'containerless':
                 continue
-            print(f"{log_line['kubernetes']['pod_name']} {log_line['log']}")
+            filter_dups.maybe_log(f"{log_line['kubernetes']['pod_name']} {log_line['log']}")
         self.send_response(200)
         self.wfile.write(b'')
 
