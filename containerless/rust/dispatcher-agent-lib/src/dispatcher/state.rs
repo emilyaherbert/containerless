@@ -368,7 +368,6 @@ impl State {
             }
         }
 
-        //https://docs.rs/k8s-openapi/0.9.0/k8s_openapi/api/core/v1/struct.Pod.html#method.watch_namespaced_pod
         if let Mode::Decontainerized(_) = mode {
             // Do not terminate the task if decontainerized.
         }
