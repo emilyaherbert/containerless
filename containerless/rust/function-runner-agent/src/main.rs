@@ -53,8 +53,7 @@ async fn initialize(function_name: String, tracing_enabled: bool) -> Result<(), 
         200 => function_code = resp.text().await?,
         _ => return Err(error::Error::FileNotFound)
     }
-    eprintln!("Downloaded function ({} bytes)", function_code.len());
-    eprintln!("Function code: {}", function_code);
+    eprintln!("Downloaded function {} ({} bytes)", function_name, function_code.len());
 
     // Write the serverless function to a file. This is needed whether or
     // not we are tracing.
