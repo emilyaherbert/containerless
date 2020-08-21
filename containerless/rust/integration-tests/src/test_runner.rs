@@ -1,10 +1,16 @@
+use crate::error::Error;
+
+use shared::net::poll_url_with_timeout;
+use shared::common::*;
+
 use k8s::Client as K8sClient;
 use reqwest;
 use serde_json::json;
 use serde_json::Value as JsonValue;
-use shared::net::poll_url_with_timeout;
 use std::time::Duration;
 use tokio::time::delay_for;
+use std::process::Stdio;
+use tokio::process::Command;
 
 struct TestRunner {
     http_client: reqwest::Client,
@@ -83,6 +89,53 @@ impl TestRunner {
         }
         return Ok(resp_body);
     }
+
+    pub async fn containerless_create(&self, name: &str, js_code: &str) -> Result<std::process::Output, Error> {
+        let filename = format!("{}/_code.js", ROOT.as_str());
+        std::fs::write(&filename, js_code)?;
+        Ok(Command::new(format!("{}/debug/cli", ROOT.as_str()))
+            .args(vec!("create", "-n", name, "-f", &filename))
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
+            .await?)
+    }
+
+    pub async fn containerless_delete(&self, name: &str) -> Result<std::process::Output, Error> {
+        Ok(Command::new(format!("{}/debug/cli", ROOT.as_str()))
+            .args(vec!("delete", "-n", name))
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
+            .await?)
+    }
+}
+
+pub async fn run_test_async2(name: &str, js_code: &str, js_requests: Vec<(&str, JsonValue)>, rs_requests: Vec<(&str, JsonValue)>) -> Vec<String> {
+    assert!(
+        js_requests.len() > 0,
+        "expected at least one pre-tracing request"
+    );
+    assert!(
+        rs_requests.len() > 0,
+        "expected at least one post-tracing request"
+    );
+    let runner = TestRunner::new(name.to_string()).await;
+    let mut results = Vec::new();
+
+    if let Err(err) = runner.containerless_create(name, js_code).await {
+        error!(target: "integration-tests", "Error in the test runner: {:?}", err);
+        assert!(false, format!("{:?}", err));
+        return results;
+    }
+
+    if let Err(err) = runner.containerless_delete(name).await {
+        error!(target: "integration-tests", "Error in the test runner: {:?}", err);
+        assert!(false, format!("{:?}", err));
+        return results;
+    }
+
+    results
 }
 
 pub async fn run_test_async(
@@ -227,5 +280,5 @@ pub fn run_test(
     }
 
     let mut rt = tokio::runtime::Runtime::new().expect("creating Tokio runtime");
-    return rt.block_on(run_test_async(name, js_code, js_requests, rs_requests));
+    return rt.block_on(run_test_async2(name, js_code, js_requests, rs_requests));
 }
