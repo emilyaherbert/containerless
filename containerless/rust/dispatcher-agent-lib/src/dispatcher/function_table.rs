@@ -146,5 +146,4 @@ impl FunctionTable {
             }
         }
     }
-
 }
