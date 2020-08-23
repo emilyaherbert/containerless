@@ -37,7 +37,7 @@ pub async fn retry_get(
                         Err(())
                     }
                 }
-                Err(err) => {
+                Err(_err) => {
                     Err(())
                 }
             })

@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate log;
 
 mod test_runner;

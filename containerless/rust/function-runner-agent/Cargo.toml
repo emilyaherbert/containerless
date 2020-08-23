@@ -12,3 +12,4 @@ warp = "*"
 tokio = { version = "*", features = ["macros", "process", "fs", "signal"] }
 futures-retry = "*"
 reqwest = "*"
+log = "*"

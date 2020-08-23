@@ -7,6 +7,16 @@ pub enum Error {
     FileConflict(String),
 }
 
+impl Error {
+    pub fn info(&self) -> String {
+        match self {
+            Error::IO(info) => info.to_owned(),
+            Error::FileNotFound(info) => info.to_owned(),
+            Error::FileConflict(info) => info.to_owned()
+        }
+    }
+}
+
 impl std::convert::From<io::Error> for Error {
     fn from(error: io::Error) -> Error {
         Error::IO(error.to_string())
