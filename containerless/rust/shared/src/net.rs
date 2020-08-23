@@ -63,7 +63,7 @@ pub async fn serve_until_sigterm<F>(filter : F, port: u16) where
     let (_addr, server) = warp::serve(filter).bind_with_graceful_shutdown(([0, 0, 0, 0], port), async {
         let mut sigterm = signal(SignalKind::terminate()).expect("registering SIGTERM handler");
         sigterm.recv().await;
-        println!("Received SIGTERM");    
+        println!("SIGTERM");    
     });
     server.await;
 }
