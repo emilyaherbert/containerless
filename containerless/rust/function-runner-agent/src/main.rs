@@ -7,7 +7,6 @@ use std::env;
 use std::process::Stdio;
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
-use tokio::signal::unix::{signal, SignalKind};
 use tokio::{fs::File, process, task};
 use warp::{http::StatusCode, Filter};
 
@@ -154,13 +153,6 @@ async fn main() {
 
     let paths = status_route.or(get_trace_route);
 
-    let (_, server) = warp::serve(paths).bind_with_graceful_shutdown(([0, 0, 0, 0], 8080), async {
-        let mut sigterm = signal(SignalKind::terminate()).expect("registering SIGTERM handler");
-        sigterm.recv().await;
-        println!("Received SIGTERM");
-    });
-
-    server.await;
-
+    shared::net::serve_until_sigterm(paths, 8080).await;
     println!("Function Runner Agent terminated");
 }

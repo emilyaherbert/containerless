@@ -1,12 +1,9 @@
-use super::compiler::Compiler;
-
 use shared::common::*;
 
 use k8s;
 use kube;
 use lazy_static::lazy_static;
 use regex::Regex;
-use tokio::signal::unix::{signal, SignalKind};
 
 fn is_function(name: &String) -> bool {
     lazy_static! {
@@ -81,13 +78,5 @@ pub async fn delete_dynamic_resources(
         delete_tracing_pods(&k8s_client),
     )
     .await?;
-    return Ok(());
-}
-
-pub async fn handle_sigterm(compiler: Arc<Compiler>) -> Result<(), kube::Error> {
-    let mut sigterm = signal(SignalKind::terminate()).expect("registering SIGTERM handler");
-    sigterm.recv().await;
-    info!("Received SIGTERM");
-    compiler.shutdown().await;
     return Ok(());
 }

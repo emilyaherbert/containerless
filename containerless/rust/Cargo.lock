@@ -543,6 +543,7 @@ dependencies = [
  "hyper",
  "log 0.3.9",
  "reqwest",
+ "shared",
  "tokio",
  "warp",
 ]

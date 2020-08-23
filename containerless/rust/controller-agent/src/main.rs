@@ -6,7 +6,6 @@ mod routes;
 mod trace_compiler;
 
 use controller::compiler;
-use controller::graceful_sigterm::handle_sigterm;
 
 use shared::common::*;
 
@@ -32,10 +31,7 @@ async fn main() {
         .expect("failed to create initial dispatcher");
 
     info!(target: "controller", "Controller listening");
-    let (_addr, server) = warp::serve(routes::routes(compiler.clone(), ROOT.as_str()))
-        .bind_with_graceful_shutdown(
-            ([0, 0, 0, 0], 7999),
-            suppress_and_log_err(handle_sigterm(compiler)),
-        );
-    server.await;
+
+    shared::net::serve_until_sigterm(routes::routes(compiler.clone(), ROOT.as_str()), 7999).await;
+    compiler.shutdown().await;
 }
