@@ -1,17 +1,14 @@
 use crate::storage::SharedStorage;
 
 use shared::file_contents::FileContents;
-
-use hyper::Response;
+use shared::response::*;
 
 pub async fn ping() -> Result<impl warp::Reply, warp::Rejection> {
-    return Ok(Response::builder()
-        .status(200)
-        .body("Pinged function storage agent."));
+    return ok_response("Pinged function storage agent.".to_string());
 }
 
 pub async fn echo(message: String) -> Result<impl warp::Reply, warp::Rejection> {
-    return Ok(Response::builder().status(200).body(message));
+    return ok_response(message);
 }
 
 pub async fn get_function(
@@ -21,13 +18,9 @@ pub async fn get_function(
     match storage.get(&path) {
         Err(err) => {
             error!("Error reading file {} : {:?} ", path, err);
-            return Ok(Response::builder()
-                .status(404)
-                .body(format!("Could not read function {}.\n{:?}", path, err)));
+            error_response(err.info())
         }
-        Ok(file) => {
-            return Ok(Response::builder().status(200).body(file.contents));
-        }
+        Ok(file) => ok_response(file.contents),
     }
 }
 
@@ -38,15 +31,9 @@ pub async fn create_function(
     match storage.set(&path, &contents.contents) {
         Err(err) => {
             error!("Error creating file {} : {:?} ", path, err);
-            return Ok(Response::builder()
-                .status(404)
-                .body(format!("Could not create function {}.\n{:?}", path, err)));
+            error_response(err.info())
         }
-        Ok(_file) => {
-            return Ok(Response::builder()
-                .status(200)
-                .body(format!("{} created!", path)));
-        }
+        Ok(_file) => ok_response(format!("{} created!", path)),
     }
 }
 
@@ -57,15 +44,9 @@ pub async fn delete_function(
     match storage.remove(&path) {
         Err(err) => {
             error!("Error deleting file {}: {:?}", path, err);
-            return Ok(Response::builder()
-                .status(404)
-                .body(format!("Could not delete function {}.\n{:?}", path, err)));
+            error_response(err.info())
         }
-        Ok(_file) => {
-            return Ok(Response::builder()
-                .status(200)
-                .body(format!("{} deleted!", path)));
-        }
+        Ok(_file) => ok_response(format!("{} deleted!", path)),
     }
 }
 
@@ -73,5 +54,5 @@ pub async fn list_functions(storage: SharedStorage) -> Result<impl warp::Reply, 
     let storage = storage.lock().await;
     let ordered_file_names = storage.get_all_keys();
     let body = ordered_file_names.join("\n");
-    return Ok(Response::builder().status(200).body(body));
+    ok_response(body)
 }

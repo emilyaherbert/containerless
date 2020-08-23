@@ -6,6 +6,8 @@ pub enum Error {
     #[error("{0}")]
     Hyper(#[from] hyper::Error),
     #[error("{0}")]
+    Reqwest(#[from] reqwest::Error),
+    #[error("{0}")]
     Http(#[from] http::Error),
     #[error("Error::Timeout")]
     Timeout,
@@ -15,10 +17,20 @@ pub enum Error {
     TimeoutReason(String),
     #[error("communicating with controller: {0}")]
     Controller(String),
+    #[error("communicating with storage: {0}")]
+    Storage(String),
 }
 
 impl Error {
     pub fn controller<T>(message: impl Into<String>) -> Result<T, Self> {
         return Err(Error::Controller(message.into()));
+    }
+
+    pub fn info(&self) -> String {
+        match self {
+            Error::Storage(info) => info.to_owned(),
+            Error::Controller(info) => info.to_owned(),
+            error => error.to_string()
+        }
     }
 }

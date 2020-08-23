@@ -41,8 +41,22 @@ impl FunctionManager {
     }
 
     pub async fn shutdown(&mut self) -> Response {
-        match self.send_requests.send(Message::Shutdown).await {
+        let (send, recv) = oneshot::channel();
+        self.send_requests
+            .send(Message::Shutdown(send))
+            .await
+            .unwrap();
+        match recv.await {
             Err(err) => {
+                return util::text_response(
+                    500,
+                    format!(
+                        "(function manager shutdown early) dispatcher could not shut down function instances for {}: {:?}",
+                        self.state.name, err
+                    ),
+                );
+            }
+            Ok(Err(err)) => {
                 return util::text_response(
                     500,
                     format!(
@@ -51,7 +65,7 @@ impl FunctionManager {
                     ),
                 );
             }
-            Ok(_) => {
+            Ok(Ok(())) => {
                 return util::text_response(
                     200,
                     format!("All function instances shut down for {}.", self.state.name),
@@ -79,6 +93,7 @@ impl FunctionManager {
             },
             send: send_resp,
         };
+        info!(target: "dispatcher", "INVOKE {}: sending request with path {} to FMT", self.state.name, path_and_query);
         self.send_requests
             .send(Message::Request(req))
             .await
@@ -88,7 +103,7 @@ impl FunctionManager {
                 return result;
             }
             Err(futures::channel::oneshot::Canceled) => {
-                error!(target: "dispatcher", "dispatcher shutdown before before request for {} could be made", self.state.name);
+                error!(target: "dispatcher", "INVOKE {}: function pods shut down before request could be made", self.state.name);
                 return Ok(hyper::Response::builder()
                     .status(500)
                     .body(hyper::Body::from("dispatcher shutdown"))

@@ -37,14 +37,12 @@ pub async fn retry_get(
                         Err(())
                     }
                 }
-                Err(err) => {
-                    eprintln!("Request error: {}", err);
+                Err(_err) => {
                     Err(())
                 }
             })
         },
         move |err| {
-            eprintln!("Pinging ({} tries left)", tries);
             if tries == 0 {
                 return RetryPolicy::ForwardError(err);
             }

@@ -1,7 +1,5 @@
+mod containerless_shim;
 mod error;
-mod shims;
-
-use shims::*;
 
 use clap::Clap;
 
@@ -20,19 +18,16 @@ struct Opts {
 
 #[derive(Clap)]
 enum SubCommand {
-    Status(Status),
     Create(Create),
     Delete(Delete),
-    Shutdown(Shutdown),
-    Reset(Reset),
+    RemoveContainers(RemoveContainers),
+    RemoveTrace(RemoveTrace),
     Get(Get),
     List(List),
     Invoke(Invoke),
+    DispatcherVersion(DispatcherVersion),
+    Compile(Compile)
 }
-
-/// Queries the status of Containerless.
-#[derive(Clap)]
-struct Status {}
 
 /// Creates a function.
 #[derive(Clap)]
@@ -45,7 +40,7 @@ struct Create {
     filename: String,
 }
 
-/// Deletes a function.
+/// Delete a function, removes its containers, and removes its trace.
 #[derive(Clap)]
 struct Delete {
     /// Name of the function to delete
@@ -53,17 +48,17 @@ struct Delete {
     name: String,
 }
 
-/// Shuts down all the function instances for a particular function.
+/// Removes the containers for a function. For demo purposes only.
 #[derive(Clap)]
-struct Shutdown {
+struct RemoveContainers {
     /// Name of the function to shut down
     #[clap(short)]
     name: String,
 }
 
-/// Resets the compiled trace for a function.
+/// Removes the compiled trace for a function. For demo purposes only.
 #[derive(Clap)]
-struct Reset {
+struct RemoveTrace {
     /// Name of the function to reset
     #[clap(short)]
     name: String,
@@ -89,32 +84,44 @@ struct Invoke {
     name: String,
 }
 
+/// Retrieves the current dispatcher version.
+#[derive(Clap)]
+struct DispatcherVersion {}
+
+/// Compiles the decontainerized version for a funtion. For testing and demo
+/// purposes only.
+#[derive(Clap)]
+struct Compile {
+    /// Name of the function to compile
+    #[clap(short)]
+    name: String,
+}
+
 #[tokio::main]
 async fn main() {
     let opts: Opts = Opts::parse();
     let containerless_shim = containerless_shim::ContainerlessShim::new();
 
     match opts.subcmd {
-        SubCommand::Status(_) => {
-            let status = containerless_shim.system_status().await.unwrap();
-            println!("{}", status);
-        }
         SubCommand::Create(t) => {
-            let output = containerless_shim.create_function(&t.name, &t.filename).await.unwrap();
+            let output = containerless_shim
+                .create_function(&t.name, &t.filename)
+                .await
+                .unwrap();
             println!("{}", output);
         }
         SubCommand::Delete(t) => {
             let output = containerless_shim.delete_function(&t.name).await.unwrap();
             println!("{}", output);
         }
-        SubCommand::Shutdown(t) => {
+        SubCommand::RemoveContainers(t) => {
             let output = containerless_shim
                 .shutdown_function_instances(&t.name)
                 .await
                 .unwrap();
             println!("{}", output);
         }
-        SubCommand::Reset(t) => {
+        SubCommand::RemoveTrace(t) => {
             let output = containerless_shim.reset_function(&t.name).await.unwrap();
             println!("{}", output);
         }
@@ -128,6 +135,14 @@ async fn main() {
         }
         SubCommand::Invoke(t) => {
             let output = containerless_shim.invoke(&t.name).await.unwrap();
+            println!("{}", output);
+        },
+        SubCommand::DispatcherVersion(_t) => {
+            let output = containerless_shim.dispatcher_version().await.unwrap();
+            println!("{}", output);
+        },
+        SubCommand::Compile(t) => {
+            let output = containerless_shim.compile(&t.name).await.unwrap();
             println!("{}", output);
         }
     }

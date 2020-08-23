@@ -21,7 +21,7 @@ use tokio::time::delay_for;
 // TODO(arjun): should be an environment variable
 const MAX_REPLICAS: usize = 4;
 // This could be a parameter.
-const NUM_INTERVALS: usize = 3;
+const NUM_INTERVALS: usize = 24;
 // This could be a parameter.
 const INTERVAL_TIMESPAN_SECONDS: u64 = 5;
 

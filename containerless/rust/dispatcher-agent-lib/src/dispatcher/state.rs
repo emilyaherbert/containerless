@@ -4,6 +4,7 @@ use super::serverless_request::*;
 use super::types::*;
 use super::util;
 use crate::error::*;
+use std::time::{Duration, Instant};
 
 use futures::prelude::*;
 use hyper::header::HeaderValue;
@@ -206,7 +207,7 @@ impl State {
             .path_and_query(serverless_request.payload.path_and_query.as_str())
             .build()
             .expect("constructing URI");
-        debug!(target: "dispatcher", "issuing HTTP request to {}", &uri);
+        info!(target: "dispatcher", "INVOKE {}: issuing HTTP request to {}", self.name, &uri);
         autoscaler.recv_req();
         let req = hyper::Request::builder()
             .method(serverless_request.payload.method)
@@ -222,7 +223,7 @@ impl State {
         autoscaler.recv_resp(); // decrement counter even if error
         let mut resp = match resp_result {
             Err(err) => {
-                debug!(target: "dispatcher", "invoking {}", &err);
+                info!(target: "dispatcher", "INVOKE {}: error {}", self.name, err);
                 hyper::Response::builder()
                     .status(500)
                     .body(hyper::Body::from("invoke error"))
@@ -323,31 +324,11 @@ impl State {
         return Ok(());
     }
 
-    /*
-    async fn delete_instances(self_: Arc<State>, is_tracing: bool) -> Result<(), Error> {
-        info!(target: "dispatcher", "deleting Kubernetes resources for {}", self_.name);
-        try_join!(
-            util::maybe_run(
-                is_tracing,
-                self_.k8s_client.delete_pod(&self_.tracing_pod_name)
-            ),
-            util::maybe_run(
-                is_tracing,
-                self_.k8s_client.delete_service(&self_.tracing_pod_name)
-            ),
-            self_.k8s_client.delete_service(&self_.vanilla_name),
-            self_.k8s_client.delete_replica_set(&self_.vanilla_name)
-        )?;
-        Ok(())
-    }
-    */
-
     async fn shutdown(self_: Arc<State>, mode: Mode) -> Result<(), Error> {
         let is_tracing = match mode {
             Mode::Tracing(_) => true,
             _ => false,
         };
-        //State::delete_instances(self_, is_tracing).await?;
         info!(target: "dispatcher", "deleting Kubernetes resources for {}", self_.name);
         try_join!(
             util::maybe_run(
@@ -361,20 +342,32 @@ impl State {
             self_.k8s_client.delete_service(&self_.vanilla_name),
             self_.k8s_client.delete_replica_set(&self_.vanilla_name)
         )?;
-        /*
-        let mut iters_left = 100;
-        while iters_left > 0 {
-            let half_sec = time::Duration::from_secs_f64(0.5);
-            thread::sleep(half_sec);
-            let snapshot = self_.k8s_client.system_snapshot().await?;
-            let pod_names = snapshot.pods.keys();
-            let service_names = snapshot.services.keys();
-            // TODO(emily): finish this
 
+        let label = format!("function={}", self_.name);
+        let interval = Duration::from_secs(1);
+        let timeout = Duration::from_secs(60);
+        let end_time = Instant::now() + timeout;
 
+        loop {
+            let pending_pods = self_
+                .k8s_client
+                .list_pods_by_label_and_field(label.clone(), "status.phase=Pending")
+                .await?;
+            let running_pods = self_
+                .k8s_client
+                .list_pods_by_label_and_field(label.clone(), "status.phase=Running")
+                .await?;
+
+            if running_pods.is_empty() && pending_pods.is_empty() {
+                break;
+            }
+
+            tokio::time::delay_for(interval).await;
+            if Instant::now() >= end_time {
+                break;
+            }
         }
-        */
-        //https://docs.rs/k8s-openapi/0.9.0/k8s_openapi/api/core/v1/struct.Pod.html#method.watch_namespaced_pod
+
         if let Mode::Decontainerized(_) = mode {
             // Do not terminate the task if decontainerized.
         }
@@ -404,7 +397,6 @@ impl State {
             } => num_replicas,
         };
 
-
         let autoscaler = Autoscaler::new(
             Arc::clone(&self_.k8s_client),
             self_.vanilla_name.clone(),
@@ -425,8 +417,11 @@ impl State {
                     autoscaler.terminate();
                     return Ok(());
                 }
-                (_, Message::Shutdown) => {
-                    return State::shutdown(self_, mode).await;
+                (_, Message::Shutdown(send_complete)) => {
+                    send_complete
+                        .send(State::shutdown(self_, mode).await)
+                        .unwrap();
+                    return Ok(());
                 }
                 (_, Message::GetMode(send)) => {
                     util::send_log_error(send, util::text_response(200, format!("{}", mode)));
@@ -466,11 +461,14 @@ impl State {
                     }
                 }
                 (Mode::Tracing(5), Message::Request(req)) => {
+                    info!(target: "dispatcher", "INVOKE {}: FMT in Tracing mode recieved request with path {}", self_.name, req.payload.path_and_query);
+                    info!(target: "dispatcher", "INVOKE {}: FMT in Tracing mode sending trace to compiler", self_.name);
                     task::spawn(Self::send_trace_then_stop_pod_and_service(Arc::clone(
                         &self_,
                     )));
                     mode = Mode::Vanilla;
-                    debug!(target: "dispatcher", "switched to Vanilla mode for {}", &self_.name);
+                    info!(target: "dispatcher", "INVOKE {}: FMT in Tracing mode switched to Vanilla mode", self_.name);
+                    info!(target: "dispatcher", "INVOKE {}: FMT in Vanilla mode invoking with request with path {}", self_.name, req.payload.path_and_query);
                     task::spawn(Self::invoke_vanilla(
                         Arc::clone(&self_),
                         req,
@@ -478,14 +476,17 @@ impl State {
                     ));
                 }
                 (Mode::Tracing(n), Message::Request(req)) => {
+                    info!(target: "dispatcher", "INVOKE {}: FMT in Tracing mode recieved request with path {}", self_.name, req.payload.path_and_query);
                     mode = Mode::Tracing(n + 1);
                     if self_.tracing_pod_available.load(SeqCst) {
+                        info!(target: "dispatcher", "INVOKE {}: FMT in Tracing mode invoking(tracing) with request with path {}", self_.name, req.payload.path_and_query);
                         task::spawn(Self::invoke_tracing(
                             Arc::clone(&self_),
                             req,
                             Arc::clone(&autoscaler),
                         ));
                     } else {
+                        info!(target: "dispatcher", "INVOKE {}: FMT in Tracing mode invoking(vanilla) with request with path {}", self_.name, req.payload.path_and_query);
                         task::spawn(Self::invoke_vanilla(
                             Arc::clone(&self_),
                             req,
@@ -494,6 +495,8 @@ impl State {
                     }
                 }
                 (Mode::Vanilla, Message::Request(req)) => {
+                    info!(target: "dispatcher", "INVOKE {}: FMT in Vanilla mode recieved request with path {}", self_.name, req.payload.path_and_query);
+                    info!(target: "dispatcher", "INVOKE {}: FMT in Vanilla mode invoking with request with path {}", self_.name, req.payload.path_and_query);
                     task::spawn(Self::invoke_vanilla(
                         Arc::clone(&self_),
                         req,

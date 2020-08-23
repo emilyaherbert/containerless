@@ -1,7 +1,10 @@
 //! The compiler uses `cargo build` in the `/src` directory, so it must
 //! run as a single threaded task.
-use super::common::*;
+use super::error::Error;
 use crate::trace_compiler;
+
+use shared::common::*;
+
 use futures::channel::mpsc;
 use k8s;
 use proc_macro2::Span;
@@ -10,6 +13,7 @@ use quote::quote;
 use std::fs;
 use std::io::{self, Write};
 use std::process::Stdio;
+use std::time::{Duration, Instant};
 use syn::Ident;
 use tokio::process::Command;
 use tokio::task;
@@ -35,7 +39,11 @@ enum Message {
     ResetFunction {
         name: String,
         started_compiling: oneshot::Sender<()>,
+        new_dispatcher_deployed: oneshot::Sender<()>,
     },
+    GetDispatcherVersion {
+        done: oneshot::Sender<usize>
+    }
 }
 
 #[derive(PartialEq)]
@@ -90,6 +98,7 @@ pub fn dispatcher_deployment_spec(version: usize) -> k8s::Deployment {
                 .name("dispatcher")
                 .namespace(NAMESPACE)
                 .label("app", "dispatcher")
+                .label("version", version.to_string())
                 .build(),
         )
         .spec(
@@ -98,7 +107,12 @@ pub fn dispatcher_deployment_spec(version: usize) -> k8s::Deployment {
                 .selector("app", "dispatcher")
                 .template(
                     PodTemplateSpecBuilder::new()
-                        .metadata(ObjectMetaBuilder::new().label("app", "dispatcher").build())
+                        .metadata(
+                            ObjectMetaBuilder::new()
+                                .label("app", "dispatcher")
+                                .label("version", version.to_string())
+                                .build(),
+                        )
                         .spec(
                             PodSpecBuilder::new()
                                 .container(
@@ -107,11 +121,7 @@ pub fn dispatcher_deployment_spec(version: usize) -> k8s::Deployment {
                                         .image("localhost:32000/dispatcher")
                                         .expose_port("http", 8080)
                                         .pull_if_not_present()
-                                        .env(
-                                            "LOG_RSYSLOG_ADDR",
-                                            std::env::var("LOG_RSYSLOG_ADDR").unwrap(),
-                                        )
-                                        .env("LOG_LEVEL", std::env::var("LOG_LEVEL").unwrap())
+                                        .env("RUST_LOG", std::env::var("RUST_LOG").unwrap())
                                         .env("Version", format!("V{}", version))
                                         .http_readiness_probe(1, "/readinessProbe/", 8080)
                                         .build(),
@@ -195,6 +205,7 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
             Message::ResetFunction {
                 name,
                 started_compiling,
+                new_dispatcher_deployed,
             } => {
                 info!(target: "controller", "clearing compiled function {}", name);
                 let rs_path = format!(
@@ -209,14 +220,15 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                 );
                 match known_functions.remove(&name) {
                     None => {
-                        known_functions.insert(name.clone(), CompileStatus::Error);
                         error!(target: "controller", "clearing compiled function {}: did not find function in known_functions", name);
-                        continue;
+                        started_compiling.send(()).expect("sending done");
+                        new_dispatcher_deployed.send(()).expect("sending done")
                     }
                     Some(status) => match status {
                         CompileStatus::Vanilla => {
                             info!(target: "controller", "calling reset on vanilla function: {}", name);
                             started_compiling.send(()).expect("sending done");
+                            new_dispatcher_deployed.send(()).expect("sending done");
                         }
                         CompileStatus::Compiled => {
                             info!(target: "controller", "clearing compiled function {}: found function in known_functions", name);
@@ -241,6 +253,42 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                                 .await
                                 .expect("patching dispatcher deployment");
                             info!(target: "controller", "Patched dispatcher deployment");
+
+                            async fn wait_for_dispatcher_patch_to_complete(
+                                k8s: &k8s::Client, desired_version: usize,
+                            ) -> Result<(), Error> {
+                                let interval = Duration::from_secs(1);
+                                let timeout = Duration::from_secs(60);
+                                let end_time = Instant::now() + timeout;
+                                let label = format!("app=dispatcher,version={}", desired_version);
+                                loop {
+                                    let dispatcher_pods = k8s
+                                        .list_pods_by_label_and_field(
+                                            label.clone(),
+                                            "status.phase=Running",
+                                        )
+                                        .await?;
+                                    if dispatcher_pods.len() == 1 {
+                                        return Ok(());
+                                    }
+                                    tokio::time::delay_for(interval).await;
+                                    if Instant::now() >= end_time {
+                                        break;
+                                    }
+                                }
+                                return Err(Error::Containerless(
+                                    "Could not patch dispatcher deployment.".to_string(),
+                                ));
+                            }
+
+                            if let Err(err) =
+                                wait_for_dispatcher_patch_to_complete(&k8s, next_version).await
+                            {
+                                error!(target: "controller", "Error while waiting for dispatcher to patch: {:?}", err);
+                                continue;
+                            }
+
+                            new_dispatcher_deployed.send(()).expect("sending done");
                         }
                         CompileStatus::Compiling => {
                             error!(target: "controller", "trace not currently yet built for function {}", name);
@@ -304,6 +352,25 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                 info!(target: "controller", "ending compiler task (received shutdown message)");
                 done.send(()).expect("sending done");
                 return;
+            },
+            Message::GetDispatcherVersion { done } => {
+                // I don't think this is quite right.....
+                loop {
+                    tokio::time::delay_for(Duration::from_secs(1)).await;
+                    match k8s.get_deployment_status("dispatcher").await {
+                        Ok(status) => {
+                            if status.replicas != 1 {
+                                continue; // continue inner loop
+                            }
+                            done.send(status.observed_generation).expect("sending done");
+                            break; // break from inner loop
+                        },
+                        Err(err) => {
+                            error!(target: "controller", "error getting dispatcher version {:?}", err);
+                            break; // break from inner loop
+                        }
+                    }
+                }
             }
         }
     }
@@ -406,12 +473,20 @@ impl Compiler {
 
     pub async fn reset_function(&self, name: &str) -> http::StatusCode {
         let (send, recv) = oneshot::channel();
+        let (send2, recv2) = oneshot::channel();
         self.send_message_non_blocking(Message::ResetFunction {
             name: name.to_string(),
             started_compiling: send,
+            new_dispatcher_deployed: send2,
         });
-        recv.await.expect("compiler task shutdown");
-        return http::StatusCode::OK;
+
+        match (recv.await, recv2.await) {
+            (Ok(_), Ok(_)) => http::StatusCode::OK,
+            (other1, other2) => {
+                error!(target: "controller", "Recieved error when clearing compiled trace: {:?}\n(ERRCODE {:?})", other1, other2);
+                http::StatusCode::INTERNAL_SERVER_ERROR
+            }
+        }
     }
 
     pub async fn create_function(&self, name: &str) -> http::StatusCode {
@@ -422,5 +497,13 @@ impl Compiler {
         });
         recv.await.expect("compiler task shutdown");
         return http::StatusCode::OK;
+    }
+
+    pub async fn dispatcher_version(&self) -> usize {
+        let (send, recv) = oneshot::channel();
+        self.send_message_non_blocking(Message::GetDispatcherVersion {
+            done: send,
+        });
+        recv.await.unwrap()
     }
 }

@@ -6,12 +6,12 @@ pub use http::uri;
 pub use log::{debug, error, info};
 pub use std::collections::HashMap;
 pub use std::convert::Into;
+use std::fmt;
 pub use std::str::FromStr;
 pub use std::sync::atomic::Ordering::SeqCst;
 pub use std::sync::atomic::{AtomicBool, AtomicI32, AtomicUsize};
 pub use std::sync::{Arc, Weak};
 pub use tokio::task;
-use std::fmt;
 
 // pub type Request = hyper::Request<hyper::Body>;
 pub type Response = hyper::Response<hyper::Body>;
@@ -26,12 +26,12 @@ pub struct SystemStatus {
     pub storage_pod: bool,
     pub storage_service: bool,
     pub function_pods: HashMap<String, bool>,
-    pub function_services: HashMap<String, bool>
+    pub function_services: HashMap<String, bool>,
 }
 
 impl fmt::Display for SystemStatus {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut output_vec: Vec<String> = vec!();
+        let mut output_vec: Vec<String> = vec![];
 
         output_vec.push("controller:".to_string());
         if self.controller_service {
@@ -65,7 +65,7 @@ impl fmt::Display for SystemStatus {
         }
 
         output_vec.push("\nTODO: function status stuff!".to_string());
-    
+
         let output = output_vec.join("\n");
         write!(f, "{}", output)
     }

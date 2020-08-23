@@ -255,6 +255,7 @@ version = "0.1.0"
 dependencies = [
  "bytes",
  "duct",
+ "env_logger",
  "futures",
  "http",
  "hyper",
@@ -363,6 +364,7 @@ version = "0.1.0"
 dependencies = [
  "bumpalo",
  "bytes",
+ "env_logger",
  "futures",
  "futures-retry",
  "http",
@@ -373,6 +375,7 @@ dependencies = [
  "lazy_static",
  "log 0.4.8",
  "regex",
+ "reqwest",
  "serde_json",
  "shared",
  "thiserror",
@@ -462,15 +465,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "error-chain"
-version = "0.12.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d371106cc88ffdfb1eabd7111e432da544f16f3e2d7bf1dfe8bf575f1df045cd"
-dependencies = [
- "version_check 0.9.1",
-]
-
-[[package]]
 name = "exec"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -547,7 +541,9 @@ version = "0.1.0"
 dependencies = [
  "futures-retry",
  "hyper",
+ "log 0.3.9",
  "reqwest",
+ "shared",
  "tokio",
  "warp",
 ]
@@ -557,8 +553,9 @@ name = "function-storage-agent"
 version = "0.1.0"
 dependencies = [
  "bytes",
+ "http",
  "hyper",
- "log 0.3.9",
+ "log 0.4.8",
  "serde",
  "serde_json",
  "shared",
@@ -883,8 +880,7 @@ name = "integration-tests"
 version = "0.1.0"
 dependencies = [
  "k8s",
- "log 0.3.9",
- "machine-ip",
+ "log 0.4.8",
  "nix",
  "reqwest",
  "serde_json",
@@ -1887,13 +1883,18 @@ checksum = "2579985fda508104f7587689507983eadd6a6e84dd35d6d115361f530916fa0d"
 name = "shared"
 version = "0.1.0"
 dependencies = [
+ "bytes",
+ "futures",
+ "http",
+ "hyper",
+ "lazy_static",
  "log 0.4.8",
  "machine-ip",
  "reqwest",
  "serde",
- "syslog",
  "thiserror",
  "tokio",
+ "warp",
 ]
 
 [[package]]
@@ -2037,18 +2038,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "syslog"
-version = "5.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a5d8ef1b679c07976f3ee336a436453760c470f54b5e7237556728b8589515d"
-dependencies = [
- "error-chain",
- "libc",
- "log 0.4.8",
- "time 0.1.43",
 ]
 
 [[package]]

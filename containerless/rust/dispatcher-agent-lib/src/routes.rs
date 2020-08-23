@@ -11,8 +11,6 @@ pub fn routes(
         .or(extract_and_compile_route(state.clone()))
         .or(get_mode_route(state.clone()))
         .or(shutdown_function_instances_route(state.clone()))
-        .or(system_status_route(state.clone()))
-        .or(system_status_ok_route(state.clone()))
         .or(dispatcher_route(state.clone()))
 }
 
@@ -47,20 +45,6 @@ fn shutdown_function_instances_route(
         .and(warp::get())
         .and(with_state(state))
         .and_then(handlers::shutdown_function_instances_handler)
-}
-
-fn system_status_route(state: Arc<FunctionTable>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    warp::path!("system_status")
-        .and(warp::get())
-        .and(with_state(state))
-        .and_then(handlers::system_status_handler)
-}
-
-fn system_status_ok_route(state: Arc<FunctionTable>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    warp::path!("system_status")
-        .and(warp::get())
-        .and(with_state(state))
-        .and_then(handlers::system_status_ok_handler)
 }
 
 fn dispatcher_route(

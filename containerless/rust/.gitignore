@@ -1,1 +1,3 @@
 /target
+# RLS creates these directories
+/*/target

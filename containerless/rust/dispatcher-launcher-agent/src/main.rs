@@ -1,5 +1,6 @@
+#[macro_use]
+extern crate log;
 use duct::cmd;
-use log::{error, info};
 use reqwest;
 use std::fs::File;
 use std::io::copy;
@@ -42,7 +43,7 @@ async fn main() {
     env_logger::init();
 
     let response = download_dispatcher().await;
-    info!(target: "dispatcher-launcher", "downloaded the Dispatcher from the Controller");
+    info!(target: "dispatcher-launcher", "INITIALIZE: downloaded the Dispatcher from the Controller");
     let mut resp_slice = response.as_ref();
     {
         let mut dest = File::create("/dispatcher").expect("creating /dispatcher");
@@ -51,7 +52,7 @@ async fn main() {
     cmd!("chmod", "a+x", "/dispatcher")
         .run()
         .expect("setting executable permissions");
-    info!(target: "dispatcher-launcher", "Launching the Dispatcher");
+    info!(target: "dispatcher-launcher", "INITIALIZE: launching the Dispatcher");
     // Unix exec: replace the current process, preserving PID. This is needed
     // so that the dispatcher receives SIGTERM.
     let err = exec::Command::new("/dispatcher").exec();
