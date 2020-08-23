@@ -127,6 +127,7 @@ async fn trace() -> WarpResult<impl warp::Reply> {
 
 #[tokio::main]
 async fn main() {
+
     let function_name = env::var("FUNCTION_NAME").expect("envvar FUNCTION_NAME should be set");
 
     let function_mode = env::var("FUNCTION_MODE").expect("envvar FUNCTION_MODE should be set");
@@ -137,12 +138,9 @@ async fn main() {
         _ => panic!("envvar FUNCTION_MODE must be \"vanilla\" or \"tracing\""),
     };
 
-    eprintln!(
-        "Initializing Function Runner Agent for function {} (tracing enabled: {})",
-        &function_name, tracing_enabled
-    );
+    eprintln!("UP: pod for function {} (tracing enabled: {})", &function_name, tracing_enabled);
 
-    if let Err(err) = initialize(function_name, tracing_enabled).await {
+    if let Err(err) = initialize(function_name.clone(), tracing_enabled).await {
         eprintln!("Error during initialization: {}", err);
         std::process::exit(1);
     }
@@ -154,5 +152,5 @@ async fn main() {
     let paths = status_route.or(get_trace_route);
 
     shared::net::serve_until_sigterm(paths, 8080).await;
-    println!("Function Runner Agent terminated");
+    eprintln!("DOWN: pod for function {} (tracing enabled: {})", &function_name, tracing_enabled);
 }

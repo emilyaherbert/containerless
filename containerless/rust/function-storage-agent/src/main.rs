@@ -14,7 +14,8 @@ use shared;
 
 #[tokio::main]
 async fn main() {
+    info!(target: "storage", "UP");
     let storage = Storage::new_shared_storage();
     shared::net::serve_until_sigterm(routes::routes(storage), 8080).await;
-    println!("Function Runner Agent terminated");
+    info!(target: "storage", "DOWN");
 }

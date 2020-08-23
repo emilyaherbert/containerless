@@ -13,6 +13,8 @@ use shared::common::*;
 async fn main() {
     env_logger::init();
 
+    info!(target: "controller", "UP");
+
     let k8s_client = Arc::new(
         k8s::Client::from_kubeconfig_file(NAMESPACE)
             .await
@@ -30,8 +32,9 @@ async fn main() {
         .await
         .expect("failed to create initial dispatcher");
 
-    info!(target: "controller", "Controller listening");
+    info!(target: "controller", "LISTENING");
 
     shared::net::serve_until_sigterm(routes::routes(compiler.clone(), ROOT.as_str()), 7999).await;
     compiler.shutdown().await;
+    info!(target: "controller", "DOWN");
 }
