@@ -78,4 +78,21 @@ impl ContainerlessShim {
             .text()
             .await?)
     }
+
+    pub async fn dispatcher_version(&self) -> CLIResult<String> {
+        Ok(reqwest::get(&format!("{}/dispatcher_version", self.controller))
+            .await?
+            .text()
+            .await?)
+    }
+
+    pub async fn compile(&self, name: &str) -> CLIResult<String> {
+        Ok(reqwest::Client::new()
+            .post(&format!("{}/compile/{}", self.dispatcher, name))
+            .body("".to_string())
+            .send()
+            .await?
+            .text()
+            .await?)
+    }
 }

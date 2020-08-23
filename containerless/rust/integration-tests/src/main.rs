@@ -1,8 +1,8 @@
-#[macro_use]
 extern crate log;
 
 mod test_runner;
 mod tests;
+mod error;
 
 use nix::sys::signal::{self, Signal};
 use nix::unistd::Pid;
@@ -11,15 +11,6 @@ use std::convert::TryInto;
 use std::time::Duration;
 use tokio::process::{Child, Command};
 use tokio::signal::unix::{signal, SignalKind};
-
-async fn start_controller() -> Child {
-    return Command::new("cargo")
-        .arg("run")
-        .current_dir("../controller-agent") // TODO(arjun): fix
-        .env("RUST_LOG", "info")
-        .spawn()
-        .expect("spawning controller");
-}
 
 async fn run_tests() -> Child {
     return Command::new("cargo")
@@ -45,8 +36,6 @@ async fn main() {
         .expect("running git");
 
     let http_client = reqwest::Client::new();
-    let controller_handle = start_controller().await;
-    let controller_pid = child_pid(&controller_handle);
     net::poll_url_no_timeout(
         &http_client,
         "http://localhost/dispatcher/readinessProbe",
@@ -66,8 +55,4 @@ async fn main() {
 
     // Tests either terminate normally, or with SIGTERM.
     tests_handle.await.unwrap();
-
-    // Send SIGTERM to controller. Note that we reach this line even if this
-    // process receives SIGTERM.
-    signal::kill(controller_pid, Signal::SIGTERM).unwrap();
 }

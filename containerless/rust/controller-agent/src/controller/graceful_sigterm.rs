@@ -1,4 +1,5 @@
-use super::common::*;
+use shared::common::*;
+
 use k8s;
 use kube;
 use lazy_static::lazy_static;

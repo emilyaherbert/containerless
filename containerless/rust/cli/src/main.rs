@@ -25,6 +25,8 @@ enum SubCommand {
     Get(Get),
     List(List),
     Invoke(Invoke),
+    DispatcherVersion(DispatcherVersion),
+    Compile(Compile)
 }
 
 /// Creates a function.
@@ -82,6 +84,19 @@ struct Invoke {
     name: String,
 }
 
+/// Retrieves the current dispatcher version.
+#[derive(Clap)]
+struct DispatcherVersion {}
+
+/// Compiles the decontainerized version for a funtion. For testing and demo
+/// purposes only.
+#[derive(Clap)]
+struct Compile {
+    /// Name of the function to compile
+    #[clap(short)]
+    name: String,
+}
+
 #[tokio::main]
 async fn main() {
     let opts: Opts = Opts::parse();
@@ -120,6 +135,14 @@ async fn main() {
         }
         SubCommand::Invoke(t) => {
             let output = containerless_shim.invoke(&t.name).await.unwrap();
+            println!("{}", output);
+        },
+        SubCommand::DispatcherVersion(_t) => {
+            let output = containerless_shim.dispatcher_version().await.unwrap();
+            println!("{}", output);
+        },
+        SubCommand::Compile(t) => {
+            let output = containerless_shim.compile(&t.name).await.unwrap();
             println!("{}", output);
         }
     }

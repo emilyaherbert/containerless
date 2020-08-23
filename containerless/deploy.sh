@@ -20,11 +20,13 @@ echo "Deploying on k8s..."
 envsubst < containerless.yaml | microk8s.kubectl apply -f -
 echo "Deployed on k8s.\n"
 
-echo "Starting the controller..."
+echo "Starting the controller."
+echo "This may take some time..."
 ./controller.sh start
 echo "Controller is running at http://localhost/controller\n"
 
-echo "Waiting for dispather to come online..."
+echo "Waiting for dispatcher to come online."
+echo "This may take some time..."
 ./poll-ready.sh http://localhost/dispatcher/readinessProbe 300 || exit 1
 echo "Dispatcher is running at http://localhost/dispatcher\n"
 

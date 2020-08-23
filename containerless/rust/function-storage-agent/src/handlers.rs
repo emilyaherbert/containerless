@@ -18,7 +18,7 @@ pub async fn get_function(
     match storage.get(&path) {
         Err(err) => {
             error!("Error reading file {} : {:?} ", path, err);
-            error_response(format!("{:?}", err))
+            error_response(err.info())
         }
         Ok(file) => ok_response(file.contents),
     }
@@ -31,7 +31,7 @@ pub async fn create_function(
     match storage.set(&path, &contents.contents) {
         Err(err) => {
             error!("Error creating file {} : {:?} ", path, err);
-            error_response(format!("{:?}", err))
+            error_response(err.info())
         }
         Ok(_file) => ok_response(format!("{} created!", path)),
     }
@@ -44,7 +44,7 @@ pub async fn delete_function(
     match storage.remove(&path) {
         Err(err) => {
             error!("Error deleting file {}: {:?}", path, err);
-            error_response(format!("{:?}", err))
+            error_response(err.info())
         }
         Ok(_file) => ok_response(format!("{} deleted!", path)),
     }

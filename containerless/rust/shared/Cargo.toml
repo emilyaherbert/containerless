@@ -16,3 +16,6 @@ serde = { version = "1.0", features = ["derive"] }
 hyper = "*"
 warp = "*"
 http = "*"
+bytes = "*"
+futures = "*"
+lazy_static = "*"

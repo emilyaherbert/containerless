@@ -1,8 +1,9 @@
 //! The compiler uses `cargo build` in the `/src` directory, so it must
 //! run as a single threaded task.
-use super::common::*;
 use super::error::Error;
 use crate::trace_compiler;
+
+use shared::common::*;
 
 use futures::channel::mpsc;
 use k8s;
@@ -40,6 +41,9 @@ enum Message {
         started_compiling: oneshot::Sender<()>,
         new_dispatcher_deployed: oneshot::Sender<()>,
     },
+    GetDispatcherVersion {
+        done: oneshot::Sender<usize>
+    }
 }
 
 #[derive(PartialEq)]
@@ -348,6 +352,25 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                 info!(target: "controller", "ending compiler task (received shutdown message)");
                 done.send(()).expect("sending done");
                 return;
+            },
+            Message::GetDispatcherVersion { done } => {
+                // I don't think this is quite right.....
+                loop {
+                    tokio::time::delay_for(Duration::from_secs(1)).await;
+                    match k8s.get_deployment_status("dispatcher").await {
+                        Ok(status) => {
+                            if status.replicas != 1 {
+                                continue; // continue inner loop
+                            }
+                            done.send(status.observed_generation).expect("sending done");
+                            break; // break from inner loop
+                        },
+                        Err(err) => {
+                            error!(target: "controller", "error getting dispatcher version {:?}", err);
+                            break; // break from inner loop
+                        }
+                    }
+                }
             }
         }
     }
@@ -474,5 +497,13 @@ impl Compiler {
         });
         recv.await.expect("compiler task shutdown");
         return http::StatusCode::OK;
+    }
+
+    pub async fn dispatcher_version(&self) -> usize {
+        let (send, recv) = oneshot::channel();
+        self.send_message_non_blocking(Message::GetDispatcherVersion {
+            done: send,
+        });
+        recv.await.unwrap()
     }
 }

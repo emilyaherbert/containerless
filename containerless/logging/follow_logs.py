@@ -2,6 +2,7 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from sys import argv
 import json
+import re
 
 # FilterDups(N) is a logger that filters duplicate messages. To do so, it stores the last N messages
 # in an internal buffer, and the 'maybe_log' method will only display message if it is not in the
@@ -37,7 +38,9 @@ class S(BaseHTTPRequestHandler):
         for log_line in json_log:
             if log_line['kubernetes']['namespace_name'] != 'containerless':
                 continue
-            filter_dups.maybe_log(f"{log_line['kubernetes']['pod_name']} {log_line['log']}")
+            the_line = log_line['log']
+            the_line = re.sub('(?<=\[)[^\s]*', '', the_line)
+            filter_dups.maybe_log(f"{log_line['kubernetes']['pod_name']} {the_line}")
         self.send_response(200)
         self.wfile.write(b'')
 

@@ -20,6 +20,7 @@ pub fn routes(
         .or(reset_function_route(compiler.clone()))
         .or(get_function_route())
         .or(list_functions_route())
+        .or(dispatcher_version_route(compiler.clone()))
 }
 
 fn ready_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
@@ -130,6 +131,14 @@ fn list_functions_route() -> impl Filter<Extract = impl warp::Reply, Error = war
     warp::path!("list_functions")
         .and(warp::get())
         .and_then(handlers::list_functions)
+}
+
+fn dispatcher_version_route(compiler: Arc<Compiler>,) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone
+{
+    warp::path!("dispatcher_version")
+        .and(warp::get())
+        .and(with_compiler(compiler))
+        .and_then(handlers::dispatcher_version_handler)
 }
 
 fn with_compiler(

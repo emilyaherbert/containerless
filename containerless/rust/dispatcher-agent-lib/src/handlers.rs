@@ -12,24 +12,21 @@ pub async fn dispatcher_handler(
     function_name: String, mut function_path: String, method: http::Method, body: bytes::Bytes,
     state: Arc<FunctionTable>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    debug!(target: "dispatcher", "received request for function {} with path {}", function_name, function_path);
+    info!(target: "dispatcher", "INVOKE {}: recieved request with path {}", function_name, function_path);
 
     // Create the Function Manager for the function
     let fm_res = FunctionTable::get_function(&state, &function_name).await;
     if let Err(err) = fm_res {
         return Ok(hyper::Response::builder()
             .status(500)
-            .body(hyper::Body::from(format!(
-                "Error invoking function {}",
-                err
-            )))
+            .body(hyper::Body::from(err.info()))
             .unwrap());
     }
     let mut fm = fm_res.unwrap();
 
     // Invoke the function
     // If this is the first invocation, this will spin up a tracing instance
-    debug!(target: "dispatcher", "invoking function {} with path {}", function_name, function_path);
+    info!(target: "dispatcher", "INVOKE {}: invoking with path {}", function_name, function_path);
     let body = hyper::Body::from(body);
     function_path = format!("/{}", function_path);
     return match fm.invoke(method, &function_path, body).await {
@@ -71,8 +68,17 @@ pub async fn get_mode_handler(
 pub async fn shutdown_function_instances_handler(
     function_name: String, state: Arc<FunctionTable>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
+    if !FunctionTable::function_manager_exists(&state, &function_name).await {
+        return Ok(hyper::Response::builder()
+            .status(200)
+            .body(hyper::Body::from(format!("No pods to shut down for function {}", function_name)))
+            .unwrap());
+    }
+
     match FunctionTable::get_function(&state, &function_name).await {
         Ok(mut fm) => Ok(fm.shutdown().await),
+        // NOTE(emily): The error case should not happen, as we checked just
+        // above that the function manager exists for this function.
         Err(err) => Ok(hyper::Response::builder()
             .status(500)
             .body(hyper::Body::from(format!("{:?}", err)))

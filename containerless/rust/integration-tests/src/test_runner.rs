@@ -1,94 +1,109 @@
-use k8s::Client as K8sClient;
-use reqwest;
-use serde_json::json;
-use serde_json::Value as JsonValue;
-use shared::net::poll_url_with_timeout;
-use std::time::Duration;
-use tokio::time::delay_for;
+use crate::error::Error;
 
-struct TestRunner {
-    http_client: reqwest::Client,
-    k8s_client: K8sClient,
-    name: String,
-}
+use shared::common::*;
+use shared::response::*;
+
+use reqwest;
+use serde_json::Value as JsonValue;
+use std::process::Stdio;
+use tokio::process::Command;
+use std::time::{Instant, Duration};
+
+struct TestRunner { }
 
 impl TestRunner {
-    async fn new(name: String) -> Self {
-        let k8s_client = K8sClient::from_kubeconfig_file("containerless")
-            .await
-            .expect("creating k8s::Client");
-
-        return TestRunner {
-            http_client: reqwest::Client::new(),
-            k8s_client,
-            name,
-        };
+    async fn new() -> Self {
+        TestRunner {}
     }
 
-    async fn poll_dispatcher_for_decontainerized(&self, previous_generation: usize) {
-        loop {
-            delay_for(Duration::from_secs(1)).await;
-            let status = self
-                .k8s_client
-                .get_deployment_status("dispatcher")
-                .await
-                .unwrap();
-            if status.replicas != 1 {
-                continue;
-            }
-            if status.observed_generation == previous_generation {
-                continue;
-            }
-            if status.observed_generation == previous_generation + 1 {
-                return;
-            }
-            panic!(
-                "observed generation is {}, but previous generation was {}",
-                status.observed_generation, previous_generation
-            );
-        }
+    pub async fn containerless_create(&self, name: &str, js_code: &str) -> Result<std::process::Output, Error> {
+        let filename = format!("{}/_code.js", ROOT.as_str());
+        std::fs::write(&filename, js_code)?;
+        Ok(Command::new(format!("{}/debug/cli", ROOT.as_str()))
+            .args(vec!("create", "-n", name, "-f", &filename))
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
+            .await?)
     }
 
-    async fn send_post_request(
-        &self, path_suffix: &str, body: JsonValue, expected_mode: &str,
-    ) -> Result<String, String> {
-        let url = reqwest::Url::parse(&format!(
-            "http://localhost/dispatcher/{}/{}",
-            self.name, path_suffix
-        ))
-        .expect("parsing URL");
-        let body = serde_json::to_vec(&body).expect("serializing JSON body");
-        let resp = self
-            .http_client
-            .post(url)
-            .body(body)
+    pub async fn containerless_delete(&self, name: &str) -> Result<std::process::Output, Error> {
+        Ok(Command::new(format!("{}/debug/cli", ROOT.as_str()))
+            .args(vec!("delete", "-n", name))
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
+            .await?)
+    }
+
+    pub async fn containerless_invoke(&self, name: &str, req: (&str, JsonValue)) -> Result<String, Error> {
+        let (path, body) = req;
+        let resp = reqwest::Client::new()
+            .post(&format!("http://localhost/dispatcher/{}/{}", name, path))
+            .json(&body)
             .send()
-            .await
-            .expect("sending request");
-        let status = resp.status();
-        let mode = resp
-            .headers()
-            .get("X-Containerless-Mode")
-            .map(|mode| mode.to_str().unwrap().to_string())
-            .unwrap_or(String::new());
-        let resp_body = resp.text().await.unwrap();
-        if status != 200 {
-            return Err(format!(
-                "got response code {} with body {} and mode {}",
-                status, resp_body, mode
-            ));
+            .await?;
+        response_into_result(resp.status().as_u16(), resp.text().await?).map_err(Error::Invoke)
+    }
+
+    pub async fn containerless_compile(&self, name: &str) -> Result<std::process::Output, Error> {
+        Ok(Command::new(format!("{}/debug/cli", ROOT.as_str()))
+            .args(vec!("compile", "-n", name))
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
+            .await?)
+    }
+
+    pub async fn containerless_get_dispatcher_version(&self) -> Result<std::process::Output, Error> {
+        Ok(Command::new(format!("{}/debug/cli", ROOT.as_str()))
+            .args(vec!("dispatcher-version"))
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
+            .await?)
+    }
+
+    pub async fn poll_for_new_dispatcher(&self, old_version: usize) -> Result<(), Error> {
+        let interval = Duration::from_secs(1);
+        let timeout = Duration::from_secs(60);
+        let end_time = Instant::now() + timeout;
+
+        tokio::time::delay_for(interval).await;
+        loop {
+            let output = self.containerless_get_dispatcher_version().await?;
+            let status = output.status;
+            let stdout = String::from_utf8(output.stdout)?;
+            let _stderr = String::from_utf8(output.stderr)?;
+            let next_version = stdout.trim().parse::<usize>()?;
+            if status.success() && next_version == (old_version+1) {
+                break;
+            }
+            tokio::time::delay_for(interval).await;
+            if Instant::now() >= end_time {
+                return Err(Error::Timeout);
+            }
         }
-        if mode != expected_mode {
-            return Err(format!("response had mode {:?}", mode));
-        }
-        return Ok(resp_body);
+        tokio::time::delay_for(interval).await;
+
+        return Ok(());
     }
 }
 
-pub async fn run_test_async(
-    name: &str, js_code: &str, js_requests: Vec<(&str, JsonValue)>,
-    rs_requests: Vec<(&str, JsonValue)>,
-) -> Vec<String> {
+pub async fn run_test_async(name: &str, js_code: &str, js_requests: Vec<(&str, JsonValue)>, rs_requests: Vec<(&str, JsonValue)>) -> Vec<String> {
+    fn fail(err: Error) {
+        error!(target: "integration-tests", "Error in the test runner: {:?}", err);
+        assert!(false, format!("{:?}", err));
+    }
+
+    async fn fail_and_delete(runner: TestRunner, name: &str, err: Error) {
+        error!(target: "integration-tests", "Error in the test runner: {:?}", err);
+        if let Err(err) = runner.containerless_delete(name).await {
+            error!(target: "integration-tests", "Error in the test runner: {:?}", err);
+        }
+        assert!(false, format!("{:?}", err));
+    }
+
     assert!(
         js_requests.len() > 0,
         "expected at least one pre-tracing request"
@@ -97,124 +112,68 @@ pub async fn run_test_async(
         rs_requests.len() > 0,
         "expected at least one post-tracing request"
     );
-    let runner = TestRunner::new(name.to_string()).await;
+    let runner = TestRunner::new().await;
     let mut results = Vec::new();
 
-    // Get current dispatcher generation
-    let dispatcher_generation = runner
-        .k8s_client
-        .get_deployment_status("dispatcher")
-        .await
+    // Retrieve the old dispatcher version
+    let dispatcher_version = runner.containerless_get_dispatcher_version().await;
+    if let Err(err) = dispatcher_version {
+        fail(err);
+        return results;
+    }
+    let old_dispatcher_version = String::from_utf8(dispatcher_version.unwrap().stdout)
         .unwrap()
-        .observed_generation;
+        .trim()
+        .parse::<usize>()
+        .unwrap();
 
-    // Register the function with Containerless
-    reqwest::Client::new()
-        .post(&format!(
-            "http://localhost/controller/create_function/{}",
-            name
-        ))
-        .json(&json!({ "contents": format!("{}", js_code.trim()) }))
-        .send()
-        .await
-        .expect("Could not create function.")
-        .text()
-        .await
-        .expect("Could not read response.");
-
-    // Send requests to tracing pod
-    for (path_suffix, body) in js_requests.into_iter() {
-        results.push(
-            runner
-                .send_post_request(&path_suffix, body, "tracing")
-                .await
-                .map_err(move |err| async move {
-                    error!(target: "integration-tests", "Error in the test runner: {:?}", err);
-                    reqwest::get(&format!(
-                        "http://localhost/controller/delete_function/{}",
-                        name
-                    ))
-                    .await?
-                    .text()
-                    .await
-                })
-                .map_err(|_err| "Could not delete function.")
-                .unwrap(),
-        );
+    // Create the function in Containerless
+    if let Err(err) = runner.containerless_create(name, js_code).await {
+        fail_and_delete(runner, name, err).await;
+        return results;
     }
 
-    // Start compiling function
-    let compile_resp = runner
-        .http_client
-        .post(&format!("http://localhost/dispatcher/compile/{}", name))
-        .body("")
-        .send()
-        .await
-        .map_err(move |err| async move {
-            error!(target: "integration-tests", "Error in the test runner: {:?}", err);
-            reqwest::get(&format!(
-                "http://localhost/controller/delete_function/{}",
-                name
-            ))
-            .await?
-            .text()
-            .await
-        })
-        .map_err(|_err| "Could not delete function.")
-        .expect("sending compile request");
-    if !(compile_resp.status() == 200) {
-        // NOTE(emily): There has got to be a better way to do this.
-        assert_eq!(true, false);
+    // Send requests to the containerized version
+    for req in js_requests.into_iter() {
+        match runner.containerless_invoke(name, req).await {
+            Ok(result) => results.push(result),
+            Err(err) => {
+                fail_and_delete(runner, name, err).await;
+                return results;
+            }
+        }
     }
 
-    // Wait for dispatcher to be done compiling
-    poll_url_with_timeout(
-        &runner.http_client,
-        "http://localhost/controller/ok_if_not_compiling",
-        Duration::from_secs(1),
-        Duration::from_secs(60),
-    )
-    .await
-    .map_err(move |err| async move {
-        error!(target: "integration-tests", "Error in the test runner: {:?}", err);
-        reqwest::get(&format!(
-            "http://localhost/controller/delete_function/{}",
-            name
-        ))
-        .await?
-        .text()
-        .await
-    })
-    .map_err(|_err| "Could not delete function.")
-    .expect("compiler took too long");
-    runner
-        .poll_dispatcher_for_decontainerized(dispatcher_generation)
-        .await;
-    delay_for(Duration::from_secs(1)).await;
-
-    // Send requests to decontainerized version
-    for (path_suffix, body) in rs_requests.into_iter() {
-        results.push(
-            runner
-                .send_post_request(&path_suffix, body, "decontainerized")
-                .await
-                .map_err(move |err| async move {
-                    error!(target: "integration-tests", "Error in the test runner: {:?}", err);
-                    reqwest::get(&format!(
-                        "http://localhost/controller/delete_function/{}",
-                        name
-                    ))
-                    .await?
-                    .text()
-                    .await
-                })
-                .map_err(|_err| "Could not delete function.")
-                .unwrap(),
-        );
+    // Have containerless compile the function and redeploy the dispatcher
+    if let Err(err) = runner.containerless_compile(name).await {
+        fail_and_delete(runner, name, err).await;
+        return results;
     }
 
-    // Done!
-    return results;
+    // Poll for the new dispatcher
+    if let Err(err) = runner.poll_for_new_dispatcher(old_dispatcher_version).await {
+        fail_and_delete(runner, name, err).await;
+        return results;
+    }
+
+    // Send requests to the decontainerized version
+    for req in rs_requests.into_iter() {
+        match runner.containerless_invoke(name, req).await {
+            Ok(result) => results.push(result),
+            Err(err) => {
+                fail_and_delete(runner, name, err).await;
+                return results;
+            }
+        }
+    }
+
+    // Delete everything!
+    if let Err(err) = runner.containerless_delete(name).await {
+        fail_and_delete(runner, name, err).await;
+        return results;
+    }
+
+    results
 }
 
 #[allow(unused)]

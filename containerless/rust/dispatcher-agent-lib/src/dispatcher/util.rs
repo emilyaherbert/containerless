@@ -37,8 +37,7 @@ pub async fn retry_get(
                         Err(())
                     }
                 }
-                Err(err) => {
-                    eprintln!("Request error: {}", err);
+                Err(_err) => {
                     Err(())
                 }
             })
