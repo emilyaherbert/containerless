@@ -6,7 +6,6 @@ pub mod trace_runtime;
 
 use dispatcher::function_table::FunctionTable;
 use dispatcher::{types, types::*};
-use tokio::signal::unix::{signal, SignalKind};
 
 #[macro_use]
 extern crate log;
@@ -25,13 +24,7 @@ pub async fn main(decontainerized_functions: HashMap<&'static str, Containerless
     let routes = routes::routes(state.clone());
 
     info!(target: "dispatcher", "started listening");
-    let (_addr, server) =
-        warp::serve(routes).bind_with_graceful_shutdown(([0, 0, 0, 0], 8080), async {
-            let mut sigterm = signal(SignalKind::terminate()).expect("registering SIGTERM handler");
-            sigterm.recv().await;
-            println!("Received SIGTERM");
-        });
-    server.await;
+    shared::net::serve_until_sigterm(routes, 8080).await;
     FunctionTable::orphan(state).await;
     std::process::exit(0);
 }

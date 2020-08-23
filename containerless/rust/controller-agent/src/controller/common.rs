@@ -9,16 +9,6 @@ pub use tokio::task;
 pub static NAMESPACE: &'static str = "containerless";
 pub use futures::channel::oneshot;
 
-pub async fn suppress_and_log_err<F, E>(f: F)
-where
-    F: Future<Output = Result<(), E>>,
-    E: std::error::Error,
-{
-    if let Err(err) = f.await {
-        error!(target: "controller", "Error: {:?}", err);
-    }
-}
-
 fn get_root_dir() -> String {
     let mut bin_path = std::env::current_exe().unwrap();
     assert!(bin_path.pop()); // pop controller-agent

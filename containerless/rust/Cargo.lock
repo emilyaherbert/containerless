@@ -542,6 +542,7 @@ dependencies = [
  "futures-retry",
  "hyper",
  "reqwest",
+ "shared",
  "tokio",
  "warp",
 ]
