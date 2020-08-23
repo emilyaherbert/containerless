@@ -207,7 +207,7 @@ impl State {
             .path_and_query(serverless_request.payload.path_and_query.as_str())
             .build()
             .expect("constructing URI");
-        info!(target: "dispatcher", "issuing HTTP request to {}", &uri);
+        info!(target: "dispatcher", "INVOKE {}: issuing HTTP request to {}", self.name, &uri);
         autoscaler.recv_req();
         let req = hyper::Request::builder()
             .method(serverless_request.payload.method)
@@ -223,7 +223,7 @@ impl State {
         autoscaler.recv_resp(); // decrement counter even if error
         let mut resp = match resp_result {
             Err(err) => {
-                error!(target: "dispatcher", "invoking {}", &err);
+                info!(target: "dispatcher", "INVOKE {}: error {}", self.name, err);
                 hyper::Response::builder()
                     .status(500)
                     .body(hyper::Body::from("invoke error"))
