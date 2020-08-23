@@ -69,7 +69,7 @@ impl TestRunner {
         let timeout = Duration::from_secs(60);
         let end_time = Instant::now() + timeout;
 
-        tokio::time::delay_for(interval*5).await;
+        tokio::time::delay_for(interval).await;
         loop {
             let output = self.containerless_get_dispatcher_version().await?;
             let status = output.status;

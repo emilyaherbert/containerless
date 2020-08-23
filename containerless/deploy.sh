@@ -26,7 +26,7 @@ echo "This may take some time..."
 echo "Controller is running at http://localhost/controller\n"
 
 echo "Waiting for dispatcher to come online."
-echo "This may take sometime..."
+echo "This may take some time..."
 ./poll-ready.sh http://localhost/dispatcher/readinessProbe 300 || exit 1
 echo "Dispatcher is running at http://localhost/dispatcher\n"
 

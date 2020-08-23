@@ -146,4 +146,14 @@ impl FunctionTable {
             }
         }
     }
+
+    pub async fn function_manager_exists(
+        self_: &Arc<FunctionTable>, name: &str,
+    ) -> bool {
+        let inner = self_.inner.lock().await;
+        match inner.functions.get(name) {
+            None => false,
+            Some(_value) => true
+        }
+    }
 }
