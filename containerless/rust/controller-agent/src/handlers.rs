@@ -132,7 +132,7 @@ pub async fn shutdown_function_instances(
 ) -> Result<impl warp::Reply, warp::Rejection> {
     match shutdown_function_instances_via_dispatcher(&name).await {
         Err(err) => {
-            error!(target: "controller", "Error shutting down instances for function {} : {:?} ", name, err);
+            error!(target:"controller", "SHUTDOWN_FUNCTION_INSTANCES: Error {:?} ", err);
             error_response(format!("{:?}", err))
         }
         Ok(resp) => ok_response(resp),
@@ -144,7 +144,7 @@ pub async fn reset_function(
 ) -> Result<impl warp::Reply, warp::Rejection> {
     match reset_function_via_compiler(&name, compiler).await {
         Err(err) => {
-            error!("Error reseting function {} : {:?} ", name, err);
+            error!(target:"controller", "RESET_FUNCTIONS: Error {:?} ", err);
             error_response(format!("{:?}", err))
         }
         Ok(resp) => ok_response(resp),
@@ -154,7 +154,7 @@ pub async fn reset_function(
 pub async fn get_function(name: String) -> Result<impl warp::Reply, warp::Rejection> {
     match get_from_storage(&name).await {
         Err(err) => {
-            error!("Error describing function {} : {:?} ", name, err);
+            error!(target:"controller", "GET_FUNCTIONS: Error {:?} ", err);
             error_response(format!("{:?}", err))
         }
         Ok(resp) => ok_response(resp),
@@ -164,7 +164,7 @@ pub async fn get_function(name: String) -> Result<impl warp::Reply, warp::Reject
 pub async fn list_functions() -> Result<impl warp::Reply, warp::Rejection> {
     match list_from_storage().await {
         Err(err) => {
-            error!("Error listing functions: {:?} ", err);
+            error!(target:"controller", "LIST_FUNCTIONS: Error {:?} ", err);
             error_response(format!("{:?}", err))
         }
         Ok(resp) => ok_response(resp),
