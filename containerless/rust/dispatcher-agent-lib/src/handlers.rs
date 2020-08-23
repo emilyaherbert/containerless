@@ -19,10 +19,7 @@ pub async fn dispatcher_handler(
     if let Err(err) = fm_res {
         return Ok(hyper::Response::builder()
             .status(500)
-            .body(hyper::Body::from(format!(
-                "Error invoking function {}",
-                err
-            )))
+            .body(hyper::Body::from(err.info()))
             .unwrap());
     }
     let mut fm = fm_res.unwrap();

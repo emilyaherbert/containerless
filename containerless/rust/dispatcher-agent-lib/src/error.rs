@@ -25,4 +25,12 @@ impl Error {
     pub fn controller<T>(message: impl Into<String>) -> Result<T, Self> {
         return Err(Error::Controller(message.into()));
     }
+
+    pub fn info(&self) -> String {
+        match self {
+            Error::Storage(info) => info.to_owned(),
+            Error::Controller(info) => info.to_owned(),
+            error => error.to_string()
+        }
+    }
 }
