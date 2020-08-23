@@ -93,6 +93,7 @@ impl FunctionManager {
             },
             send: send_resp,
         };
+        info!(target: "dispatcher", "INVOKE {}: sending request with path {} to FMT", self.state.name, path_and_query);
         self.send_requests
             .send(Message::Request(req))
             .await
@@ -102,7 +103,7 @@ impl FunctionManager {
                 return result;
             }
             Err(futures::channel::oneshot::Canceled) => {
-                error!(target: "dispatcher", "function pods shut down before request for {} could be made", self.state.name);
+                error!(target: "dispatcher", "INVOKE {}: function pods shut down before request could be made", self.state.name);
                 return Ok(hyper::Response::builder()
                     .status(500)
                     .body(hyper::Body::from("dispatcher shutdown"))

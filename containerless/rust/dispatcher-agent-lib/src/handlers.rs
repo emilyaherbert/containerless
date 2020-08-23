@@ -12,7 +12,7 @@ pub async fn dispatcher_handler(
     function_name: String, mut function_path: String, method: http::Method, body: bytes::Bytes,
     state: Arc<FunctionTable>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    debug!(target: "dispatcher", "received request for function {} with path {}", function_name, function_path);
+    info!(target: "dispatcher", "INVOKE {}: recieved request with path {}", function_name, function_path);
 
     // Create the Function Manager for the function
     let fm_res = FunctionTable::get_function(&state, &function_name).await;
@@ -29,7 +29,7 @@ pub async fn dispatcher_handler(
 
     // Invoke the function
     // If this is the first invocation, this will spin up a tracing instance
-    debug!(target: "dispatcher", "invoking function {} with path {}", function_name, function_path);
+    info!(target: "dispatcher", "INVOKE {}: invoking with path {}", function_name, function_path);
     let body = hyper::Body::from(body);
     function_path = format!("/{}", function_path);
     return match fm.invoke(method, &function_path, body).await {
