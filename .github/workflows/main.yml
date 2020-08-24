@@ -12,6 +12,10 @@ jobs:
     #  working-directory: ./containerless/rust
     - name: Install microk8s
       run: sudo snap install microk8s --classic
+    - name: Add runner to microk8s group
+      run: |
+        sudo usermod -a -G microk8s runner
+        sudo chown -f -R runner ~/.kube
     - name: Enable stuff on microk8s
       run: microk8s.enable dns registry ingress
     - name: Move the Kubeconfig
