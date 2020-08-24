@@ -22,27 +22,27 @@ jobs:
       run: microk8s.enable dns registry ingress
     - name: Move the Kubeconfig
       run: sudo microk8s.kubectl config view > ~/.kube/config
-    - name: Build
+    - name: Build Containerless
       run: ./build.sh
       working-directory: ./containerless
     - name: Test javascript/containerless/
       run: yarn run test
       working-directory: ./containerless/javascript/containerless
-    - name: Check status
+    - name: Check microk8s.kubectl status
       run: |
         sleep 10
         microk8s.kubectl get pods -n containerless
-    - name: Deploy
+    - name: Deploy Containerless
       run: ./deploy.sh
       working-directory: ./containerless
-    - name: Check status
+    - name: Check microk8s.kubectl status
       run: |
         sleep 10
         microk8s.kubectl get pods -n containerless
     - name: Run integration tests
       run: ./test.sh
       working-directory: ./containerless
-    - name: Undeploy
+    - name: Undeploy Containerless
       if: always()
       run: ./undeploy.sh
       working-directory: ./containerless
