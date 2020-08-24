@@ -68,7 +68,8 @@ $ containerless remove-containers -n helloworld
 This will remove all of the running containers for the `helloworld` function.
 Note, the `remove-containers` command is for *demo purposes only* and cannot be
 use reliably in a production setting. Instead, one should wait for the pods to
-go down on their own or use the `delete` command. 
+go down on their own or use the `delete` command. We can see that the function
+instances have gone down:
 
 ```
 $ k get pods -n containerless
