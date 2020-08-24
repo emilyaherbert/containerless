@@ -1,5 +1,6 @@
 #!/bin/sh
-cd docker
+
+cd ../../containerless/docker/
 
 ./controller.sh stop
 

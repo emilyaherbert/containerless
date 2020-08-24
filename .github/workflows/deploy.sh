@@ -2,7 +2,7 @@
 
 set -e
 
-cd docker
+cd ../../containerless/docker/
 
 export EXAMPLES_PATH=$(dirname $(dirname $(realpath $0)))/examples
 export RUST_SRC_PATH=$(dirname $(dirname $(realpath $0)))/rust
