@@ -6,7 +6,7 @@ jobs:
   build:
     runs-on: ubuntu-18.04
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     #- name: Clean
     #  run: cargo clean
     #  working-directory: ./containerless/rust
@@ -14,7 +14,6 @@ jobs:
       run: sudo snap install microk8s --classic
     - name: Allow runner to access microk8s
       run: |
-        sudo groupadd microk8s
         sudo usermod -a -G microk8s runner
         sudo chown -f -R runner ~/.kube
     #sudo chmod 777 /var/snap/microk8s/current/credentials/
