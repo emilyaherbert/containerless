@@ -79,17 +79,6 @@ $ curl -X POST -H "Content-Type: application/json" "http://localhost/dispatcher/
 
 ## Undeploying
 
-You can either:
-1. Force the shutdown of all running function pods
-    ```
-    $ containerless shutdown -n fileserver
-    ```
-2. Clear the compiled trace
-    ```
-    $ containerless reset -n fileserver
-    ```
-3. Delete the function entirely -- this does (1) and (2) above, and also deletes
-    the function code from the containerless system
-    ```
-    $ containerless delete -n fileserver
-    ```
+```
+$ containerless delete -n fileserver
+```
