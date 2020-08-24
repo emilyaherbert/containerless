@@ -51,7 +51,11 @@ fn dispatcher_route(
     state: Arc<FunctionTable>,
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::path!(String / String)
-        .and(warp::query::raw())
+        .and(warp::query::raw()
+            .map(Some)
+            .or_else(|_| async {
+                Ok::<(Option<String>,), std::convert::Infallible>((None,))
+            }))
         .and(warp::method())
         .and(warp::filters::body::bytes())
         .and(with_state(state))
