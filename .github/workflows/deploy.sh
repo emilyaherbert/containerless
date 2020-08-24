@@ -17,7 +17,7 @@ rm "${RUST_SRC_PATH}/dispatcher-agent/src/decontainerized_functions/*.rs" 2> /de
 echo "System state cleared.\n"
 
 echo "Deploying on k8s..."
-envsubst < containerless.yaml | microk8s.kubectl apply --kubeconfig ~/.kube/config -f -
+envsubst < containerless.yaml | sudo microk8s.kubectl apply -f -
 echo "Deployed on k8s.\n"
 
 echo "Starting the controller."

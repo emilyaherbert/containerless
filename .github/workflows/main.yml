@@ -33,18 +33,18 @@ jobs:
     - name: Check microk8s.kubectl status
       run: |
         sleep 10
-        microk8s.kubectl get pods -n containerless --kubeconfig ~/.kube/config
+        sudo microk8s.kubectl get pods -n containerless
     - name: Deploy Containerless
-      run: ./deploy.sh
+      run: sudo ./deploy.sh
       working-directory: ./.github/workflows
     - name: Check microk8s.kubectl status
       run: |
         sleep 10
-        microk8s.kubectl get pods -n containerless --kubeconfig ~/.kube/config
+        sudo microk8s.kubectl get pods -n containerless
     - name: Run integration tests
       run: ./test.sh
       working-directory: ./containerless
     - name: Undeploy Containerless
       if: always()
-      run: ./undeploy.sh
+      run: sudo ./undeploy.sh
       working-directory: ./.github/workflows

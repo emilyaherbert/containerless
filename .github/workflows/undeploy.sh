@@ -5,7 +5,7 @@ cd docker
 
 export EXAMPLES_PATH=$(dirname $(dirname $(realpath $0)))/examples
 export CONTROLLER_LOG_PATH=$(dirname $(realpath $0))
-envsubst < containerless.yaml | microk8s.kubectl delete --kubeconfig ~/.kube/config --ignore-not-found -f -
+envsubst < containerless.yaml | sudo microk8s.kubectl delete --ignore-not-found -f -
 
 export RUST_SRC_PATH=$(dirname $(dirname $(realpath $0)))/rust
 echo "Clearing system state..."
