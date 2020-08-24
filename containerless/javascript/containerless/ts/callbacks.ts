@@ -217,6 +217,7 @@ export class Callbacks {
                         callback(undefined);
                     }
                     else {
+                        console.log(resp);
                         callback(JSON.parse(String(resp.body)));
                     }
                 });
@@ -302,7 +303,7 @@ export class Callbacks {
         this.trace.tracePrimApp('send', [$response]);
         if(this.response !== undefined) {
             this.response.set('X-Server-Hostname', hostname); 
-            this.response.send('' + response);
+            this.response.send('' + JSON.stringify(response));
         } else if(state.getListenPort() !== 'test') {
             throw new Error("No express.Response found.");
         }
