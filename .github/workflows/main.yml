@@ -10,6 +10,12 @@ jobs:
     #- name: Clean
     #  run: cargo clean
     #  working-directory: ./containerless/rust
+    - name: Install microk8s
+      run: sudo snap install microk8s --classic
+    - name: Enable stuff on microk8s
+      run: microk8s.enable dns registry ingress
+    - name: Move the Kubeconfig
+      run: microk8s.kubectl config view > ~/.kube/config
     - name: Build
       run: ./build.sh
       working-directory: ./containerless
