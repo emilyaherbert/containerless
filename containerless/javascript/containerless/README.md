@@ -33,21 +33,21 @@ $ node examples/transformed.js 8080
 3. Send requests to the function:
 
 ```
-$ curl -X POST -H "Content-Type: application/json" -d '{}' localhost:8080/wassup
+$ curl -X GET "http://localhost:8080/wassup"
 /wassup
-$ curl -X POST -H "Content-Type: application/json" -d '{}' localhost:8080/foobar
+$ curl -X GET "http://localhost:8080/foobar"
 /foobar
 ```
 
-This can be done any number of times. Requests to the deployed functions must be
-`POST` requests, with possibly empty JSON bodies.
+This can be done any number of times.
 
 4. Extract the trace:
 
 ```
-$ curl localhost:8080/trace
+$ curl -X GET "http://localhost:8080/trace"
 ```
 
 This prints a trace tree for the provided function that complies with the trace
-IR [language definition](./ts/exp.ts#L63). This JSON trace tree is recieved by
-the [`compiler`](../../rust/compiler) and is deserialized [here](../../rust/compiler/src/test_runner.rs#L111).
+IR [language definition](./ts/exp.ts#L63). This JSON trace tree is compiled by
+the `trace_compiler` inside of the
+[`controller-agent`](../../rust/controller-agent).
