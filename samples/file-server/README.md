@@ -77,6 +77,10 @@ Invoke using the `<username>` and `<password>` from step 5 above:
 $ curl -X POST -H "Content-Type: application/json" "http://localhost/dispatcher/fileserver/upload?username=<username>&password=<password>&filename=grocerylist" -d @groceries.json
 ```
 
+```
+curl -X GET "http://localhost/dispatcher/fs2/list?username=<username>&password=<password>"
+```
+
 ## Undeploying
 
 ```

@@ -217,7 +217,7 @@ export class Callbacks {
                         callback(undefined);
                     }
                     else {
-                        console.log(resp);
+                        //console.log(resp);
                         callback(JSON.parse(String(resp.body)));
                     }
                 });
@@ -292,15 +292,15 @@ export class Callbacks {
 
         this.app.get('/:path*', (req, resp) => {
             this.response = resp;
-            console.log(req.query);
-            console.error(req.query);
+            //console.log(req.query);
+            //console.error(req.query);
             tracedCallback({ path: req.path, query: req.query, body: {} as any });
         });
 
         this.app.post('/:path*', (req, resp) => {
             this.response = resp;
-            console.log(req.query);
-            console.error(req.query);
+            //console.log(req.query);
+            //console.error(req.query);
             tracedCallback({ path: req.path, query: req.query, body: req.body });
         });
 
