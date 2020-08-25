@@ -1,7 +1,7 @@
 [package]
 name = "dispatcher-launcher-agent"
 version = "0.1.0"
-authors = ["Arjun Guha <arjun@cs.umass.edu>"]
+authors = ["Emily Herbert <emilyherbert@cs.umass.edu>", "Arjun Guha <a.guha@northeastern.edu>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
