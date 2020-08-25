@@ -44,6 +44,13 @@ pub async fn dispatcher_handler(
     };
 }
 
+pub async fn dispatcher_handler2(
+    function_name: String, function_query: Option<String>, method: http::Method, body: bytes::Bytes,
+    state: Arc<FunctionTable>,
+) -> Result<impl warp::Reply, warp::Rejection> {
+    dispatcher_handler(function_name, "".to_string(), function_query, method, body, state).await
+}
+
 pub async fn compile_handler(
     function_name: String, state: Arc<FunctionTable>,
 ) -> Result<impl warp::Reply, warp::Rejection> {

@@ -10,7 +10,7 @@ if the function is currently using container-based isolation
 
 Note, the `containerless.hello()` command is for *demo purposes only*, and is
 the only component of the Containerless API whose definition changes from
-language-based to container-based isolation.
+container-based to language-based isolation.
 
 ## Deploying
 
@@ -37,13 +37,13 @@ containerless.listen(function(req) {
 Send a request to the `helloworld` function:
 
 ```
-$ curl -X POST -H "Content-Type: application/json" "http://localhost/dispatcher/helloworld/hello" -d '{}'
+$ curl -X GET "http://localhost/dispatcher/helloworld"
 ```
 
 Functions on Containerless can be accessed by requests to
-`http://localhost/dispatcher/<functionname>/<functionpath>`. In this case,
-`<functionname>` is `helloworld`, and `<functionpath>` is `hello`, and the post
-request sends an empty body `{}`.
+`http://localhost/dispatcher/<functionname>/<functionpath>?<queryparamkey>=<queryparamvalue>`.
+In this case, `<functionname>` is `helloworld` and the remaining elements are
+empty.
 
 Now if we check the `containerless` pods running on k8s, we should be able to
 see that our initial request has started some instances:
@@ -67,7 +67,7 @@ $ containerless remove-containers -n helloworld
 
 This will remove all of the running containers for the `helloworld` function.
 Note, the `remove-containers` command is for *demo purposes only* and cannot be
-use reliably in a production setting. Instead, one should wait for the pods to
+use reliably in a production setting. Instead, you should wait for the pods to
 go down on their own or use the `delete` command. We can see that the function
 instances have gone down:
 
@@ -89,17 +89,17 @@ the background and switches the `helloworld` function to language-based
 isolation. To demonstrate this, we will invoke our function 6 times:
 
 ```
-$ curl -X POST -H "Content-Type: application/json" "http://localhost/dispatcher/helloworld/hello" -d '{}'
+$ curl -X GET "http://localhost/dispatcher/helloworld"
 Hello from JavaScript!
-$ curl -X POST -H "Content-Type: application/json" "http://localhost/dispatcher/helloworld/hello" -d '{}'
+$ curl -X GET "http://localhost/dispatcher/helloworld"
 Hello from JavaScript!
-$ curl -X POST -H "Content-Type: application/json" "http://localhost/dispatcher/helloworld/hello" -d '{}'
+$ curl -X GET "http://localhost/dispatcher/helloworld"
 Hello from JavaScript!
-$ curl -X POST -H "Content-Type: application/json" "http://localhost/dispatcher/helloworld/hello" -d '{}'
+$ curl -X GET "http://localhost/dispatcher/helloworld"
 Hello from JavaScript!
-$ curl -X POST -H "Content-Type: application/json" "http://localhost/dispatcher/helloworld/hello" -d '{}'
+$ curl -X GET "http://localhost/dispatcher/helloworld"
 Hello from JavaScript!
-$ curl -X POST -H "Content-Type: application/json" "http://localhost/dispatcher/helloworld/hello" -d '{}'
+$ curl -X GET "http://localhost/dispatcher/helloworld"
 Hello from JavaScript!
 ```
 
@@ -111,7 +111,7 @@ isolation (JavaScript).
 After some amount of time, we see:
 
 ```
-$ curl -X POST -H "Content-Type: application/json" "http://localhost/dispatcher/helloworld/hello" -d '{}'
+$ curl -X GET "http://localhost/dispatcher/helloworld"
 Hello from Rust!
 ```
 
@@ -139,7 +139,7 @@ change. This is blocking command and is for *demo purposes only*.
 If we invoke the function again:
 
 ```
-$ curl -X POST -H "Content-Type: application/json" "http://localhost/dispatcher/helloworld/hello" -d '{}'
+$ curl -X GET "http://localhost/dispatcher/helloworld"
 Hello from JavaScript!
 ```
 
@@ -165,4 +165,4 @@ $ containerless delete -n helloworld
 ```
 
 The `delete` command deletes a function from the internal Containerless storage,
-removes its containers, and removes its trace.
+removes its containers, and removes its compiled trace.

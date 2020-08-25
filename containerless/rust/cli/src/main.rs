@@ -9,7 +9,7 @@ use clap::Clap;
 #[clap(
     name = "Containerless",
     version = "0.1",
-    author = "Emily Herbert <emilyherbert@cs.umass.edu>, Arjun Guha <arjun@cs.umass.edu>"
+    author = "Emily Herbert <emilyherbert@cs.umass.edu>, Arjun Guha <a.guha@northeastern.edu>"
 )]
 struct Opts {
     #[clap(subcommand)]
@@ -40,7 +40,7 @@ struct Create {
     filename: String,
 }
 
-/// Delete a function, removes its containers, and removes its trace.
+/// Delete a function, removes its containers, and removes its compiled trace.
 #[derive(Clap)]
 struct Delete {
     /// Name of the function to delete
