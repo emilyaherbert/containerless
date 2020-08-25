@@ -217,21 +217,34 @@ export class Callbacks {
         }
         state.setListening();
 
+        // readiness
         this.app.get('/readinessProbe', (req, resp) => {
             resp.send('');
         });
 
-        this.app.post('/', (req, resp) => {
-            resp.send('Hello world 2.0!\n');
-        });
-
+        // clear the current trace
         this.app.get('/clear', (req, resp) => {
             this.trace.newTrace();
             resp.send('Cleared!\n');
         })
 
+        // get the current trace
         this.app.get('/trace', (req, resp) => {
             resp.send(JSON.stringify(this.trace.getTrace()));
+        });
+
+        /**
+         *  paths that applications can use
+         */
+
+        this.app.get('/', (req, resp) => {
+            this.response = resp;
+            tracedCallback({ path: "", query: req.query, body: {} as any });
+        });
+
+        this.app.post('/', (req, resp) => {
+            this.response = resp;
+            tracedCallback({ path: "", query: req.query, body: req.body });
         });
 
         this.app.get('/:path*', (req, resp) => {
