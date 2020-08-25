@@ -28,7 +28,7 @@ rest of Containerless, which runs on Kubernetes, you must run the following
 command:
 
 ```
-microk8s.kubectl config view > ~/.kube/config
+$ microk8s.kubectl config view > ~/.kube/config
 ```
 
 Then, edit the file to add `insecure-skip-tls-verify: true` below `server: ..`.
@@ -50,18 +50,22 @@ cluster. However, our deployment scripts assume you're using MicroK8s.
 
 ## Building
 
-1. Build the containerless system.
+Build the containerless system:
 
-   ```
-   $ ./build.sh
-   ```
+```
+$ ./build.sh
+```
+
+## Logging
+
+See README.md in the ./logging directory.
 
 ## Deploying
 
 The following command deploys Containerless to MicroK8s:
 
 ```
-./deploy.sh
+$ ./deploy.sh
 ```
 
 After you run this command, you should see several Pods, Services, and
@@ -69,61 +73,114 @@ ReplicaSets running (exact ports and IP addresses will vary):
 
 ```
 $ microk8s.kubectl get all -n containerless
-NAME                         READY   STATUS    RESTARTS   AGE
-pod/dispatcher-4lbhm         1/1     Running   0          63s
-pod/function-storage-hdqzh   1/1     Running   0          63s
+NAME                             READY   STATUS    RESTARTS   AGE
+pod/controller-logger            1/1     Running   0          51s
+pod/dispatcher-dbcc86d6c-l8j28   1/1     Running   0          21s
+pod/storage-fwwf6                1/1     Running   0          51s
 
-NAME                       TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
-service/dispatcher         NodePort    10.152.183.193   <none>        8080:30373/TCP   63s
-service/function-storage   NodePort    10.152.183.118   <none>        8080:32152/TCP   63s
-service/kubernetes         ClusterIP   10.152.183.1     <none>        443/TCP          30h
+NAME                 TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
+service/controller   ClusterIP   10.152.183.196   <none>        80/TCP           51s
+service/dispatcher   NodePort    10.152.183.199   <none>        8080:31108/TCP   51s
+service/storage      NodePort    10.152.183.144   <none>        8080:31167/TCP   51s
 
-NAME                               DESIRED   CURRENT   READY   AGE
-replicaset.apps/dispatcher         1         1         1       63s
-replicaset.apps/function-storage   1         1         1       63s
+NAME                         READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/dispatcher   1/1     1            1           21s
+
+NAME                                   DESIRED   CURRENT   READY   AGE
+replicaset.apps/dispatcher-dbcc86d6c   1         1         1       21s
+replicaset.apps/storage                1         1         1       51s
 ```
 
 The `deploy.sh` script also creates an Ingress, which gives access to 
 Containerless Services:
 
 ```
-$ microk8s.kubectl get ingress
-NAME                    HOSTS   ADDRESS     PORTS   AGE
-containerless-ingress   *       127.0.0.1   80      2m19s
+$ microk8s.kubectl get ingress -n containerless
+NAME                    CLASS    HOSTS   ADDRESS     PORTS   AGE
+containerless-ingress   <none>   *       127.0.0.1   80      109s
 ```
-
-## Logging
-
-See README.md in the ./logging directory.
 
 ## Integration Tests
 
 To run integration tests, use:
 
 ```
-$ cd docker && ./test.sh
+$ ./test.sh
 ```
 
-## Invoking Functions (possibly expired)
+## Containerless CLI
 
-The Containerless deployment can run the functions in the `/examples`
-directory. For example, there is a file called `/examples/hello-world.js`,
-thus we can invoke it as follows:
+The Containerless CLI bin is located, from the root of the repo, at
+`./containerless/rust/target/debug/cli`. We recommend creating a bash alias
+`containerless` to this bin. This repo, including documentation and demos,
+refers to the CLI bin as the alias `containerless`.
+
+The CLI contains a number of commands:
 
 ```
-$ curl http://localhost/dispatcher/hello-world
-Hello world!
+$ containerless --help
+Containerless 0.1
+Emily Herbert <emilyherbert@cs.umass.edu>, Arjun Guha <a.guha@northeastern.edu>
+This doc string acts as a help message when the user runs '--help' as do all doc strings on fields
+
+USAGE:
+    cli <SUBCOMMAND>
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+SUBCOMMANDS:
+    compile               Compiles the decontainerized version for a funtion. For testing and demo purposes only
+    create                Creates a function
+    delete                Delete a function, removes its containers, and removes its compiled trace
+    dispatcher-version    Retrieves the current dispatcher version
+    get                   Gets the body of a function
+    help                  Prints this message or the help of the given subcommand(s)
+    invoke                Invokes a function
+    list                  Lists all functions
+    remove-containers     Removes the containers for a function. For demo purposes only
+    remove-trace          Removes the compiled trace for a function. For demo purposes only
+```
+
+The most notable are:
+- `containerless create -n <name> -f <file>`: Creates a serverless function
+  called `<name>` with file `<file>`.
+- `containerless delete -n <name>`: Deletes the function `<name>`
+- `containerless list`: List the functions currently available
+
+Examples of how to use the CLI and interact with Containerless can be found in
+the `samples` directory at the root of the repo.
+
+## Invoking Functions
+
+We can invoke functions by sending requests to the Containerless dispatcher.
+In general, functions can be invoked through the url
+`http://localhost/dispatcher/<functionname>/<path>?<querykey>=<queryvalue>`.
+Given a function `helloworld`, we can invoke it as follows:
+
+```
+$ curl -X GET "http://localhost/dispatcher/helloworld"
+```
+
+Given a function `fileserver` that POSTs a file to a database and a file
+`groceries.json`, we can invoke it as follows:
+
+```
+$ curl -X POST -H "Content-Type: application/json" "http://localhost/dispatcher/fileserver/upload?username=<username>&password=<password>&filename=grocerylist" -d @groceries.json
 ```
 
 Note that the first time we invoke the function, it takes 1-2 seconds to *cold
 start*. However, subsequent invocations are significantly faster. If we
 now run `microk8s.kubectl get all -n containerless` , we will find that the
-cluster is now hosting new resources for the `hello-world` function.
+cluster is now hosting new resources for the `helloworld` function. More
+examples of how to invoke functions can be found in the `samples` directory at
+the root of the repo.
 
 ## Cleanup
 
 ```
-cd docker && ./undeploy.sh
+$ ./undeploy.sh
 ```
 
 [Cargo]: https://rustup.rs/
