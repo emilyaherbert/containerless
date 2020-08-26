@@ -1,2 +1,3 @@
-FROM ubuntu:18.04
+
+FROM ubuntu:latest
 CMD ["/usr/bin/tail", "-F", "/log/controller.log"]
