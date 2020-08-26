@@ -315,8 +315,12 @@ export class Callbacks {
         let [_, $response] = this.trace.popArgs();
         this.trace.tracePrimApp('send', [$response]);
         if(this.response !== undefined) {
-            this.response.set('X-Server-Hostname', hostname); 
-            this.response.send('' + JSON.stringify(response));
+            if(typeof(response) === 'object') {
+                this.response.set('X-Server-Hostname', hostname);
+                this.response.send('' + JSON.stringify(response, null, 4) + "\n");
+            } else {
+                this.response.send('' + response + "\n");
+            }
         } else if(state.getListenPort() !== 'test') {
             throw new Error("No express.Response found.");
         }
@@ -329,7 +333,7 @@ export class Callbacks {
         this.trace.tracePrimApp('send', [$response]);
         if(this.response !== undefined) {
             this.response.set('X-Server-Hostname', hostname); 
-            this.response.send('' + response);
+            this.response.send('' + response + "\n");
         } else if(state.getListenPort() !== 'test') {
             throw new Error("No express.Response found.");
         }

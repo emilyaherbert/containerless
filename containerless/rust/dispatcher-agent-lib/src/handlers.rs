@@ -12,7 +12,11 @@ pub async fn dispatcher_handler(
     function_name: String, mut function_path: String, function_query: Option<String>, method: http::Method, body: bytes::Bytes,
     state: Arc<FunctionTable>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    info!(target: "dispatcher", "INVOKE {}: recieved request with path {}", function_name, function_path);
+    function_path = match function_query {
+        Some(query) => format!("/{}?{}", function_path, query),
+        None => format!("/{}", function_path)
+    };
+    info!(target: "dispatcher", "INVOKE {}: recieved request with path_and_query {}", function_name, function_path);
 
     // Create the Function Manager for the function
     let fm_res = FunctionTable::get_function(&state, &function_name).await;
@@ -26,12 +30,8 @@ pub async fn dispatcher_handler(
 
     // Invoke the function
     // If this is the first invocation, this will spin up a tracing instance
-    info!(target: "dispatcher", "INVOKE {}: invoking with path {}", function_name, function_path);
+    info!(target: "dispatcher", "INVOKE {}: invoking with path_and_query {}", function_name, function_path);
     let body = hyper::Body::from(body);
-    function_path = match function_query {
-        Some(query) => format!("/{}?{}", function_path, query),
-        None => format!("/{}", function_path)
-    };
     return match fm.invoke(method, &function_path, body).await {
         Ok(resp) => Ok(resp),
         Err(err) => Ok(hyper::Response::builder()
