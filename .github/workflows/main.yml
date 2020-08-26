@@ -4,47 +4,33 @@ on: [push]
 
 jobs:
   build:
-    runs-on: ubuntu-18.04
+    runs-on: self-hosted
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v1
     #- name: Clean
     #  run: cargo clean
     #  working-directory: ./containerless/rust
-    - name: Install microk8s
-      run: sudo snap install microk8s --classic
-    - name: Allow runner to access microk8s
-      run: |
-        sudo chmod 777 /var/snap/microk8s/current/credentials/
-        sudo chmod 666 /var/snap/microk8s/current/credentials/client.config
-        sudo chmod 777 /var/snap/microk8s/current/args/
-        sudo chmod 666 /var/snap/microk8s/current/args/kubectl
-    #sudo usermod -a -G microk8s runner
-    #sudo chown -f -R runner ~/.kube
-    - name: Enable stuff on microk8s
-      run: microk8s.enable dns registry ingress
-    - name: Move the Kubeconfig
-      run: sudo microk8s.kubectl config view > ~/.kube/config
-    - name: Build Containerless
+    - name: Build
       run: ./build.sh
       working-directory: ./containerless
     - name: Test javascript/containerless/
       run: yarn run test
       working-directory: ./containerless/javascript/containerless
-    - name: Check microk8s.kubectl status
+    - name: Check status
       run: |
         sleep 10
-        sudo microk8s.kubectl get pods -n containerless
-    - name: Deploy Containerless
-      run: sudo ./deploy.sh
-      working-directory: ./.github/workflows
-    - name: Check microk8s.kubectl status
+        microk8s.kubectl get pods -n containerless
+    - name: Deploy
+      run: ./deploy.sh
+      working-directory: ./containerless
+    - name: Check status
       run: |
         sleep 10
-        sudo microk8s.kubectl get pods -n containerless
+        microk8s.kubectl get pods -n containerless
     - name: Run integration tests
       run: ./test.sh
       working-directory: ./containerless
-    - name: Undeploy Containerless
+    - name: Undeploy
       if: always()
-      run: sudo ./undeploy.sh
-      working-directory: ./.github/workflows
+      run: ./undeploy.sh
+      working-directory: ./containerless
