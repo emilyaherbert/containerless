@@ -16,7 +16,8 @@ pub enum AsyncOp {
     Request(String),
     Get(String),
     Post(String, Bytes),
-    Put(String, Bytes)
+    Put(String, Bytes),
+    Delete(String)
 }
 
 pub enum AsyncOpOutcome {
@@ -135,6 +136,31 @@ impl AsyncOp {
                 let resp_result = client.request(req).await;
                 let resp = resp_result
                     .map_err(|err| Error::TypeError(format!("GET failed: {:?}", err)))?;
+                let body = hyper::body::to_bytes(resp.into_body())
+                    .await
+                    .map_err(|_err| Error::TypeError("Reading response body".to_string()))?;
+                return Ok(AsyncOpOutcome::GetResponse(body));
+            },
+            AsyncOp::Delete(url) => {
+                if url.starts_with("data:") {
+                    return Ok(AsyncOpOutcome::MockGetResponse(
+                        serde_json::from_str(&url[5..])
+                            .expect("malformed JSON in data: URL to DELETE"),
+                    ));
+                }
+                use hyper::{Body, Request, Uri};
+                let uri = Uri::from_str(&url)
+                    .map_err(|_err| Error::TypeError("invalid URL in DELETE request".to_string()))?;
+                let req = Request::builder()
+                    .method("DELETE")
+                    .uri(uri)
+                    .body(Body::empty())
+                    .map_err(|_err| {
+                        Error::TypeError("could not build request in DELETE".to_string())
+                    })?;
+                let resp_result = client.request(req).await;
+                let resp = resp_result
+                    .map_err(|err| Error::TypeError(format!("DELETE failed: {:?}", err)))?;
                 let body = hyper::body::to_bytes(resp.into_body())
                     .await
                     .map_err(|_err| Error::TypeError("Reading response body".to_string()))?;

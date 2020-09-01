@@ -225,6 +225,43 @@ export class Callbacks {
         }
     }
 
+    /**
+     * Issues an HTTP DELETE request
+     */
+    delete(uri: string, callback: (response: undefined | string) => void) {
+        let [_, $argRep, $callbackClos] = this.trace.popArgs();
+        let innerTrace = this.trace.traceCallback('delete', $argRep, ['clos', 'response'], $callbackClos);
+
+        if (uri.startsWith('data:')) {
+            this.withTrace(innerTrace, () => {
+                innerTrace.pushArgs([identifier('clos'), identifier('response')]);
+                callback(JSON.parse(uri.substr(5)));
+            });
+            return;
+        }
+
+        if (state.getListenPort() === 'test') {
+            this.withTrace(innerTrace, () => {
+                innerTrace.pushArgs([identifier('clos'), identifier('response')]);
+                // TODO(emily): This is probably wrong.
+                callback(JSON.parse(String('{ "body": "User not found."}')));
+            });
+        } else {
+            request.delete(uri, (error: any, resp: any) => {
+                this.withTrace(innerTrace, () => {
+                    innerTrace.pushArgs([identifier('clos'), identifier('response')]);
+                    if (error !== null) {
+                        console.error(error);
+                        callback(undefined);
+                    }
+                    else {
+                        callback(JSON.parse(String(resp.body)));
+                    }
+                });
+            });
+        }
+    }
+
     public tracedListenCallback(callback: (request: Request) => void) {
         let [_, $callbackClos] = this.trace.popArgs();
         let innerTrace = this.trace.traceCallback('listen', defaultEventArg, ['clos', 'request'], $callbackClos);
