@@ -11,8 +11,6 @@ native/artifacts.json
 *.so
 *.dylib
 
-wrk
-
 # Function generation artifacts
 examples/*
 

@@ -91,7 +91,7 @@ checksum = "7d5ca2cd0adc3f48f9e9ea5a6bbdf9ccc0bfade884847e484d452414c7ccffb3"
 name = "benchmarks"
 version = "0.1.0"
 dependencies = [
- "log 0.3.9",
+ "log 0.4.8",
  "nix",
  "reqwest",
  "shared",
@@ -552,7 +552,7 @@ version = "0.1.0"
 dependencies = [
  "futures-retry",
  "hyper",
- "log 0.3.9",
+ "log 0.4.8",
  "reqwest",
  "shared",
  "tokio",
@@ -907,6 +907,12 @@ checksum = "b2b3ea6ff95e175473f8ffe6a7eb7c00d054240321b84c57051175fe3c1e075e"
 dependencies = [
  "libc",
 ]
+
+[[package]]
+name = "ipnet"
+version = "2.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47be2f14c678be2fdcab04ab1171db51b2762ce6f0a8ee87c8dd4a04ed216135"
 
 [[package]]
 name = "itoa"
@@ -1674,12 +1680,12 @@ dependencies = [
 
 [[package]]
 name = "reqwest"
-version = "0.10.4"
+version = "0.10.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02b81e49ddec5109a9dcfc5f2a317ff53377c915e9ae9d4f2fb50914b85614e2"
+checksum = "e9eaa17ac5d7b838b7503d118fa16ad88f440498bf9ffe5424e621f93190d61e"
 dependencies = [
  "async-compression",
- "base64 0.11.0",
+ "base64 0.12.0",
  "bytes",
  "encoding_rs",
  "futures-core",
@@ -1688,6 +1694,7 @@ dependencies = [
  "http-body",
  "hyper",
  "hyper-tls",
+ "ipnet",
  "js-sys",
  "lazy_static",
  "log 0.4.8",
@@ -1699,7 +1706,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_urlencoded",
- "time 0.1.43",
  "tokio",
  "tokio-tls",
  "url",
@@ -2551,9 +2557,9 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "winreg"
-version = "0.6.2"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2986deb581c4fe11b621998a5e53361efe6b48a151178d0cd9eeffa4dc6acc9"
+checksum = "0120db82e8a1e0b9fb3345a539c478767c0048d842860994d96113d5b667bd69"
 dependencies = [
  "winapi 0.3.8",
 ]
