@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CONTAINERLESS=$HOME/decontainerization/containerless/rust/target/debug/cli
+CONTAINERLESS=../../containerless/rust/target/debug/cli
 
 while :
 do
