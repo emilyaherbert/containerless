@@ -12,6 +12,7 @@ pub fn routes(
         .or(get_mode_route(state.clone()))
         .or(shutdown_function_instances_route(state.clone()))
         .or(dispatcher_route(state.clone()))
+        .or(dispatcher_route2(state.clone()))
 }
 
 fn readiness_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
@@ -51,10 +52,30 @@ fn dispatcher_route(
     state: Arc<FunctionTable>,
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::path!(String / String)
+        .and(warp::query::raw()
+            .map(Some)
+            .or_else(|_| async {
+                Ok::<(Option<String>,), std::convert::Infallible>((None,))
+            }))
         .and(warp::method())
         .and(warp::filters::body::bytes())
         .and(with_state(state))
         .and_then(handlers::dispatcher_handler)
+}
+
+fn dispatcher_route2(
+    state: Arc<FunctionTable>,
+) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path!(String)
+        .and(warp::query::raw()
+            .map(Some)
+            .or_else(|_| async {
+                Ok::<(Option<String>,), std::convert::Infallible>((None,))
+            }))
+        .and(warp::method())
+        .and(warp::filters::body::bytes())
+        .and(with_state(state))
+        .and_then(handlers::dispatcher_handler2)
 }
 
 fn with_state(

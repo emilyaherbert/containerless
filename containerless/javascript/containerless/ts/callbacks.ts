@@ -182,6 +182,86 @@ export class Callbacks {
         }
     }
 
+    // TODO(emily): Combine get, post, and put
+
+    /**
+     * Issues an HTTP PUT request
+     */
+    put(uri: { url: string, body: JSON | string }, callback: (response: undefined | string) => void) {
+        let [_, $argRep, $callbackClos] = this.trace.popArgs();
+        let innerTrace = this.trace.traceCallback('put', $argRep, ['clos', 'response'], $callbackClos);
+
+        if (uri.url.startsWith('data:')) {
+            this.withTrace(innerTrace, () => {
+                innerTrace.pushArgs([identifier('clos'), identifier('response')]);
+                callback(JSON.parse(uri.url.substr(5)));
+            });
+            return;
+        }
+
+        if (state.getListenPort() === 'test') {
+            this.withTrace(innerTrace, () => {
+                innerTrace.pushArgs([identifier('clos'), identifier('response')]);
+                // TODO(emily): This is probably wrong.
+                callback(JSON.parse(String('{ "body": "User not found."}')));
+            });
+        } else {
+            if (typeof uri.body !== 'string') {
+                uri.body = JSON.stringify(uri.body);
+            }
+            request.put(uri, (error: any, resp: any) => {
+                this.withTrace(innerTrace, () => {
+                    innerTrace.pushArgs([identifier('clos'), identifier('response')]);
+                    if (error !== null) {
+                        console.error(error);
+                        callback(undefined);
+                    }
+                    else {
+                        //console.log(resp);
+                        callback(JSON.parse(String(resp.body)));
+                    }
+                });
+            });
+        }
+    }
+
+    /**
+     * Issues an HTTP DELETE request
+     */
+    delete(uri: string, callback: (response: undefined | string) => void) {
+        let [_, $argRep, $callbackClos] = this.trace.popArgs();
+        let innerTrace = this.trace.traceCallback('delete', $argRep, ['clos', 'response'], $callbackClos);
+
+        if (uri.startsWith('data:')) {
+            this.withTrace(innerTrace, () => {
+                innerTrace.pushArgs([identifier('clos'), identifier('response')]);
+                callback(JSON.parse(uri.substr(5)));
+            });
+            return;
+        }
+
+        if (state.getListenPort() === 'test') {
+            this.withTrace(innerTrace, () => {
+                innerTrace.pushArgs([identifier('clos'), identifier('response')]);
+                // TODO(emily): This is probably wrong.
+                callback(JSON.parse(String('{ "body": "User not found."}')));
+            });
+        } else {
+            request.delete(uri, (error: any, resp: any) => {
+                this.withTrace(innerTrace, () => {
+                    innerTrace.pushArgs([identifier('clos'), identifier('response')]);
+                    if (error !== null) {
+                        console.error(error);
+                        callback(undefined);
+                    }
+                    else {
+                        callback(JSON.parse(String(resp.body)));
+                    }
+                });
+            });
+        }
+    }
+
     public tracedListenCallback(callback: (request: Request) => void) {
         let [_, $callbackClos] = this.trace.popArgs();
         let innerTrace = this.trace.traceCallback('listen', defaultEventArg, ['clos', 'request'], $callbackClos);
@@ -249,11 +329,15 @@ export class Callbacks {
 
         this.app.get('/:path*', (req, resp) => {
             this.response = resp;
+            //console.log(req.query);
+            //console.error(req.query);
             tracedCallback({ path: req.path, query: req.query, body: {} as any });
         });
 
         this.app.post('/:path*', (req, resp) => {
             this.response = resp;
+            //console.log(req.query);
+            //console.error(req.query);
             tracedCallback({ path: req.path, query: req.query, body: req.body });
         });
 
@@ -268,8 +352,12 @@ export class Callbacks {
         let [_, $response] = this.trace.popArgs();
         this.trace.tracePrimApp('send', [$response]);
         if(this.response !== undefined) {
-            this.response.set('X-Server-Hostname', hostname); 
-            this.response.send('' + response);
+            if(typeof(response) === 'object') {
+                this.response.set('X-Server-Hostname', hostname);
+                this.response.send('' + JSON.stringify(response, null, 4) + "\n");
+            } else {
+                this.response.send('' + response + "\n");
+            }
         } else if(state.getListenPort() !== 'test') {
             throw new Error("No express.Response found.");
         }
@@ -282,7 +370,7 @@ export class Callbacks {
         this.trace.tracePrimApp('send', [$response]);
         if(this.response !== undefined) {
             this.response.set('X-Server-Hostname', hostname); 
-            this.response.send('' + response);
+            this.response.send('' + response + "\n");
         } else if(state.getListenPort() !== 'test') {
             throw new Error("No express.Response found.");
         }

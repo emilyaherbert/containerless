@@ -2,4 +2,4 @@
 
 CONTAINERLESS=../../containerless/rust/target/debug/cli
 
-$CONTAINERLESS create -n hi -f helloWorld.js
+$CONTAINERLESS delete -n fileserver
