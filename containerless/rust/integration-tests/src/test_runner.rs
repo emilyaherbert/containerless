@@ -1,12 +1,9 @@
 use crate::error::Error;
 
 use shared::common::*;
-use shared::response::*;
+use shared::cli;
 
-use reqwest;
 use serde_json::Value as JsonValue;
-use std::process::Stdio;
-use tokio::process::Command;
 use std::time::{Instant, Duration};
 
 struct TestRunner { }
@@ -16,54 +13,6 @@ impl TestRunner {
         TestRunner {}
     }
 
-    pub async fn containerless_create(&self, name: &str, js_code: &str) -> Result<std::process::Output, Error> {
-        let filename = format!("{}/_code.js", ROOT.as_str());
-        std::fs::write(&filename, js_code)?;
-        Ok(Command::new(format!("{}/debug/cli", ROOT.as_str()))
-            .args(vec!("create", "-n", name, "-f", &filename))
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output()
-            .await?)
-    }
-
-    pub async fn containerless_delete(&self, name: &str) -> Result<std::process::Output, Error> {
-        Ok(Command::new(format!("{}/debug/cli", ROOT.as_str()))
-            .args(vec!("delete", "-n", name))
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output()
-            .await?)
-    }
-
-    pub async fn containerless_invoke(&self, name: &str, req: (&str, JsonValue)) -> Result<String, Error> {
-        let (path, body) = req;
-        let resp = reqwest::Client::new()
-            .post(&format!("http://localhost/dispatcher/{}/{}", name, path))
-            .json(&body)
-            .send()
-            .await?;
-        response_into_result(resp.status().as_u16(), resp.text().await?).map_err(Error::Invoke)
-    }
-
-    pub async fn containerless_compile(&self, name: &str) -> Result<std::process::Output, Error> {
-        Ok(Command::new(format!("{}/debug/cli", ROOT.as_str()))
-            .args(vec!("compile", "-n", name))
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output()
-            .await?)
-    }
-
-    pub async fn containerless_get_dispatcher_version(&self) -> Result<std::process::Output, Error> {
-        Ok(Command::new(format!("{}/debug/cli", ROOT.as_str()))
-            .args(vec!("dispatcher-version"))
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output()
-            .await?)
-    }
-
     pub async fn poll_for_new_dispatcher(&self, old_version: usize) -> Result<(), Error> {
         let interval = Duration::from_secs(1);
         let timeout = Duration::from_secs(60);
@@ -71,7 +20,9 @@ impl TestRunner {
 
         tokio::time::delay_for(interval).await;
         loop {
-            let output = self.containerless_get_dispatcher_version().await?;
+            // TODO(emily): Figure out better way to do this.
+            let res: Result<std::process::Output, Error> = cli::containerless_get_dispatcher_version().await;
+            let output = res?;
             let status = output.status;
             let stdout = String::from_utf8(output.stdout)?;
             let _stderr = String::from_utf8(output.stderr)?;
@@ -98,7 +49,8 @@ pub async fn run_test_async(name: &str, js_code: &str, js_requests: Vec<(&str, J
 
     async fn fail_and_delete(runner: TestRunner, name: &str, err: Error) {
         error!(target: "integration-tests", "Error in the test runner: {:?}", err);
-        if let Err(err) = runner.containerless_delete(name).await {
+        let d: Result<std::process::Output, Error> = cli::containerless_delete(name).await;
+        if let Err(err) = d {
             error!(target: "integration-tests", "Error in the test runner: {:?}", err);
         }
         assert!(false, format!("{:?}", err));
@@ -116,7 +68,7 @@ pub async fn run_test_async(name: &str, js_code: &str, js_requests: Vec<(&str, J
     let mut results = Vec::new();
 
     // Retrieve the old dispatcher version
-    let dispatcher_version = runner.containerless_get_dispatcher_version().await;
+    let dispatcher_version = cli::containerless_get_dispatcher_version().await;
     if let Err(err) = dispatcher_version {
         fail(err);
         return results;
@@ -128,14 +80,14 @@ pub async fn run_test_async(name: &str, js_code: &str, js_requests: Vec<(&str, J
         .unwrap();
 
     // Create the function in Containerless
-    if let Err(err) = runner.containerless_create(name, js_code).await {
+    if let Err(err) = cli::containerless_create(name, js_code).await {
         fail_and_delete(runner, name, err).await;
         return results;
     }
 
     // Send requests to the containerized version
     for req in js_requests.into_iter() {
-        match runner.containerless_invoke(name, req).await {
+        match cli::containerless_invoke(name, req, |s| Error::Invoke(s)).await {
             Ok(result) => results.push(result),
             Err(err) => {
                 fail_and_delete(runner, name, err).await;
@@ -145,7 +97,7 @@ pub async fn run_test_async(name: &str, js_code: &str, js_requests: Vec<(&str, J
     }
 
     // Have containerless compile the function and redeploy the dispatcher
-    if let Err(err) = runner.containerless_compile(name).await {
+    if let Err(err) = cli::containerless_compile(name).await {
         fail_and_delete(runner, name, err).await;
         return results;
     }
@@ -158,7 +110,7 @@ pub async fn run_test_async(name: &str, js_code: &str, js_requests: Vec<(&str, J
 
     // Send requests to the decontainerized version
     for req in rs_requests.into_iter() {
-        match runner.containerless_invoke(name, req).await {
+        match cli::containerless_invoke(name, req, |s| Error::Invoke(s)).await {
             Ok(result) => results.push(result),
             Err(err) => {
                 fail_and_delete(runner, name, err).await;
@@ -168,7 +120,7 @@ pub async fn run_test_async(name: &str, js_code: &str, js_requests: Vec<(&str, J
     }
 
     // Delete everything!
-    if let Err(err) = runner.containerless_delete(name).await {
+    if let Err(err) = cli::containerless_delete(name).await {
         fail_and_delete(runner, name, err).await;
         return results;
     }
