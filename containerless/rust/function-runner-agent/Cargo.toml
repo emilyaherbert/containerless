@@ -12,5 +12,5 @@ hyper = "*"
 warp = "*"
 tokio = { version = "*", features = ["macros", "process", "fs", "signal"] }
 futures-retry = "*"
-reqwest = "*"
+reqwest = "0.10.8"
 log = "*"

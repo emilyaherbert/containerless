@@ -11,4 +11,4 @@ tokio = { version = "*", features = [ "rt-threaded", "time", "macros", "process"
 shared = { path = "../shared" }
 log = "*"
 nix = "*"
-reqwest = "*"
+reqwest = "0.10.8"

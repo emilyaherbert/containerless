@@ -26,5 +26,5 @@ quote = "*"
 proc-macro2 = "*"
 syn = "*"
 http = "*"
-reqwest = { version = "0.10", features = ["json"] }
+reqwest = { version = "0.10.8", features = ["json"] }
 env_logger = "*"
