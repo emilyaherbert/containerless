@@ -1,0 +1,3 @@
+[submodule "containerless/rust/benchmarks/wrk"]
+	path = containerless/rust/benchmarks/wrk
+	url = https://github.com/emilyaherbert/wrk.git

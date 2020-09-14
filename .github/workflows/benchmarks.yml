@@ -1,0 +1,33 @@
+name: Benchmarks
+
+on: [pull_request]
+
+jobs:
+  build:
+    runs-on: self-hosted
+    steps:
+    - uses: actions/checkout@v1
+    #- name: Clean
+    #  run: cargo clean
+    #  working-directory: ./containerless/rust
+    - name: Build
+      run: ./build.sh
+      working-directory: ./containerless
+    - name: Check status
+      run: |
+        sleep 10
+        microk8s.kubectl get pods -n containerless
+    - name: Deploy
+      run: ./deploy.sh
+      working-directory: ./containerless
+    - name: Check status
+      run: |
+        sleep 10
+        microk8s.kubectl get pods -n containerless
+    - name: Run benchmarks
+      run: ./run_benchmarks.sh
+      working-directory: ./containerless
+    - name: Undeploy
+      if: always()
+      run: ./undeploy.sh
+      working-directory: ./containerless
