@@ -13,7 +13,8 @@ use std::io::prelude::*;
 pub struct WrkOptions {
     pub connections: usize,
     pub duration: usize,
-    pub threads: usize
+    pub threads: usize,
+    pub script_filename: Option<String>
 }
 
 impl std::fmt::Display for WrkOptions {
@@ -22,19 +23,31 @@ impl std::fmt::Display for WrkOptions {
     }
 }
 
+#[allow(unused_assignments)]
 async fn wrk_run(url: &str, wrk_options: WrkOptions) -> Result<(String, String), Error> {
+    let c = wrk_options.connections.to_string();
+    let d = wrk_options.duration.to_string();
+    let t = wrk_options.threads.to_string();
+    let mut args = vec![
+        "-c",
+        &c,
+        "-d",
+        &d,
+        "-t",
+        &t,
+        url,
+        "--supress",
+        "--per_req"
+    ];
+    // rust strings suck
+    let mut f = "".to_string();
+    if let Some(filename) = wrk_options.script_filename {
+        args.push("-s");
+        f = format!("{}/../benchmarks/wrk_scripts/{}", ROOT.as_str(), filename);
+        args.push(&f);
+    }
     let output = Command::new(format!("{}/../benchmarks/wrk/wrk", ROOT.as_str()))
-        .args(vec![
-            "-c",
-            &wrk_options.connections.to_string(),
-            "-d",
-            &wrk_options.duration.to_string(),
-            "-t",
-            &wrk_options.threads.to_string(),
-            url,
-            "--supress",
-            "--per_req"
-        ])
+        .args(args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .output()
