@@ -51,10 +51,10 @@ async fn run_benchmark_async(name:&str, js_code: &str, url: &str, wrk_options: W
     }
 
     async fn fail_and_delete(name: &str, err: Error) {
-        error!(target: "integration-tests", "Error in the test runner: {:?}", err);
+        error!(target: "benchmarks", "Error in the test runner: {:?}", err);
         let d: Result<std::process::Output, Error> = cli::containerless_delete(name).await;
         if let Err(err) = d {
-            error!(target: "integration-tests", "Error in the test runner: {:?}", err);
+            error!(target: "benchmarks", "Error in the test runner: {:?}", err);
         }
         assert!(false, format!("{:?}", err));
     }
@@ -70,7 +70,7 @@ async fn run_benchmark_async(name:&str, js_code: &str, url: &str, wrk_options: W
     // Hammer the function using wrk
     let wrk_output = wrk_run(url, wrk_options.clone()).await;
     if let Err(err) = wrk_output {
-        fail(err);
+        fail_and_delete(name, err).await;
         return empty;
     }
     let (stdout, _stderr) = wrk_output.unwrap();
@@ -81,8 +81,20 @@ async fn run_benchmark_async(name:&str, js_code: &str, url: &str, wrk_options: W
         return empty;
     }
 
+    // Create output path for data
+    let output_path_tracing = format!("{}/../benchmarks/data/latency/{}/tracing", ROOT.as_str(), name);
+    if let Err(err) = Command::new("mkdir")
+        .args(vec!("--parents", &output_path_tracing))
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .await {
+            fail(Error::IO(err));
+            return empty;
+        }
+
     // Save the results returned from wrk
-    let mut file = File::create(format!("{}/../benchmarks/data/{}_{}.csv", ROOT.as_str(), name, wrk_options)).unwrap();
+    let mut file = File::create(format!("{}/{}_{}.csv", output_path_tracing, name, wrk_options)).unwrap();
     if let Err(err) = file.write_all(stdout.as_bytes()) {
         fail(Error::IO(err));
         return empty;

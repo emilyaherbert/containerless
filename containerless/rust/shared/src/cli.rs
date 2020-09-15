@@ -28,6 +28,26 @@ pub async fn containerless_delete<E>(name: &str) -> Result<std::process::Output,
         .await?)
 }
 
+pub async fn containerless_remove_containers<E>(name: &str) -> Result<std::process::Output, E> 
+    where E: std::convert::From<io::Error> {
+    Ok(Command::new(format!("{}/debug/cli", ROOT.as_str()))
+        .args(vec!("remove-containers", "-n", name))
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .await?)
+}
+
+pub async fn containerless_remove_trace<E>(name: &str) -> Result<std::process::Output, E> 
+    where E: std::convert::From<io::Error> {
+    Ok(Command::new(format!("{}/debug/cli", ROOT.as_str()))
+        .args(vec!("remove-trace", "-n", name))
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .await?)
+}
+
 pub async fn containerless_invoke<E, F>(name: &str, req: (&str, JsonValue), err_case: F) -> Result<String, E> 
     where E: std::convert::From<io::Error> + std::convert::From<reqwest::Error>,
           F: FnOnce(std::string::String) -> E {
