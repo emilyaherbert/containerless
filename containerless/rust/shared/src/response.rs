@@ -22,7 +22,7 @@ pub fn ok_response_with_containerless_mode(
         "X-Containerless-Mode",
         HeaderValue::from_str(&mode).unwrap()
     );
-    Ok(resp)
+    Ok(Ok(resp))
 }
 
 pub fn error_response(

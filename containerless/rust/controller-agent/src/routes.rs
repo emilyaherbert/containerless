@@ -3,7 +3,6 @@ use super::handlers;
 
 use std::sync::Arc;
 use warp::Filter;
-use serde::Deserialize;
 
 pub fn routes(
     compiler: Arc<Compiler>, root_str: &str,

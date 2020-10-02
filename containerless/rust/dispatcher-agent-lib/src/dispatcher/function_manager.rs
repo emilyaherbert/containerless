@@ -18,7 +18,7 @@ pub struct FunctionManager {
 impl FunctionManager {
     pub async fn new(
         k8s_client: K8sClient, http_client: HttpClient, function_table: Weak<FunctionTable>,
-        name: String, opts: FunctionOptions, create_mode: CreateMode, containerless: Option<Containerless>,
+        name: String, function_opts: FunctionOptions, create_mode: CreateMode, containerless: Option<Containerless>,
         upgrade_pending: Arc<AtomicBool>,
     ) -> FunctionManager {
         let (send_requests, recv_requests) = mpsc::channel(1);
@@ -30,6 +30,7 @@ impl FunctionManager {
                 recv_requests,
                 function_table,
                 create_mode,
+                function_opts,
                 containerless,
                 upgrade_pending,
             ),

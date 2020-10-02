@@ -30,6 +30,8 @@ pub async fn dispatcher_handler(
 
     // Invoke the function
     // If this is the first invocation, this will spin up a tracing instance
+    // (unless in the function is in containers-only mode, in which case it will
+    // spin up a vanilla instance)
     info!(target: "dispatcher", "INVOKE {}: invoking with path_and_query {}", function_name, function_path);
     let body = hyper::Body::from(body);
     return match fm.invoke(method, &function_path, body).await {

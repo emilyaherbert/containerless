@@ -47,7 +47,7 @@ pub async fn run_test_async(name: &str, js_code: &str, js_requests: Vec<(&str, J
         assert!(false, format!("{:?}", err));
     }
 
-    async fn fail_and_delete(runner: TestRunner, name: &str, err: Error) {
+    async fn fail_and_delete(name: &str, err: Error) {
         error!(target: "integration-tests", "Error in the test runner: {:?}", err);
         let d: Result<std::process::Output, Error> = cli::containerless_delete(name).await;
         if let Err(err) = d {
@@ -81,7 +81,7 @@ pub async fn run_test_async(name: &str, js_code: &str, js_requests: Vec<(&str, J
 
     // Create the function in Containerless
     if let Err(err) = cli::containerless_create(name, js_code).await {
-        fail_and_delete(runner, name, err).await;
+        fail_and_delete(name, err).await;
         return results;
     }
 
@@ -90,7 +90,7 @@ pub async fn run_test_async(name: &str, js_code: &str, js_requests: Vec<(&str, J
         match cli::containerless_invoke(name, req, |s| Error::Invoke(s)).await {
             Ok(result) => results.push(result),
             Err(err) => {
-                fail_and_delete(runner, name, err).await;
+                fail_and_delete(name, err).await;
                 return results;
             }
         }
@@ -98,13 +98,13 @@ pub async fn run_test_async(name: &str, js_code: &str, js_requests: Vec<(&str, J
 
     // Have containerless compile the function and redeploy the dispatcher
     if let Err(err) = cli::containerless_compile(name).await {
-        fail_and_delete(runner, name, err).await;
+        fail_and_delete(name, err).await;
         return results;
     }
 
     // Poll for the new dispatcher
     if let Err(err) = runner.poll_for_new_dispatcher(old_dispatcher_version).await {
-        fail_and_delete(runner, name, err).await;
+        fail_and_delete(name, err).await;
         return results;
     }
 
@@ -113,7 +113,7 @@ pub async fn run_test_async(name: &str, js_code: &str, js_requests: Vec<(&str, J
         match cli::containerless_invoke(name, req, |s| Error::Invoke(s)).await {
             Ok(result) => results.push(result),
             Err(err) => {
-                fail_and_delete(runner, name, err).await;
+                fail_and_delete(name, err).await;
                 return results;
             }
         }
@@ -121,7 +121,7 @@ pub async fn run_test_async(name: &str, js_code: &str, js_requests: Vec<(&str, J
 
     // Delete everything!
     if let Err(err) = cli::containerless_delete(name).await {
-        fail_and_delete(runner, name, err).await;
+        fail_and_delete(name, err).await;
         return results;
     }
 

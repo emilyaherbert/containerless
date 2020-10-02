@@ -4,8 +4,10 @@ use super::serverless_request::*;
 use super::types::*;
 use super::util;
 use crate::error::*;
-use std::time::{Duration, Instant};
 
+use shared::function::*;
+
+use std::time::{Duration, Instant};
 use futures::prelude::*;
 use hyper::header::HeaderValue;
 use tokio::task;
@@ -313,15 +315,19 @@ impl State {
 
     async fn maybe_start_tracing(
         self_: Arc<State>, upgrade_pending: bool, create_mode: &CreateMode,
-        containerless: Option<Containerless>,
-    ) -> Result<(), Error> {
+        function_opts: &FunctionOptions, containerless: Option<Containerless>,
+    ) -> Result<bool, Error> {
         if upgrade_pending {
-            return Ok(());
+            return Ok(false);
+        }
+        if function_opts.containers_only {
+            return Ok(false);
         }
         if *create_mode == CreateMode::New && containerless.is_none() {
-            return self_.start_tracing_pod_and_service().await;
+            self_.start_tracing_pod_and_service().await?;
+            return Ok(true);
         }
-        return Ok(());
+        return Ok(false);
     }
 
     async fn shutdown(self_: Arc<State>, mode: Mode) -> Result<(), Error> {
@@ -377,17 +383,32 @@ impl State {
     pub async fn function_manager_task(
         self_: Arc<State>, mut recv_requests: mpsc::Receiver<Message>,
         function_table: Weak<FunctionTable>, create_mode: CreateMode,
+        function_opts: FunctionOptions,
         containerless: Option<Containerless>, upgrade_pending: Arc<AtomicBool>,
     ) -> Result<(), Error> {
+        let started_tracing_container = Self::maybe_start_tracing(
+            self_.clone(),
+            upgrade_pending.load(SeqCst),
+            &create_mode,
+            &function_opts,
+            containerless
+        ).await?;
+        if !started_tracing_container {
+            Self::maybe_start_vanilla(self_.clone(), &create_mode, containerless).await?;
+        }
+        
+        /*
         try_join!(
             Self::maybe_start_tracing(
                 self_.clone(),
                 upgrade_pending.load(SeqCst),
                 &create_mode,
+                &function_opts,
                 containerless
             ),
             Self::maybe_start_vanilla(self_.clone(), &create_mode, containerless)
         )?;
+        */
 
         let init_num_replicas = match create_mode {
             CreateMode::New => 1,
@@ -405,9 +426,10 @@ impl State {
             self_.name.clone(),
         );
 
-        let mut mode = match containerless {
-            None => Mode::Tracing(0),
-            Some(f) => Mode::Decontainerized(f),
+        let mut mode = match (function_opts.containers_only, containerless) {
+            (true, _) => Mode::Vanilla,
+            (false, None) => Mode::Tracing(0),
+            (false, Some(f)) => Mode::Decontainerized(f)
         };
 
         while let Some(message) = recv_requests.next().await {
