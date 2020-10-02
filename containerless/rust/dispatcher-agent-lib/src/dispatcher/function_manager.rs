@@ -4,6 +4,8 @@ use super::state::{CreateMode, State};
 use super::types::*;
 use super::util;
 
+use shared::function::*;
+
 use futures::prelude::*;
 use tokio::task;
 
@@ -16,7 +18,7 @@ pub struct FunctionManager {
 impl FunctionManager {
     pub async fn new(
         k8s_client: K8sClient, http_client: HttpClient, function_table: Weak<FunctionTable>,
-        name: String, create_mode: CreateMode, containerless: Option<Containerless>,
+        name: String, opts: FunctionOptions, create_mode: CreateMode, containerless: Option<Containerless>,
         upgrade_pending: Arc<AtomicBool>,
     ) -> FunctionManager {
         let (send_requests, recv_requests) = mpsc::channel(1);

@@ -38,6 +38,9 @@ struct Create {
     /// The file in the current directory
     #[clap(short)]
     filename: String,
+    /// Execute this function in "containers only" mode
+    #[clap(long)]
+    containers_only: bool,
 }
 
 /// Delete a function, removes its containers, and removes its compiled trace.
@@ -105,7 +108,7 @@ async fn main() {
     match opts.subcmd {
         SubCommand::Create(t) => {
             let output = containerless_shim
-                .create_function(&t.name, &t.filename)
+                .create_function(&t.name, &t.filename, t.containers_only)
                 .await
                 .unwrap();
             println!("{}", output);

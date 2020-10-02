@@ -3,6 +3,7 @@ use super::types::*;
 use crate::error::Error;
 
 use shared::response::*;
+use shared::function::*;
 
 use futures::lock::Mutex;
 use k8s;
@@ -69,11 +70,20 @@ impl FunctionTable {
                     let name = captures.get(1).unwrap().as_str();
                     let num_replicas = spec.replicas.unwrap();
                     let is_tracing = pods.contains(&format!("function-tracing-{}", &rs_name));
+                    // NOTE(emily): The containers-only flag is only used during benchmarking.
+                    // And in particular, all of the benchmarks execute one at a time in a
+                    // single thread, and the dispatcher is updated between benchmarks.
+                    // Therefore we know that when benchmarking any containers that are
+                    // adopted are stale tracing containers.
+                    let opts = FunctionOptions {
+                        containers_only: false
+                    };
                     let fm = FunctionManager::new(
                         inner.k8s_client.clone(),
                         inner.http_client.clone(),
                         Arc::downgrade(self_),
                         name.to_string(),
+                        opts,
                         super::state::CreateMode::Adopt {
                             num_replicas,
                             is_tracing,
@@ -120,16 +130,24 @@ impl FunctionTable {
                 // Check to see if the function is available in storage
                 let storage_resp =
                     reqwest::get(&format!("http://storage:8080/get_function/{}", name)).await?;
+                let containers_only = match storage_resp.headers().get("X-Containerless-Mode") {
+                    Some(mode) => mode == "disable-tracing",
+                    None => false
+                };
                 if let Err(err) =
                     response_into_result(storage_resp.status().as_u16(), storage_resp.text().await?)
                 {
                     return Err(Error::Storage(format!("{:?}", err)));
                 }
+                let opts = FunctionOptions {
+                    containers_only: containers_only
+                };
                 let fm = FunctionManager::new(
                     inner.k8s_client.clone(),
                     inner.http_client.clone(),
                     Arc::downgrade(self_),
                     name.to_string(),
+                    opts,
                     super::state::CreateMode::New,
                     self_
                         .decontainerized_functions

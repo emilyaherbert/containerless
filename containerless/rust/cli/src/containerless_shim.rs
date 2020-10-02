@@ -16,9 +16,9 @@ impl ContainerlessShim {
         }
     }
 
-    pub async fn create_function(&self, name: &str, filename: &str) -> CLIResult<String> {
+    pub async fn create_function(&self, name: &str, filename: &str, containers_only: bool) -> CLIResult<String> {
         Ok(reqwest::Client::new()
-            .post(&format!("{}/create_function/{}", self.controller, name))
+            .post(&format!("{}/create_function/{}?containers_only={}", self.controller, name, containers_only))
             .json(&json!({
                 "contents": format!("{}", fs::read_to_string(filename)?.trim())
             }))

@@ -2,7 +2,7 @@ use super::compiler::Compiler;
 use crate::controller::error::Error;
 
 use shared::common::*;
-use shared::file_contents::FileContents;
+use shared::function::*;
 use shared::response::*;
 
 use bytes;
@@ -46,7 +46,7 @@ pub async fn reset_dispatcher_handler(
 }
 
 pub async fn create_function(
-    name: String, contents: FileContents, compiler: Arc<Compiler>,
+    name: String, opts: FunctionOptions, contents: FunctionContents, compiler: Arc<Compiler>,
 ) -> Result<
     std::result::Result<http::response::Response<std::string::String>, http::Error>,
     warp::Rejection,
@@ -65,22 +65,24 @@ pub async fn create_function(
     }
 
     // Check that the body of the function is compatibile with instrumentation
-    info!(target: "controller", "CREATE_FUNCTION {}: checking function compatibility", name);
-    if let Err(err) = check_function_compatibility(&contents.contents) {
-        error!(target: "controller", "CREATE_FUNCTION {} : Error {:?} ", name, err);
-        return error_response(err.info());
+    if !opts.containers_only {
+        info!(target: "controller", "CREATE_FUNCTION {}: checking function compatibility", name);
+        if let Err(err) = check_function_compatibility(&contents.contents) {
+            error!(target: "controller", "CREATE_FUNCTION {} : Error {:?} ", name, err);
+            return error_response(err.info());
+        }
     }
 
     // Add the function to storage
     info!(target: "controller", "CREATE_FUNCTION {}: adding to storage", name);
-    if let Err(err) = add_to_storage(&name, contents).await {
+    if let Err(err) = add_to_storage(&name, &opts, contents).await {
         error!(target: "controller", "CREATE_FUNCTION {} : Error adding to storage {:?} ", name, err);
         return error_response(err.info());
     }
 
     // Add the function to the compiler
     info!(target: "controller", "CREATE_FUNCTION {}: adding to compiler", name);
-    if let Err(err) = add_to_compiler(&name, compiler.clone()).await {
+    if let Err(err) = add_to_compiler(&name, &opts, compiler.clone()).await {
         error!(target: "controller", "CREATE_FUNCTION {} : Error adding to compiler {:?} ", name, err);
         if let Err(err) = delete_from_storage(&name).await {
             error!(target: "controller", "CREATE_FUNCTION {} : Error deleting from storage {:?} ", name, err);
@@ -177,11 +179,12 @@ pub async fn list_functions() -> Result<impl warp::Reply, warp::Rejection> {
     }
 }
 
-async fn add_to_storage(name: &str, contents: FileContents) -> Result<String, Error> {
+async fn add_to_storage(name: &str, opts: &FunctionOptions, contents: FunctionContents) -> Result<String, Error> {
     let resp = reqwest::Client::new()
         .post(&format!(
-            "http://localhost/storage/create_function/{}",
-            name
+            "http://localhost/storage/create_function/{}?containers_only={}",
+            name,
+            opts.containers_only
         ))
         .json(&contents)
         .send()
@@ -189,7 +192,7 @@ async fn add_to_storage(name: &str, contents: FileContents) -> Result<String, Er
     response_into_result(resp.status().as_u16(), resp.text().await?).map_err(Error::Storage)
 }
 
-async fn add_to_compiler(name: &str, compiler: Arc<Compiler>) -> Result<String, Error> {
+async fn add_to_compiler(name: &str, opts: &FunctionOptions, compiler: Arc<Compiler>) -> Result<String, Error> {
     let resp_status = compiler.create_function(&name).await;
     response_into_result(resp_status.as_u16(), format!("Function {} created!", name))
         .map_err(Error::Compiler)

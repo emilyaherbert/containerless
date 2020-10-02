@@ -40,6 +40,7 @@ fn create_function_route(
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::path!("create_function" / String)
         .and(warp::post())
+        .and(warp::query())
         .and(warp::body::json())
         .and(with_storage(storage))
         .and_then(handlers::create_function)

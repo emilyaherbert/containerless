@@ -5,6 +5,7 @@ mod error;
 mod handlers;
 mod routes;
 mod storage;
+mod record;
 
 use storage::Storage;
 use shared;

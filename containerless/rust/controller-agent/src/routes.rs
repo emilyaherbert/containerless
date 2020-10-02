@@ -3,6 +3,7 @@ use super::handlers;
 
 use std::sync::Arc;
 use warp::Filter;
+use serde::Deserialize;
 
 pub fn routes(
     compiler: Arc<Compiler>, root_str: &str,
@@ -89,6 +90,7 @@ fn create_function_route(
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::path!("create_function" / String)
         .and(warp::post())
+        .and(warp::query())
         .and(warp::body::json())
         .and(with_compiler(compiler))
         .and_then(handlers::create_function)

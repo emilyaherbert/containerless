@@ -1,6 +1,7 @@
 use crate::storage::SharedStorage;
+use crate::record::Record;
 
-use shared::file_contents::FileContents;
+use shared::function::*;
 use shared::response::*;
 
 pub async fn ping() -> Result<impl warp::Reply, warp::Rejection> {
@@ -20,15 +21,23 @@ pub async fn get_function(
             error!("Error reading file {} : {:?} ", path, err);
             error_response(err.info())
         }
-        Ok(file) => ok_response(file.contents),
+        Ok(file) => {
+            let containerless_mode = if file.opts.containers_only {
+                "disable-tracing"
+            } else {
+                "tracing"
+            };
+            ok_response_with_containerless_mode(file.contents.contents, containerless_mode.to_string())
+        },
     }
 }
 
 pub async fn create_function(
-    path: String, contents: FileContents, storage: SharedStorage,
+    path: String, opts: FunctionOptions, contents: FunctionContents, storage: SharedStorage,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     let mut storage = storage.lock().await;
-    match storage.set(&path, &contents.contents) {
+    let record = Record::new(&path, opts, contents);
+    match storage.set(&path, record) {
         Err(err) => {
             error!("Error creating file {} : {:?} ", path, err);
             error_response(err.info())
