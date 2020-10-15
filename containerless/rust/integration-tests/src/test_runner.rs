@@ -80,7 +80,7 @@ pub async fn run_test_async(name: &str, js_code: &str, js_requests: Vec<(&str, J
         .unwrap();
 
     // Create the function in Containerless
-    if let Err(err) = cli::containerless_create(name, js_code).await {
+    if let Err(err) = cli::containerless_create(name, js_code, false).await {
         fail_and_delete(name, err).await;
         return results;
     }

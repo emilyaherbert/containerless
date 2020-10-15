@@ -403,7 +403,7 @@ impl Compiler {
         }
         info!(target: "controller", "Running cargo build on dispatcher-agent. Output is suppressed unless an error occurs.");
         let cargo_result = Command::new("cargo")
-            .arg("build")
+            .args(vec!("build", "--release"))
             .current_dir(&format!("{}/dispatcher-agent", ROOT.as_str()))
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())

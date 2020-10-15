@@ -9,16 +9,22 @@ fn sanity_check() {
             containerless.respond("Hello, world!");
         });"#;
 
+    let connections = 10;
+    let duration = 60;
+    let threads = 4;
+    let name = "sanity";
+
     let wrk_options = benchmark_runner::WrkOptions {
-        connections: 10,
-        duration: 10,
-        threads: 4,
-        script_filename: None
+        connections: connections,
+        duration: duration,
+        threads: threads,
+        script_filename: Some("run.lua".to_string()),
+        save_wrk_output: true
     };
 
-    let result = benchmark_runner::run_benchmark("sanity", code, "http://google.com", wrk_options);
+    let result = benchmark_runner::run_benchmark(&name, code, "http://google.com", wrk_options);
 
-    assert_eq!(result, "Done!".to_string());
+    assert_eq!(result, Some("Done!".to_string()));
 }
 
 #[test]
@@ -26,19 +32,25 @@ fn hello_world() {
     let code =r#"
         let containerless = require("containerless");
         containerless.listen(function(req) {
-            containerless.respond("Hello, world!");
+            containerless.hello();
         });"#;
 
+    let connections = 10;
+    let duration = 60;
+    let threads = 4;
+    let name = "helloworld";
+
     let wrk_options = benchmark_runner::WrkOptions {
-        connections: 10,
-        duration: 60,
-        threads: 4,
-        script_filename: None
+        connections: connections,
+        duration: duration,
+        threads: threads,
+        script_filename: Some("run.lua".to_string()),
+        save_wrk_output: true
     };
 
-    let result = benchmark_runner::run_benchmark("helloworld", code, "http://localhost/dispatcher/helloworld", wrk_options);
+    let result = benchmark_runner::run_benchmark(&name, code, "http://localhost/dispatcher/helloworld", wrk_options);
 
-    assert_eq!(result, "Done!".to_string());
+    assert_eq!(result, Some("Done!".to_string()));
 }
 
 #[test]
@@ -166,14 +178,20 @@ fn autocomplete() {
         }
     });"#;
 
+    let connections = 10;
+    let duration = 60;
+    let threads = 4;
+    let name = "autocomplete";
+
     let wrk_options = benchmark_runner::WrkOptions {
-        connections: 10,
-        duration: 60,
-        threads: 4,
-        script_filename: Some("autocomplete.lua".to_string())
+        connections: connections,
+        duration: duration,
+        threads: threads,
+        script_filename: Some("autocomplete.lua".to_string()),
+        save_wrk_output: true
     };
 
-    let result = benchmark_runner::run_benchmark("autocomplete", code, "http://localhost/dispatcher/autocomplete", wrk_options);
+    let result = benchmark_runner::run_benchmark(&name, code, "http://localhost/dispatcher/autocomplete", wrk_options);
 
-    assert_eq!(result, "Done!".to_string());
+    assert_eq!(result, Some("Done!".to_string()));
 }

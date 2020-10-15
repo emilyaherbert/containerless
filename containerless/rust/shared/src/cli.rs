@@ -6,12 +6,16 @@ use std::process::Stdio;
 use std::io;
 use serde_json::Value as JsonValue;
 
-pub async fn containerless_create<E>(name: &str, js_code: &str) -> Result<std::process::Output, E> 
+pub async fn containerless_create<E>(name: &str, js_code: &str, containers_only: bool) -> Result<std::process::Output, E> 
     where E: std::convert::From<io::Error> {
     let filename = format!("{}/_code.js", ROOT.as_str());
     std::fs::write(&filename, js_code)?;
+    let mut args = vec!("create", "-n", name, "-f", &filename);
+    if containers_only {
+        args.push("--containers_only");
+    }
     Ok(Command::new(format!("{}/debug/cli", ROOT.as_str()))
-        .args(vec!("create", "-n", name, "-f", &filename))
+        .args(args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .output()

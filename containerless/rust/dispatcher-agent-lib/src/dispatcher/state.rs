@@ -386,6 +386,7 @@ impl State {
         function_opts: FunctionOptions,
         containerless: Option<Containerless>, upgrade_pending: Arc<AtomicBool>,
     ) -> Result<(), Error> {
+        /*
         let started_tracing_container = Self::maybe_start_tracing(
             self_.clone(),
             upgrade_pending.load(SeqCst),
@@ -396,8 +397,8 @@ impl State {
         if !started_tracing_container {
             Self::maybe_start_vanilla(self_.clone(), &create_mode, containerless).await?;
         }
-        
-        /*
+        */
+
         try_join!(
             Self::maybe_start_tracing(
                 self_.clone(),
@@ -408,7 +409,6 @@ impl State {
             ),
             Self::maybe_start_vanilla(self_.clone(), &create_mode, containerless)
         )?;
-        */
 
         let init_num_replicas = match create_mode {
             CreateMode::New => 1,

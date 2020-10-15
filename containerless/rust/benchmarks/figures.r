@@ -1,5 +1,6 @@
 suppressMessages(library(tidyverse))
 library(mratios)
+
 mytheme <- function() {
   return(theme_bw() +
            theme(
@@ -27,7 +28,7 @@ latency_log_list <- list.files(path = "./data/latency", pattern = "*.csv", full.
 latency_logs <- tibble::enframe(latency_log_list, name = "Id", value = "Filename") %>%
   select(-Id) %>%
   mutate(Benchmark = str_match(Filename, "/data/latency/([:alpha:]*)/")[,2],
-         Mode = str_extract(Filename, "decontainerized|disable_tracing|tracing"))
+         Mode = str_extract(Filename, "decontainerized|vanilla|tracing"))
 
 
 latency0 <- map(latency_log_list, 
@@ -53,7 +54,7 @@ latency <- latency0 %>%
          Latency = Latency / 1000) %>%
   ungroup()  %>%
   select(-StartTime, -EndTime, -Duration) %>%
-  mutate(Mode = fct_recode(Mode, "Containers only" = "disable_tracing",
+  mutate(Mode = fct_recode(Mode, "Containers only" = "vanilla",
                                  "Containers + Trace IR" = "tracing"))
 
 latency_normalized <- latency %>% 
@@ -65,7 +66,7 @@ latency_normalized <- latency %>%
             Max = max(Latency),
             Min = min(Latency)) %>%
   ungroup() %>%
-  filter(Time <= 59)
+  filter(Time <= 359)
 
 
 myplot <- function(name) {
@@ -79,12 +80,9 @@ myplot <- function(name) {
     mytheme()
 }
 
-ggsave("banking_time_series.pdf", myplot("banking"), width=4, height=3, units="in")
-ggsave("status_time_series.pdf", myplot("status"), width=4, height=3, units="in")
-ggsave("login_time_series.pdf", myplot("login"), width=4, height=3, units="in")
-ggsave("upload_time_series.pdf", myplot("upload"), width=4, height=3, units="in")
-ggsave("autocomplete_time_series.pdf", myplot("autocomplete"), width=4, height=3, units="in")
-ggsave("maze_time_series.pdf", myplot("maze"), width=4, height=3, units="in")
+ggsave("plots/autocomplete_time_series.pdf", myplot("autocomplete"), width=4, height=3, units="in")
+ggsave("plots/helloworld_time_series.pdf", myplot("helloworld"), width=4, height=3, units="in")
+ggsave("plots/sanity_time_series.pdf", myplot("sanity"), width=4, height=3, units="in")
 
 steady_latency <- latency %>% 
   filter(Time <= 59 & Time >= 30) %>%
