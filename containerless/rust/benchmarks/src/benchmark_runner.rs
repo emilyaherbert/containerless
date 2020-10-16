@@ -27,7 +27,7 @@ impl std::fmt::Display for WrkOptions {
 */
 
 #[allow(unused_assignments)]
-async fn wrk_run(url: &str, wrk_options: WrkOptions, run_name: &str, output_path: &str) -> Result<(String, String), Error> {
+async fn wrk_run(url: &str, wrk_options: WrkOptions) -> Result<(String, String), Error> {
     let c = wrk_options.connections.to_string();
     let d = wrk_options.duration.to_string();
     let t = wrk_options.threads.to_string();
@@ -39,17 +39,15 @@ async fn wrk_run(url: &str, wrk_options: WrkOptions, run_name: &str, output_path
         "-t",
         &t,
         url,
-        "--supress"
+        "--supress",
+        "--per_req"
     ];
     // rust strings suck
     let mut f = "".to_string();
-    let mut f2 = "".to_string();
     if let Some(filename) = wrk_options.script_filename {
         args.push("-s");
         f = format!("{}/../benchmarks/wrk_scripts/{}", ROOT.as_str(), filename);
         args.push(&f);
-        f2 = format!("{}/{}.csv", output_path, run_name);
-        args.push(&f2);   
     }
 
     let output = Command::new(format!("{}/../benchmarks/wrk/wrk", ROOT.as_str()))
@@ -103,7 +101,7 @@ async fn run_one_mode(name: &str, js_code: &str, url: &str, wrk_options: WrkOpti
     }
 
     // Hammer the function using wrk
-    let output = wrk_run(url, wrk_options.clone(), &run_name.clone(), output_path.clone()).await;
+    let output = wrk_run(url, wrk_options.clone()).await;
     if let Err(err) = output {
         fail_and_delete(name, err).await;
         return None;
@@ -118,7 +116,7 @@ async fn run_one_mode(name: &str, js_code: &str, url: &str, wrk_options: WrkOpti
 
     // If applicable, save the output from wrk
     if wrk_options.save_wrk_output {
-        let mut file = File::create(format!("{}/{}.txt", output_path, run_name)).unwrap();
+        let mut file = File::create(format!("{}/{}.csv", output_path, run_name)).unwrap();
         if let Err(err) = file.write_all(stdout.as_bytes()) {
             fail(Error::IO(err));
             return None;
