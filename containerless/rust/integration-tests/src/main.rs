@@ -54,5 +54,7 @@ async fn main() {
     });
 
     // Tests either terminate normally, or with SIGTERM.
-    tests_handle.await.unwrap();
+    if !tests_handle.await.unwrap().success() {
+        panic!("Tests failed.");
+    }
 }

@@ -3,8 +3,8 @@
 ## Prerequisites
 
 Containerless has components written in Rust and JavaScript (TypeScript).
-Thus, you need [Cargo], [Yarn], and [Node]. We package these components
-into containers using [Docker].
+Thus, you need [Cargo], [Yarn 1.x], and [Node]. We package these components
+into containers using [Docker], which you also need to install.
 
 **Important:** You must build Containerless on Linux. Our build scripts copy 
 binaries built on the host into Docker containers, thus they will not run if the
@@ -19,7 +19,7 @@ $ microk8s.enable dns registry ingress
 ```
 
 After installation, follow the on-screen directions to gain unprivileged access
-to Docker and MicroK8s, which will involve logging out and logging back in.
+to Docker and MicroK8s, which will involve *logging out and logging back in*.
 
 *NOTE:* In this demo, the Containerless controller does not run in Kubernetes.
 (It is easy to do so, but building a container that runs the Rust
@@ -50,7 +50,16 @@ cluster. However, our deployment scripts assume you're using MicroK8s.
 
 ## Building
 
-Build the containerless system:
+Containerless depends on Rust crates that rely on system packages that are not
+installed by default on new Linux distributions. If you encounter an error,
+while building a dependency, the error message is actually useful. On
+Ubuntu 20.04, run the following command before building to avoid errors:
+
+```
+sudo apt install libssl-dev pkg-config
+```
+
+Build the Containerless system:
 
 ```
 $ ./build.sh
@@ -58,7 +67,8 @@ $ ./build.sh
 
 ## Logging
 
-See README.md in the ./logging directory.
+To understand what Containerless does and debug problems, you will need to
+setup Kubernetes logging. See README.md in the ./logging directory.
 
 ## Deploying
 
@@ -184,7 +194,7 @@ $ ./undeploy.sh
 ```
 
 [Cargo]: https://rustup.rs/
-[Yarn]: https://yarnpkg.com/
+[Yarn]: https://classic.yarnpkg.com/
 [Node]: https://nodejs.org/
 [Docker]: https://www.docker.com/
 [Microk8s]: https://microk8s.io/
