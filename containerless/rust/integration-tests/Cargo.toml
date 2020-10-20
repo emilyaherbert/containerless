@@ -13,4 +13,3 @@ k8s = { path = "../k8s" }
 nix = "*"
 reqwest = "*"
 shared = { path = "../shared" }
-log = "*"
