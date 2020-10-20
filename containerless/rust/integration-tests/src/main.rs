@@ -1,5 +1,3 @@
-extern crate log;
-
 mod test_runner;
 mod tests;
 mod error;
@@ -13,8 +11,11 @@ use tokio::process::{Child, Command};
 use tokio::signal::unix::{signal, SignalKind};
 
 async fn run_tests() -> Child {
+    // One test thread is needed for these to be reasonable unit tests. Without it, tests may
+    // interfere with each other, since the Dispatcher is very stateful.
+    // The --nocapture option lets us see error messages faster.
     return Command::new("cargo")
-        .args(&["test", "--", "--test-threads=1"])
+        .args(&["test", "--", "--test-threads=1", "--nocapture"])
         .spawn()
         .expect("spawning cargo test");
 }

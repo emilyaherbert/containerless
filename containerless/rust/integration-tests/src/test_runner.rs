@@ -92,14 +92,14 @@ impl TestRunner {
 
 pub async fn run_test_async(name: &str, js_code: &str, js_requests: Vec<(&str, JsonValue)>, rs_requests: Vec<(&str, JsonValue)>) -> Vec<String> {
     fn fail(err: Error) {
-        error!(target: "integration-tests", "Error in the test runner: {:?}", err);
+        eprintln!("fail in the test runner: {:?}", err);
         assert!(false, format!("{:?}", err));
     }
 
     async fn fail_and_delete(runner: TestRunner, name: &str, err: Error) {
-        error!(target: "integration-tests", "Error in the test runner: {:?}", err);
+        eprintln!("Error in the test runner: {:?}", err);
         if let Err(err) = runner.containerless_delete(name).await {
-            error!(target: "integration-tests", "Error in the test runner: {:?}", err);
+            eprintln!("Error deleting function in the test runner: {:?}", err);
         }
         assert!(false, format!("{:?}", err));
     }
