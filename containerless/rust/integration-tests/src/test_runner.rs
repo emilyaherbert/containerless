@@ -136,7 +136,10 @@ pub async fn run_test_async(name: &str, js_code: &str, js_requests: Vec<(&str, J
     // Send requests to the containerized version
     for req in js_requests.into_iter() {
         match runner.containerless_invoke(name, req).await {
-            Ok(result) => results.push(result),
+            Ok(mut result) => {
+                result.pop();
+                results.push(result);
+            },
             Err(err) => {
                 fail_and_delete(runner, name, err).await;
                 return results;
