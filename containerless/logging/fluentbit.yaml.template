@@ -101,7 +101,7 @@ data:
         Path              /var/log/containers/*.log
         Parser            docker
         DB                /var/log/flb_kube.db
-        Mem_Buf_Limit     256MB
+        Mem_Buf_Limit     512MB
         Skip_Long_Lines   On
         Refresh_Interval  10
 

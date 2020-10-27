@@ -15,7 +15,7 @@ async fn run_tests() -> Child {
     // interfere with each other, since the Dispatcher is very stateful.
     // The --nocapture option lets us see error messages faster.
     return Command::new("cargo")
-        .args(&["test", "--", "--test-threads=1"])//, "--nocapture"])
+        .args(&["test", "--", "--test-threads=1", "--nocapture"])
         .spawn()
         .expect("spawning cargo test");
 }

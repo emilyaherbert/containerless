@@ -245,6 +245,7 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                             generate_decontainerized_functions_mod(&known_functions);
                             if !(compiler.cargo_build(Some(started_compiling)).await) {
                                 known_functions.insert(name.clone(), CompileStatus::Error);
+                                generate_decontainerized_functions_mod(&known_functions);
                                 error!(target: "controller", "The code for dispatcher-agent is in a broken state. The system may not work.");
                                 continue;
                             }

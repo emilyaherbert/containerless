@@ -305,7 +305,7 @@ export class Callbacks {
         // clear the current trace
         this.app.get('/clear', (req, resp) => {
             this.trace.newTrace();
-            resp.send('Cleared!\n');
+            resp.send('Cleared!');
         })
 
         // get the current trace
@@ -352,11 +352,13 @@ export class Callbacks {
         let [_, $response] = this.trace.popArgs();
         this.trace.tracePrimApp('send', [$response]);
         if(this.response !== undefined) {
-            if(typeof(response) === 'object') {
+            if(typeof(response) !== 'string' && response.length > 0) {
+                this.response.send('' + response);
+            } else if(typeof(response) === 'object') {
                 this.response.set('X-Server-Hostname', hostname);
-                this.response.send('' + JSON.stringify(response, null, 4) + "\n");
+                this.response.send('' + JSON.stringify(response, null, 4));
             } else {
-                this.response.send('' + response + "\n");
+                this.response.send('' + response);
             }
         } else if(state.getListenPort() !== 'test') {
             throw new Error("No express.Response found.");
@@ -370,7 +372,7 @@ export class Callbacks {
         this.trace.tracePrimApp('send', [$response]);
         if(this.response !== undefined) {
             this.response.set('X-Server-Hostname', hostname); 
-            this.response.send('' + response + "\n");
+            this.response.send('' + response);
         } else if(state.getListenPort() !== 'test') {
             throw new Error("No express.Response found.");
         }
