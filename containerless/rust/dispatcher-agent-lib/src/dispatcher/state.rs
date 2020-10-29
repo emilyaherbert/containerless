@@ -231,6 +231,7 @@ impl State {
             }
             Ok(resp) => resp,
         };
+        println!("{:?}", resp);
         resp.headers_mut().insert(
             "X-Containerless-Mode",
             HeaderValue::from_static(containerless_mode_header),

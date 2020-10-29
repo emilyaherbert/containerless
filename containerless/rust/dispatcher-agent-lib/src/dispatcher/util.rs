@@ -121,7 +121,11 @@ pub fn send_log_error<T>(sender: futures::channel::oneshot::Sender<T>, value: T)
 where
     T: std::fmt::Debug,
 {
-    if let Err(value) = sender.send(value) {
-        error!(target: "dispatcher", "could not send {:?}", value);
+    if sender.is_canceled() {
+        error!(target: "dispatcher", "trying to send a message to a dropped reciever");
+    } else {
+        if let Err(value) = sender.send(value) {
+            error!(target: "dispatcher", "could not send {:?}", value);
+        }
     }
 }
