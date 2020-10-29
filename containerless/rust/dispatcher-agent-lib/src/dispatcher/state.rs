@@ -419,10 +419,15 @@ impl State {
                     return Ok(());
                 }
                 (_, Message::Shutdown(send_complete)) => {
-                    send_complete
-                        .send(State::shutdown(self_, mode).await)
-                        .unwrap();
-                    return Ok(());
+                    if send_complete.is_canceled() {
+                        error!(target: "dispatcher", "trying to send when the reciever is already dropped");
+                        return Err(Error::FunctionManagerTask("reciever is already dropped".to_string()));
+                    } else {
+                        send_complete
+                            .send(State::shutdown(self_, mode).await)
+                            .unwrap();
+                        return Ok(());
+                    }
                 }
                 (_, Message::GetMode(send)) => {
                     util::send_log_error(send, util::text_response(200, format!("{}", mode)));
