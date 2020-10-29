@@ -229,8 +229,8 @@ name = "cli"
 version = "0.1.0"
 dependencies = [
  "clap",
- "reqwest",
  "serde_json",
+ "shared",
  "tokio",
 ]
 
@@ -267,7 +267,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "regex",
- "reqwest",
  "serde",
  "serde_json",
  "shared",
@@ -1891,6 +1890,7 @@ dependencies = [
  "machine-ip",
  "reqwest",
  "serde",
+ "serde_json",
  "thiserror",
  "tokio",
  "warp",

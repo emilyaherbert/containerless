@@ -1,5 +1,5 @@
-mod containerless_shim;
-mod error;
+use shared::containerless::controller;
+use shared::containerless::dispatcher;
 
 use clap::Clap;
 
@@ -100,49 +100,46 @@ struct Compile {
 #[tokio::main]
 async fn main() {
     let opts: Opts = Opts::parse();
-    let containerless_shim = containerless_shim::ContainerlessShim::new();
 
     match opts.subcmd {
         SubCommand::Create(t) => {
-            let output = containerless_shim
-                .create_function(&t.name, &t.filename)
+            let output = controller::create_function(&t.name, &t.filename)
                 .await
                 .unwrap();
             println!("{}", output);
         }
         SubCommand::Delete(t) => {
-            let output = containerless_shim.delete_function(&t.name).await.unwrap();
+            let output = controller::delete_function(&t.name).await.unwrap();
             println!("{}", output);
         }
         SubCommand::RemoveContainers(t) => {
-            let output = containerless_shim
-                .shutdown_function_instances(&t.name)
+            let output = controller::shutdown_function_instances(&t.name)
                 .await
                 .unwrap();
             println!("{}", output);
         }
         SubCommand::RemoveTrace(t) => {
-            let output = containerless_shim.reset_function(&t.name).await.unwrap();
+            let output = controller::reset_function(&t.name).await.unwrap();
             println!("{}", output);
         }
         SubCommand::Get(t) => {
-            let output = containerless_shim.get_function(&t.name).await.unwrap();
+            let output = controller::get_function(&t.name).await.unwrap();
             println!("{}", output);
         }
         SubCommand::List(_) => {
-            let output = containerless_shim.list_functions().await.unwrap();
+            let output = controller::list_functions().await.unwrap();
             println!("{}", output);
         }
         SubCommand::Invoke(t) => {
-            let output = containerless_shim.invoke(&t.name).await.unwrap();
+            let output = dispatcher::invoke(&t.name).await.unwrap();
             println!("{}", output);
         },
         SubCommand::DispatcherVersion(_t) => {
-            let output = containerless_shim.dispatcher_version().await.unwrap();
+            let output = controller::dispatcher_version().await.unwrap();
             println!("{}", output);
         },
         SubCommand::Compile(t) => {
-            let output = containerless_shim.compile(&t.name).await.unwrap();
+            let output = dispatcher::compile(&t.name).await.unwrap();
             println!("{}", output);
         }
     }
