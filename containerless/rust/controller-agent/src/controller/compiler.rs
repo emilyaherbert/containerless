@@ -152,6 +152,33 @@ fn generate_decontainerized_functions_mod(known_functions: &HashMap<String, Comp
     .expect("cannot write function table file");
 }
 
+async fn wait_for_dispatcher_patch_to_complete(
+    k8s: &k8s::Client, desired_version: usize,
+) -> Result<(), Error> {
+    let interval = Duration::from_secs(1);
+    let timeout = Duration::from_secs(60);
+    let end_time = Instant::now() + timeout;
+    let label = format!("app=dispatcher,version={}", desired_version);
+    loop {
+        let dispatcher_pods = k8s
+            .list_pods_by_label_and_field(
+                label.clone(),
+                "status.phase=Running",
+            )
+            .await?;
+        if dispatcher_pods.len() == 1 {
+            return Ok(());
+        }
+        tokio::time::delay_for(interval).await;
+        if Instant::now() >= end_time {
+            break;
+        }
+    }
+    return Err(Error::Containerless(
+        "Could not patch dispatcher deployment.".to_string(),
+    ));
+}
+
 async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver<Message>) {
     let k8s = k8s::Client::from_kubeconfig_file(NAMESPACE)
         .await
@@ -254,33 +281,6 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                                 .await
                                 .expect("patching dispatcher deployment");
                             info!(target: "controller", "Patched dispatcher deployment");
-
-                            async fn wait_for_dispatcher_patch_to_complete(
-                                k8s: &k8s::Client, desired_version: usize,
-                            ) -> Result<(), Error> {
-                                let interval = Duration::from_secs(1);
-                                let timeout = Duration::from_secs(60);
-                                let end_time = Instant::now() + timeout;
-                                let label = format!("app=dispatcher,version={}", desired_version);
-                                loop {
-                                    let dispatcher_pods = k8s
-                                        .list_pods_by_label_and_field(
-                                            label.clone(),
-                                            "status.phase=Running",
-                                        )
-                                        .await?;
-                                    if dispatcher_pods.len() == 1 {
-                                        return Ok(());
-                                    }
-                                    tokio::time::delay_for(interval).await;
-                                    if Instant::now() >= end_time {
-                                        break;
-                                    }
-                                }
-                                return Err(Error::Containerless(
-                                    "Could not patch dispatcher deployment.".to_string(),
-                                ));
-                            }
 
                             if let Err(err) =
                                 wait_for_dispatcher_patch_to_complete(&k8s, next_version).await
