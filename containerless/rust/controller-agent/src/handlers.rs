@@ -103,27 +103,29 @@ pub async fn delete_function(
 
     // Remove all of the pods for the function
     info!(target: "controller", "DELETE_FUNCTION {}: shutting down instances via dispatcher", name);
-    if let Err(err) = shutdown_function_instances_via_dispatcher(&name).await {
-        error!(target: "controller", "DELETE_FUNCTION {}: Error shutting down instances via dispatcher {:?}", name, err);
-        return error_response(err.info());
-    }
+    let res1 = shutdown_function_instances_via_dispatcher(&name).await;
 
     // Remove the compiled trace for a function
     info!(target: "controller", "DELETE_FUNCTION {}: removing trace via compiler", name);
-    if let Err(err) = reset_function_via_compiler(&name, compiler).await {
-        error!(target: "controller", "DELETE_FUNCTION {}: Error removnig trace via compiler {:?}", name, err);
-        return error_response(err.info());
-    }
+    let res2 = reset_function_via_compiler(&name, compiler).await;
 
     // Delete the function from storage
     info!(target: "controller", "DELETE_FUNCTION {}: deleting from storage", name);
-    if let Err(err) = delete_from_storage(&name).await {
+    let res3 = delete_from_storage(&name).await;
+
+    // Done!
+    if let Err(err) = res1 {
+        error!(target: "controller", "DELETE_FUNCTION {}: Error shutting down instances via dispatcher {:?}", name, err);
+        return error_response(err.info());
+    }
+    if let Err(err) = res2 {
+        error!(target: "controller", "DELETE_FUNCTION {}: Error removnig trace via compiler {:?}", name, err);
+        return error_response(err.info());
+    }
+    if let Err(err) = res3 {
         error!(target: "controller", "DELETE_FUNCTION {}: Error deleting from storage {:?}", name, err);
         return error_response(err.info());
     }
-
-    // Done!
-    info!(target: "controller", "DELETE_FUNCTION {}: successful!", name);
     return ok_response(format!("Function {} successfully deleted!", name));
 }
 

@@ -19,6 +19,8 @@ pub enum Error {
     Controller(String),
     #[error("communicating with storage: {0}")]
     Storage(String),
+    #[error("{0}")]
+    FunctionManagerTask(String),
 }
 
 impl Error {
