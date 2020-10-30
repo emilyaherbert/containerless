@@ -16,7 +16,7 @@ pub use tokio::task;
 // pub type Request = hyper::Request<hyper::Body>;
 pub type Response = hyper::Response<hyper::Body>;
 pub type K8sClient = Arc<k8s::client::Client>;
-pub type HttpClient = Arc<hyper::Client<hyper::client::HttpConnector>>;
+pub type HttpClient = Arc<hyper::Client<hyper_timeout::TimeoutConnector<hyper::client::HttpConnector>>>;
 pub type HttpResponseResult = Result<Response, hyper::Error>;
 
 pub struct SystemStatus {

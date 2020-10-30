@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 shared = { path = "../shared" }
-tokio = { version = "*", features = ["macros", "sync", "signal", "time"] }
+tokio = { version = "*", features = ["rt-threaded", "macros", "sync", "signal", "time"] }
 hyper = "*"
 kube = { version = "0.25.0", features = ["openapi"] }
 k8s-openapi = { version = "0.7.1", default-features = false, features = ["v1_17"] }
@@ -16,7 +16,6 @@ serde_json = "*"
 futures = "*"
 http = "*"
 bytes = "*"
-futures-retry = "*"
 k8s = { path = "../k8s" }
 lazy_static = "*"
 regex = "*"
@@ -26,3 +25,4 @@ thiserror = "*"
 warp = "*"
 reqwest = { version = "0.10", features = ["json"] }
 env_logger = "*"
+hyper-timeout = "*"

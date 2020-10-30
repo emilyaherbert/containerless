@@ -194,7 +194,7 @@ $ ./undeploy.sh
 ```
 
 [Cargo]: https://rustup.rs/
-[Yarn]: https://classic.yarnpkg.com/
+[Yarn 1.x]: https://classic.yarnpkg.com/
 [Node]: https://nodejs.org/
 [Docker]: https://www.docker.com/
 [Microk8s]: https://microk8s.io/
