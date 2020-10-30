@@ -1,4 +1,34 @@
 # Namespace for Containerless
+# This is a template for a Kubernetes configuration that creates static
+# resources for Containerless. The template has several variables:
+# - $CONTROLLER_IP and $CONTROLLER_PORT are the IP address and port at which the
+#   the controller is running, and must be reachable by pods running in
+#   Kubernetes.
+# - $CONTROLLER_LOG_PATH is the path on the local machine where the controller
+#   log appears.
+#
+# The template creates the following resources:
+# - A namespace called "containerless".
+# - An endpoint and service, both called "controller", which allow pods in
+#   the cluster to communicate with the controller using http://controller:80.
+# - A service called "dispatcher" that selects pods with selector
+#   "app=dispatcher". The service makes dispatchers available in the cluster
+#   at http://dispatcher:8080. (Yes, we use different ports. This is bad, and
+#   we should fix it!)
+# - A replicaSet and service, both called "storage", that runs the function
+#   storage agent. We have a really trivial storage service that does not
+#   support replication. However, the replicaSet ensures that it restarts
+#   if anything goes wrong. (Is that even desirable?) The service makes
+#   function storage available in the cluster at http://storage:8080.
+# - An ingress that runs at port 80, and exposes /storage, /dispatcher, and
+#   /controller outside the cluster.
+# - A pod called controller-logger that echoes the controller's log file to
+#   its own output. Thus, even when the controller is running outside of
+#   the cluster, its logs are available in the cluster and can be aggregated
+#   with all other logs.
+# Assumptions:
+# - The controller-logger pod must run on the same machine -- so that it can
+#   share the file system with the controller.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -70,13 +100,6 @@ spec:
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
-        volumeMounts:
-          - name: storage
-            mountPath: "/storage"
-      volumes:
-        - name: storage
-          hostPath:
-            path: $EXAMPLES_PATH
 ---
 apiVersion: v1
 kind: Service
