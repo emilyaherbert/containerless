@@ -15,13 +15,17 @@ pub struct FunctionManager {
 
 impl FunctionManager {
     pub async fn new(
-        k8s_client: K8sClient, http_client: HttpClient, function_table: Weak<FunctionTable>,
-        name: String, create_mode: CreateMode, containerless: Option<Containerless>,
+        k8s_client: K8sClient,
+        http_client: HttpClient,
+        short_deadline_http_client: HttpClient,
+        function_table: Weak<FunctionTable>,
+        name: String, create_mode: CreateMode,
+        containerless: Option<Containerless>,
         upgrade_pending: Arc<AtomicBool>,
     ) -> FunctionManager {
         let (send_requests, recv_requests) = mpsc::channel(1);
         let err_msg = format!("error raised by task for {}", &name);
-        let state = State::new(name, k8s_client, http_client);
+        let state = State::new(name, k8s_client, http_client, short_deadline_http_client);
         task::spawn(util::log_error(
             State::function_manager_task(
                 Arc::clone(&state),
