@@ -111,9 +111,6 @@ pub async fn run_test_async(name: &str, js_code: &str, js_requests: Vec<(&str, J
     // Delete everything!
     if let Err(err) = cli::containerless_delete(name).await {
         eprintln!("Error in the test runner: {:?}", err);
-        if let Err(err) = cli::containerless_delete(name).await {
-            eprintln!("Error deleting function in the test runner: {:?}", err);
-        }
         return results;
     }
 
