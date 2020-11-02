@@ -21,6 +21,8 @@ pub enum Error {
     Storage(String),
     #[error("{0}")]
     FunctionManagerTask(String),
+    #[error("{0}")]
+    Containerless(String)
 }
 
 impl Error {
@@ -33,6 +35,15 @@ impl Error {
             Error::Storage(info) => info.to_owned(),
             Error::Controller(info) => info.to_owned(),
             error => error.to_string()
+        }
+    }
+}
+
+impl std::convert::From<shared::containerless::error::Error> for Error {
+    fn from(error: shared::containerless::error::Error) -> Error {
+        match error {
+            shared::containerless::error::Error::Storage(err) => Error::Storage(err),
+            err => Error::Containerless(err.info())
         }
     }
 }

@@ -121,7 +121,7 @@ pub async fn delete_function(
         return error_response(err.info());
     }
     if let Err(err) = res2 {
-        error!(target: "controller", "DELETE_FUNCTION {}: Error removnig trace via compiler {:?}", name, err);
+        error!(target: "controller", "DELETE_FUNCTION {}: Error removing trace via compiler {:?}", name, err);
         return error_response(err.info());
     }
     if let Err(err) = res3 {

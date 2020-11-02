@@ -1,6 +1,6 @@
 use std::io;
 
-#[derive(Debug)]
+#[derive(Debug, Display)]
 pub enum Error {
     IO(io::Error),
     Reqwest(reqwest::Error),

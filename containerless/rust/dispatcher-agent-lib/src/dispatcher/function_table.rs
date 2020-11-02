@@ -3,6 +3,7 @@ use super::types::*;
 use crate::error::Error;
 
 use shared::response::*;
+use shared::containerless::storage;
 
 use futures::lock::Mutex;
 use k8s;
@@ -110,13 +111,7 @@ impl FunctionTable {
         match inner.functions.get(name) {
             None => {
                 // Check to see if the function is available in storage
-                let storage_resp =
-                    reqwest::get(&format!("http://storage:8080/get_function/{}", name)).await?;
-                if let Err(err) =
-                    response_into_result(storage_resp.status().as_u16(), storage_resp.text().await?)
-                {
-                    return Err(Error::Storage(format!("{:?}", err)));
-                }
+                storage::get_internal(name).await?;
                 let fm = FunctionManager::new(
                     inner.k8s_client.clone(),
                     inner.http_client.clone(),

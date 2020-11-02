@@ -1,5 +1,7 @@
 mod error;
 
+use shared::containerless::storage;
+
 use futures_retry::{FutureRetry, RetryPolicy};
 use hyper::Response;
 use reqwest;
@@ -41,17 +43,7 @@ async fn monitor_nodejs_process(function_name: &str, handle: process::Child) -> 
 }
 
 async fn initialize(function_name: String, tracing_enabled: bool) -> Result<(), error::Error> {
-    let resp = reqwest::get(&format!(
-        "http://storage:8080/get_function/{}",
-        &function_name
-    ))
-    .await?;
-
-    if resp.status().as_u16() != 200 {
-        return Err(error::Error::FileNotFound);
-    }
-
-    let function_code = resp.text().await?;
+    let function_code = storage::get_internal(&function_name).await?;
     eprintln!("INITIALIZE {}: downloaded function ({} bytes)", function_name, function_code.len());
 
     // Write the serverless function to a file. This is needed whether or
