@@ -12,7 +12,7 @@ impl Error {
         match self {
             Error::IO(info) => info.to_owned(),
             Error::FileNotFound(info) => info.to_owned(),
-            Error::FileConflict(info) => info.to_owned()
+            Error::FileConflict(info) => info.to_owned(),
         }
     }
 }

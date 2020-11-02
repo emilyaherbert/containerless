@@ -2,10 +2,10 @@ use super::compiler::Compiler;
 use crate::controller::error::Error;
 
 use shared::common::*;
+use shared::containerless::dispatcher;
+use shared::containerless::storage;
 use shared::file_contents::FileContents;
 use shared::response::*;
-use shared::containerless::storage;
-use shared::containerless::dispatcher;
 
 use bytes;
 use std::env;
@@ -123,7 +123,7 @@ pub async fn delete_function(
         return error_response(err.info());
     }
     if let Err(err) = res2 {
-        error!(target: "controller", "DELETE_FUNCTION {}: Error removnig trace via compiler {:?}", name, err);
+        error!(target: "controller", "DELETE_FUNCTION {}: Error removing trace via compiler {:?}", name, err);
         return error_response(err.info());
     }
     if let Err(err) = res3 {
@@ -145,11 +145,12 @@ pub async fn shutdown_function_instances(
     }
 }
 
-pub async fn dispatcher_version_handler(compiler: Arc<Compiler>) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn dispatcher_version_handler(
+    compiler: Arc<Compiler>,
+) -> Result<impl warp::Reply, warp::Rejection> {
     let version = compiler.dispatcher_version().await;
     ok_response(version.to_string())
 }
-
 
 pub async fn reset_function(
     name: String, compiler: Arc<Compiler>,
@@ -183,7 +184,9 @@ pub async fn list_functions() -> Result<impl warp::Reply, warp::Rejection> {
     }
 }
 
-async fn add_to_compiler(name: &str, compiler: Arc<Compiler>, exclusive: bool) -> Result<String, Error> {
+async fn add_to_compiler(
+    name: &str, compiler: Arc<Compiler>, exclusive: bool,
+) -> Result<String, Error> {
     let resp_status = compiler.create_function(&name, exclusive).await;
     response_into_result(resp_status.as_u16(), format!("Function {} created!", name))
         .map_err(Error::Compiler)

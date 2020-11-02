@@ -5,7 +5,10 @@ use std::fs;
 
 pub async fn create_function(name: &str, filename: &str) -> Result<String, Error> {
     Ok(reqwest::Client::new()
-        .post(&format!("http://localhost/controller/create_function/{}", name))
+        .post(&format!(
+            "http://localhost/controller/create_function/{}",
+            name
+        ))
         .json(&json!({
             "contents": format!("{}", fs::read_to_string(filename)?.trim())
         }))
@@ -16,12 +19,13 @@ pub async fn create_function(name: &str, filename: &str) -> Result<String, Error
 }
 
 pub async fn delete_function(name: &str) -> Result<String, Error> {
-    Ok(
-        reqwest::get(&format!("http://localhost/controller/delete_function/{}", name))
-            .await?
-            .text()
-            .await?,
-    )
+    Ok(reqwest::get(&format!(
+        "http://localhost/controller/delete_function/{}",
+        name
+    ))
+    .await?
+    .text()
+    .await?)
 }
 
 pub async fn shutdown_function_instances(name: &str) -> Result<String, Error> {
@@ -35,21 +39,23 @@ pub async fn shutdown_function_instances(name: &str) -> Result<String, Error> {
 }
 
 pub async fn reset_function(name: &str) -> Result<String, Error> {
-    Ok(
-        reqwest::get(&format!("http://localhost/controller/reset_function/{}", name))
-            .await?
-            .text()
-            .await?,
-    )
+    Ok(reqwest::get(&format!(
+        "http://localhost/controller/reset_function/{}",
+        name
+    ))
+    .await?
+    .text()
+    .await?)
 }
 
 pub async fn get_function(name: &str) -> Result<String, Error> {
-    Ok(
-        reqwest::get(&format!("http://localhost/controller/get_function/{}", name))
-            .await?
-            .text()
-            .await?,
-    )
+    Ok(reqwest::get(&format!(
+        "http://localhost/controller/get_function/{}",
+        name
+    ))
+    .await?
+    .text()
+    .await?)
 }
 
 pub async fn list_functions() -> Result<String, Error> {
@@ -60,8 +66,10 @@ pub async fn list_functions() -> Result<String, Error> {
 }
 
 pub async fn dispatcher_version() -> Result<String, Error> {
-    Ok(reqwest::get("http://localhost/controller/dispatcher_version")
-        .await?
-        .text()
-        .await?)
+    Ok(
+        reqwest::get("http://localhost/controller/dispatcher_version")
+            .await?
+            .text()
+            .await?,
+    )
 }

@@ -6,8 +6,8 @@ mod handlers;
 mod routes;
 mod storage;
 
-use storage::Storage;
 use shared;
+use storage::Storage;
 
 // Based on:
 // https://github.com/seanmonstar/warp/blob/master/examples/todos.rs

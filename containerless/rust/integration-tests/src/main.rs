@@ -1,6 +1,6 @@
+mod error;
 mod test_runner;
 mod tests;
-mod error;
 
 use nix::sys::signal::{self, Signal};
 use nix::unistd::Pid;

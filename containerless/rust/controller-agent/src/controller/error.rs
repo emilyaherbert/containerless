@@ -4,9 +4,7 @@ use std::io;
 pub enum Error {
     IO(io::Error),
     Parsing(String),
-    Storage(String),
     Compiler(String),
-    Dispatcher(String),
     Kube(kube::Error),
     Containerless(String),
 }
@@ -19,12 +17,10 @@ impl Error {
     /// as a good error message and what wouldn't.
     pub fn info(&self) -> String {
         match self {
-            Error::Storage(info) => info.to_owned(),
             Error::Compiler(info) => info.to_owned(),
-            Error::Dispatcher(info) => info.to_owned(),
             Error::Containerless(info) => info.to_owned(),
             Error::Parsing(info) => info.to_owned(),
-            error => format!("{:?}", error)
+            error => format!("{:?}", error),
         }
     }
 }

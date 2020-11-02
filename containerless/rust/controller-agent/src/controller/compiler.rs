@@ -43,8 +43,8 @@ enum Message {
         new_dispatcher_deployed: oneshot::Sender<()>,
     },
     GetDispatcherVersion {
-        done: oneshot::Sender<usize>
-    }
+        done: oneshot::Sender<usize>,
+    },
 }
 
 #[derive(PartialEq)]
@@ -162,10 +162,7 @@ async fn wait_for_dispatcher_patch_to_complete(
     let label = format!("app=dispatcher,version={}", desired_version);
     loop {
         let dispatcher_pods = k8s
-            .list_pods_by_label_and_field(
-                label.clone(),
-                "status.phase=Running",
-            )
+            .list_pods_by_label_and_field(label.clone(), "status.phase=Running")
             .await?;
         if dispatcher_pods.len() == 1 {
             return Ok(());
@@ -221,7 +218,11 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                     .expect("patching dispatcher deployment");
                 info!(target: "controller", "Patched dispatcher deployment");
             }
-            Message::CreateFunction { name, done, exclusive } => {
+            Message::CreateFunction {
+                name,
+                done,
+                exclusive,
+            } => {
                 if known_functions.contains_key(&name) {
                     known_functions.insert(name.clone(), CompileStatus::Error);
                     error!(target: "controller", "creating function {} twice", name);
@@ -357,7 +358,7 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                 info!(target: "controller", "ending compiler task (received shutdown message)");
                 done.send(()).expect("sending done");
                 return;
-            },
+            }
             Message::GetDispatcherVersion { done } => {
                 // I don't think this is quite right.....
                 loop {
@@ -369,7 +370,7 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                             }
                             done.send(status.observed_generation).expect("sending done");
                             break; // break from inner loop
-                        },
+                        }
                         Err(err) => {
                             error!(target: "controller", "error getting dispatcher version {:?}", err);
                             break; // break from inner loop
@@ -507,9 +508,7 @@ impl Compiler {
 
     pub async fn dispatcher_version(&self) -> usize {
         let (send, recv) = oneshot::channel();
-        self.send_message_non_blocking(Message::GetDispatcherVersion {
-            done: send,
-        });
+        self.send_message_non_blocking(Message::GetDispatcherVersion { done: send });
         recv.await.unwrap()
     }
 }

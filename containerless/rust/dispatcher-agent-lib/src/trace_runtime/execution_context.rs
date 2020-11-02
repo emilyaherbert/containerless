@@ -17,7 +17,7 @@ pub enum AsyncOp {
     Get(String),
     Post(String, Bytes),
     Put(String, Bytes),
-    Delete(String)
+    Delete(String),
 }
 
 pub enum AsyncOpOutcome {
@@ -91,7 +91,7 @@ impl AsyncOp {
                     .await
                     .map_err(|_err| Error::TypeError("Reading response body".to_string()))?;
                 return Ok(AsyncOpOutcome::GetResponse(body));
-            },
+            }
             AsyncOp::Put(url, body) => {
                 if url.starts_with("data:") {
                     return Ok(AsyncOpOutcome::MockGetResponse(
@@ -116,7 +116,7 @@ impl AsyncOp {
                     .await
                     .map_err(|_err| Error::TypeError("Reading response body".to_string()))?;
                 return Ok(AsyncOpOutcome::GetResponse(body));
-            },
+            }
             AsyncOp::Get(url) => {
                 if url.starts_with("data:") {
                     return Ok(AsyncOpOutcome::MockGetResponse(
@@ -140,7 +140,7 @@ impl AsyncOp {
                     .await
                     .map_err(|_err| Error::TypeError("Reading response body".to_string()))?;
                 return Ok(AsyncOpOutcome::GetResponse(body));
-            },
+            }
             AsyncOp::Delete(url) => {
                 if url.starts_with("data:") {
                     return Ok(AsyncOpOutcome::MockGetResponse(
@@ -149,8 +149,9 @@ impl AsyncOp {
                     ));
                 }
                 use hyper::{Body, Request, Uri};
-                let uri = Uri::from_str(&url)
-                    .map_err(|_err| Error::TypeError("invalid URL in DELETE request".to_string()))?;
+                let uri = Uri::from_str(&url).map_err(|_err| {
+                    Error::TypeError("invalid URL in DELETE request".to_string())
+                })?;
                 let req = Request::builder()
                     .method("DELETE")
                     .uri(uri)

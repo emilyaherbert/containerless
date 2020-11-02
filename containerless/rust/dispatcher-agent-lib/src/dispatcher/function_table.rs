@@ -1,10 +1,10 @@
 use super::function_manager::FunctionManager;
 use super::types::*;
 use crate::error::Error;
-use std::time::Duration;
 use hyper_timeout::TimeoutConnector;
+use std::time::Duration;
 
-use shared::response::*;
+use shared::containerless::storage;
 
 use futures::lock::Mutex;
 use k8s;
@@ -41,7 +41,7 @@ impl FunctionTable {
         let mut connector = TimeoutConnector::new(hyper::client::HttpConnector::new());
         connector.set_connect_timeout(Some(Duration::from_secs(15)));
         let http_client = Arc::new(hyper::Client::builder().build(connector));
-        
+
         // We use this client to send readiness probes in a tight loop.
         let mut connector = TimeoutConnector::new(hyper::client::HttpConnector::new());
         connector.set_connect_timeout(Some(Duration::from_secs(1)));
@@ -119,14 +119,6 @@ impl FunctionTable {
         }
     }
 
-    pub async fn orphan(self_: Arc<FunctionTable>) {
-        let mut inner = self_.inner.lock().await;
-        // Unnecessary sequential awaits
-        for (_name, function_manager) in inner.functions.drain() {
-            function_manager.orphan().await;
-        }
-    }
-
     pub async fn get_function(
         self_: &Arc<FunctionTable>, name: &str,
     ) -> Result<FunctionManager, Error> {
@@ -134,13 +126,7 @@ impl FunctionTable {
         match inner.functions.get(name) {
             None => {
                 // Check to see if the function is available in storage
-                let storage_resp =
-                    reqwest::get(&format!("http://storage:8080/get_function/{}", name)).await?;
-                if let Err(err) =
-                    response_into_result(storage_resp.status().as_u16(), storage_resp.text().await?)
-                {
-                    return Err(Error::Storage(format!("{:?}", err)));
-                }
+                storage::get_internal(name).await?;
                 let fm = FunctionManager::new(
                     inner.k8s_client.clone(),
                     inner.http_client.clone(),
@@ -164,13 +150,11 @@ impl FunctionTable {
         }
     }
 
-    pub async fn function_manager_exists(
-        self_: &Arc<FunctionTable>, name: &str,
-    ) -> bool {
+    pub async fn function_manager_exists(self_: &Arc<FunctionTable>, name: &str) -> bool {
         let inner = self_.inner.lock().await;
         match inner.functions.get(name) {
             None => false,
-            Some(_value) => true
+            Some(_value) => true,
         }
     }
 }

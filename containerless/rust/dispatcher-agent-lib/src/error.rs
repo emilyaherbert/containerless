@@ -6,8 +6,6 @@ pub enum Error {
     #[error("{0}")]
     Hyper(#[from] hyper::Error),
     #[error("{0}")]
-    Reqwest(#[from] reqwest::Error),
-    #[error("{0}")]
     Http(#[from] http::Error),
     #[error("Error::Timeout")]
     Timeout,
@@ -21,6 +19,8 @@ pub enum Error {
     Storage(String),
     #[error("{0}")]
     FunctionManagerTask(String),
+    #[error("{0}")]
+    Containerless(String),
 }
 
 impl Error {
@@ -32,7 +32,16 @@ impl Error {
         match self {
             Error::Storage(info) => info.to_owned(),
             Error::Controller(info) => info.to_owned(),
-            error => error.to_string()
+            error => error.to_string(),
+        }
+    }
+}
+
+impl std::convert::From<shared::containerless::error::Error> for Error {
+    fn from(error: shared::containerless::error::Error) -> Error {
+        match error {
+            shared::containerless::error::Error::Storage(err) => Error::Storage(err),
+            err => Error::Containerless(err.info()),
         }
     }
 }
