@@ -6,8 +6,6 @@ pub enum Error {
     #[error("{0}")]
     Hyper(#[from] hyper::Error),
     #[error("{0}")]
-    Reqwest(#[from] reqwest::Error),
-    #[error("{0}")]
     Http(#[from] http::Error),
     #[error("Error::Timeout")]
     Timeout,

@@ -12,7 +12,6 @@ warp = "*"
 hyper = "*"
 k8s = { path = "../k8s" }
 tokio = { version = "*", features = ["macros", "sync", "signal", "process"] }
-log = "*"
 kube = "*"
 futures = "*"
 regex = "*"
