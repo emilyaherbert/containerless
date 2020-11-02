@@ -416,7 +416,9 @@ impl State {
                 (_, Message::Shutdown(send_complete)) => {
                     if send_complete.is_canceled() {
                         error!(target: "dispatcher", "trying to send when the reciever is already dropped");
-                        return Err(Error::FunctionManagerTask("reciever is already dropped".to_string()));
+                        return Err(Error::FunctionManagerTask(
+                            "reciever is already dropped".to_string(),
+                        ));
                     } else {
                         send_complete
                             .send(State::shutdown(self_, mode).await)

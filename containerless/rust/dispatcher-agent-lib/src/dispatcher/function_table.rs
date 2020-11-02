@@ -2,8 +2,8 @@ use super::function_manager::FunctionManager;
 use super::types::*;
 use crate::error::Error;
 
-use shared::response::*;
 use shared::containerless::storage;
+use shared::response::*;
 
 use futures::lock::Mutex;
 use k8s;
@@ -134,13 +134,11 @@ impl FunctionTable {
         }
     }
 
-    pub async fn function_manager_exists(
-        self_: &Arc<FunctionTable>, name: &str,
-    ) -> bool {
+    pub async fn function_manager_exists(self_: &Arc<FunctionTable>, name: &str) -> bool {
         let inner = self_.inner.lock().await;
         match inner.functions.get(name) {
             None => false,
-            Some(_value) => true
+            Some(_value) => true,
         }
     }
 }

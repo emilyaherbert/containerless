@@ -3,7 +3,7 @@ use crate::error::Error;
 use shared::containerless::cli;
 
 use serde_json::Value as JsonValue;
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 
 pub async fn poll_for_new_dispatcher(old_version: usize) -> Result<(), Error> {
     let interval = Duration::from_secs(1);
@@ -17,7 +17,7 @@ pub async fn poll_for_new_dispatcher(old_version: usize) -> Result<(), Error> {
         let stdout = String::from_utf8(output.stdout)?;
         let _stderr = String::from_utf8(output.stderr)?;
         let next_version = stdout.trim().parse::<usize>()?;
-        if status.success() && next_version == (old_version+1) {
+        if status.success() && next_version == (old_version + 1) {
             break;
         }
         tokio::time::delay_for(interval).await;
@@ -30,7 +30,10 @@ pub async fn poll_for_new_dispatcher(old_version: usize) -> Result<(), Error> {
     return Ok(());
 }
 
-pub async fn run_test_async(name: &str, js_code: &str, js_requests: Vec<(&str, JsonValue)>, rs_requests: Vec<(&str, JsonValue)>) -> Vec<String> {
+pub async fn run_test_async(
+    name: &str, js_code: &str, js_requests: Vec<(&str, JsonValue)>,
+    rs_requests: Vec<(&str, JsonValue)>,
+) -> Vec<String> {
     assert!(
         js_requests.len() > 0,
         "expected at least one pre-tracing request"

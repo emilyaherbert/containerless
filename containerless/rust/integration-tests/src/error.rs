@@ -7,7 +7,7 @@ pub enum Error {
     Timeout,
     FromUtf8Error(std::string::FromUtf8Error),
     ParseIntError(std::num::ParseIntError),
-    Containerless(shared::containerless::error::Error)
+    Containerless(shared::containerless::error::Error),
 }
 
 impl std::convert::From<io::Error> for Error {

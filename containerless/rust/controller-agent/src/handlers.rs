@@ -2,10 +2,10 @@ use super::compiler::Compiler;
 use crate::controller::error::Error;
 
 use shared::common::*;
+use shared::containerless::dispatcher;
+use shared::containerless::storage;
 use shared::file_contents::FileContents;
 use shared::response::*;
-use shared::containerless::storage;
-use shared::containerless::dispatcher;
 
 use bytes;
 use std::env;
@@ -143,11 +143,12 @@ pub async fn shutdown_function_instances(
     }
 }
 
-pub async fn dispatcher_version_handler(compiler: Arc<Compiler>) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn dispatcher_version_handler(
+    compiler: Arc<Compiler>,
+) -> Result<impl warp::Reply, warp::Rejection> {
     let version = compiler.dispatcher_version().await;
     ok_response(version.to_string())
 }
-
 
 pub async fn reset_function(
     name: String, compiler: Arc<Compiler>,

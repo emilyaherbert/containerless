@@ -6,7 +6,7 @@ pub enum Error {
     IO(io::Error),
     Reqwest(reqwest::Error),
     CompileError,
-    Containerless(shared::containerless::error::Error)
+    Containerless(shared::containerless::error::Error),
 }
 
 impl std::fmt::Display for Error {
@@ -15,7 +15,7 @@ impl std::fmt::Display for Error {
             Error::IO(err) => err.fmt(fmt),
             Error::Reqwest(err) => err.fmt(fmt),
             Error::CompileError => fmt.write_str("CompileError"),
-            Error::Containerless(err) => fmt.write_str(&err.info())
+            Error::Containerless(err) => fmt.write_str(&err.info()),
         }
     }
 }
