@@ -55,66 +55,31 @@ pub async fn run_test_async(name: &str, js_code: &str, js_requests: Vec<(&str, J
 
     // Create the function in Containerless
     if let Err(err) = cli::containerless_create(name, js_code, false).await {
-        eprintln!("Error in the test runner: {:?}", err);
-        if let Err(err) = cli::containerless_delete(name).await {
-            eprintln!("Error deleting function in the test runner: {:?}", err);
-        }
-        return results;
+        assert!(false, format!("{:?}", err));
     }
 
     // Send requests to the containerized version
     for req in js_requests.into_iter() {
-        match cli::containerless_invoke(name, req).await {
-            Ok(result) => results.push(result),
-            Err(err) => {
-                eprintln!("Error in the test runner: {:?}", err);
-                if let Err(err) = cli::containerless_delete(name).await {
-                    eprintln!("Error deleting function in the test runner: {:?}", err);
-                }
-                return results;
-            }
-        }
+        let result = cli::containerless_invoke(name, req).await
+            .expect("invoke JavaScript failed");
+        results.push(result);
     }
 
     // Have containerless compile the function and redeploy the dispatcher
-    if let Err(err) = cli::containerless_compile(name).await {
-        eprintln!("Error in the test runner: {:?}", err);
-        if let Err(err) = cli::containerless_delete(name).await {
-            eprintln!("Error deleting function in the test runner: {:?}", err);
-        }
-        return results;
-    }
+    cli::containerless_compile(name).await.expect("compile failed");
 
     // Poll for the new dispatcher
-    if let Err(err) = poll_for_new_dispatcher(old_dispatcher_version).await {
-        eprintln!("Error in the test runner: {:?}", err);
-        if let Err(err) = cli::containerless_delete(name).await {
-            eprintln!("Error deleting function in the test runner: {:?}", err);
-        }
-        return results;
-    }
+    poll_for_new_dispatcher(old_dispatcher_version).await
+        .expect("deadline exceeded waiting for new dispatcher");
 
     // Send requests to the decontainerized version
     for req in rs_requests.into_iter() {
-        match cli::containerless_invoke(name, req).await {
-            Ok(result) => results.push(result),
-            Err(err) => {
-                eprintln!("Error in the test runner: {:?}", err);
-                if let Err(err) = cli::containerless_delete(name).await {
-                    eprintln!("Error deleting function in the test runner: {:?}", err);
-                }
-                return results;
-            }
-        }
+        let result = cli::containerless_invoke(name, req).await
+            .expect("invoke Rust failed");
+        results.push(result);
     }
-
-    // Delete everything!
-    if let Err(err) = cli::containerless_delete(name).await {
-        eprintln!("Error in the test runner: {:?}", err);
-        return results;
-    }
-
-    results
+    
+    return results;
 }
 
 #[allow(unused)]
