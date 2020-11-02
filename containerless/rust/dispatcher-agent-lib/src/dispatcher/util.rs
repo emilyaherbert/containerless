@@ -1,11 +1,10 @@
 use super::types::*;
 use crate::error::*;
-use futures::future::FutureExt;
 use futures::prelude::*;
-use futures_retry::{FutureRetry, RetryPolicy};
-use http::uri::Uri;
 use std::time::Duration;
 use tokio::time::delay_for;
+
+static TRIES: usize = 30;
 
 pub async fn maybe_run<E, F>(flag: bool, f: F) -> Result<(), E>
 where
@@ -18,43 +17,6 @@ where
     }
 }
 
-pub async fn retry_get(
-    client: &HttpClient, mut tries: usize, delay_secs: u64, uri: Uri,
-) -> Result<(), ()> {
-    let mk_req = || {
-        hyper::Request::builder()
-            .uri(uri.clone())
-            .body(hyper::Body::from(""))
-            .unwrap()
-    };
-    let resp_result = FutureRetry::new(
-        move || {
-            client.request(mk_req()).map(|resp| match resp {
-                Ok(resp) => {
-                    if resp.status().is_success() {
-                        Ok(())
-                    } else {
-                        Err(())
-                    }
-                }
-                Err(_err) => Err(()),
-            })
-        },
-        move |err| {
-            if tries == 0 {
-                return RetryPolicy::ForwardError(err);
-            }
-            tries -= 1;
-            return RetryPolicy::WaitRetry(Duration::from_secs(delay_secs));
-        },
-    )
-    .await;
-    return match resp_result {
-        Ok(_) => Ok(()),
-        Err(_) => Err(()),
-    };
-}
-
 pub async fn wait_for_service(
     http_client: &HttpClient, authority: uri::Authority,
 ) -> Result<(), Error> {
@@ -64,10 +26,25 @@ pub async fn wait_for_service(
         .path_and_query("/readinessProbe")
         .build()
         .unwrap();
-    if let Err(_err) = retry_get(http_client, 30, 1, uri).await {
-        return Err(Error::Timeout);
+    let mk_req = || {
+        hyper::Request::builder()
+            .uri(uri.clone())
+            .body(hyper::Body::from(""))
+            .unwrap()
+    };        
+    for _i in 0 .. TRIES {
+        match http_client.request(mk_req()).await {
+            Ok(resp) => {
+                if resp.status().is_success() {
+                    return Ok(());
+                }
+            }
+            Err(_err) => { }
+        }
+        tokio::time::delay_for(std::time::Duration::from_secs(1)).await;
     }
-    return Ok(());
+    eprintln!("Failed to GET {} after {} tries.", &uri, TRIES);
+    return Err(Error::Timeout);
 }
 
 pub async fn log_error<F, E, S>(future: F, message: S)

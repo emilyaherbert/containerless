@@ -1,6 +1,8 @@
 use super::function_manager::FunctionManager;
 use super::types::*;
 use crate::error::Error;
+use std::time::Duration;
+use hyper_timeout::TimeoutConnector;
 
 use shared::containerless::storage;
 
@@ -13,6 +15,7 @@ use std::collections::HashMap;
 struct FunctionTableImpl {
     functions: HashMap<String, FunctionManager>,
     http_client: HttpClient,
+    short_deadline_http_client: HttpClient,
     k8s_client: K8sClient,
 }
 
@@ -32,10 +35,22 @@ impl FunctionTable {
                 .await
                 .expect("initializing k8s client"),
         );
-        let http_client = Arc::new(hyper::Client::new());
+
+        // We use this client to issue requests to serverless functions. So, we expect
+        // responses within 15 seconds.
+        let mut connector = TimeoutConnector::new(hyper::client::HttpConnector::new());
+        connector.set_connect_timeout(Some(Duration::from_secs(15)));
+        let http_client = Arc::new(hyper::Client::builder().build(connector));
+        
+        // We use this client to send readiness probes in a tight loop.
+        let mut connector = TimeoutConnector::new(hyper::client::HttpConnector::new());
+        connector.set_connect_timeout(Some(Duration::from_secs(1)));
+
+        let short_deadline_http_client = Arc::new(hyper::Client::builder().build(connector));
         let inner = FunctionTableImpl {
             functions,
             http_client,
+            short_deadline_http_client,
             k8s_client,
         };
         let upgrade_pending = Arc::new(AtomicBool::new(false));
@@ -72,6 +87,7 @@ impl FunctionTable {
                     let fm = FunctionManager::new(
                         inner.k8s_client.clone(),
                         inner.http_client.clone(),
+                        inner.short_deadline_http_client.clone(),
                         Arc::downgrade(self_),
                         name.to_string(),
                         super::state::CreateMode::Adopt {
@@ -114,6 +130,7 @@ impl FunctionTable {
                 let fm = FunctionManager::new(
                     inner.k8s_client.clone(),
                     inner.http_client.clone(),
+                    inner.short_deadline_http_client.clone(),
                     Arc::downgrade(self_),
                     name.to_string(),
                     super::state::CreateMode::New,

@@ -34,6 +34,7 @@ enum Message {
     },
     CreateFunction {
         name: String,
+        exclusive: bool,
         done: oneshot::Sender<()>,
     },
     ResetFunction {
@@ -217,11 +218,14 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                     .expect("patching dispatcher deployment");
                 info!(target: "controller", "Patched dispatcher deployment");
             }
-            Message::CreateFunction { name, done } => {
+            Message::CreateFunction { name, done, exclusive } => {
                 if known_functions.contains_key(&name) {
                     known_functions.insert(name.clone(), CompileStatus::Error);
                     error!(target: "controller", "creating function {} twice", name);
                     continue;
+                }
+                if exclusive {
+                    known_functions.clear();
                 }
                 known_functions.insert(name.clone(), CompileStatus::Vanilla);
                 done.send(()).expect("sending done");
@@ -487,10 +491,11 @@ impl Compiler {
         }
     }
 
-    pub async fn create_function(&self, name: &str) -> http::StatusCode {
+    pub async fn create_function(&self, name: &str, exclusive: bool) -> http::StatusCode {
         let (send, recv) = oneshot::channel();
         self.send_message_non_blocking(Message::CreateFunction {
             name: name.to_string(),
+            exclusive,
             done: send,
         });
         recv.await.expect("compiler task shutdown");

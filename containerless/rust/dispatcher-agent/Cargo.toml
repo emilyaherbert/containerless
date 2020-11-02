@@ -8,5 +8,5 @@ edition = "2018"
 
 [dependencies]
 dispatcher-agent-lib = { path = "../dispatcher-agent-lib" }
-tokio = { version = "*", features = ["macros", "sync", "signal", "time"] }
+tokio = { version = "*", features = ["rt-threaded", "macros", "sync", "signal", "time"] }
 bumpalo = "*"
