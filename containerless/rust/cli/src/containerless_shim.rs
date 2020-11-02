@@ -20,6 +20,7 @@ impl ContainerlessShim {
         Ok(reqwest::Client::new()
             .post(&format!("{}/create_function/{}", self.controller, name))
             .json(&json!({
+                "exclusive": true,
                 "contents": format!("{}", fs::read_to_string(filename)?.trim())
             }))
             .send()

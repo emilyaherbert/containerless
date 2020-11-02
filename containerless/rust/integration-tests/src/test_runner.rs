@@ -27,15 +27,6 @@ impl TestRunner {
             .await?)
     }
 
-    pub async fn containerless_delete(&self, name: &str) -> Result<std::process::Output, Error> {
-        Ok(Command::new(format!("{}/debug/cli", ROOT.as_str()))
-            .args(vec!("delete", "-n", name))
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output()
-            .await?)
-    }
-
     pub async fn containerless_invoke(&self, name: &str, req: (&str, JsonValue)) -> Result<String, Error> {
         let (path, body) = req;
         let resp = reqwest::Client::new()
@@ -96,14 +87,6 @@ pub async fn run_test_async(name: &str, js_code: &str, js_requests: Vec<(&str, J
         assert!(false, format!("{:?}", err));
     }
 
-    async fn fail_and_delete(runner: TestRunner, name: &str, err: Error) {
-        eprintln!("Error in the test runner: {:?}", err);
-        if let Err(err) = runner.containerless_delete(name).await {
-            eprintln!("Error deleting function in the test runner: {:?}", err);
-        }
-        assert!(false, format!("{:?}", err));
-    }
-
     assert!(
         js_requests.len() > 0,
         "expected at least one pre-tracing request"
@@ -129,51 +112,31 @@ pub async fn run_test_async(name: &str, js_code: &str, js_requests: Vec<(&str, J
 
     // Create the function in Containerless
     if let Err(err) = runner.containerless_create(name, js_code).await {
-        fail_and_delete(runner, name, err).await;
-        return results;
+        assert!(false, format!("{:?}", err));
     }
 
     // Send requests to the containerized version
     for req in js_requests.into_iter() {
-        match runner.containerless_invoke(name, req).await {
-            Ok(result) => results.push(result),
-            Err(err) => {
-                fail_and_delete(runner, name, err).await;
-                return results;
-            }
-        }
+        let result = runner.containerless_invoke(name, req).await
+            .expect("invoke JavaScript failed");
+        results.push(result);
     }
 
     // Have containerless compile the function and redeploy the dispatcher
-    if let Err(err) = runner.containerless_compile(name).await {
-        fail_and_delete(runner, name, err).await;
-        return results;
-    }
+    runner.containerless_compile(name).await.expect("compile failed");
 
     // Poll for the new dispatcher
-    if let Err(err) = runner.poll_for_new_dispatcher(old_dispatcher_version).await {
-        fail_and_delete(runner, name, err).await;
-        return results;
-    }
+    runner.poll_for_new_dispatcher(old_dispatcher_version).await
+        .expect("deadline exceeded waiting for new dispatcher");
 
     // Send requests to the decontainerized version
     for req in rs_requests.into_iter() {
-        match runner.containerless_invoke(name, req).await {
-            Ok(result) => results.push(result),
-            Err(err) => {
-                fail_and_delete(runner, name, err).await;
-                return results;
-            }
-        }
+        let result = runner.containerless_invoke(name, req).await
+            .expect("invoke Rust failed");
+        results.push(result);
     }
 
-    // Delete everything!
-    if let Err(err) = runner.containerless_delete(name).await {
-        fail_and_delete(runner, name, err).await;
-        return results;
-    }
-
-    results
+    return results;
 }
 
 #[allow(unused)]

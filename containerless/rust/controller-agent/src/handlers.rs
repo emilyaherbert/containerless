@@ -53,6 +53,8 @@ pub async fn create_function(
 > {
     info!(target: "controller", "CREATE_FUNCTION {}: entered handler", name);
 
+    let exclusive = contents.exclusive;
+
     // Check that the function name is ok
     let acceptable_chars: Vec<char> = "abcdefghijklmnopqrstuvwxyz1234567890.-".chars().collect();
     if !name.chars().all(|c| acceptable_chars.contains(&c)) {
@@ -80,7 +82,7 @@ pub async fn create_function(
 
     // Add the function to the compiler
     info!(target: "controller", "CREATE_FUNCTION {}: adding to compiler", name);
-    if let Err(err) = add_to_compiler(&name, compiler.clone()).await {
+    if let Err(err) = add_to_compiler(&name, compiler.clone(), exclusive).await {
         error!(target: "controller", "CREATE_FUNCTION {} : Error adding to compiler {:?} ", name, err);
         if let Err(err) = delete_from_storage(&name).await {
             error!(target: "controller", "CREATE_FUNCTION {} : Error deleting from storage {:?} ", name, err);
@@ -191,8 +193,8 @@ async fn add_to_storage(name: &str, contents: FileContents) -> Result<String, Er
     response_into_result(resp.status().as_u16(), resp.text().await?).map_err(Error::Storage)
 }
 
-async fn add_to_compiler(name: &str, compiler: Arc<Compiler>) -> Result<String, Error> {
-    let resp_status = compiler.create_function(&name).await;
+async fn add_to_compiler(name: &str, compiler: Arc<Compiler>, exclusive: bool) -> Result<String, Error> {
+    let resp_status = compiler.create_function(&name, exclusive).await;
     response_into_result(resp_status.as_u16(), format!("Function {} created!", name))
         .map_err(Error::Compiler)
 }
