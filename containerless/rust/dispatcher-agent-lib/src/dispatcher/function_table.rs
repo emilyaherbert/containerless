@@ -103,14 +103,6 @@ impl FunctionTable {
         }
     }
 
-    pub async fn orphan(self_: Arc<FunctionTable>) {
-        let mut inner = self_.inner.lock().await;
-        // Unnecessary sequential awaits
-        for (_name, function_manager) in inner.functions.drain() {
-            function_manager.orphan().await;
-        }
-    }
-
     pub async fn get_function(
         self_: &Arc<FunctionTable>, name: &str,
     ) -> Result<FunctionManager, Error> {
