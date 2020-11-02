@@ -184,7 +184,9 @@ pub async fn list_functions() -> Result<impl warp::Reply, warp::Rejection> {
     }
 }
 
-async fn add_to_compiler(name: &str, compiler: Arc<Compiler>, exclusive: bool) -> Result<String, Error> {
+async fn add_to_compiler(
+    name: &str, compiler: Arc<Compiler>, exclusive: bool,
+) -> Result<String, Error> {
     let resp_status = compiler.create_function(&name, exclusive).await;
     response_into_result(resp_status.as_u16(), format!("Function {} created!", name))
         .map_err(Error::Compiler)

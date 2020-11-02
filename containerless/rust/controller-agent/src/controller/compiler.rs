@@ -218,7 +218,11 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                     .expect("patching dispatcher deployment");
                 info!(target: "controller", "Patched dispatcher deployment");
             }
-            Message::CreateFunction { name, done, exclusive } => {
+            Message::CreateFunction {
+                name,
+                done,
+                exclusive,
+            } => {
                 if known_functions.contains_key(&name) {
                     known_functions.insert(name.clone(), CompileStatus::Error);
                     error!(target: "controller", "creating function {} twice", name);

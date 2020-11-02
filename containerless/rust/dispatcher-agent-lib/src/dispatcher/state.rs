@@ -30,9 +30,7 @@ pub struct State {
 
 impl State {
     pub fn new(
-        name: String,
-        k8s_client: K8sClient,
-        http_client: HttpClient,
+        name: String, k8s_client: K8sClient, http_client: HttpClient,
         short_deadline_http_client: HttpClient,
     ) -> Arc<Self> {
         let tracing_pod_name = format!("function-tracing-{}", &name);
@@ -144,7 +142,11 @@ impl State {
 
         self.k8s_client.new_replica_set(replica_set).await?;
         self.k8s_client.new_service(service).await?;
-        util::wait_for_service(&self.short_deadline_http_client, self.vanilla_authority.clone()).await?;
+        util::wait_for_service(
+            &self.short_deadline_http_client,
+            self.vanilla_authority.clone(),
+        )
+        .await?;
         return Ok(());
     }
 

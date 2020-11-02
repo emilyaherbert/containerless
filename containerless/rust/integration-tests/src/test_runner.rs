@@ -63,25 +63,30 @@ pub async fn run_test_async(
 
     // Send requests to the containerized version
     for req in js_requests.into_iter() {
-        let result = cli::containerless_invoke(name, req).await
+        let result = cli::containerless_invoke(name, req)
+            .await
             .expect("invoke JavaScript failed");
         results.push(result);
     }
 
     // Have containerless compile the function and redeploy the dispatcher
-    cli::containerless_compile(name).await.expect("compile failed");
+    cli::containerless_compile(name)
+        .await
+        .expect("compile failed");
 
     // Poll for the new dispatcher
-    poll_for_new_dispatcher(old_dispatcher_version).await
+    poll_for_new_dispatcher(old_dispatcher_version)
+        .await
         .expect("deadline exceeded waiting for new dispatcher");
 
     // Send requests to the decontainerized version
     for req in rs_requests.into_iter() {
-        let result = cli::containerless_invoke(name, req).await
+        let result = cli::containerless_invoke(name, req)
+            .await
             .expect("invoke Rust failed");
         results.push(result);
     }
-    
+
     return results;
 }
 
