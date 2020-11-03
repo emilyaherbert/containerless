@@ -25,7 +25,6 @@ pub async fn main(decontainerized_functions: HashMap<&'static str, Containerless
 
     info!(target: "dispatcher", "LISTENING");
     shared::net::serve_until_sigterm(routes, 8080).await;
-    //FunctionTable::orphan(state).await;
     info!(target: "dispatcher", "DOWN");
     std::process::exit(0);
 }

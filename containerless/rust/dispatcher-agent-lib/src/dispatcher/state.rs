@@ -424,11 +424,6 @@ impl State {
 
         while let Some(message) = recv_requests.next().await {
             match (mode, message) {
-                (_, Message::Orphan) => {
-                    info!(target: "dispatcher", "orphaned Kubernetes resources for {}", self_.name);
-                    autoscaler.terminate();
-                    return Ok(());
-                }
                 (_, Message::Shutdown(send_complete)) => {
                     if send_complete.is_canceled() {
                         error!(target: "dispatcher", "trying to send when the reciever is already dropped");

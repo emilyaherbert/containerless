@@ -75,13 +75,6 @@ impl FunctionManager {
         }
     }
 
-    pub async fn orphan(mut self) {
-        self.send_requests
-            .send(Message::Orphan)
-            .await
-            .unwrap_or_else(|_| panic!("error sending Message::Orphan for {}", self.state.name));
-    }
-
     pub async fn invoke(
         &mut self, method: http::Method, path_and_query: &str, body: hyper::Body,
     ) -> Result<Response, hyper::Error> {
