@@ -51,8 +51,7 @@ impl Storage {
                 name
             )))
         } else {
-            self.files
-                .insert(name.to_string(), record);
+            self.files.insert(name.to_string(), record);
             Ok(name.to_string())
         }
     }

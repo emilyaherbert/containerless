@@ -3,8 +3,8 @@ use crate::error::Error;
 use shared::common::*;
 use shared::containerless::cli;
 
-use tokio::process::Command;
 use std::process::Stdio;
+use tokio::process::Command;
 
 use std::fs::File;
 use std::io::prelude::*;
@@ -15,7 +15,7 @@ pub struct WrkOptions {
     pub duration: usize,
     pub threads: usize,
     pub script_filename: Option<String>,
-    pub save_wrk_output: bool
+    pub save_wrk_output: bool,
 }
 
 /*
@@ -31,17 +31,7 @@ async fn wrk_run(url: &str, wrk_options: WrkOptions) -> Result<(String, String),
     let c = wrk_options.connections.to_string();
     let d = wrk_options.duration.to_string();
     let t = wrk_options.threads.to_string();
-    let mut args = vec![
-        "-c",
-        &c,
-        "-d",
-        &d,
-        "-t",
-        &t,
-        url,
-        "--supress",
-        "--per_req"
-    ];
+    let mut args = vec!["-c", &c, "-d", &d, "-t", &t, url, "--supress", "--per_req"];
     // rust strings suck
     let mut f = "".to_string();
     if let Some(filename) = wrk_options.script_filename {
@@ -61,18 +51,26 @@ async fn wrk_run(url: &str, wrk_options: WrkOptions) -> Result<(String, String),
     Ok((stdout, stderr))
 }
 
-async fn run_one_mode(name: &str, js_code: &str, url: &str, wrk_options: WrkOptions, containers_only: bool, output_path: &str) -> Option<String> {
-
-    let run_name = format!("{}_{}_{}_{}_{}",
+async fn run_one_mode(
+    name: &str, js_code: &str, url: &str, wrk_options: WrkOptions, containers_only: bool,
+    output_path: &str,
+) -> Option<String> {
+    let run_name = format!(
+        "{}_{}_{}_{}_{}",
         name,
         wrk_options.connections,
         wrk_options.duration,
         wrk_options.threads,
-        if containers_only { "vanilla" } else { "tracing" });
+        if containers_only {
+            "vanilla"
+        } else {
+            "tracing"
+        }
+    );
 
     // Create output path for data
     Command::new("mkdir")
-        .args(vec!("--parents", &output_path))
+        .args(vec!["--parents", &output_path])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .output()
@@ -85,7 +83,8 @@ async fn run_one_mode(name: &str, js_code: &str, url: &str, wrk_options: WrkOpti
     }
 
     // Hammer the function using wrk
-    let (stdout, _stderr) = wrk_run(url, wrk_options.clone()).await
+    let (stdout, _stderr) = wrk_run(url, wrk_options.clone())
+        .await
         .expect("Invoking with wrk failed.");
 
     // If applicable, save the output from wrk
@@ -98,17 +97,36 @@ async fn run_one_mode(name: &str, js_code: &str, url: &str, wrk_options: WrkOpti
     Some("Done!".to_string())
 }
 
-async fn run_benchmark_async(name:&str, js_code: &str, url: &str, wrk_options: WrkOptions) -> Option<String> {
+async fn run_benchmark_async(
+    name: &str, js_code: &str, url: &str, wrk_options: WrkOptions,
+) -> Option<String> {
+    let output_path_vanilla = format!(
+        "{}/../benchmarks/data/latency/{}/vanilla",
+        ROOT.as_str(),
+        name
+    );
+    run_one_mode(
+        name,
+        js_code,
+        url,
+        wrk_options.clone(),
+        true,
+        &output_path_vanilla,
+    )
+    .await?;
 
-    let output_path_vanilla = format!("{}/../benchmarks/data/latency/{}/vanilla", ROOT.as_str(), name);
-    run_one_mode(name, js_code, url, wrk_options.clone(), true, &output_path_vanilla).await?;
-
-    let output_path_tracing = format!("{}/../benchmarks/data/latency/{}/tracing", ROOT.as_str(), name);
+    let output_path_tracing = format!(
+        "{}/../benchmarks/data/latency/{}/tracing",
+        ROOT.as_str(),
+        name
+    );
     run_one_mode(name, js_code, url, wrk_options, false, &output_path_tracing).await
 }
 
 #[allow(unused)]
-pub fn run_benchmark(name:&str, js_code: &str, url: &str, wrk_options: WrkOptions) -> Option<String> {
+pub fn run_benchmark(
+    name: &str, js_code: &str, url: &str, wrk_options: WrkOptions,
+) -> Option<String> {
     let mut rt = tokio::runtime::Runtime::new().expect("creating Tokio runtime");
     rt.block_on(run_benchmark_async(name, js_code, url, wrk_options))
 }

@@ -1,5 +1,5 @@
-use hyper::Response;
 use hyper::header::HeaderValue;
+use hyper::Response;
 
 pub fn ok_response(
     body: String,
@@ -11,8 +11,7 @@ pub fn ok_response(
 }
 
 pub fn ok_response_with_containerless_mode(
-    body: String,
-    mode: String
+    body: String, mode: String,
 ) -> Result<
     std::result::Result<http::response::Response<std::string::String>, http::Error>,
     warp::Rejection,
@@ -20,7 +19,7 @@ pub fn ok_response_with_containerless_mode(
     let mut resp = Response::builder().status(200).body(body).unwrap();
     resp.headers_mut().insert(
         "X-Containerless-Mode",
-        HeaderValue::from_str(&mode).unwrap()
+        HeaderValue::from_str(&mode).unwrap(),
     );
     Ok(Ok(resp))
 }

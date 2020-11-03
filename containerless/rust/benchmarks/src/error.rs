@@ -3,7 +3,7 @@ use std::io;
 #[derive(Debug)]
 pub enum Error {
     IO(io::Error),
-    FromUtf8Error(std::string::FromUtf8Error)
+    FromUtf8Error(std::string::FromUtf8Error),
 }
 
 impl std::convert::From<io::Error> for Error {

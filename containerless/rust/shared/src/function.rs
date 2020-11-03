@@ -14,5 +14,5 @@ pub struct FunctionOptions {
 
 pub struct Function {
     pub opts: FunctionOptions,
-    pub contents: FunctionContents
+    pub contents: FunctionContents,
 }

@@ -3,7 +3,7 @@ use super::benchmark_runner;
 
 #[test]
 fn sanity_check() {
-    let code =r#"
+    let code = r#"
         let containerless = require("containerless");
         containerless.listen(function(req) {
             containerless.respond("Hello, world!");
@@ -15,11 +15,11 @@ fn sanity_check() {
     let name = "sanity";
 
     let wrk_options = benchmark_runner::WrkOptions {
-        connections: connections,
-        duration: duration,
-        threads: threads,
+        connections,
+        duration,
+        threads,
         script_filename: Some("run.lua".to_string()),
-        save_wrk_output: true
+        save_wrk_output: true,
     };
 
     let result = benchmark_runner::run_benchmark(&name, code, "http://google.com", wrk_options);
@@ -29,7 +29,7 @@ fn sanity_check() {
 
 #[test]
 fn hello_world() {
-    let code =r#"
+    let code = r#"
         let containerless = require("containerless");
         containerless.listen(function(req) {
             containerless.hello();
@@ -41,14 +41,19 @@ fn hello_world() {
     let name = "helloworld";
 
     let wrk_options = benchmark_runner::WrkOptions {
-        connections: connections,
-        duration: duration,
-        threads: threads,
+        connections,
+        duration,
+        threads,
         script_filename: Some("run.lua".to_string()),
-        save_wrk_output: true
+        save_wrk_output: true,
     };
 
-    let result = benchmark_runner::run_benchmark(&name, code, "http://localhost/dispatcher/helloworld", wrk_options);
+    let result = benchmark_runner::run_benchmark(
+        &name,
+        code,
+        "http://localhost/dispatcher/helloworld",
+        wrk_options,
+    );
 
     assert_eq!(result, Some("Done!".to_string()));
 }
@@ -184,14 +189,19 @@ fn autocomplete() {
     let name = "autocomplete";
 
     let wrk_options = benchmark_runner::WrkOptions {
-        connections: connections,
-        duration: duration,
-        threads: threads,
+        connections,
+        duration,
+        threads,
         script_filename: Some("autocomplete.lua".to_string()),
-        save_wrk_output: true
+        save_wrk_output: true,
     };
 
-    let result = benchmark_runner::run_benchmark(&name, code, "http://localhost/dispatcher/autocomplete", wrk_options);
+    let result = benchmark_runner::run_benchmark(
+        &name,
+        code,
+        "http://localhost/dispatcher/autocomplete",
+        wrk_options,
+    );
 
     assert_eq!(result, Some("Done!".to_string()));
 }

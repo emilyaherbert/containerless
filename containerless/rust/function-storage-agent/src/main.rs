@@ -3,9 +3,9 @@ extern crate log;
 
 mod error;
 mod handlers;
+mod record;
 mod routes;
 mod storage;
-mod record;
 
 use shared;
 use storage::Storage;

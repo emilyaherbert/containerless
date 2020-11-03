@@ -1,5 +1,5 @@
-use crate::storage::SharedStorage;
 use crate::record::Record;
+use crate::storage::SharedStorage;
 
 use shared::function::*;
 use shared::response::*;
@@ -27,8 +27,11 @@ pub async fn get_function(
             } else {
                 "tracing"
             };
-            ok_response_with_containerless_mode(file.contents.contents, containerless_mode.to_string())
-        },
+            ok_response_with_containerless_mode(
+                file.contents.contents,
+                containerless_mode.to_string(),
+            )
+        }
     }
 }
 

@@ -91,7 +91,7 @@ impl FunctionTable {
                     // Therefore we know that when benchmarking any containers that are
                     // adopted are stale tracing containers.
                     let opts = FunctionOptions {
-                        containers_only: false
+                        containers_only: false,
                     };
                     let fm = FunctionManager::new(
                         inner.k8s_client.clone(),
@@ -138,7 +138,7 @@ impl FunctionTable {
                 // Check to see if the function is available in storage
                 storage::get_internal(name).await?;
                 let opts = FunctionOptions {
-                    containers_only: false
+                    containers_only: false,
                 };
                 let fm = FunctionManager::new(
                     inner.k8s_client.clone(),

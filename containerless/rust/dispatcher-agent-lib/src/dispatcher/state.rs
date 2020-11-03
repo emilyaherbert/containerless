@@ -7,9 +7,9 @@ use crate::error::*;
 
 use shared::function::*;
 
-use std::time::{Duration, Instant};
 use futures::prelude::*;
 use hyper::header::HeaderValue;
+use std::time::{Duration, Instant};
 use tokio::task;
 
 #[derive(Debug, PartialEq)]
@@ -393,8 +393,8 @@ impl State {
     pub async fn function_manager_task(
         self_: Arc<State>, mut recv_requests: mpsc::Receiver<Message>,
         function_table: Weak<FunctionTable>, create_mode: CreateMode,
-        function_opts: FunctionOptions,
-        containerless: Option<Containerless>, upgrade_pending: Arc<AtomicBool>,
+        function_opts: FunctionOptions, containerless: Option<Containerless>,
+        upgrade_pending: Arc<AtomicBool>,
     ) -> Result<(), Error> {
         /*
         let started_tracing_container = Self::maybe_start_tracing(
@@ -439,7 +439,7 @@ impl State {
         let mut mode = match (function_opts.containers_only, containerless) {
             (true, _) => Mode::Vanilla,
             (false, None) => Mode::Tracing(0),
-            (false, Some(f)) => Mode::Decontainerized(f)
+            (false, Some(f)) => Mode::Decontainerized(f),
         };
 
         while let Some(message) = recv_requests.next().await {
