@@ -10,6 +10,7 @@ pub async fn create_function(name: &str, filename: &str) -> Result<String, Error
             name
         ))
         .json(&json!({
+            "exclusive": true,
             "contents": format!("{}", fs::read_to_string(filename)?.trim())
         }))
         .send()
