@@ -2,10 +2,12 @@ use crate::containerless::error::Error;
 use crate::response::*;
 
 pub async fn invoke(name: &str) -> Result<String, Error> {
-    Ok(reqwest::get(&format!("http://localhost/dispatcher/{}/foo", name))
-        .await?
-        .text()
-        .await?)
+    Ok(
+        reqwest::get(&format!("http://localhost/dispatcher/{}/foo", name))
+            .await?
+            .text()
+            .await?,
+    )
 }
 
 pub async fn compile(name: &str) -> Result<String, Error> {

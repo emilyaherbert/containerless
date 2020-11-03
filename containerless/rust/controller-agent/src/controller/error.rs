@@ -24,7 +24,7 @@ impl Error {
             Error::Dispatcher(info) => info.to_owned(),
             Error::Containerless(info) => info.to_owned(),
             Error::Parsing(info) => info.to_owned(),
-            error => format!("{:?}", error)
+            error => format!("{:?}", error),
         }
     }
 }

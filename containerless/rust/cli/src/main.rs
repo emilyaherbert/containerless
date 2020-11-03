@@ -26,7 +26,7 @@ enum SubCommand {
     List(List),
     Invoke(Invoke),
     DispatcherVersion(DispatcherVersion),
-    Compile(Compile)
+    Compile(Compile),
 }
 
 /// Creates a function.
@@ -133,11 +133,11 @@ async fn main() {
         SubCommand::Invoke(t) => {
             let output = dispatcher::invoke(&t.name).await.unwrap();
             println!("{}", output);
-        },
+        }
         SubCommand::DispatcherVersion(_t) => {
             let output = controller::dispatcher_version().await.unwrap();
             println!("{}", output);
-        },
+        }
         SubCommand::Compile(t) => {
             let output = dispatcher::compile(&t.name).await.unwrap();
             println!("{}", output);

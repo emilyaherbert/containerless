@@ -30,9 +30,7 @@ pub struct State {
 
 impl State {
     pub fn new(
-        name: String,
-        k8s_client: K8sClient,
-        http_client: HttpClient,
+        name: String, k8s_client: K8sClient, http_client: HttpClient,
         short_deadline_http_client: HttpClient,
     ) -> Arc<Self> {
         let tracing_pod_name = format!("function-tracing-{}", &name);
@@ -144,7 +142,11 @@ impl State {
 
         self.k8s_client.new_replica_set(replica_set).await?;
         self.k8s_client.new_service(service).await?;
-        util::wait_for_service(&self.short_deadline_http_client, self.vanilla_authority.clone()).await?;
+        util::wait_for_service(
+            &self.short_deadline_http_client,
+            self.vanilla_authority.clone(),
+        )
+        .await?;
         return Ok(());
     }
 
@@ -428,7 +430,9 @@ impl State {
                 (_, Message::Shutdown(send_complete)) => {
                     if send_complete.is_canceled() {
                         error!(target: "dispatcher", "trying to send when the reciever is already dropped");
-                        return Err(Error::FunctionManagerTask("reciever is already dropped".to_string()));
+                        return Err(Error::FunctionManagerTask(
+                            "reciever is already dropped".to_string(),
+                        ));
                     } else {
                         send_complete
                             .send(State::shutdown(self_, mode).await)

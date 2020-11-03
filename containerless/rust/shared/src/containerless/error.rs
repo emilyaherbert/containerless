@@ -9,7 +9,7 @@ pub enum Error {
     FromUtf8Error(std::string::FromUtf8Error),
     ParseIntError(std::num::ParseIntError),
     Storage(String),
-    Dispatcher(String)
+    Dispatcher(String),
 }
 
 impl Error {
@@ -22,7 +22,7 @@ impl Error {
         match self {
             Error::Storage(info) => info.to_owned(),
             Error::Dispatcher(info) => info.to_owned(),
-            error => format!("internal containerless error: {:?}", error)
+            error => format!("internal containerless error: {:?}", error),
         }
     }
 }

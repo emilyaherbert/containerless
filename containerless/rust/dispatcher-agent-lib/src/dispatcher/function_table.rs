@@ -1,8 +1,8 @@
 use super::function_manager::FunctionManager;
 use super::types::*;
 use crate::error::Error;
-use std::time::Duration;
 use hyper_timeout::TimeoutConnector;
+use std::time::Duration;
 
 use shared::response::*;
 
@@ -41,7 +41,7 @@ impl FunctionTable {
         let mut connector = TimeoutConnector::new(hyper::client::HttpConnector::new());
         connector.set_connect_timeout(Some(Duration::from_secs(15)));
         let http_client = Arc::new(hyper::Client::builder().build(connector));
-        
+
         // We use this client to send readiness probes in a tight loop.
         let mut connector = TimeoutConnector::new(hyper::client::HttpConnector::new());
         connector.set_connect_timeout(Some(Duration::from_secs(1)));
@@ -164,13 +164,11 @@ impl FunctionTable {
         }
     }
 
-    pub async fn function_manager_exists(
-        self_: &Arc<FunctionTable>, name: &str,
-    ) -> bool {
+    pub async fn function_manager_exists(self_: &Arc<FunctionTable>, name: &str) -> bool {
         let inner = self_.inner.lock().await;
         match inner.functions.get(name) {
             None => false,
-            Some(_value) => true
+            Some(_value) => true,
         }
     }
 }

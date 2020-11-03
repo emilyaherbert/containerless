@@ -31,15 +31,15 @@ pub async fn wait_for_service(
             .uri(uri.clone())
             .body(hyper::Body::from(""))
             .unwrap()
-    };        
-    for _i in 0 .. TRIES {
+    };
+    for _i in 0..TRIES {
         match http_client.request(mk_req()).await {
             Ok(resp) => {
                 if resp.status().is_success() {
                     return Ok(());
                 }
             }
-            Err(err) => { }
+            Err(err) => {}
         }
         tokio::time::delay_for(std::time::Duration::from_secs(1)).await;
     }

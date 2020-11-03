@@ -1,6 +1,6 @@
-use crate::response::*;
 use crate::containerless::error::Error;
 use crate::file_contents::FileContents;
+use crate::response::*;
 
 pub async fn list() -> Result<String, Error> {
     let resp = reqwest::get("http://localhost/storage/list_functions").await?;

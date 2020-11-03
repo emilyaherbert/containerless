@@ -32,7 +32,7 @@ impl Error {
         match self {
             Error::Storage(info) => info.to_owned(),
             Error::Controller(info) => info.to_owned(),
-            error => error.to_string()
+            error => error.to_string(),
         }
     }
 }

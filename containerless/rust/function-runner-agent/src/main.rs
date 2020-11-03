@@ -34,8 +34,14 @@ async fn wait_for_http_server() -> Result<(), error::Error> {
 async fn monitor_nodejs_process(function_name: &str, handle: process::Child) -> () {
     let exit_code = handle.await.expect("error waiting for nodejs process");
     match exit_code.code() {
-        Some(code) => eprintln!("MONITOR {}: nodejs process terminated with exit code {}", function_name, code),
-        None => eprintln!("MONITOR {}: nodejs process terminated by signal", function_name),
+        Some(code) => eprintln!(
+            "MONITOR {}: nodejs process terminated with exit code {}",
+            function_name, code
+        ),
+        None => eprintln!(
+            "MONITOR {}: nodejs process terminated by signal",
+            function_name
+        ),
     }
     std::process::exit(1);
 }
@@ -52,7 +58,11 @@ async fn initialize(function_name: String, tracing_enabled: bool) -> Result<(), 
     }
 
     let function_code = resp.text().await?;
-    eprintln!("INITIALIZE {}: downloaded function ({} bytes)", function_name, function_code.len());
+    eprintln!(
+        "INITIALIZE {}: downloaded function ({} bytes)",
+        function_name,
+        function_code.len()
+    );
 
     // Write the serverless function to a file. This is needed whether or
     // not we are tracing.
@@ -65,10 +75,18 @@ async fn initialize(function_name: String, tracing_enabled: bool) -> Result<(), 
             .stderr(Stdio::inherit())
             .output()
             .await?;
-        eprintln!("INITIALIZE {}: js-transform stderr: {}", function_name, String::from_utf8_lossy(&output.stderr));
+        eprintln!(
+            "INITIALIZE {}: js-transform stderr: {}",
+            function_name,
+            String::from_utf8_lossy(&output.stderr)
+        );
         if output.status.success() == false {
             println!("{}", String::from_utf8_lossy(&output.stdout));
-            eprintln!("INITIALIZE {}: js-transform stdout: {}", function_name, String::from_utf8_lossy(&output.stdout));
+            eprintln!(
+                "INITIALIZE {}: js-transform stdout: {}",
+                function_name,
+                String::from_utf8_lossy(&output.stdout)
+            );
             return Err(error::Error::CompileError);
         }
 
@@ -90,9 +108,15 @@ async fn initialize(function_name: String, tracing_enabled: bool) -> Result<(), 
             .spawn()?,
     };
 
-    eprintln!("INITIALIZE {}: waiting for http server to come up", function_name);
+    eprintln!(
+        "INITIALIZE {}: waiting for http server to come up",
+        function_name
+    );
     wait_for_http_server().await?;
-    eprintln!("INITIALIZE {}: spawning child process to monitor function", function_name);
+    eprintln!(
+        "INITIALIZE {}: spawning child process to monitor function",
+        function_name
+    );
     task::spawn(async move { monitor_nodejs_process(&function_name, nodejs_process).await });
     return Ok(());
 }
@@ -126,7 +150,6 @@ async fn trace() -> WarpResult<impl warp::Reply> {
 
 #[tokio::main]
 async fn main() {
-
     let function_name = env::var("FUNCTION_NAME").expect("envvar FUNCTION_NAME should be set");
     let function_mode = env::var("FUNCTION_MODE").expect("envvar FUNCTION_MODE should be set");
     let tracing_enabled = match function_mode.as_str() {
@@ -135,7 +158,10 @@ async fn main() {
         _ => panic!("envvar FUNCTION_MODE must be \"vanilla\" or \"tracing\""),
     };
 
-    eprintln!("UP {}: pod up (tracing enabled: {})", &function_name, tracing_enabled);
+    eprintln!(
+        "UP {}: pod up (tracing enabled: {})",
+        &function_name, tracing_enabled
+    );
 
     if let Err(err) = initialize(function_name.clone(), tracing_enabled).await {
         eprintln!("Error during initialization: {}", err);
@@ -146,5 +172,8 @@ async fn main() {
     let paths = status_route.or(get_trace_route);
 
     shared::net::serve_until_sigterm(paths, 8080).await;
-    eprintln!("DOWN {}: pod down (tracing enabled: {})", &function_name, tracing_enabled);
+    eprintln!(
+        "DOWN {}: pod down (tracing enabled: {})",
+        &function_name, tracing_enabled
+    );
 }
