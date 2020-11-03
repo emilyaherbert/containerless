@@ -12,7 +12,6 @@ warp = "*"
 hyper = "*"
 k8s = { path = "../k8s" }
 tokio = { version = "*", features = ["macros", "sync", "signal", "process"] }
-log = "*"
 kube = "*"
 futures = "*"
 regex = "*"
@@ -26,5 +25,4 @@ quote = "*"
 proc-macro2 = "*"
 syn = "*"
 http = "*"
-reqwest = { version = "0.10.8", features = ["json"] }
 env_logger = "*"

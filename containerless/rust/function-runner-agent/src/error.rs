@@ -6,7 +6,7 @@ pub enum Error {
     IO(io::Error),
     Reqwest(reqwest::Error),
     CompileError,
-    FileNotFound,
+    Containerless(shared::containerless::error::Error),
 }
 
 impl std::fmt::Display for Error {
@@ -15,7 +15,7 @@ impl std::fmt::Display for Error {
             Error::IO(err) => err.fmt(fmt),
             Error::Reqwest(err) => err.fmt(fmt),
             Error::CompileError => fmt.write_str("CompileError"),
-            Error::FileNotFound => fmt.write_str("FileNotFound"),
+            Error::Containerless(err) => fmt.write_str(&err.info()),
         }
     }
 }
@@ -37,5 +37,11 @@ impl std::convert::From<(reqwest::Error, usize)> for Error {
 impl std::convert::From<reqwest::Error> for Error {
     fn from(error: reqwest::Error) -> Error {
         return Error::Reqwest(error);
+    }
+}
+
+impl std::convert::From<shared::containerless::error::Error> for Error {
+    fn from(error: shared::containerless::error::Error) -> Error {
+        return Error::Containerless(error);
     }
 }

@@ -102,10 +102,6 @@ impl Autoscaler {
         return autoscaler;
     }
 
-    pub fn terminate(&self) {
-        self.terminated.store(true, SeqCst);
-    }
-
     pub fn recv_req(&self) {
         self.pending_requests.fetch_add(1, SeqCst);
     }

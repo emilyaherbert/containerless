@@ -34,6 +34,7 @@ enum Message {
     },
     CreateFunction {
         name: String,
+        exclusive: bool,
         done: oneshot::Sender<()>,
     },
     ResetFunction {
@@ -42,8 +43,8 @@ enum Message {
         new_dispatcher_deployed: oneshot::Sender<()>,
     },
     GetDispatcherVersion {
-        done: oneshot::Sender<usize>
-    }
+        done: oneshot::Sender<usize>,
+    },
 }
 
 #[derive(PartialEq)]
@@ -152,6 +153,30 @@ fn generate_decontainerized_functions_mod(known_functions: &HashMap<String, Comp
     .expect("cannot write function table file");
 }
 
+async fn wait_for_dispatcher_patch_to_complete(
+    k8s: &k8s::Client, desired_version: usize,
+) -> Result<(), Error> {
+    let interval = Duration::from_secs(1);
+    let timeout = Duration::from_secs(60);
+    let end_time = Instant::now() + timeout;
+    let label = format!("app=dispatcher,version={}", desired_version);
+    loop {
+        let dispatcher_pods = k8s
+            .list_pods_by_label_and_field(label.clone(), "status.phase=Running")
+            .await?;
+        if dispatcher_pods.len() == 1 {
+            return Ok(());
+        }
+        tokio::time::delay_for(interval).await;
+        if Instant::now() >= end_time {
+            break;
+        }
+    }
+    return Err(Error::Containerless(
+        "Could not patch dispatcher deployment.".to_string(),
+    ));
+}
+
 async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver<Message>) {
     let k8s = k8s::Client::from_kubeconfig_file(NAMESPACE)
         .await
@@ -193,11 +218,18 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                     .expect("patching dispatcher deployment");
                 info!(target: "controller", "Patched dispatcher deployment");
             }
-            Message::CreateFunction { name, done } => {
+            Message::CreateFunction {
+                name,
+                done,
+                exclusive,
+            } => {
                 if known_functions.contains_key(&name) {
                     known_functions.insert(name.clone(), CompileStatus::Error);
                     error!(target: "controller", "creating function {} twice", name);
                     continue;
+                }
+                if exclusive {
+                    known_functions.clear();
                 }
                 known_functions.insert(name.clone(), CompileStatus::Vanilla);
                 done.send(()).expect("sending done");
@@ -245,6 +277,7 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                             generate_decontainerized_functions_mod(&known_functions);
                             if !(compiler.cargo_build(Some(started_compiling)).await) {
                                 known_functions.insert(name.clone(), CompileStatus::Error);
+                                generate_decontainerized_functions_mod(&known_functions);
                                 error!(target: "controller", "The code for dispatcher-agent is in a broken state. The system may not work.");
                                 continue;
                             }
@@ -253,33 +286,6 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                                 .await
                                 .expect("patching dispatcher deployment");
                             info!(target: "controller", "Patched dispatcher deployment");
-
-                            async fn wait_for_dispatcher_patch_to_complete(
-                                k8s: &k8s::Client, desired_version: usize,
-                            ) -> Result<(), Error> {
-                                let interval = Duration::from_secs(1);
-                                let timeout = Duration::from_secs(60);
-                                let end_time = Instant::now() + timeout;
-                                let label = format!("app=dispatcher,version={}", desired_version);
-                                loop {
-                                    let dispatcher_pods = k8s
-                                        .list_pods_by_label_and_field(
-                                            label.clone(),
-                                            "status.phase=Running",
-                                        )
-                                        .await?;
-                                    if dispatcher_pods.len() == 1 {
-                                        return Ok(());
-                                    }
-                                    tokio::time::delay_for(interval).await;
-                                    if Instant::now() >= end_time {
-                                        break;
-                                    }
-                                }
-                                return Err(Error::Containerless(
-                                    "Could not patch dispatcher deployment.".to_string(),
-                                ));
-                            }
 
                             if let Err(err) =
                                 wait_for_dispatcher_patch_to_complete(&k8s, next_version).await
@@ -352,7 +358,7 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                 info!(target: "controller", "ending compiler task (received shutdown message)");
                 done.send(()).expect("sending done");
                 return;
-            },
+            }
             Message::GetDispatcherVersion { done } => {
                 // I don't think this is quite right.....
                 loop {
@@ -364,7 +370,7 @@ async fn compiler_task(compiler: Arc<Compiler>, mut recv_message: mpsc::Receiver
                             }
                             done.send(status.observed_generation).expect("sending done");
                             break; // break from inner loop
-                        },
+                        }
                         Err(err) => {
                             error!(target: "controller", "error getting dispatcher version {:?}", err);
                             break; // break from inner loop
@@ -489,10 +495,11 @@ impl Compiler {
         }
     }
 
-    pub async fn create_function(&self, name: &str) -> http::StatusCode {
+    pub async fn create_function(&self, name: &str, exclusive: bool) -> http::StatusCode {
         let (send, recv) = oneshot::channel();
         self.send_message_non_blocking(Message::CreateFunction {
             name: name.to_string(),
+            exclusive,
             done: send,
         });
         recv.await.expect("compiler task shutdown");
@@ -501,9 +508,7 @@ impl Compiler {
 
     pub async fn dispatcher_version(&self) -> usize {
         let (send, recv) = oneshot::channel();
-        self.send_message_non_blocking(Message::GetDispatcherVersion {
-            done: send,
-        });
+        self.send_message_non_blocking(Message::GetDispatcherVersion { done: send });
         recv.await.unwrap()
     }
 }

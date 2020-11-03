@@ -134,8 +134,9 @@ fn list_functions_route() -> impl Filter<Extract = impl warp::Reply, Error = war
         .and_then(handlers::list_functions)
 }
 
-fn dispatcher_version_route(compiler: Arc<Compiler>,) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone
-{
+fn dispatcher_version_route(
+    compiler: Arc<Compiler>,
+) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::path!("dispatcher_version")
         .and(warp::get())
         .and(with_compiler(compiler))

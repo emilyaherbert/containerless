@@ -1,8 +1,10 @@
 use super::function_manager::FunctionManager;
 use super::types::*;
 use crate::error::Error;
+use hyper_timeout::TimeoutConnector;
+use std::time::Duration;
 
-use shared::response::*;
+use shared::containerless::storage;
 use shared::function::*;
 
 use futures::lock::Mutex;
@@ -14,6 +16,7 @@ use std::collections::HashMap;
 struct FunctionTableImpl {
     functions: HashMap<String, FunctionManager>,
     http_client: HttpClient,
+    short_deadline_http_client: HttpClient,
     k8s_client: K8sClient,
 }
 
@@ -33,10 +36,22 @@ impl FunctionTable {
                 .await
                 .expect("initializing k8s client"),
         );
-        let http_client = Arc::new(hyper::Client::new());
+
+        // We use this client to issue requests to serverless functions. So, we expect
+        // responses within 15 seconds.
+        let mut connector = TimeoutConnector::new(hyper::client::HttpConnector::new());
+        connector.set_connect_timeout(Some(Duration::from_secs(15)));
+        let http_client = Arc::new(hyper::Client::builder().build(connector));
+
+        // We use this client to send readiness probes in a tight loop.
+        let mut connector = TimeoutConnector::new(hyper::client::HttpConnector::new());
+        connector.set_connect_timeout(Some(Duration::from_secs(1)));
+
+        let short_deadline_http_client = Arc::new(hyper::Client::builder().build(connector));
         let inner = FunctionTableImpl {
             functions,
             http_client,
+            short_deadline_http_client,
             k8s_client,
         };
         let upgrade_pending = Arc::new(AtomicBool::new(false));
@@ -81,6 +96,7 @@ impl FunctionTable {
                     let fm = FunctionManager::new(
                         inner.k8s_client.clone(),
                         inner.http_client.clone(),
+                        inner.short_deadline_http_client.clone(),
                         Arc::downgrade(self_),
                         name.to_string(),
                         opts,
@@ -113,14 +129,6 @@ impl FunctionTable {
         }
     }
 
-    pub async fn orphan(self_: Arc<FunctionTable>) {
-        let mut inner = self_.inner.lock().await;
-        // Unnecessary sequential awaits
-        for (_name, function_manager) in inner.functions.drain() {
-            function_manager.orphan().await;
-        }
-    }
-
     pub async fn get_function(
         self_: &Arc<FunctionTable>, name: &str,
     ) -> Result<FunctionManager, Error> {
@@ -128,23 +136,14 @@ impl FunctionTable {
         match inner.functions.get(name) {
             None => {
                 // Check to see if the function is available in storage
-                let storage_resp =
-                    reqwest::get(&format!("http://storage:8080/get_function/{}", name)).await?;
-                let containers_only = match storage_resp.headers().get("X-Containerless-Mode") {
-                    Some(mode) => mode == "disable-tracing",
-                    None => false
-                };
-                if let Err(err) =
-                    response_into_result(storage_resp.status().as_u16(), storage_resp.text().await?)
-                {
-                    return Err(Error::Storage(format!("{:?}", err)));
-                }
+                storage::get_internal(name).await?;
                 let opts = FunctionOptions {
-                    containers_only: containers_only
+                    containers_only: false
                 };
                 let fm = FunctionManager::new(
                     inner.k8s_client.clone(),
                     inner.http_client.clone(),
+                    inner.short_deadline_http_client.clone(),
                     Arc::downgrade(self_),
                     name.to_string(),
                     opts,
@@ -165,13 +164,11 @@ impl FunctionTable {
         }
     }
 
-    pub async fn function_manager_exists(
-        self_: &Arc<FunctionTable>, name: &str,
-    ) -> bool {
+    pub async fn function_manager_exists(self_: &Arc<FunctionTable>, name: &str) -> bool {
         let inner = self_.inner.lock().await;
         match inner.functions.get(name) {
             None => false,
-            Some(_value) => true
+            Some(_value) => true,
         }
     }
 }

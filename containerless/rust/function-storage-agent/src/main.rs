@@ -7,8 +7,8 @@ mod routes;
 mod storage;
 mod record;
 
-use storage::Storage;
 use shared;
+use storage::Storage;
 
 // Based on:
 // https://github.com/seanmonstar/warp/blob/master/examples/todos.rs

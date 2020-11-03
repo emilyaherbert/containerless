@@ -101,7 +101,7 @@ data:
         Path              /var/log/containers/*.log
         Parser            docker
         DB                /var/log/flb_kube.db
-        Mem_Buf_Limit     5MB
+        Mem_Buf_Limit     1024MB
         Skip_Long_Lines   On
         Refresh_Interval  10
 
@@ -191,7 +191,7 @@ spec:
     spec:
       containers:
       - name: fluent-bit
-        image: fluent/fluent-bit:1.5
+        image: fluent/fluent-bit:1.6
         imagePullPolicy: Always
         ports:
           - containerPort: 2020

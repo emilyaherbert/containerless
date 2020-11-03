@@ -1,1 +1,6 @@
-use dispatcher_agent_lib :: trace_runtime :: Containerless ; use std :: collections :: HashMap ; mod function_hi ; mod function_auto ; pub fn init ( ) -> HashMap < & 'static str , Containerless > { let mut ht : HashMap < & 'static str , Containerless > = HashMap :: new ( ) ; ht . insert ( "hi" , function_hi :: containerless ) ; ht . insert ( "auto" , function_auto :: containerless ) ; return ht ; }
+use dispatcher_agent_lib::trace_runtime::Containerless;
+use std::collections::HashMap;
+pub fn init() -> HashMap<&'static str, Containerless> {
+    let ht: HashMap<&'static str, Containerless> = HashMap::new();
+    return ht;
+}

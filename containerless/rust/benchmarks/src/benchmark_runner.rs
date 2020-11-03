@@ -1,7 +1,7 @@
 use crate::error::Error;
 
 use shared::common::*;
-use shared::cli;
+use shared::containerless::cli;
 
 use tokio::process::Command;
 use std::process::Stdio;
@@ -62,19 +62,6 @@ async fn wrk_run(url: &str, wrk_options: WrkOptions) -> Result<(String, String),
 }
 
 async fn run_one_mode(name: &str, js_code: &str, url: &str, wrk_options: WrkOptions, containers_only: bool, output_path: &str) -> Option<String> {
-    fn fail(err: Error) {
-        error!(target: "benchmarks", "Error in the benchmark runner: {:?}", err);
-        assert!(false, format!("{:?}", err));
-    }
-
-    async fn fail_and_delete(name: &str, err: Error) {
-        error!(target: "benchmarks", "Error in the test runner: {:?}", err);
-        let d: Result<std::process::Output, Error> = cli::containerless_delete(name).await;
-        if let Err(err) = d {
-            error!(target: "benchmarks", "Error in the test runner: {:?}", err);
-        }
-        assert!(false, format!("{:?}", err));
-    }
 
     let run_name = format!("{}_{}_{}_{}_{}",
         name,
@@ -84,43 +71,28 @@ async fn run_one_mode(name: &str, js_code: &str, url: &str, wrk_options: WrkOpti
         if containers_only { "vanilla" } else { "tracing" });
 
     // Create output path for data
-    if let Err(err) = Command::new("mkdir")
+    Command::new("mkdir")
         .args(vec!("--parents", &output_path))
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .output()
-        .await {
-            fail(Error::IO(err));
-            return None;
-        }
+        .await
+        .expect("Could not make output path.");
 
     // Create the function in Containerless
     if let Err(err) = cli::containerless_create(name, js_code, containers_only).await {
-        fail_and_delete(name, err).await;
-        return None;
+        assert!(false, format!("{:?}", err));
     }
 
     // Hammer the function using wrk
-    let output = wrk_run(url, wrk_options.clone()).await;
-    if let Err(err) = output {
-        fail_and_delete(name, err).await;
-        return None;
-    }
-    let (stdout, _stderr) = output.unwrap();
-
-    // Delete everything!
-    if let Err(err) = cli::containerless_delete(name).await {
-        fail_and_delete(name, err).await;
-        return None;
-    }
+    let (stdout, _stderr) = wrk_run(url, wrk_options.clone()).await
+        .expect("Invoking with wrk failed.");
 
     // If applicable, save the output from wrk
     if wrk_options.save_wrk_output {
         let mut file = File::create(format!("{}/{}.csv", output_path, run_name)).unwrap();
-        if let Err(err) = file.write_all(stdout.as_bytes()) {
-            fail(Error::IO(err));
-            return None;
-        }
+        file.write_all(stdout.as_bytes())
+            .expect("Could not write to file.");
     }
 
     Some("Done!".to_string())

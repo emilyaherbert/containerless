@@ -10,7 +10,7 @@ edition = "2018"
 log = "0.4.8"
 machine-ip = "*"
 tokio = { version = "*", features = [ "rt-threaded", "time", "macros", "process" ] }
-reqwest = { version = "0.10.8", features = ["json"] }
+reqwest = { version = "0.10", features = ["json"] }
 thiserror = "*"
 serde = { version = "1.0", features = ["derive"] }
 hyper = "*"
