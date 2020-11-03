@@ -39,7 +39,7 @@ pub async fn wait_for_service(
                     return Ok(());
                 }
             }
-            Err(err) => {}
+            Err(_err) => {}
         }
         tokio::time::delay_for(std::time::Duration::from_secs(1)).await;
     }
