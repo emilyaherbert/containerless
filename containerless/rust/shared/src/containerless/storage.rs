@@ -1,5 +1,5 @@
 use crate::containerless::error::Error;
-use crate::file_contents::FileContents;
+use crate::function::Function;
 use crate::response::*;
 
 pub async fn list() -> Result<String, Error> {
@@ -12,7 +12,7 @@ pub async fn get(name: &str) -> Result<String, Error> {
     response_into_result(resp.status().as_u16(), resp.text().await?).map_err(Error::Storage)
 }
 
-pub async fn add(name: &str, contents: FileContents) -> Result<String, Error> {
+pub async fn add(name: &str, contents: Function) -> Result<String, Error> {
     let resp = reqwest::Client::new()
         .post(&format!(
             "http://localhost/storage/create_function/{}",

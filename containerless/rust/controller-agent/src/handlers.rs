@@ -4,7 +4,7 @@ use crate::controller::error::Error;
 use shared::common::*;
 use shared::containerless::dispatcher;
 use shared::containerless::storage;
-use shared::file_contents::FileContents;
+use shared::function::Function;
 use shared::response::*;
 
 use bytes;
@@ -48,14 +48,14 @@ pub async fn reset_dispatcher_handler(
 }
 
 pub async fn create_function(
-    name: String, contents: FileContents, compiler: Arc<Compiler>,
+    name: String, func: Function, compiler: Arc<Compiler>,
 ) -> Result<
     std::result::Result<http::response::Response<std::string::String>, http::Error>,
     warp::Rejection,
 > {
     info!(target: "controller", "CREATE_FUNCTION {}: entered handler", name);
 
-    let exclusive = contents.exclusive;
+    let exclusive = func.exclusive;
 
     // Check that the function name is ok
     let acceptable_chars: Vec<char> = "abcdefghijklmnopqrstuvwxyz1234567890.-".chars().collect();
@@ -70,14 +70,14 @@ pub async fn create_function(
 
     // Check that the body of the function is compatibile with instrumentation
     info!(target: "controller", "CREATE_FUNCTION {}: checking function compatibility", name);
-    if let Err(err) = check_function_compatibility(&contents.contents) {
+    if let Err(err) = check_function_compatibility(&func.contents) {
         error!(target: "controller", "CREATE_FUNCTION {} : Error {:?} ", name, err);
         return error_response(err.info());
     }
 
     // Add the function to storage
     info!(target: "controller", "CREATE_FUNCTION {}: adding to storage", name);
-    if let Err(err) = storage::add(&name, contents).await {
+    if let Err(err) = storage::add(&name, func).await {
         error!(target: "controller", "CREATE_FUNCTION {} : Error adding to storage {:?} ", name, err);
         return error_response(err.info());
     }

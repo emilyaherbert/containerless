@@ -1,0 +1,13 @@
+[package]
+name = "benchmarks"
+version = "0.1.0"
+authors = ["Emily Herbert <emilyherbert@cs.umass.edu>", "Arjun Guha <a.guha@northeastern.edu>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = { version = "*", features = [ "rt-threaded", "time", "macros", "process", "signal"  ] }
+shared = { path = "../shared" }
+nix = "*"
+reqwest = "0.10.8"
