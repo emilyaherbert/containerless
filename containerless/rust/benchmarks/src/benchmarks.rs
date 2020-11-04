@@ -1,7 +1,7 @@
 #![cfg(test)]
 use super::benchmark_runner;
 
-#[test]
+//#[test]
 fn sanity_check() {
     let code = r#"
         let containerless = require("containerless");
@@ -58,7 +58,7 @@ fn hello_world() {
     assert_eq!(result, Some("Done!".to_string()));
 }
 
-#[test]
+//#[test]
 fn autocomplete() {
     let code = r#"
     let containerless = require("containerless");

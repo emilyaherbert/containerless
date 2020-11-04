@@ -1,3 +1,3 @@
 function response(status, headers, startTime, latency, body)
-    print(body)
+    --print(body)
 end
