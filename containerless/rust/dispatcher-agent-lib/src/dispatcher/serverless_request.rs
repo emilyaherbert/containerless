@@ -32,6 +32,5 @@ pub enum Message {
     Request(ServerlessRequest),
     ExtractAndCompile(oneshot::Sender<Response>),
     GetMode(oneshot::Sender<Response>),
-    Shutdown(oneshot::Sender<Result<(), crate::error::Error>>),
-    Orphan,
+    Shutdown(oneshot::Sender<Result<(), crate::error::Error>>)
 }

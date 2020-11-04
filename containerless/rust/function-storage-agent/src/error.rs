@@ -3,16 +3,16 @@ use std::io;
 #[derive(Debug)]
 pub enum Error {
     IO(String),
-    FileNotFound(String),
-    FileConflict(String),
+    NotFound(String),
+    Conflict(String),
 }
 
 impl Error {
     pub fn info(&self) -> String {
         match self {
             Error::IO(info) => info.to_owned(),
-            Error::FileNotFound(info) => info.to_owned(),
-            Error::FileConflict(info) => info.to_owned(),
+            Error::NotFound(info) => info.to_owned(),
+            Error::Conflict(info) => info.to_owned(),
         }
     }
 }

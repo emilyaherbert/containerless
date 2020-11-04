@@ -16,7 +16,7 @@ pub struct FunctionManager {
 impl FunctionManager {
     pub async fn new(
         k8s_client: K8sClient, http_client: HttpClient, short_deadline_http_client: HttpClient,
-        function_table: Weak<FunctionTable>, name: String, create_mode: CreateMode,
+        function_table: Weak<FunctionTable>, name: String, containers_only: bool, create_mode: CreateMode,
         containerless: Option<Containerless>, upgrade_pending: Arc<AtomicBool>,
     ) -> FunctionManager {
         let (send_requests, recv_requests) = mpsc::channel(1);
@@ -28,6 +28,7 @@ impl FunctionManager {
                 recv_requests,
                 function_table,
                 create_mode,
+                containers_only,
                 containerless,
                 upgrade_pending,
             ),
@@ -72,13 +73,6 @@ impl FunctionManager {
                 );
             }
         }
-    }
-
-    pub async fn orphan(mut self) {
-        self.send_requests
-            .send(Message::Orphan)
-            .await
-            .unwrap_or_else(|_| panic!("error sending Message::Orphan for {}", self.state.name));
     }
 
     pub async fn invoke(

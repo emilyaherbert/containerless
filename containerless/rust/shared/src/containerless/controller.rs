@@ -3,14 +3,15 @@ use crate::containerless::error::Error;
 use serde_json::json;
 use std::fs;
 
-pub async fn create_function(name: &str, filename: &str) -> Result<String, Error> {
+pub async fn create_function(name: &str, filename: &str, containers_only: bool) -> Result<String, Error> {
     Ok(reqwest::Client::new()
         .post(&format!(
             "http://localhost/controller/create_function/{}",
-            name
+            name,
         ))
         .json(&json!({
             "exclusive": true,
+            "containers_only": containers_only,
             "contents": format!("{}", fs::read_to_string(filename)?.trim())
         }))
         .send()
