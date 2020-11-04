@@ -1,4 +1,4 @@
-use k8s_openapi::api::apps::v1::{Deployment, DeploymentSpec, ReplicaSet, ReplicaSetSpec};
+use k8s_openapi::api::apps::v1::{Deployment, DeploymentSpec, DeploymentStrategy, RollingUpdateDeployment, ReplicaSet, ReplicaSetSpec};
 use k8s_openapi::api::core::v1::{
     Container, ContainerPort, EnvVar, HTTPGetAction, Pod, PodSpec, PodTemplateSpec, Probe, Service,
     ServicePort, ServiceSpec,
@@ -58,6 +58,19 @@ pub struct DeploymentBuilder {
 
 pub struct DeploymentSpecBuilder {
     deployment_spec: DeploymentSpec,
+}
+
+pub struct DeploymentStrategyBuilder {
+    deployment_strategy: DeploymentStrategy,
+}
+
+pub enum DeploymentStrategyType {
+    Recreate,
+    RollingUpdate
+}
+
+pub struct RollingUpdateDeploymentBuilder {
+    rolling_update: RollingUpdateDeployment
 }
 
 impl ObjectMetaBuilder {
@@ -471,6 +484,60 @@ impl DeploymentSpecBuilder {
 
     pub fn template(mut self, template: PodTemplateSpec) -> Self {
         self.deployment_spec.template = template;
+        return self;
+    }
+
+    pub fn strategy(mut self, strategy: DeploymentStrategy) -> Self {
+        self.deployment_spec.strategy = Some(strategy);
+        return self;
+    }
+}
+
+impl DeploymentStrategyBuilder {
+    pub fn new() -> Self {
+        let deployment_strategy = DeploymentStrategy::default();
+        return DeploymentStrategyBuilder { deployment_strategy };
+    }
+
+    pub fn build(self) -> DeploymentStrategy {
+        return self.deployment_strategy;
+    }
+
+    pub fn type_(mut self, typ: DeploymentStrategyType) -> Self {
+        self.deployment_strategy.type_ = match typ {
+            DeploymentStrategyType::Recreate => Some("Recreate".to_string()),
+            DeploymentStrategyType::RollingUpdate => Some("RollingUpdate".to_string())
+        };
+        return self;
+    }
+
+    pub fn rolling_update(mut self, rolling_update: RollingUpdateDeployment) -> Self {
+        if let Some(s) = self.deployment_strategy.type_.clone() {
+            if s == "RollingUpdate".to_string() {
+                self.deployment_strategy.rolling_update = Some(rolling_update);
+            }
+        }
+        return self;
+    }
+}
+
+impl RollingUpdateDeploymentBuilder {
+    pub fn new() -> Self {
+        let rolling_update = RollingUpdateDeployment::default();
+        return RollingUpdateDeploymentBuilder { rolling_update: rolling_update };
+    }
+
+    pub fn build(self) -> RollingUpdateDeployment {
+        return self.rolling_update;
+    }
+
+    pub fn max_surge(mut self, i: i32) -> Self {
+        self.rolling_update.max_surge = Some(IntOrString::Int(i));
+        return self;
+    }
+
+    pub fn max_unavailable(mut self, i: i32) -> Self {
+        self.rolling_update.max_unavailable = Some(IntOrString::Int(i));
         return self;
     }
 }

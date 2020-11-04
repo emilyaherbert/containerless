@@ -131,6 +131,15 @@ pub fn dispatcher_deployment_spec(version: usize) -> k8s::Deployment {
                         )
                         .build(),
                 )
+                .strategy(DeploymentStrategyBuilder::new()
+                    .type_(DeploymentStrategyType::RollingUpdate)
+                    .rolling_update(RollingUpdateDeploymentBuilder::new()
+                        .max_surge(1)
+                        .max_unavailable(0)
+                        .build()
+                    )
+                    .build()
+                )
                 .build(),
         )
         .build();
