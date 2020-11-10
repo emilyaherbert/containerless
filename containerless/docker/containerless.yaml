@@ -152,23 +152,45 @@ spec:
               name: controller
               port:
                 name: http
+        - path: /controller-logger(/|$)(.*)
+          pathType: Exact
+          backend:
+            service:
+              name: controller-logger
+              port:
+                name: http
 ---
-# This pod echos the controller's log file to its own standard output, so that
+# This pod echos the controller's log to its own standard output, so that
 # it appears in the Kubernetes log.
 apiVersion: v1
 kind: Pod
 metadata:
   name: controller-logger
   namespace: containerless
+  labels:
+    app: controller-logger
 spec:
   containers:
   - name: controller-logger
     image: localhost:32000/controller-logger
-    volumeMounts:
-      - name: log
-        mountPath: "/log"
-  volumes:
-    - name: log
-      hostPath:
-        path: $CONTROLLER_LOG_PATH
+    ports:
+     - containerPort: 80
   terminationGracePeriodSeconds: 1    
+---
+# This service exposes the controller logging pod as http://controller-logger
+# within the cluster.
+apiVersion: v1
+kind: Service
+metadata:
+  name: controller-logger
+  namespace: containerless
+  labels:
+    app: controller-logger
+spec:
+  type: NodePort
+  selector:
+    app: controller-logger
+  ports:
+    - name: http
+      port: 80
+
