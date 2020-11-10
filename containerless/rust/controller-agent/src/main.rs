@@ -2,6 +2,7 @@ extern crate lazy_static;
 
 mod controller;
 mod handlers;
+mod logger;
 mod routes;
 mod trace_compiler;
 
@@ -11,7 +12,7 @@ use shared::common::*;
 
 #[tokio::main]
 async fn main() {
-    env_logger::init();
+    logger::init(1);
 
     info!(target: "controller", "UP");
 

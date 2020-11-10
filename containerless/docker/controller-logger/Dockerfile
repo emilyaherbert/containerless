@@ -1,3 +1,6 @@
 
 FROM ubuntu:latest
-CMD ["/usr/bin/tail", "-F", "/log/controller.log"]
+RUN apt-get update
+RUN apt-get install -yq libssl1.1
+COPY log-echo-agent /log-echo-agent
+CMD ["/log-echo-agent"]
