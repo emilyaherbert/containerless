@@ -10,9 +10,8 @@ members = [
     "integration-tests",
     "dispatcher-agent-lib",
     "cli",
-    "benchmarks",
     "log-echo-agent",
     "log-openapi",
-
 ]
+
 exclude = [ "local" ]
