@@ -1,0 +1,23 @@
+openapi: 3.0.0
+info:
+  description: |
+    API for the log-echo-agent program, which echoes logs that it receives to
+    standard out.
+  title: log-echo API
+  version: 1.0.0
+servers:
+- url: http://localhost
+paths:
+  /log:
+    post:
+      description: Echo a message to the log
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+      responses:
+        "200":
+          description: OK
+
