@@ -26,7 +26,7 @@ pub trait Api<C: Send + Sync> {
 
     async fn log_post(
         &self,
-        body: String,
+        inline_object: models::InlineObject,
         context: &C) -> Result<LogPostResponse, ApiError>;
 
 }
@@ -41,7 +41,7 @@ pub trait ApiNoContext<C: Send + Sync> {
 
     async fn log_post(
         &self,
-        body: String,
+        inline_object: models::InlineObject,
         ) -> Result<LogPostResponse, ApiError>;
 
 }
@@ -71,11 +71,11 @@ impl<T: Api<C> + Send + Sync, C: Clone + Send + Sync> ApiNoContext<C> for Contex
 
     async fn log_post(
         &self,
-        body: String,
+        inline_object: models::InlineObject,
         ) -> Result<LogPostResponse, ApiError>
     {
         let context = self.context().clone();
-        self.api().log_post(body, &context).await
+        self.api().log_post(inline_object, &context).await
     }
 
 }

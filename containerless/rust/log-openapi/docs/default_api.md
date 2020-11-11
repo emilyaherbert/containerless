@@ -8,7 +8,7 @@ Method | HTTP request | Description
 
 
 # ****
-> (body)
+> (inline_object)
 
 
 Echo a message to the log
@@ -17,7 +17,7 @@ Echo a message to the log
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
-  **body** | **String**|  | 
+  **inline_object** | [**InlineObject**](InlineObject.md)|  | 
 
 ### Return type
 
@@ -29,7 +29,7 @@ No authorization required
 
 ### HTTP request headers
 
- - **Content-Type**: text/plain
+ - **Content-Type**: application/json
  - **Accept**: Not defined
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
