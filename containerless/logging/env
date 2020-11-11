@@ -1,2 +1,0 @@
-export SHOW_LOGS_HOST=$(hostname -I | cut -f 1 -d " ")
-export SHOW_LOGS_PORT=8081

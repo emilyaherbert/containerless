@@ -67,8 +67,19 @@ $ ./build.sh
 
 ## Logging
 
-To understand what Containerless does and debug problems, you will need to
-setup Kubernetes logging. See README.md in the ./logging directory.
+Containerless consolidates its logs from its distributed services on a single
+pod. To follow the logs, run:
+
+```
+microk8s.kubectl -n containerless logs -f controller-logger
+```
+
+Two warnings:
+
+1. This command will only work after deployment (described below).
+
+2. A pod may still write output to standard out or standard error,
+   which is not captured in the consolidated log.
 
 ## Deploying
 

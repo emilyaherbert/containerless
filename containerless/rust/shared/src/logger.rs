@@ -38,16 +38,16 @@ impl Log for Logger {
     fn flush(&self) {}
 }
 
-/// Creates a logger that sends log messages to http://localhost/controller-logger.
+/// Creates a logger that sends log messages to `base_url`.
 /// It uses the environment variable `RUST_LOG` to determine the log level.
-pub fn init(max_reported_errors: usize) {
+pub fn init(base_url: &'static str, max_reported_errors: usize) {
     // We use a single task (below) to send log messages, but multiple tasks
     // may concurrently send log messages to the logger.
     let (send_string, mut recv_string) = mpsc::channel(1);
 
     // Task that sends log messages in a loop.
     task::spawn(async move {
-        let client = Client::try_new_http("http://localhost/controller-logger")
+        let client = Client::try_new_http(base_url)
             .expect("error creating HTTP client for logging")
             .with_context(swagger::make_context!(
                 ContextBuilder,

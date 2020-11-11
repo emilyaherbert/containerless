@@ -216,7 +216,7 @@ impl State {
             .path_and_query(serverless_request.payload.path_and_query.as_str())
             .build()
             .expect("constructing URI");
-        info!(target: "dispatcher", "INVOKE {}: issuing HTTP request to {}", self.name, &uri);
+        debug!(target: "dispatcher", "INVOKE {}: issuing HTTP request to {}", self.name, &uri);
         autoscaler.recv_req();
         let req = hyper::Request::builder()
             .method(serverless_request.payload.method)
@@ -475,14 +475,11 @@ impl State {
                     }
                 }
                 (Mode::Tracing(5), Message::Request(req)) => {
-                    info!(target: "dispatcher", "INVOKE {}: FMT in Tracing mode recieved request with path {}", self_.name, req.payload.path_and_query);
                     info!(target: "dispatcher", "INVOKE {}: FMT in Tracing mode sending trace to compiler", self_.name);
                     task::spawn(Self::send_trace_then_stop_pod_and_service(Arc::clone(
                         &self_,
                     )));
                     mode = Mode::Vanilla;
-                    info!(target: "dispatcher", "INVOKE {}: FMT in Tracing mode switched to Vanilla mode", self_.name);
-                    info!(target: "dispatcher", "INVOKE {}: FMT in Vanilla mode invoking with request with path {}", self_.name, req.payload.path_and_query);
                     task::spawn(Self::invoke_vanilla(
                         Arc::clone(&self_),
                         req,
@@ -490,17 +487,17 @@ impl State {
                     ));
                 }
                 (Mode::Tracing(n), Message::Request(req)) => {
-                    info!(target: "dispatcher", "INVOKE {}: FMT in Tracing mode recieved request with path {}", self_.name, req.payload.path_and_query);
+                    debug!(target: "dispatcher", "INVOKE {}: FMT in Tracing mode recieved request with path {}", self_.name, req.payload.path_and_query);
                     mode = Mode::Tracing(n + 1);
                     if self_.tracing_pod_available.load(SeqCst) {
-                        info!(target: "dispatcher", "INVOKE {}: FMT in Tracing mode invoking(tracing) with request with path {}", self_.name, req.payload.path_and_query);
+                        debug!(target: "dispatcher", "INVOKE {}: FMT in Tracing mode invoking(tracing) with request with path {}", self_.name, req.payload.path_and_query);
                         task::spawn(Self::invoke_tracing(
                             Arc::clone(&self_),
                             req,
                             Arc::clone(&autoscaler),
                         ));
                     } else {
-                        info!(target: "dispatcher", "INVOKE {}: FMT in Tracing mode invoking(vanilla) with request with path {}", self_.name, req.payload.path_and_query);
+                        debug!(target: "dispatcher", "INVOKE {}: FMT in Tracing mode invoking(vanilla) with request with path {}", self_.name, req.payload.path_and_query);
                         task::spawn(Self::invoke_vanilla(
                             Arc::clone(&self_),
                             req,
@@ -509,8 +506,7 @@ impl State {
                     }
                 }
                 (Mode::Vanilla, Message::Request(req)) => {
-                    info!(target: "dispatcher", "INVOKE {}: FMT in Vanilla mode recieved request with path {}", self_.name, req.payload.path_and_query);
-                    info!(target: "dispatcher", "INVOKE {}: FMT in Vanilla mode invoking with request with path {}", self_.name, req.payload.path_and_query);
+                    debug!(target: "dispatcher", "INVOKE {}: FMT in Vanilla mode recieved request with path {}", self_.name, req.payload.path_and_query);
                     task::spawn(Self::invoke_vanilla(
                         Arc::clone(&self_),
                         req,

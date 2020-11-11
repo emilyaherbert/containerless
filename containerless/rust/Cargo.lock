@@ -423,7 +423,6 @@ version = "0.1.0"
 dependencies = [
  "bumpalo",
  "bytes 0.5.4",
- "env_logger",
  "futures",
  "http",
  "hyper",
@@ -448,10 +447,10 @@ version = "0.1.0"
 dependencies = [
  "bytes 0.5.4",
  "duct",
- "env_logger",
  "exec",
  "log 0.4.8",
  "reqwest",
+ "shared",
  "thiserror",
  "tokio",
 ]

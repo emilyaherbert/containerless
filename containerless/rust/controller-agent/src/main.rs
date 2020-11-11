@@ -11,7 +11,7 @@ use shared::logger;
 
 #[tokio::main]
 async fn main() {
-    logger::init(1);
+    logger::init("http://localhost/controller-logger", 1);
 
     info!(target: "controller", "UP");
 

@@ -14,6 +14,7 @@ use storage::Storage;
 
 #[tokio::main]
 async fn main() {
+    shared::logger::init("http://controller-logger", 1);
     info!(target: "storage", "UP");
     let storage = Storage::new_shared_storage();
     shared::net::serve_until_sigterm(routes::routes(storage), 8080).await;
