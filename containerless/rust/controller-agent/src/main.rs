@@ -2,13 +2,12 @@ extern crate lazy_static;
 
 mod controller;
 mod handlers;
-mod logger;
 mod routes;
 mod trace_compiler;
 
 use controller::compiler;
-
 use shared::common::*;
+use shared::logger;
 
 #[tokio::main]
 async fn main() {
