@@ -87,7 +87,7 @@ impl FunctionManager {
             },
             send: send_resp,
         };
-        info!(target: "dispatcher", "INVOKE {}: sending request with path {} to FMT", self.state.name, path_and_query);
+        debug!(target: "dispatcher", "INVOKE {}: sending request with path {} to FMT", self.state.name, path_and_query);
         self.send_requests
             .send(Message::Request(req))
             .await

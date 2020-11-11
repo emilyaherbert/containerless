@@ -382,7 +382,7 @@ impl<S, C> Api<C> for Client<S, C> where
 
     async fn log_post(
         &self,
-        param_body: String,
+        param_inline_object: models::InlineObject,
         context: &C) -> Result<LogPostResponse, ApiError>
     {
         let mut client_service = self.client_service.clone();
@@ -415,11 +415,11 @@ impl<S, C> Api<C> for Client<S, C> where
         };
 
         // Body parameter
-        let body = param_body;
+        let body = serde_json::to_string(&param_inline_object).expect("impossible to fail to serialize");
 
                 *request.body_mut() = Body::from(body);
 
-        let header = "text/plain";
+        let header = "application/json";
         request.headers_mut().insert(CONTENT_TYPE, match HeaderValue::from_str(header) {
             Ok(h) => h,
             Err(e) => return Err(ApiError(format!("Unable to create header: {} - {}", header, e)))

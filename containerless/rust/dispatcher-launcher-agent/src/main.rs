@@ -40,7 +40,7 @@ async fn download_dispatcher() -> bytes::Bytes {
 
 #[tokio::main]
 async fn main() {
-    env_logger::init();
+    shared::logger::init("http://controller-logger", 1);
 
     let response = download_dispatcher().await;
     info!(target: "dispatcher-launcher", "INITIALIZE: downloaded the Dispatcher from the Controller");

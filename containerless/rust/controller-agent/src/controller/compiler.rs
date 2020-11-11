@@ -121,7 +121,7 @@ pub fn dispatcher_deployment_spec(version: usize) -> k8s::Deployment {
                                         .name("dispatcher")
                                         .image("localhost:32000/dispatcher")
                                         .expose_port("http", 8080)
-                                        .pull_if_not_present()
+                                        .always_pull()
                                         .env("RUST_LOG", std::env::var("RUST_LOG").unwrap())
                                         .env("Version", format!("V{}", version))
                                         .http_readiness_probe(1, "/readinessProbe/", 8080)
@@ -421,7 +421,7 @@ impl Compiler {
         info!(target: "controller", "Running cargo build on dispatcher-agent. Output is suppressed unless an error occurs.");
         let cargo_result = Command::new("cargo")
             .arg("build")
-            .current_dir(&format!("{}/dispatcher-agent", ROOT.as_str()))
+            .current_dir(ROOT.as_str())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .output()

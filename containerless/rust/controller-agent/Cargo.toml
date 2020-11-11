@@ -26,5 +26,3 @@ quote = "*"
 proc-macro2 = "*"
 syn = "*"
 http = "*"
-swagger = "*"
-log-openapi = { path = "../log-openapi" }

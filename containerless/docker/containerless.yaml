@@ -158,13 +158,6 @@ spec:
               name: storage
               port:
                 name: http
-        - path: /dispatcher(/|$)(.*)
-          pathType: Exact
-          backend:
-            service:
-              name: dispatcher
-              port:
-                name: http
         - path: /controller(/|$)(.*)
           pathType: Exact
           backend:
@@ -213,4 +206,16 @@ spec:
   ports:
     - name: http
       port: 80
-
+---
+# This is a service that is exposed to the nodes that run Containerless.
+apiVersion: v1
+kind: Service
+metadata:
+  name: exposed-dispatcher
+  namespace: containerless
+spec:
+  ports:
+    - port: 8080
+  selector:
+    app: dispatcher
+  type: LoadBalancer

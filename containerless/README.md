@@ -3,8 +3,10 @@
 ## Prerequisites
 
 Containerless has components written in Rust and JavaScript (TypeScript).
-Thus, you need [Cargo], [Yarn 1.x], and [Node]. We package these components
-into containers using [Docker], which you also need to install.
+Thus, you need to instal[Cargo], [Yarn 1.x], and [Node]. We package these components
+into containers using [Docker], which you also need to install. 
+We use `jq` in our deployment scripts, which you can install using
+`apt-get install jq`.
 
 **Important:** You must build Containerless on Linux. Our build scripts copy 
 binaries built on the host into Docker containers, thus they will not run if the
@@ -67,8 +69,19 @@ $ ./build.sh
 
 ## Logging
 
-To understand what Containerless does and debug problems, you will need to
-setup Kubernetes logging. See README.md in the ./logging directory.
+Containerless consolidates its logs from its distributed services on a single
+pod. To follow the logs, run:
+
+```
+microk8s.kubectl -n containerless logs -f controller-logger
+```
+
+Two warnings:
+
+1. This command will only work after deployment (described below).
+
+2. A pod may still write output to standard out or standard error,
+   which is not captured in the consolidated log.
 
 ## Deploying
 

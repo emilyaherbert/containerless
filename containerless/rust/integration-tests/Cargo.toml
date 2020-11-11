@@ -11,5 +11,4 @@ tokio = { version = "*", features = [ "rt-threaded", "time", "macros", "process"
 serde_json = "*"
 k8s = { path = "../k8s" }
 nix = "*"
-reqwest = "*"
 shared = { path = "../shared" }

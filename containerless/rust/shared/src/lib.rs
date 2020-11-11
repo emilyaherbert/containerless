@@ -6,3 +6,4 @@ pub mod containerless;
 pub mod function;
 pub mod net;
 pub mod response;
+pub mod logger;

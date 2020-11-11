@@ -22,9 +22,10 @@ echo "This may take some time..."
 ./controller.sh start
 echo "Controller is running at http://localhost/controller\n"
 
+DISPATCHER_IP=`microk8s.kubectl -n containerless get svc/exposed-dispatcher -o json | jq -r .spec.clusterIP`
 echo "Waiting for dispatcher to come online."
 echo "This may take some time..."
-./poll-ready.sh http://localhost/dispatcher/readinessProbe 300 || exit 1
-echo "Dispatcher is running at http://localhost/dispatcher\n"
+./poll-ready.sh http://$DISPATCHER_IP:8080/readinessProbe 300 || exit 1
+echo "Dispatcher is running at http://$DISPATCHER_IP"
 
 echo "System is fully deployed.\n"

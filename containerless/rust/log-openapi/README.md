@@ -16,7 +16,7 @@ To see how to make this your own, look here:
 [README]((https://openapi-generator.tech))
 
 - API version: 1.0.0
-- Build date: 2020-11-10T14:23:42.664419Z[Etc/UTC]
+- Build date: 2020-11-11T17:37:58.732190Z[Etc/UTC]
 
 
 
@@ -63,7 +63,6 @@ cargo run --example server
 To run a client, follow one of the following simple steps:
 
 ```
-cargo run --example client LogPost
 ```
 
 ### HTTPS
@@ -102,6 +101,7 @@ Method | HTTP request | Description
 
 ## Documentation For Models
 
+ - [InlineObject](docs/InlineObject.md)
 
 
 ## Documentation For Authorization

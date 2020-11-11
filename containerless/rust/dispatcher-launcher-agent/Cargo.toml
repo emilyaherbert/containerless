@@ -12,6 +12,6 @@ reqwest = "*"
 duct = "*"
 exec = "*"
 log = "*"
-env_logger = "*"
 bytes = "*"
 thiserror = "*"
+shared = { version = "*", path = "../shared" }

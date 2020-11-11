@@ -8,7 +8,7 @@ use futures::prelude::*;
 use log::{Level, Log, Metadata, Record};
 // The Client type has a generated method to post logs. The rest of the types below are boilerplate
 // that we need to use Client.
-use log_openapi::{ApiNoContext, Client, ContextWrapperExt};
+use log_openapi::{models::InlineObject, ApiNoContext, Client, ContextWrapperExt};
 use swagger::{AuthData, EmptyContext, Push, XSpanIdString};
 
 struct Logger {
@@ -17,7 +17,7 @@ struct Logger {
     enabled_level: Level,
     /// We send log messages on this channel to a background task that then
     /// sends them to the server asynchronously.
-    send_string: mpsc::Sender<String>,
+    send_string: mpsc::Sender<InlineObject>,
 }
 
 impl Log for Logger {
@@ -26,10 +26,14 @@ impl Log for Logger {
     }
 
     fn log(&self, record: &Record) {
-        let log_str = format!("{}", record.args());
         let mut send_string = self.send_string.clone();
+        let obj = InlineObject {
+            text: Some(format!("{}", record.args())),
+            level: Some(record.level().to_string()),
+            target: Some(record.target().into())
+        };
         task::spawn(async move {
-            if let Err(_err) = send_string.send(log_str).await {
+            if let Err(_err) = send_string.send(obj).await {
                 eprintln!("Failed to send log message to logging task");
             }
         });
@@ -38,16 +42,16 @@ impl Log for Logger {
     fn flush(&self) {}
 }
 
-/// Creates a logger that sends log messages to http://localhost/controller-logger.
+/// Creates a logger that sends log messages to `base_url`.
 /// It uses the environment variable `RUST_LOG` to determine the log level.
-pub fn init(max_reported_errors: usize) {
+pub fn init(base_url: &'static str, max_reported_errors: usize) {
     // We use a single task (below) to send log messages, but multiple tasks
     // may concurrently send log messages to the logger.
     let (send_string, mut recv_string) = mpsc::channel(1);
 
     // Task that sends log messages in a loop.
     task::spawn(async move {
-        let client = Client::try_new_http("http://localhost/controller-logger")
+        let client = Client::try_new_http(base_url)
             .expect("error creating HTTP client for logging")
             .with_context(swagger::make_context!(
                 ContextBuilder,
