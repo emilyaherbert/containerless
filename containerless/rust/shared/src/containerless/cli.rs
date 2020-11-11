@@ -52,8 +52,9 @@ pub async fn containerless_remove_trace(name: &str) -> Result<std::process::Outp
 
 pub async fn containerless_invoke(name: &str, req: (&str, JsonValue)) -> Result<String, Error> {
     let (path, body) = req;
+    let url = format!("http://{}:8080/{}{}", super::dispatcher::dispatcher_ip(), name, path);
     let resp = reqwest::Client::new()
-        .post(&format!("http://localhost/dispatcher/{}/{}", name, path))
+        .post(&url)
         .json(&body)
         .send()
         .await?;
