@@ -8,7 +8,7 @@ use futures::prelude::*;
 use log::{Level, Log, Metadata, Record};
 // The Client type has a generated method to post logs. The rest of the types below are boilerplate
 // that we need to use Client.
-use log_openapi::{ApiNoContext, Client, ContextWrapperExt};
+use log_openapi::{models::InlineObject, ApiNoContext, Client, ContextWrapperExt};
 use swagger::{AuthData, EmptyContext, Push, XSpanIdString};
 
 struct Logger {
@@ -17,7 +17,7 @@ struct Logger {
     enabled_level: Level,
     /// We send log messages on this channel to a background task that then
     /// sends them to the server asynchronously.
-    send_string: mpsc::Sender<String>,
+    send_string: mpsc::Sender<InlineObject>,
 }
 
 impl Log for Logger {
@@ -26,10 +26,14 @@ impl Log for Logger {
     }
 
     fn log(&self, record: &Record) {
-        let log_str = format!("{}", record.args());
         let mut send_string = self.send_string.clone();
+        let obj = InlineObject {
+            text: Some(format!("{}", record.args())),
+            level: Some(record.level().to_string()),
+            target: Some(record.target().into())
+        };
         task::spawn(async move {
-            if let Err(_err) = send_string.send(log_str).await {
+            if let Err(_err) = send_string.send(obj).await {
                 eprintln!("Failed to send log message to logging task");
             }
         });
