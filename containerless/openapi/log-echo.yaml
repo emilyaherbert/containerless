@@ -14,9 +14,19 @@ paths:
       requestBody:
         required: true
         content:
-          text/plain:
+          application/json:
             schema:
-              type: string
+              type: object
+              properties:
+                text:
+                  type: string
+                  example: This is an example log message
+                target:
+                  type: string
+                  example: controller
+                level:
+                  type: string
+                  example: INFO
       responses:
         "200":
           description: OK
