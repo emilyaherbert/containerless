@@ -3,7 +3,6 @@ use std::io;
 #[derive(Debug)]
 pub enum Error {
     IO(io::Error),
-    Reqwest(reqwest::Error),
     Timeout,
     FromUtf8Error(std::string::FromUtf8Error),
     ParseIntError(std::num::ParseIntError),
@@ -13,12 +12,6 @@ pub enum Error {
 impl std::convert::From<io::Error> for Error {
     fn from(error: io::Error) -> Error {
         Error::IO(error)
-    }
-}
-
-impl std::convert::From<reqwest::Error> for Error {
-    fn from(error: reqwest::Error) -> Error {
-        Error::Reqwest(error)
     }
 }
 
