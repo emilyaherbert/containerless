@@ -16,7 +16,7 @@ pub async fn dispatcher_handler(
         Some(query) => format!("/{}?{}", function_path, query),
         None => format!("/{}", function_path),
     };
-    info!(target: "dispatcher", "INVOKE {}: recieved request with path_and_query {}", function_name, function_path);
+    debug!(target: "dispatcher", "INVOKE {}: recieved request with path_and_query {}", function_name, function_path);
 
     // Create the Function Manager for the function
     let fm_res = FunctionTable::get_function(&state, &function_name).await;
@@ -30,7 +30,7 @@ pub async fn dispatcher_handler(
 
     // Invoke the function
     // If this is the first invocation, this will spin up a tracing instance
-    info!(target: "dispatcher", "INVOKE {}: invoking with path_and_query {}", function_name, function_path);
+    debug!(target: "dispatcher", "INVOKE {}: invoking with path_and_query {}", function_name, function_path);
     let body = hyper::Body::from(body);
     return match fm.invoke(method, &function_path, body).await {
         Ok(resp) => Ok(resp),
