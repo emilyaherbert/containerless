@@ -3,8 +3,10 @@
 ## Prerequisites
 
 Containerless has components written in Rust and JavaScript (TypeScript).
-Thus, you need [Cargo], [Yarn 1.x], and [Node]. We package these components
-into containers using [Docker], which you also need to install.
+Thus, you need to instal[Cargo], [Yarn 1.x], and [Node]. We package these components
+into containers using [Docker], which you also need to install. 
+We use `jq` in our deployment scripts, which you can install using
+`apt-get install jq`.
 
 **Important:** You must build Containerless on Linux. Our build scripts copy 
 binaries built on the host into Docker containers, thus they will not run if the
