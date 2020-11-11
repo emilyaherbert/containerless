@@ -16,17 +16,15 @@ jobs:
     - name: Test javascript/containerless/
       run: yarn run test
       working-directory: ./containerless/javascript/containerless
-    - name: Check status
+    - name: Check k8s status (should be empty)
       run: |
-        sleep 10
-        microk8s.kubectl get pods -n containerless
+        microk8s.kubectl get all -n containerless
     - name: Deploy
       run: ./deploy.sh
       working-directory: ./containerless
-    - name: Check status
+    - name: Check k8s
       run: |
-        sleep 10
-        microk8s.kubectl get pods -n containerless
+        microk8s.kubectl get all -n containerless
     - name: Run integration tests
       run: ./test.sh
       working-directory: ./containerless
