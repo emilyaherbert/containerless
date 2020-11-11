@@ -4,9 +4,7 @@ mod tests;
 
 use nix::sys::signal::{self, Signal};
 use nix::unistd::Pid;
-use shared::net;
 use std::convert::TryInto;
-use std::time::Duration;
 use tokio::process::{Child, Command};
 use tokio::signal::unix::{signal, SignalKind};
 
@@ -35,14 +33,6 @@ async fn main() {
         .expect("spawning git")
         .await
         .expect("running git");
-
-    let http_client = reqwest::Client::new();
-    net::poll_url_no_timeout(
-        &http_client,
-        "http://localhost/dispatcher/readinessProbe",
-        Duration::from_secs(1),
-    )
-    .await;
 
     let tests_handle = run_tests().await;
     let tests_pid = child_pid(&tests_handle);
