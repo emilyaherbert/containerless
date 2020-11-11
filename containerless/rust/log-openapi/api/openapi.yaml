@@ -12,14 +12,44 @@ paths:
     post:
       description: Echo a message to the log
       requestBody:
+        $ref: '#/components/requestBodies/inline_object'
         content:
-          text/plain:
+          application/json:
             schema:
-              type: string
+              properties:
+                text:
+                  example: This is an example log message
+                  type: string
+                target:
+                  example: controller
+                  type: string
+                level:
+                  example: INFO
+                  type: string
+              type: object
         required: true
       responses:
         "200":
           description: OK
 components:
-  schemas: {}
+  requestBodies:
+    inline_object:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/inline_object'
+      required: true
+  schemas:
+    inline_object:
+      properties:
+        text:
+          example: This is an example log message
+          type: string
+        target:
+          example: controller
+          type: string
+        level:
+          example: INFO
+          type: string
+      type: object
 

@@ -27,7 +27,6 @@ fn main() {
         .arg(Arg::with_name("operation")
             .help("Sets the operation to run")
             .possible_values(&[
-                "LogPost",
             ])
             .required(true)
             .index(1))
@@ -71,12 +70,14 @@ fn main() {
     let mut rt = tokio::runtime::Runtime::new().unwrap();
 
     match matches.value_of("operation") {
+        /* Disabled because there's no example.
         Some("LogPost") => {
             let result = rt.block_on(client.log_post(
-                  "body_example".to_string()
+                  ???
             ));
             info!("{:?} (X-Span-ID: {:?})", result, (client.context() as &dyn Has<XSpanIdString>).get().clone());
         },
+        */
         _ => {
             panic!("Invalid operation provided")
         }

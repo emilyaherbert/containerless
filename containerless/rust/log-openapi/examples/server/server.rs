@@ -107,11 +107,11 @@ impl<C> Api<C> for Server<C> where C: Has<XSpanIdString> + Send + Sync
 {
     async fn log_post(
         &self,
-        body: String,
+        inline_object: models::InlineObject,
         context: &C) -> Result<LogPostResponse, ApiError>
     {
         let context = context.clone();
-        info!("log_post(\"{}\") - X-Span-ID: {:?}", body, context.get().0.clone());
+        info!("log_post({:?}) - X-Span-ID: {:?}", inline_object, context.get().0.clone());
         Err("Generic failuare".into())
     }
 

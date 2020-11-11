@@ -147,27 +147,32 @@ impl<T, C> hyper::service::Service<(Request<Body>, C)> for Service<T, C> where
                 let result = body.to_raw().await;
                 match result {
                             Ok(body) => {
-                                let param_body: Option<String> = if !body.is_empty() {
-                                    match String::from_utf8(body.to_vec()) {
-                                        Ok(param_body) => Some(param_body),
+                                let mut unused_elements = Vec::new();
+                                let param_inline_object: Option<models::InlineObject> = if !body.is_empty() {
+                                    let deserializer = &mut serde_json::Deserializer::from_slice(&*body);
+                                    match serde_ignored::deserialize(deserializer, |path| {
+                                            warn!("Ignoring unknown field in body: {}", path);
+                                            unused_elements.push(path.to_string());
+                                    }) {
+                                        Ok(param_inline_object) => param_inline_object,
                                         Err(e) => return Ok(Response::builder()
                                                         .status(StatusCode::BAD_REQUEST)
-                                                        .body(Body::from(format!("Couldn't parse body parameter body - not valid UTF-8: {}", e)))
-                                                        .expect("Unable to create Bad Request response for invalid body parameter body due to UTF-8")),
+                                                        .body(Body::from(format!("Couldn't parse body parameter InlineObject - doesn't match schema: {}", e)))
+                                                        .expect("Unable to create Bad Request response for invalid body parameter InlineObject due to schema")),
                                     }
                                 } else {
                                     None
                                 };
-                                let param_body = match param_body {
-                                    Some(param_body) => param_body,
+                                let param_inline_object = match param_inline_object {
+                                    Some(param_inline_object) => param_inline_object,
                                     None => return Ok(Response::builder()
                                                         .status(StatusCode::BAD_REQUEST)
-                                                        .body(Body::from("Missing required body parameter body"))
-                                                        .expect("Unable to create Bad Request response for missing body parameter body")),
+                                                        .body(Body::from("Missing required body parameter InlineObject"))
+                                                        .expect("Unable to create Bad Request response for missing body parameter InlineObject")),
                                 };
 
                                 let result = api_impl.log_post(
-                                            param_body,
+                                            param_inline_object,
                                         &context
                                     ).await;
                                 let mut response = Response::new(Body::empty());
@@ -175,6 +180,13 @@ impl<T, C> hyper::service::Service<(Request<Body>, C)> for Service<T, C> where
                                             HeaderName::from_static("x-span-id"),
                                             HeaderValue::from_str((&context as &dyn Has<XSpanIdString>).get().0.clone().to_string().as_str())
                                                 .expect("Unable to create X-Span-ID header value"));
+
+                                        if !unused_elements.is_empty() {
+                                            response.headers_mut().insert(
+                                                HeaderName::from_static("warning"),
+                                                HeaderValue::from_str(format!("Ignoring unknown fields in body: {:?}", unused_elements).as_str())
+                                                    .expect("Unable to create Warning header value"));
+                                        }
 
                                         match result {
                                             Ok(rsp) => match rsp {
@@ -195,8 +207,8 @@ impl<T, C> hyper::service::Service<(Request<Body>, C)> for Service<T, C> where
                             },
                             Err(e) => Ok(Response::builder()
                                                 .status(StatusCode::BAD_REQUEST)
-                                                .body(Body::from(format!("Couldn't read body parameter body: {}", e)))
-                                                .expect("Unable to create Bad Request response due to unable to read body parameter body")),
+                                                .body(Body::from(format!("Couldn't read body parameter InlineObject: {}", e)))
+                                                .expect("Unable to create Bad Request response due to unable to read body parameter InlineObject")),
                         }
             },
 
