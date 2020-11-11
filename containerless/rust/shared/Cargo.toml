@@ -20,3 +20,5 @@ bytes = "*"
 futures = "*"
 lazy_static = "*"
 serde_json = "*"
+swagger = "*"
+log-openapi = { path = "../log-openapi" }
