@@ -13,9 +13,6 @@ native/artifacts.json
 
 wrk
 
-# Function generation artifacts
-examples/*
-
 # Do not want to track the changes for artifact files
 # git update-index --assume-unchanged rust/dispatcher-agent/src/decontainerized_functions/mod.rs
 # To reset:
