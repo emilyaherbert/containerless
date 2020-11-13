@@ -39,7 +39,7 @@ impl FunctionTable {
         // We use this client to issue requests to serverless functions. So, we expect
         // responses within 15 seconds.
         let mut connector = TimeoutConnector::new(hyper::client::HttpConnector::new());
-        connector.set_connect_timeout(Some(Duration::from_secs(15)));
+        connector.set_connect_timeout(Some(Duration::from_secs(30)));
         let http_client = Arc::new(hyper::Client::builder().build(connector));
 
         // We use this client to send readiness probes in a tight loop.
