@@ -6,7 +6,6 @@ pub enum Error {
     Parsing(String),
     Compiler(String),
     Kube(kube::Error),
-    Containerless(String),
 }
 
 impl Error {
@@ -18,7 +17,6 @@ impl Error {
     pub fn info(&self) -> String {
         match self {
             Error::Compiler(info) => info.to_owned(),
-            Error::Containerless(info) => info.to_owned(),
             Error::Parsing(info) => info.to_owned(),
             error => format!("{:?}", error),
         }

@@ -106,3 +106,27 @@ pub async fn shutdown_function_instances_handler(
             .unwrap()),
     }
 }
+
+pub async fn reset_trace_handler(
+    function_name: String, state: Arc<FunctionTable>,
+) -> Result<impl warp::Reply, warp::Rejection> {
+    if !FunctionTable::function_manager_exists(&state, &function_name).await {
+        return Ok(hyper::Response::builder()
+            .status(200)
+            .body(hyper::Body::from(format!(
+                "No trace to reset for function {}",
+                function_name
+            )))
+            .unwrap());
+    }
+
+    match FunctionTable::get_function(&state, &function_name).await {
+        Ok(mut fm) => Ok(fm.reset_trace().await),
+        // NOTE(emily): The error case should not happen, as we checked just
+        // above that the function manager exists for this function.
+        Err(err) => Ok(hyper::Response::builder()
+            .status(500)
+            .body(hyper::Body::from(format!("{:?}", err)))
+            .unwrap()),
+    }
+}

@@ -17,7 +17,7 @@ pub fn routes(
         .or(create_function_route(compiler.clone()))
         .or(delete_function_route(compiler.clone()))
         .or(shutdown_function_instances_route())
-        .or(reset_function_route(compiler.clone()))
+        .or(reset_trace_route(compiler.clone()))
         .or(get_function_route())
         .or(list_functions_route())
         .or(dispatcher_version_route(compiler.clone()))
@@ -110,13 +110,13 @@ fn shutdown_function_instances_route(
         .and_then(handlers::shutdown_function_instances)
 }
 
-fn reset_function_route(
+fn reset_trace_route(
     compiler: Arc<Compiler>,
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    warp::path!("reset_function" / String)
+    warp::path!("reset_trace" / String)
         .and(warp::get())
         .and(with_compiler(compiler))
-        .and_then(handlers::reset_function)
+        .and_then(handlers::reset_trace)
 }
 
 fn get_function_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone

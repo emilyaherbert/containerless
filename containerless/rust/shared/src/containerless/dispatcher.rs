@@ -38,3 +38,13 @@ pub async fn shutdown_function_instances(name: &str) -> Result<String, Error> {
     .await?;
     response_into_result(resp.status().as_u16(), resp.text().await?).map_err(Error::Dispatcher)
 }
+
+pub async fn reset_trace(name: &str) -> Result<String, Error> {
+    let resp = reqwest::get(&format!(
+        "http://{}:8080/reset_trace/{}",
+        dispatcher_ip(),
+        name
+    ))
+    .await?;
+    response_into_result(resp.status().as_u16(), resp.text().await?).map_err(Error::Dispatcher)
+}
