@@ -1228,6 +1228,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "local-database-agent"
+version = "0.1.0"
+dependencies = [
+ "bytes 0.4.12",
+ "lazy_static",
+ "log 0.3.9",
+ "serde",
+ "shared",
+ "tokio",
+ "warp",
+]
+
+[[package]]
 name = "log"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"

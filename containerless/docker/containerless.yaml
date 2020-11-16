@@ -136,6 +136,46 @@ spec:
     - name: http
       port: 8080
 ---
+# This ReplicaSet runs the local database stand-in. Not designed to be replicated.
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: database
+  namespace: containerless
+  labels:
+    app: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: database
+  template:
+    metadata:
+      labels:
+        app: database
+    spec:
+      containers:
+      - name: database
+        image: localhost:32000/local-database
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: database
+  namespace: containerless
+  labels:
+    app: database
+spec:
+  type: NodePort
+  selector:
+    app: database
+  ports:
+    - name: http
+      port: 8080
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -151,6 +191,13 @@ spec:
   rules:
   - http:
       paths:
+        - path: /database(/|$)(.*)
+          pathType: Exact
+          backend:
+            service:
+              name: database
+              port:
+                name: http
         - path: /storage(/|$)(.*)
           pathType: Exact
           backend:

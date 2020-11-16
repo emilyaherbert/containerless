@@ -1,0 +1,16 @@
+[package]
+name = "local-database-agent"
+version = "0.1.0"
+authors = ["Emily Herbert <emilyherbert@cs.umass.edu>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+shared = { path = "../shared" }
+log = "*"
+tokio = "*"
+lazy_static = "*"
+warp = "*"
+serde = { version = "1.0", features = ["derive"] }
+bytes = "*"
