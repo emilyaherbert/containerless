@@ -10,7 +10,8 @@ edition = "2018"
 shared = { path = "../shared" }
 hyper = "*"
 warp = "*"
-tokio = { version = "*", features = ["macros", "process", "fs", "signal"] }
+tokio = { version = "*", features = ["macros", "process", "fs", "signal", "io-util", "time" ] }
 futures-retry = "*"
 reqwest = "*"
 log = "*"
+futures = "*"
