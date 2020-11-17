@@ -13,7 +13,8 @@ const defaultEventArg = number(0);
 export type Request = {
     path: string,
     query: JSON,
-    body: JSON
+    body: JSON,
+    requestID: string,
 }
 
 const hostname = os.hostname();
@@ -280,9 +281,8 @@ export class Callbacks {
     public tracedListenCallback(callback: (request: Request) => void) {
         let [_, $callbackClos] = this.trace.popArgs();
         let innerTrace = this.trace.traceCallback('listen', defaultEventArg, ['clos', 'request'], $callbackClos);
-        let innerResponseID = "listeningID";
         return (req: Request) => {
-            this.withTrace(innerTrace, innerResponseID, () => {
+            this.withTrace(innerTrace,  req.requestID, () => {
                 innerTrace.pushArgs([identifier('clos'), identifier('request')]);
                 if (typeof req === 'string') {
                     // TODO(arjun): This is a bit of a hack to allow us to
@@ -292,12 +292,22 @@ export class Callbacks {
                     callback(req);
                 }
                 else {
-                    callback({ path: req.path, query: req.query, body: req.body });
+                    callback({ path: req.path, query: req.query, body: req.body, requestID: req.requestID });
                 }
             });
         };
     }
 
+    private extractAndRememberRequestID(req: express.Request, resp: express.Response) {
+        let id = req.header("Unique-ID");
+        if(id === undefined) {
+            throw Error('bad');
+        } else {
+            this.response.set(id, resp);
+            this.responseID = id;
+        }
+        return id;
+    }
     public listen(callback: (request: Request) => void) {
         let tracedCallback = this.tracedListenCallback(callback);
         this.app = express();
@@ -333,48 +343,23 @@ export class Callbacks {
          */
 
         this.app.get('/', (req, resp) => {
-            let id = req.header("Unique-ID");
-            if(id === undefined) {
-                throw Error('bad');
-            } else {
-                this.response.set(id, resp);
-                this.responseID = id;
-            }
-            tracedCallback({ path: "", query: req.query, body: {} as any });
+            const id = this.extractAndRememberRequestID(req, resp);
+            tracedCallback({ path: "", query: req.query, body: {} as any, requestID: id });
         });
 
         this.app.post('/', (req, resp) => {
-            let id = req.header("Unique-ID");
-            if(id === undefined) {
-                throw Error('bad');
-            } else {
-                this.response.set(id, resp);
-                this.responseID = id;
-            }
-            tracedCallback({ path: "", query: req.query, body: req.body });
+            const id = this.extractAndRememberRequestID(req, resp);
+            tracedCallback({ path: "", query: req.query, body: req.body, requestID: id });
         });
 
         this.app.get('/:path*', (req, resp) => {
-            let id = req.header("Unique-ID");
-            console.log(id);
-            if(id === undefined) {
-                throw Error('bad');
-            } else {
-                this.response.set(id, resp);
-                this.responseID = id;
-            }
-            tracedCallback({ path: req.path, query: req.query, body: {} as any });
+            const id = this.extractAndRememberRequestID(req, resp);
+            tracedCallback({ path: req.path, query: req.query, body: {} as any, requestID: id });
         });
 
         this.app.post('/:path*', (req, resp) => {
-            let id = req.header("Unique-ID");
-            if(id === undefined) {
-                throw Error('bad');
-            } else {
-                this.response.set(id, resp);
-                this.responseID = id;
-            }
-            tracedCallback({ path: req.path, query: req.query, body: req.body });
+            const id = this.extractAndRememberRequestID(req, resp);
+            tracedCallback({ path: req.path, query: req.query, body: req.body, requestID: id });
         });
 
         const port = state.getListenPort();
