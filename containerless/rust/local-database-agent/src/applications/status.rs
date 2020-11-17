@@ -12,6 +12,7 @@ pub struct Commit {
 
 #[derive(Serialize, Deserialize)]
 pub struct Status {
+    sha: String,
     state: String
 }
 
@@ -33,5 +34,5 @@ pub async fn status_get_handler(commits_stack: Stack<Commit>) -> Result<impl war
 
 pub async fn status_post_handler(_status: Status) -> Result<impl warp::Reply, warp::Rejection> {
     // theoretically update status of internal commit DB
-    return response::ok_response("Done!".to_string());
+    return response::ok_response("{ \"body\": \"Done!\" }".to_string());
 }

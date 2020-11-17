@@ -191,6 +191,7 @@ export class Callbacks {
                         callback(undefined);
                     }
                     else {
+                        // NOTE(emily): Change this to not be the stupid thing
                         callback(JSON.parse(String(resp.body)));
                     }
                 });
