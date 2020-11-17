@@ -22,11 +22,13 @@ export class Callbacks {
 
     private app: express.Express | undefined;
     private response: Map<string, express.Response>; // express.Response | undefined;
+    private responseID: string | undefined;
     public trace: TracingInterface;
 
     constructor() {
         this.app = undefined;
         this.response = new Map();
+        this.responseID = undefined;
         this.trace = state.isTracing() ? newTrace() : newMockTrace();
     }
 
@@ -36,14 +38,17 @@ export class Callbacks {
      * @param trace Callback trace.
      * @param body Callback body.
      */
-    private withTrace(trace: TracingInterface, body: () => void) {
+    private withTrace(trace: TracingInterface, responseID: string, body: () => void) {
         let outerTrace = this.trace;
+        let outerResponseID = this.responseID;
         this.trace = trace;
+        this.responseID = responseID;
         trace.newTrace();
         let result = body();
         trace.exitBlock();
         trace.newTrace();
         this.trace = outerTrace;
+        this.responseID = outerResponseID;
         return result;
     }
 
@@ -59,12 +64,21 @@ export class Callbacks {
     mockCallback(callback: (value: any) => void, arg: any): ((value: any) => void) {
         const [_, callbackClos, argRep] = this.trace.popArgs();
         let innerTrace = this.trace.traceCallback('mock', argRep, ['clos', 'response'], callbackClos);
+        let innerResponseID = "0";
         return (value: any) => {
-            this.withTrace(innerTrace, () => {
+            this.withTrace(innerTrace, innerResponseID, () => {
                 innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                 callback(value);
             });
         };
+    }
+
+    private getResponseIDOrError(): string {
+        if(this.responseID === undefined) {
+            throw Error("undefined id");
+        } else {
+            return this.responseID;
+        }
     }
 
     /**
@@ -80,8 +94,9 @@ export class Callbacks {
     immediate(callbackArgStr: string, callback: (callbackArg: string) => void) {
         const [_, argRep, callbackClos] = this.trace.popArgs();
         let innerTrace = this.trace.traceCallback('immediate', argRep, ['clos', 'x'], callbackClos);
+        let innerResponseID = "1";
         setImmediate(() => {
-            this.withTrace(innerTrace, () => {
+            this.withTrace(innerTrace, innerResponseID, () => {
                 innerTrace.pushArgs([identifier('clos'), identifier('x')]);
                 callback(callbackArgStr);
             });
@@ -103,9 +118,9 @@ export class Callbacks {
         // passed to the function.
         let [_, $argRep, $callbackClos] = this.trace.popArgs();
         let innerTrace = this.trace.traceCallback('get', $argRep, ['clos', 'response'], $callbackClos);
-
+        let innerResponseID = this.getResponseIDOrError();
         if (uri.startsWith('data:')) {
-            this.withTrace(innerTrace, () => {
+            this.withTrace(innerTrace, innerResponseID, () => {
                 innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                 callback(JSON.parse(uri.substr(5)));
             });
@@ -113,7 +128,7 @@ export class Callbacks {
         }
 
         if (state.getListenPort() === 'test') {
-            this.withTrace(innerTrace, () => {
+            this.withTrace(innerTrace, innerResponseID, () => {
                 innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                 // TODO(arjun): We need to change this to test withot making
                 // Internet connections.
@@ -121,7 +136,7 @@ export class Callbacks {
             });
         } else {
             request.get(uri, undefined, (error, resp) => {
-                this.withTrace(innerTrace, () => {
+                this.withTrace(innerTrace, innerResponseID, () => {
                     innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                     if (error !== null) {
                         callback(undefined);
@@ -141,9 +156,9 @@ export class Callbacks {
     post(uri: { url: string, body: JSON | string }, callback: (response: undefined | string) => void) {
         let [_, $argRep, $callbackClos] = this.trace.popArgs();
         let innerTrace = this.trace.traceCallback('post', $argRep, ['clos', 'response'], $callbackClos);
-
+        let innerResponseID = this.getResponseIDOrError();
         if (uri.url.startsWith('data:')) {
-            this.withTrace(innerTrace, () => {
+            this.withTrace(innerTrace, innerResponseID, () => {
                 innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                 callback(JSON.parse(uri.url.substr(5)));
             });
@@ -158,7 +173,7 @@ export class Callbacks {
         */
 
         if (state.getListenPort() === 'test') {
-            this.withTrace(innerTrace, () => {
+            this.withTrace(innerTrace, innerResponseID, () => {
                 innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                 // TODO(emily): This is probably wrong.
                 callback(JSON.parse(String('{ "body": "User not found."}')));
@@ -168,7 +183,7 @@ export class Callbacks {
                 uri.body = JSON.stringify(uri.body);
             }
             request.post(uri, (error: any, resp: any) => {
-                this.withTrace(innerTrace, () => {
+                this.withTrace(innerTrace, innerResponseID, () => {
                     innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                     if (error !== null) {
                         console.error(error);
@@ -190,9 +205,9 @@ export class Callbacks {
     put(uri: { url: string, body: JSON | string }, callback: (response: undefined | string) => void) {
         let [_, $argRep, $callbackClos] = this.trace.popArgs();
         let innerTrace = this.trace.traceCallback('put', $argRep, ['clos', 'response'], $callbackClos);
-
+        let innerResponseID = this.getResponseIDOrError();
         if (uri.url.startsWith('data:')) {
-            this.withTrace(innerTrace, () => {
+            this.withTrace(innerTrace, innerResponseID, () => {
                 innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                 callback(JSON.parse(uri.url.substr(5)));
             });
@@ -200,7 +215,7 @@ export class Callbacks {
         }
 
         if (state.getListenPort() === 'test') {
-            this.withTrace(innerTrace, () => {
+            this.withTrace(innerTrace, innerResponseID, () => {
                 innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                 // TODO(emily): This is probably wrong.
                 callback(JSON.parse(String('{ "body": "User not found."}')));
@@ -210,7 +225,7 @@ export class Callbacks {
                 uri.body = JSON.stringify(uri.body);
             }
             request.put(uri, (error: any, resp: any) => {
-                this.withTrace(innerTrace, () => {
+                this.withTrace(innerTrace, innerResponseID, () => {
                     innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                     if (error !== null) {
                         console.error(error);
@@ -231,9 +246,9 @@ export class Callbacks {
     delete(uri: string, callback: (response: undefined | string) => void) {
         let [_, $argRep, $callbackClos] = this.trace.popArgs();
         let innerTrace = this.trace.traceCallback('delete', $argRep, ['clos', 'response'], $callbackClos);
-
+        let innerResponseID = this.getResponseIDOrError();
         if (uri.startsWith('data:')) {
-            this.withTrace(innerTrace, () => {
+            this.withTrace(innerTrace, innerResponseID, () => {
                 innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                 callback(JSON.parse(uri.substr(5)));
             });
@@ -241,14 +256,14 @@ export class Callbacks {
         }
 
         if (state.getListenPort() === 'test') {
-            this.withTrace(innerTrace, () => {
+            this.withTrace(innerTrace, innerResponseID, () => {
                 innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                 // TODO(emily): This is probably wrong.
                 callback(JSON.parse(String('{ "body": "User not found."}')));
             });
         } else {
             request.delete(uri, (error: any, resp: any) => {
-                this.withTrace(innerTrace, () => {
+                this.withTrace(innerTrace, innerResponseID, () => {
                     innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                     if (error !== null) {
                         console.error(error);
@@ -265,9 +280,9 @@ export class Callbacks {
     public tracedListenCallback(callback: (request: Request) => void) {
         let [_, $callbackClos] = this.trace.popArgs();
         let innerTrace = this.trace.traceCallback('listen', defaultEventArg, ['clos', 'request'], $callbackClos);
-
+        let innerResponseID = "listeningID";
         return (req: Request) => {
-            this.withTrace(innerTrace, () => {
+            this.withTrace(innerTrace, innerResponseID, () => {
                 innerTrace.pushArgs([identifier('clos'), identifier('request')]);
                 if (typeof req === 'string') {
                     // TODO(arjun): This is a bit of a hack to allow us to
@@ -320,10 +335,10 @@ export class Callbacks {
         this.app.get('/', (req, resp) => {
             let id = req.header("Unique-ID");
             if(id === undefined) {
-                // TODO(emily): Do something better
                 throw Error('bad');
             } else {
                 this.response.set(id, resp);
+                this.responseID = id;
             }
             tracedCallback({ path: "", query: req.query, body: {} as any });
         });
@@ -331,21 +346,22 @@ export class Callbacks {
         this.app.post('/', (req, resp) => {
             let id = req.header("Unique-ID");
             if(id === undefined) {
-                // TODO(emily): Do something better
                 throw Error('bad');
             } else {
                 this.response.set(id, resp);
+                this.responseID = id;
             }
             tracedCallback({ path: "", query: req.query, body: req.body });
         });
 
         this.app.get('/:path*', (req, resp) => {
             let id = req.header("Unique-ID");
+            console.log(id);
             if(id === undefined) {
-                // TODO(emily): Do something better
                 throw Error('bad');
             } else {
                 this.response.set(id, resp);
+                this.responseID = id;
             }
             tracedCallback({ path: req.path, query: req.query, body: {} as any });
         });
@@ -353,10 +369,10 @@ export class Callbacks {
         this.app.post('/:path*', (req, resp) => {
             let id = req.header("Unique-ID");
             if(id === undefined) {
-                // TODO(emily): Do something better
                 throw Error('bad');
             } else {
                 this.response.set(id, resp);
+                this.responseID = id;
             }
             tracedCallback({ path: req.path, query: req.query, body: req.body });
         });
@@ -368,14 +384,12 @@ export class Callbacks {
     }
 
 
-    public respond(req: express.Request, response: any) {
-        let [_, $req, $response] = this.trace.popArgs();
-        let id = req.header("Unique-ID");
-        if(id === undefined) {
-            // TODO(emily): fix
+    public respond(response: any) {
+        let [_, $response] = this.trace.popArgs();
+        if(this.responseID === undefined) {
             throw Error ("oops");
         }
-        let resp = this.response.get(id);
+        let resp = this.response.get(this.responseID);
         this.trace.tracePrimApp('send', [$response]);
         if(resp !== undefined) {
             if(typeof(response) !== 'string' && response.length > 0) {
@@ -388,20 +402,18 @@ export class Callbacks {
                 resp.send('' + response);
             }
         } else if(state.getListenPort() !== 'test') {
-            throw new Error("No express.Response found.");
+            throw new Error("No express.Response found. this.responseID: " + this.responseID);
         }
     }
 
-    public hello(req: express.Request) {
+    public hello() {
         let response = "Hello from JavaScript!";
         let $response = string("Hello from Rust!");
         let _ = this.trace.popArgs();
-        let id = req.header("Unique-ID");
-        if(id === undefined) {
-            // TODO(emily): fix
+        if(this.responseID === undefined) {
             throw Error ("oops");
         }
-        let resp = this.response.get(id);
+        let resp = this.response.get(this.responseID);
         this.trace.tracePrimApp('send', [$response]);
         if(resp !== undefined) {
             resp.set('X-Server-Hostname', hostname); 

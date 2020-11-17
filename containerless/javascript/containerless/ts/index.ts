@@ -98,12 +98,12 @@ export function listen(
     });
 }
 
-export function respond(req: any, response: any) {
-    return cb.respond(req, response);
+export function respond(response: any) {
+    return cb.respond(response);
 }
 
-export function hello(req: any) {
-    return cb.hello(req);
+export function hello() {
+    return cb.hello();
 }
 
 // Check if the application called listening. If not, blow up.

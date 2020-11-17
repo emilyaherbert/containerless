@@ -9,7 +9,7 @@ fn trivial_fixed_response() {
         r#"
         let containerless = require("containerless");
         containerless.listen(function(req) {
-            containerless.respond(req, "Hello, world!");
+            containerless.respond("Hello, world!");
         });"#,
         vec![("/hello", json!({}))],
         vec![("/hello", json!({}))],
@@ -30,7 +30,7 @@ fn loops() {
             for(let i=0; i<arr.length; i++) {
                 count = count+1;
             }
-            containerless.respond(req, count);
+            containerless.respond(count);
         });"#,
         vec![("/hello", json!({ "arr": [1, 2, 3] }))],
         vec![("/hello", json!({ "arr": [1, 2, 3] }))],
@@ -45,7 +45,7 @@ fn yay() {
         r#"
         let containerless = require("containerless");
         containerless.listen(function(req) {
-            containerless.respond(req, "yay!");
+            containerless.respond("yay!");
         });"#,
         vec![("/hello", json!({}))],
         vec![("/hello", json!({}))],
@@ -66,7 +66,7 @@ fn frivolous_if() {
             } else {
                 x = 13;
             }
-            containerless.respond(req, "hi");
+            containerless.respond("hi");
         });"#,
         vec![("/hello", json!({}))],
         vec![("/hello", json!({}))],
@@ -82,7 +82,7 @@ fn bad_name() {
         r#"
         let containerless = require("containerless");
         containerless.listen(function(req) {
-            containerless.respond(req, "you won't see this");
+            containerless.respond("you won't see this");
         });"#,
         vec![("/hello", json!({}))],
         vec![("/hello", json!({}))],
@@ -102,7 +102,7 @@ fn for_test() {
             for(let i=0; i<n; i++) {
                 x = x + 1;
             }
-            containerless.respond(req, "Done!");
+            containerless.respond("Done!");
         });"#,
         vec![("/hello", json!({"n": 2 }))],
         vec![("/hello", json!({"n": 2 }))],
@@ -124,7 +124,7 @@ fn while_test() {
                 x = x + 1;
                 n = n - 1;
             }
-            containerless.respond(req, "Done!");
+            containerless.respond("Done!");
         });"#,
         vec![("/hello", json!({"n": 2 }))],
         vec![("/hello", json!({"n": 2 }))],
@@ -143,7 +143,7 @@ fn array_pop() {
             for(let i=0; i<x.length; i++) {
                 x.pop();
             }
-            containerless.respond(req, "Done!");
+            containerless.respond("Done!");
         });"#,
         vec![("/hello", json!({}))],
         vec![("/hello", json!({}))],
@@ -160,10 +160,10 @@ fn else_before_if() {
         containerless.listen(function(req) {
             let x = req.body.x;
             if(x > 10) {
-                containerless.respond(req, "42");
+                containerless.respond("42");
                 return;
             }
-            containerless.respond(req, "24");
+            containerless.respond("24");
         });"#,
         vec![
             ("/hello", json!({ "x": 1 })),
@@ -185,9 +185,9 @@ fn and_bug() {
         }
         containerless.listen(function(req) {
             if(same(true) && same(true)) {
-                containerless.respond(req, "good path");
+                containerless.respond("good path");
             } else {
-                containerless.respond(req, "bad path");
+                containerless.respond("bad path");
             }
         });"#,
         vec![("/hello", json!({}))],
@@ -212,10 +212,10 @@ fn make_adder() {
             let addTen = makeAdder(10);
 
             if (addTen(1) === 11) {
-                containerless.respond(req, "ok");
+                containerless.respond("ok");
             }
             else {
-                containerless.respond(req, "error");
+                containerless.respond("error");
             }
         });"#,
         vec![("/hello", json!({}))],
@@ -242,10 +242,10 @@ fn crazy_make_adder() {
             let result = crazy(1) + crazy(2); // (11 + 1) + (12 + 2) === 26
 
             if (result === 26) {
-                containerless.respond(req, "ok");
+                containerless.respond("ok");
             }
             else {
-                containerless.respond(req, "error");
+                containerless.respond("error");
             }
         });"#,
         vec![("/hello", json!({}))],
@@ -263,9 +263,9 @@ fn nested_binops() {
         containerless.listen(function(req) {
             let x = 12;
             if(x > 2 && x < 15) {
-                containerless.respond(req, "yay!");
+                containerless.respond("yay!");
             } else {
-                containerless.respond(req, "boo!");
+                containerless.respond("boo!");
             }
         });"#,
         vec![("/hello", json!({}))],
@@ -396,9 +396,9 @@ fn autocomplete() {
                 }
             }
             if(matches.length === 0) {
-                containerless.respond(req, "No matches found!");
+                containerless.respond("No matches found!");
             } else {
-                containerless.respond(req, matches);
+                containerless.respond(matches);
             }
         });"#,
         vec![("/a", json!({}))],
@@ -500,12 +500,12 @@ fn maze() {
             if(maze[y1][x1] > 0 && maze[y2][x2] > 0) {
                 let len = findShortestPath(x1, y1, x2, y2);
                 if(len === -1) {
-                    containerless.respond(req, "No such path exists!\n");
+                    containerless.respond("No such path exists!\n");
                 } else {
-                    containerless.respond(req, len);
+                    containerless.respond(len);
                 }
             } else {
-                containerless.respond(req, "Invalid starting conditions.");
+                containerless.respond("Invalid starting conditions.");
             }
         });"#,
         vec![("/a", json!({"x1": 0, "y1": 0, "x2": 1, "y2": 2}))],
