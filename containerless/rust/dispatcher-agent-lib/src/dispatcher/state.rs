@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 use futures::prelude::*;
 use hyper::header::HeaderValue;
 use tokio::task;
+use uuid::Uuid;
 
 #[derive(Debug, PartialEq)]
 pub enum CreateMode {
@@ -228,6 +229,7 @@ impl State {
             // This is needed because the containerless library uses Express'
             // JSON bodyParser, which expects this header.
             .header("Content-Type", "application/json")
+            .header("Unique-ID", Uuid::new_v4().to_string())
             .uri(uri)
             .body(serverless_request.payload.body)
             .expect("constructing request");

@@ -21,12 +21,12 @@ const hostname = os.hostname();
 export class Callbacks {
 
     private app: express.Express | undefined;
-    private response: express.Response | undefined;
+    private response: Map<string, express.Response>; // express.Response | undefined;
     public trace: TracingInterface;
 
     constructor() {
         this.app = undefined;
-        this.response = undefined;
+        this.response = new Map();
         this.trace = state.isTracing() ? newTrace() : newMockTrace();
     }
 
@@ -318,26 +318,46 @@ export class Callbacks {
          */
 
         this.app.get('/', (req, resp) => {
-            this.response = resp;
+            let id = req.header("Unique-ID");
+            if(id === undefined) {
+                // TODO(emily): Do something better
+                throw Error('bad');
+            } else {
+                this.response.set(id, resp);
+            }
             tracedCallback({ path: "", query: req.query, body: {} as any });
         });
 
         this.app.post('/', (req, resp) => {
-            this.response = resp;
+            let id = req.header("Unique-ID");
+            if(id === undefined) {
+                // TODO(emily): Do something better
+                throw Error('bad');
+            } else {
+                this.response.set(id, resp);
+            }
             tracedCallback({ path: "", query: req.query, body: req.body });
         });
 
         this.app.get('/:path*', (req, resp) => {
-            this.response = resp;
-            //console.log(req.query);
-            //console.error(req.query);
+            let id = req.header("Unique-ID");
+            if(id === undefined) {
+                // TODO(emily): Do something better
+                throw Error('bad');
+            } else {
+                this.response.set(id, resp);
+            }
             tracedCallback({ path: req.path, query: req.query, body: {} as any });
         });
 
         this.app.post('/:path*', (req, resp) => {
-            this.response = resp;
-            //console.log(req.query);
-            //console.error(req.query);
+            let id = req.header("Unique-ID");
+            if(id === undefined) {
+                // TODO(emily): Do something better
+                throw Error('bad');
+            } else {
+                this.response.set(id, resp);
+            }
             tracedCallback({ path: req.path, query: req.query, body: req.body });
         });
 
@@ -348,32 +368,44 @@ export class Callbacks {
     }
 
 
-    public respond(response: any) {
-        let [_, $response] = this.trace.popArgs();
+    public respond(req: express.Request, response: any) {
+        let [_, $req, $response] = this.trace.popArgs();
+        let id = req.header("Unique-ID");
+        if(id === undefined) {
+            // TODO(emily): fix
+            throw Error ("oops");
+        }
+        let resp = this.response.get(id);
         this.trace.tracePrimApp('send', [$response]);
-        if(this.response !== undefined) {
+        if(resp !== undefined) {
             if(typeof(response) !== 'string' && response.length > 0) {
-                this.response.send('' + response);
+                resp.send('' + response);
             } else if(typeof(response) === 'object') {
-                this.response.set('X-Server-Hostname', hostname);
-                this.response.writeHead(200);
-                this.response.send('' + JSON.stringify(response, null, 4));
+                resp.set('X-Server-Hostname', hostname);
+                resp.writeHead(200);
+                resp.send('' + JSON.stringify(response, null, 4));
             } else {
-                this.response.send('' + response);
+                resp.send('' + response);
             }
         } else if(state.getListenPort() !== 'test') {
             throw new Error("No express.Response found.");
         }
     }
 
-    public hello() {
+    public hello(req: express.Request) {
         let response = "Hello from JavaScript!";
         let $response = string("Hello from Rust!");
-        let [_] = this.trace.popArgs();
+        let _ = this.trace.popArgs();
+        let id = req.header("Unique-ID");
+        if(id === undefined) {
+            // TODO(emily): fix
+            throw Error ("oops");
+        }
+        let resp = this.response.get(id);
         this.trace.tracePrimApp('send', [$response]);
-        if(this.response !== undefined) {
-            this.response.set('X-Server-Hostname', hostname); 
-            this.response.send('' + response);
+        if(resp !== undefined) {
+            resp.set('X-Server-Hostname', hostname); 
+            resp.send('' + response);
         } else if(state.getListenPort() !== 'test') {
             throw new Error("No express.Response found.");
         }
