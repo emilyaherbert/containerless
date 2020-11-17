@@ -17,12 +17,13 @@ fn ready_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Reject
 }
 
 fn upload_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    warp::path!("upload" / String)
+    info!(target: "local-database", "entered upload route");
+    warp::path!("upload")
         .and(warp::body::json())
         .and(warp::post())
         .and_then(upload::upload_handler)
 }
 
 pub async fn ready_handler() -> Result<impl warp::Reply, warp::Rejection> {
-    response::ok_response("local database".to_string())
+    response::ok_response("local database ready".to_string())
 }

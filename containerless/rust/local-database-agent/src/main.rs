@@ -1,9 +1,10 @@
+#[macro_use]
+extern crate log;
 
 mod routes;
 mod applications;
 mod error;
 
-use shared::common::*;
 use shared::logger;
 
 #[tokio::main]
