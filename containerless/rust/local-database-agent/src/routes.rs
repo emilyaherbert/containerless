@@ -17,7 +17,6 @@ fn ready_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Reject
 }
 
 fn upload_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    info!(target: "local-database", "entered upload route");
     warp::path!("upload")
         .and(warp::body::json())
         .and(warp::post())
