@@ -25,3 +25,4 @@ thiserror = "*"
 warp = "*"
 reqwest = { version = "0.10", features = ["json"] }
 hyper-timeout = "*"
+uuid = "*"

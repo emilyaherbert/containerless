@@ -438,6 +438,7 @@ dependencies = [
  "shared",
  "thiserror",
  "tokio",
+ "uuid",
  "warp",
 ]
 
@@ -1226,6 +1227,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c7c91c4c7bbeb4f2f7c4e5be11e6a05bd6830bc37249c47ce1ad86ad453ff9c"
 dependencies = [
  "linked-hash-map",
+]
+
+[[package]]
+name = "local-database-agent"
+version = "0.1.0"
+dependencies = [
+ "bytes 0.4.12",
+ "lazy_static",
+ "log 0.3.9",
+ "rand 0.6.5",
+ "serde",
+ "serde_json",
+ "shared",
+ "tokio",
+ "warp",
 ]
 
 [[package]]
