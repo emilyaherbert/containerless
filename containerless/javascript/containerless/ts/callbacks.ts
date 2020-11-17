@@ -356,6 +356,7 @@ export class Callbacks {
                 this.response.send('' + response);
             } else if(typeof(response) === 'object') {
                 this.response.set('X-Server-Hostname', hostname);
+                this.response.writeHead(200);
                 this.response.send('' + JSON.stringify(response, null, 4));
             } else {
                 this.response.send('' + response);

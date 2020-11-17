@@ -164,17 +164,22 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: database
+  name: database-external
   namespace: containerless
   labels:
     app: database
 spec:
-  type: NodePort
+  type: LoadBalancer
+  clusterIP: 10.152.183.132
+  externalTrafficPolicy: Cluster
+  ports:
+    - nodePort: 30387
+      port: $DATABASE_PORT
+      protocol: TCP
+      targetPort: $DATABASE_PORT
   selector:
     app: database
-  ports:
-    - name: http
-      port: $DATABASE_PORT
+  sessionAffinity: None
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -191,13 +196,6 @@ spec:
   rules:
   - http:
       paths:
-        - path: /database(/|$)(.*)
-          pathType: Exact
-          backend:
-            service:
-              name: database
-              port:
-                name: http
         - path: /storage(/|$)(.*)
           pathType: Exact
           backend:

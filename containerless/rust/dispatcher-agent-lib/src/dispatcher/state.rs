@@ -206,6 +206,9 @@ impl State {
         return Ok(());
     }
 
+    // create random number, send in header
+    // in containerless library, create map of random number to response thing
+    // check at the end
     async fn invoke_err(
         &self, authority: uri::Authority, serverless_request: ServerlessRequest,
         autoscaler: Arc<Autoscaler>, containerless_mode_header: &'static str,
