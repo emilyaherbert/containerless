@@ -20,27 +20,24 @@ pub async fn get_function(
             error!("Error reading func {} : {:?} ", path, err);
             error_response(err.info())
         }
-        Ok(func) => ok_response(func.contents),
+        Ok(func) => {
+            let mode = if func.containers_only {"disable-tracing"} else {"tracing"};
+            ok_response_with_containerless_mode(func.contents, mode.to_string())
+        },
     }
 }
 
 pub async fn create_function(
     path: String, func: Function, storage: SharedStorage,
 ) -> Result<impl warp::Reply, warp::Rejection> {
+    println!("storage create function with containers_only: {}", func.containers_only);
     let mut storage = storage.lock().await;
     match storage.set(&path, func.clone()) {
         Err(err) => {
             error!("Error creating func {} : {:?} ", path, err);
             error_response(err.info())
         }
-        Ok(_) => {
-            let containerless_mode = if func.containers_only {
-                "disable-tracing"
-            } else {
-                "tracing"
-            };
-            ok_response_with_containerless_mode(func.contents, containerless_mode.to_string())
-        },
+        Ok(_) => ok_response("added to storage".to_string())
     }
 }
 
