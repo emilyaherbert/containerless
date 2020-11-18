@@ -136,7 +136,7 @@ impl FunctionTable {
                 let storage_resp =
                     reqwest::get(&format!("http://storage:8080/get_function/{}", name)).await?;
                 let headers = storage_resp.headers();
-                let containers_only = headers.contains_key("X-Containerless-Mode") && headers["X-Containerless-Mode"] == "disable-tracing";
+                let containers_only = headers.contains_key("x-containerless-mode") && headers["x-containerless-mode"] == "disable-tracing";
                 if let Err(err) =
                     response_into_result(storage_resp.status().as_u16().clone(), storage_resp.text().await?.clone())
                 {

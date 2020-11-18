@@ -13,7 +13,7 @@ pub async fn containerless_create(
     std::fs::write(&filename, js_code)?;
     let mut args = vec!["create", "-n", name, "-f", &filename];
     if containers_only {
-        args.push("--containers_only");
+        args.push("--containers-only");
     }
     Ok(Command::new(format!("{}/debug/cli", ROOT.as_str()))
         .args(args)

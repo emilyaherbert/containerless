@@ -137,6 +137,7 @@ export class Callbacks {
             });
         } else {
             request.get(uri, undefined, (error, resp) => {
+                //console.error(resp);
                 this.withTrace(innerTrace, innerResponseID, () => {
                     innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                     if (error !== null) {
@@ -379,7 +380,9 @@ export class Callbacks {
         this.response.delete(this.responseID);
         this.trace.tracePrimApp('send', [$response]);
         if(resp !== undefined) {
-            if(typeof(response) !== 'string' && response.length > 0) {
+            if(typeof(response) === 'undefined') {
+                resp.send('' + response);
+            } else if(typeof(response) !== 'string' && response.length > 0) {
                 resp.send('' + response);
             } else if(typeof(response) === 'object') {
                 resp.set('X-Server-Hostname', hostname);
