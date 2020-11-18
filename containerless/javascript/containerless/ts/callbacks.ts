@@ -376,6 +376,7 @@ export class Callbacks {
             throw Error ("oops");
         }
         let resp = this.response.get(this.responseID);
+        this.response.delete(this.responseID);
         this.trace.tracePrimApp('send', [$response]);
         if(resp !== undefined) {
             if(typeof(response) !== 'string' && response.length > 0) {
@@ -400,6 +401,7 @@ export class Callbacks {
             throw Error ("oops");
         }
         let resp = this.response.get(this.responseID);
+        this.response.delete(this.responseID);
         this.trace.tracePrimApp('send', [$response]);
         if(resp !== undefined) {
             resp.set('X-Server-Hostname', hostname); 
