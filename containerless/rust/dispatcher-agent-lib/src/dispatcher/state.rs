@@ -21,6 +21,7 @@ pub struct State {
     pub name: String,
     pub tracing_pod_name: String,
     pub vanilla_name: String,
+    node_selector: Option<(String, String)>,
     k8s_client: K8sClient,
     http_client: HttpClient,
     short_deadline_http_client: HttpClient,
@@ -33,6 +34,7 @@ impl State {
     pub fn new(
         name: String, k8s_client: K8sClient, http_client: HttpClient,
         short_deadline_http_client: HttpClient,
+        node_selector: Option<(String, String)>,
     ) -> Arc<Self> {
         let tracing_pod_name = format!("function-tracing-{}", &name);
         let vanilla_name = format!("function-vanilla-{}", &name);
@@ -44,6 +46,7 @@ impl State {
 
         let state = State {
             name,
+            node_selector,
             k8s_client,
             http_client,
             short_deadline_http_client,
@@ -68,7 +71,7 @@ impl State {
 
     fn pod_spec(&self, mode: &str) -> k8s_openapi::api::core::v1::PodSpec {
         use k8s::builder::*;
-        let builder = PodSpecBuilder::new().container(
+        let mut builder = PodSpecBuilder::new().container(
             ContainerBuilder::new()
                 .name("function")
                 .image("localhost:32000/function-runner:latest")
@@ -87,6 +90,10 @@ impl State {
                 .env("FUNCTION_MODE", mode)
                 .build(),
         );
+        if let Some((k, v)) = &self.node_selector {
+            builder = builder.node_selector(k, v);
+        }
+        
         if mode == "tracing" {
             // A crash should be an error in Containerless, and not an error
             // in user code. Restarting should be pointless.

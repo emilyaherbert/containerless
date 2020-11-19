@@ -17,6 +17,7 @@ struct FunctionTableImpl {
     http_client: HttpClient,
     short_deadline_http_client: HttpClient,
     k8s_client: K8sClient,
+    node_selector: Option<(String, String)>,
 }
 
 pub struct FunctionTable {
@@ -36,6 +37,17 @@ impl FunctionTable {
                 .expect("initializing k8s client"),
         );
 
+        let mut config_map = k8s_client.read_config_map("containerless").await
+            .expect("reading configmap/containerless");
+        let node_selector = match (config_map.remove("nodeSelector-key"), config_map.remove("nodeSelector-value")) {
+            (Some(k), Some(v)) => Some((k, v)),
+            (None, None) => {
+                info!(target: "dispatcher", "will not use nodeSelectors");
+                None
+            }
+            _ => panic!("nodeSelector-key and nodeSelector-value must be both set or omitted")
+        };
+
         // We use this client to issue requests to serverless functions. So, we expect
         // responses within 15 seconds.
         let mut connector = TimeoutConnector::new(hyper::client::HttpConnector::new());
@@ -52,6 +64,7 @@ impl FunctionTable {
             http_client,
             short_deadline_http_client,
             k8s_client,
+            node_selector,
         };
         let upgrade_pending = Arc::new(AtomicBool::new(false));
         return Arc::new(FunctionTable {
@@ -94,6 +107,7 @@ impl FunctionTable {
                         inner.k8s_client.clone(),
                         inner.http_client.clone(),
                         inner.short_deadline_http_client.clone(),
+                        inner.node_selector.clone(),
                         Arc::downgrade(self_),
                         name.to_string(),
                         containers_only,
@@ -146,6 +160,7 @@ impl FunctionTable {
                     inner.k8s_client.clone(),
                     inner.http_client.clone(),
                     inner.short_deadline_http_client.clone(),
+                    inner.node_selector.clone(),
                     Arc::downgrade(self_),
                     name.to_string(),
                     containers_only,

@@ -206,6 +206,30 @@ the root of the repo.
 $ ./undeploy.sh
 ```
 
+## Choosing Worker Nodes
+
+By default, serverless functions will run on any node in the cluster. To
+restrict them to particular nodes, first attach a label to each node:
+
+```
+microk8s.kubectl label nodes <node-name> containerless=worker
+```
+
+Then, apply the following ConfigMap:
+
+```
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: containerless
+  namespace: containerless
+data:
+  nodeSelector-key:  containerless
+  nodeSelector-value: worker
+---
+```
+
 [Cargo]: https://rustup.rs/
 [Yarn 1.x]: https://classic.yarnpkg.com/
 [Node]: https://nodejs.org/
