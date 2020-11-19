@@ -1,10 +1,11 @@
 use super::types as t;
 
+use std::collections::BTreeMap;
 use http;
 use k8s_openapi::api::apps::v1::{
     Deployment, DeploymentSpec, DeploymentStatus, ReplicaSet, ReplicaSetSpec, ReplicaSetStatus,
 };
-use k8s_openapi::api::core::v1::{Pod, PodSpec, PodStatus, Service, ServiceSpec, ServiceStatus};
+use k8s_openapi::api::core::v1::{Pod, PodSpec, PodStatus, Service, ServiceSpec, ServiceStatus, ConfigMap};
 use kube;
 use kube::api::{Api, DeleteParams, ListParams, Object, PatchParams, PostParams};
 use kube::config::Configuration;
@@ -12,6 +13,8 @@ use std::collections::HashMap;
 //use futures::{Stream, StreamExt};
 
 pub struct Client {
+    namespace: String,
+    client: kube::client::APIClient,
     pods: Api<Object<PodSpec, PodStatus>>,
     services: Api<Object<ServiceSpec, ServiceStatus>>,
     replica_set: Api<Object<ReplicaSetSpec, ReplicaSetStatus>>,
@@ -28,6 +31,8 @@ impl Client {
         let replica_set = kube::api::Api::v1ReplicaSet(client.clone()).within(namespace);
         let deployment = kube::api::Api::v1Deployment(client.clone()).within(namespace);
         return Ok(Client {
+            namespace: namespace.to_string(),
+            client,
             pods,
             services,
             replica_set,
@@ -361,5 +366,27 @@ impl Client {
             pods: pods_hm,
             services: services_hm,
         })
+    }
+
+    pub async fn read_config_map(&self, name: &str) -> Result<BTreeMap<String, String>, kube::Error> {
+        // NOTE(arjun): There must be a simpler way to do this. I read the source code, put types
+        // together, and came up with this awful sequence of API calls to read ConfigMaps.
+        use k8s_openapi::Response;
+        use k8s_openapi::api::core::v1::ReadNamespacedConfigMapResponse;
+        let (req, _handler) = ConfigMap::read_namespaced_config_map(name, self.namespace.as_str(), Default::default())
+            .expect("failed to create request in read_config_map");
+        let resp = self.client.request_text(req).await?;
+        
+        // NOTE(arjun): I believe the _ below is the number of bytes left, and should always be 0.
+        let (parsed_resp, _) = ReadNamespacedConfigMapResponse::try_from_parts(http::StatusCode::default(), resp.as_bytes())
+            // NOTE(arjun): comment in kube::Error that this error is for *response* parsing errors.
+            .map_err(|_err| kube::Error::RequestParse)?;
+        if let ReadNamespacedConfigMapResponse::Ok(config_map) = parsed_resp {
+            if let Some(data) = config_map.data {
+                return Ok(data);
+            }
+        }
+        // NOTE(arjun): See comment above.
+        return Err(kube::Error::RequestParse)?;
     }
 }

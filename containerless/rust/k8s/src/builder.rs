@@ -317,6 +317,18 @@ impl PodSpecBuilder {
         self.pod_spec.restart_policy = Some("Never".to_string());
         return self;
     }
+
+    pub fn node_selector<S>(mut self, key: S, value: S) -> Self
+        where S: Into<String> {
+        if self.pod_spec.node_selector.is_none() {
+            self.pod_spec.node_selector = Some(Default::default());
+        }
+        let selectors = self.pod_spec.node_selector.as_mut().unwrap();
+        selectors.insert(key.into(), value.into())
+            .expect("provided key is already set");
+
+        return self;
+    }
 }
 
 impl ContainerBuilder {
