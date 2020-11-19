@@ -385,6 +385,8 @@ impl Client {
             if let Some(data) = config_map.data {
                 return Ok(data);
             }
+            // ConfigMap does not have a data: section.
+            return Ok(Default::default());
         }
         // NOTE(arjun): See comment above.
         return Err(kube::Error::RequestParse)?;
