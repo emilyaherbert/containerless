@@ -137,6 +137,7 @@ export class Callbacks {
             });
         } else {
             request.get(uri, undefined, (error, resp) => {
+                //console.error(resp);
                 this.withTrace(innerTrace, innerResponseID, () => {
                     innerTrace.pushArgs([identifier('clos'), identifier('response')]);
                     if (error !== null) {
@@ -376,9 +377,12 @@ export class Callbacks {
             throw Error ("oops");
         }
         let resp = this.response.get(this.responseID);
+        this.response.delete(this.responseID);
         this.trace.tracePrimApp('send', [$response]);
         if(resp !== undefined) {
-            if(typeof(response) !== 'string' && response.length > 0) {
+            if(typeof(response) === 'undefined') {
+                resp.send('' + response);
+            } else if(typeof(response) !== 'string' && response.length > 0) {
                 resp.send('' + response);
             } else if(typeof(response) === 'object') {
                 resp.set('X-Server-Hostname', hostname);
@@ -400,6 +404,7 @@ export class Callbacks {
             throw Error ("oops");
         }
         let resp = this.response.get(this.responseID);
+        this.response.delete(this.responseID);
         this.trace.tracePrimApp('send', [$response]);
         if(resp !== undefined) {
             resp.set('X-Server-Hostname', hostname); 

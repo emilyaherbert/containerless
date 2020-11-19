@@ -4,6 +4,7 @@ use crate::applications::{DB, Stack, upload, login, status, banking};
 use shared::response;
 
 use warp::Filter;
+use std::collections::HashMap;
 
 pub fn routes(users_db: DB<login::User>, commits_stack: Stack<status::Commit>, accounts_db: DB<banking::InternalAccount>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     ready_route()
@@ -31,8 +32,12 @@ fn upload_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejec
 
 fn login_route(users_db: DB<login::User>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::path!("login")
-        .and(warp::post())
-        .and(warp::body::json())
+        .and(warp::get())
+        .and(
+            warp::query::query()
+                .map(Some)
+                .or_else(|_| async { Ok::<(Option<HashMap<String, String>>,), std::convert::Infallible>((None,)) }),
+        )
         .and(with_shared(users_db))
         .and_then(login::login_handler)
 }

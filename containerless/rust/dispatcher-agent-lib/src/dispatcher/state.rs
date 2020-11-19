@@ -479,7 +479,7 @@ impl State {
                         );
                     }
                 }
-                (Mode::Tracing(5), Message::Request(req)) => {
+                (Mode::Tracing(100), Message::Request(req)) => {
                     info!(target: "dispatcher", "INVOKE {}: FMT in Tracing mode sending trace to compiler", self_.name);
                     task::spawn(Self::send_trace_then_stop_pod_and_service(Arc::clone(
                         &self_,
