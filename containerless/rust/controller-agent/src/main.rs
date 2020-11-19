@@ -34,7 +34,8 @@ async fn main() {
 
     info!(target: "controller", "LISTENING");
 
-    shared::net::serve_until_sigterm(routes::routes(compiler.clone(), ROOT.as_str()), 7999).await;
+    let routes = routes::routes(compiler.clone(), ROOT.as_str(), BUILD_VERSION.as_str());
+    shared::net::serve_until_sigterm(routes, 7999).await;
     compiler.shutdown().await;
     info!(target: "controller", "DOWN");
 }

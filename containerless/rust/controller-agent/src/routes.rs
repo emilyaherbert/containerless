@@ -1,15 +1,16 @@
 use super::compiler::Compiler;
 use super::handlers;
 
+use shared::common::*;
 use std::sync::Arc;
 use warp::Filter;
 
 pub fn routes(
-    compiler: Arc<Compiler>, root_str: &str,
+    compiler: Arc<Compiler>, root_str: &str, build_ver: &str,
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     ready_route()
         .or(system_ready_route())
-        .or(download_dispatcher_route(root_str))
+        .or(download_dispatcher_route(root_str, build_ver))
         .or(recv_trace_route(compiler.clone()))
         .or(is_compiling_route(compiler.clone()))
         .or(restart_dispatcher_route(compiler.clone()))
@@ -37,14 +38,17 @@ fn system_ready_route() -> impl Filter<Extract = impl warp::Reply, Error = warp:
 }
 
 fn download_dispatcher_route(
-    root_str: &str,
+    root_str: &str, build_ver: &str
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    let filename = format!(
+        "{}/target/{}/dispatcher-agent",
+        root_str,
+        build_ver
+    );
+    info!(target: "controller", "pulling dispatcher from {}", filename);
     warp::path("download_dispatcher")
         .and(warp::get())
-        .and(warp::fs::file(format!(
-            "{}/target/debug/dispatcher-agent",
-            root_str
-        )))
+        .and(warp::fs::file(filename))
 }
 
 fn recv_trace_route(
