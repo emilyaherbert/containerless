@@ -1,12 +1,14 @@
-
-use crate::applications::{DB, Stack, upload, login, status, banking};
+use crate::applications::{banking, login, status, upload, Stack, DB};
 
 use shared::response;
 
-use warp::Filter;
 use std::collections::HashMap;
+use warp::Filter;
 
-pub fn routes(users_db: DB<login::User>, commits_stack: Stack<status::Commit>, accounts_db: DB<banking::InternalAccount>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+pub fn routes(
+    users_db: DB<login::User>, commits_stack: Stack<status::Commit>,
+    accounts_db: DB<banking::InternalAccount>,
+) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     ready_route()
         .or(upload_route())
         .or(login_route(users_db.clone()))
@@ -30,19 +32,21 @@ fn upload_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejec
         .and_then(upload::upload_handler)
 }
 
-fn login_route(users_db: DB<login::User>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+fn login_route(
+    users_db: DB<login::User>,
+) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::path!("login")
         .and(warp::get())
-        .and(
-            warp::query::query()
-                .map(Some)
-                .or_else(|_| async { Ok::<(Option<HashMap<String, String>>,), std::convert::Infallible>((None,)) }),
-        )
+        .and(warp::query::query().map(Some).or_else(|_| async {
+            Ok::<(Option<HashMap<String, String>>,), std::convert::Infallible>((None,))
+        }))
         .and(with_shared(users_db))
         .and_then(login::login_handler)
 }
 
-fn status_get_route(commits_stack: Stack<status::Commit>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+fn status_get_route(
+    commits_stack: Stack<status::Commit>,
+) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::path!("status")
         .and(warp::get())
         .and(with_shared(commits_stack))
@@ -62,7 +66,9 @@ fn begin_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Reject
         .and_then(banking::begin_handler)
 }
 
-fn commit_route(accounts_db: DB<banking::InternalAccount>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+fn commit_route(
+    accounts_db: DB<banking::InternalAccount>,
+) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::path!("commit")
         .and(warp::post())
         .and(warp::body::json())
@@ -70,7 +76,9 @@ fn commit_route(accounts_db: DB<banking::InternalAccount>) -> impl Filter<Extrac
         .and_then(banking::commit_handler)
 }
 
-fn balance_route(accounts_db: DB<banking::InternalAccount>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+fn balance_route(
+    accounts_db: DB<banking::InternalAccount>,
+) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::path!("balance")
         .and(warp::post())
         .and(warp::body::json())
@@ -79,7 +87,9 @@ fn balance_route(accounts_db: DB<banking::InternalAccount>) -> impl Filter<Extra
 }
 
 fn with_shared<T>(db: T) -> impl Filter<Extract = (T,), Error = std::convert::Infallible> + Clone
-    where T: std::marker::Send + std::clone::Clone {
+where
+    T: std::marker::Send + std::clone::Clone,
+{
     warp::any().map(move || db.clone())
 }
 

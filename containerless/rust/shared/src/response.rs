@@ -1,5 +1,5 @@
-use hyper::Response;
 use hyper::header::HeaderValue;
+use hyper::Response;
 
 pub fn ok_response(
     body: String,

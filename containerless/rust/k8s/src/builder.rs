@@ -1,4 +1,7 @@
-use k8s_openapi::api::apps::v1::{Deployment, DeploymentSpec, DeploymentStrategy, RollingUpdateDeployment, ReplicaSet, ReplicaSetSpec};
+use k8s_openapi::api::apps::v1::{
+    Deployment, DeploymentSpec, DeploymentStrategy, ReplicaSet, ReplicaSetSpec,
+    RollingUpdateDeployment,
+};
 use k8s_openapi::api::core::v1::{
     Container, ContainerPort, EnvVar, HTTPGetAction, Pod, PodSpec, PodTemplateSpec, Probe, Service,
     ServicePort, ServiceSpec,
@@ -66,11 +69,11 @@ pub struct DeploymentStrategyBuilder {
 
 pub enum DeploymentStrategyType {
     Recreate,
-    RollingUpdate
+    RollingUpdate,
 }
 
 pub struct RollingUpdateDeploymentBuilder {
-    rolling_update: RollingUpdateDeployment
+    rolling_update: RollingUpdateDeployment,
 }
 
 impl ObjectMetaBuilder {
@@ -496,7 +499,9 @@ impl DeploymentSpecBuilder {
 impl DeploymentStrategyBuilder {
     pub fn new() -> Self {
         let deployment_strategy = DeploymentStrategy::default();
-        return DeploymentStrategyBuilder { deployment_strategy };
+        return DeploymentStrategyBuilder {
+            deployment_strategy,
+        };
     }
 
     pub fn build(self) -> DeploymentStrategy {
@@ -506,7 +511,7 @@ impl DeploymentStrategyBuilder {
     pub fn type_(mut self, typ: DeploymentStrategyType) -> Self {
         self.deployment_strategy.type_ = match typ {
             DeploymentStrategyType::Recreate => Some("Recreate".to_string()),
-            DeploymentStrategyType::RollingUpdate => Some("RollingUpdate".to_string())
+            DeploymentStrategyType::RollingUpdate => Some("RollingUpdate".to_string()),
         };
         return self;
     }
@@ -524,7 +529,7 @@ impl DeploymentStrategyBuilder {
 impl RollingUpdateDeploymentBuilder {
     pub fn new() -> Self {
         let rolling_update = RollingUpdateDeployment::default();
-        return RollingUpdateDeploymentBuilder { rolling_update: rolling_update };
+        return RollingUpdateDeploymentBuilder { rolling_update };
     }
 
     pub fn build(self) -> RollingUpdateDeployment {
