@@ -1,18 +1,18 @@
 mod error;
 
-use std::marker::Unpin;
+use futures::prelude::*;
 use futures_retry::{FutureRetry, RetryPolicy};
 use hyper::Response;
+use log::{debug, error, info};
 use reqwest;
 use std::env;
+use std::marker::Unpin;
 use std::process::Stdio;
 use std::time::Duration;
-use futures::prelude::*;
-use tokio::io::{BufReader, AsyncRead, AsyncBufReadExt, AsyncWriteExt};
+use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWriteExt, BufReader};
+use tokio::time;
 use tokio::{fs::File, process, task};
 use warp::{http::StatusCode, Filter};
-use log::{info, error, debug};
-use tokio::time;
 
 const MAX_INIT_PINGS: usize = 5;
 const INIT_PING_INTERVAL_SECS: u64 = 1;
@@ -60,8 +60,7 @@ async fn monitor_nodejs_process(function_name: &str, mut handle: process::Child)
 }
 
 /// Reads lines from stdout / stderr and sends them to our log.
-async fn reflect_child_output_stream(
-    stdout_or_stderr: impl AsyncRead + Unpin) {
+async fn reflect_child_output_stream(stdout_or_stderr: impl AsyncRead + Unpin) {
     let reader = BufReader::new(stdout_or_stderr);
     let mut lines = reader.lines();
     while let Some(Ok(line)) = lines.next().await {
@@ -132,14 +131,14 @@ async fn initialize(function_name: String, tracing_enabled: bool) -> Result<(), 
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()?,
-    };    
+    };
 
-    debug!(target: "function-runner", 
+    debug!(target: "function-runner",
         "INITIALIZE {}: waiting for http server to come up",
         function_name
     );
     wait_for_http_server().await?;
-    debug!(target: "function-runner", 
+    debug!(target: "function-runner",
         "INITIALIZE {}: spawning child process to monitor function",
         function_name
     );

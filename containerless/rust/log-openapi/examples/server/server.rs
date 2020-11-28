@@ -13,9 +13,9 @@ use std::marker::PhantomData;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
-use swagger::{Has, XSpanIdString};
 use swagger::auth::MakeAllowAllAuthenticator;
 use swagger::EmptyContext;
+use swagger::{Has, XSpanIdString};
 use tokio::net::TcpListener;
 
 #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "ios")))]
@@ -34,10 +34,7 @@ pub async fn create(addr: &str, https: bool) {
 
     let service = MakeAllowAllAuthenticator::new(service, "cosmo");
 
-    let mut service =
-        log_openapi::server::context::MakeAddContext::<_, EmptyContext>::new(
-            service
-        );
+    let mut service = log_openapi::server::context::MakeAddContext::<_, EmptyContext>::new(service);
 
     if https {
         #[cfg(any(target_os = "macos", target_os = "windows", target_os = "ios"))]
@@ -47,12 +44,16 @@ pub async fn create(addr: &str, https: bool) {
 
         #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "ios")))]
         {
-            let mut ssl = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls()).expect("Failed to create SSL Acceptor");
+            let mut ssl = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls())
+                .expect("Failed to create SSL Acceptor");
 
             // Server authentication
-            ssl.set_private_key_file("examples/server-key.pem", SslFiletype::PEM).expect("Failed to set private key");
-            ssl.set_certificate_chain_file("examples/server-chain.pem").expect("Failed to set cerificate chain");
-            ssl.check_private_key().expect("Failed to check private key");
+            ssl.set_private_key_file("examples/server-key.pem", SslFiletype::PEM)
+                .expect("Failed to set private key");
+            ssl.set_certificate_chain_file("examples/server-chain.pem")
+                .expect("Failed to set cerificate chain");
+            ssl.check_private_key()
+                .expect("Failed to check private key");
 
             let tls_acceptor = Arc::new(ssl.build());
             let mut tcp_listener = TcpListener::bind(&addr).await.unwrap();
@@ -65,11 +66,16 @@ pub async fn create(addr: &str, https: bool) {
                     let tls_acceptor = Arc::clone(&tls_acceptor);
 
                     tokio::spawn(async move {
-                        let tls = tokio_openssl::accept(&*tls_acceptor, tcp).await.map_err(|_| ())?;
+                        let tls = tokio_openssl::accept(&*tls_acceptor, tcp)
+                            .await
+                            .map_err(|_| ())?;
 
                         let service = service.await.map_err(|_| ())?;
 
-                        Http::new().serve_connection(tls, service).await.map_err(|_| ())
+                        Http::new()
+                            .serve_connection(tls, service)
+                            .await
+                            .map_err(|_| ())
                     });
                 }
 
@@ -78,7 +84,10 @@ pub async fn create(addr: &str, https: bool) {
         }
     } else {
         // Using HTTP
-        hyper::server::Server::bind(&addr).serve(service).await.unwrap()
+        hyper::server::Server::bind(&addr)
+            .serve(service)
+            .await
+            .unwrap()
     }
 }
 
@@ -89,30 +98,31 @@ pub struct Server<C> {
 
 impl<C> Server<C> {
     pub fn new() -> Self {
-        Server{marker: PhantomData}
+        Server {
+            marker: PhantomData,
+        }
     }
 }
 
-
-use log_openapi::{
-    Api,
-    LogPostResponse,
-};
 use log_openapi::server::MakeService;
+use log_openapi::{Api, LogPostResponse};
 use std::error::Error;
 use swagger::ApiError;
 
 #[async_trait]
-impl<C> Api<C> for Server<C> where C: Has<XSpanIdString> + Send + Sync
+impl<C> Api<C> for Server<C>
+where
+    C: Has<XSpanIdString> + Send + Sync,
 {
     async fn log_post(
-        &self,
-        inline_object: models::InlineObject,
-        context: &C) -> Result<LogPostResponse, ApiError>
-    {
+        &self, inline_object: models::InlineObject, context: &C,
+    ) -> Result<LogPostResponse, ApiError> {
         let context = context.clone();
-        info!("log_post({:?}) - X-Span-ID: {:?}", inline_object, context.get().0.clone());
+        info!(
+            "log_post({:?}) - X-Span-ID: {:?}",
+            inline_object,
+            context.get().0.clone()
+        );
         Err("Generic failuare".into())
     }
-
 }

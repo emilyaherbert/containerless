@@ -52,12 +52,13 @@ pub async fn containerless_remove_trace(name: &str) -> Result<std::process::Outp
 
 pub async fn containerless_invoke(name: &str, req: (&str, JsonValue)) -> Result<String, Error> {
     let (path, body) = req;
-    let url = format!("http://{}:8080/{}{}", super::dispatcher::dispatcher_ip(), name, path);
-    let resp = reqwest::Client::new()
-        .post(&url)
-        .json(&body)
-        .send()
-        .await?;
+    let url = format!(
+        "http://{}:8080/{}{}",
+        super::dispatcher::dispatcher_ip(),
+        name,
+        path
+    );
+    let resp = reqwest::Client::new().post(&url).json(&body).send().await?;
     response::response_into_result(resp.status().as_u16(), resp.text().await?)
         .map_err(Error::Invoke)
 }

@@ -1,9 +1,17 @@
-#![allow(missing_docs, trivial_casts, unused_variables, unused_mut, unused_imports, unused_extern_crates, non_camel_case_types)]
+#![allow(
+    missing_docs,
+    trivial_casts,
+    unused_variables,
+    unused_mut,
+    unused_imports,
+    unused_extern_crates,
+    non_camel_case_types
+)]
 
 use async_trait::async_trait;
 use futures::Stream;
 use std::error::Error;
-use std::task::{Poll, Context};
+use std::task::{Context, Poll};
 use swagger::{ApiError, ContextWrapper};
 
 type ServiceError = Box<dyn Error + Send + Sync + 'static>;
@@ -14,40 +22,41 @@ pub const API_VERSION: &'static str = "1.0.0";
 #[derive(Debug, PartialEq)]
 pub enum LogPostResponse {
     /// OK
-    OK
+    OK,
 }
 
 /// API
 #[async_trait]
 pub trait Api<C: Send + Sync> {
-    fn poll_ready(&self, _cx: &mut Context) -> Poll<Result<(), Box<dyn Error + Send + Sync + 'static>>> {
+    fn poll_ready(
+        &self, _cx: &mut Context,
+    ) -> Poll<Result<(), Box<dyn Error + Send + Sync + 'static>>> {
         Poll::Ready(Ok(()))
     }
 
     async fn log_post(
-        &self,
-        inline_object: models::InlineObject,
-        context: &C) -> Result<LogPostResponse, ApiError>;
-
+        &self, inline_object: models::InlineObject, context: &C,
+    ) -> Result<LogPostResponse, ApiError>;
 }
 
 /// API where `Context` isn't passed on every API call
 #[async_trait]
 pub trait ApiNoContext<C: Send + Sync> {
-
-    fn poll_ready(&self, _cx: &mut Context) -> Poll<Result<(), Box<dyn Error + Send + Sync + 'static>>>;
+    fn poll_ready(
+        &self, _cx: &mut Context,
+    ) -> Poll<Result<(), Box<dyn Error + Send + Sync + 'static>>>;
 
     fn context(&self) -> &C;
 
     async fn log_post(
-        &self,
-        inline_object: models::InlineObject,
-        ) -> Result<LogPostResponse, ApiError>;
-
+        &self, inline_object: models::InlineObject,
+    ) -> Result<LogPostResponse, ApiError>;
 }
 
 /// Trait to extend an API to make it easy to bind it to a context.
-pub trait ContextWrapperExt<C: Send + Sync> where Self: Sized
+pub trait ContextWrapperExt<C: Send + Sync>
+where
+    Self: Sized,
 {
     /// Binds this API to a context.
     fn with_context(self: Self, context: C) -> ContextWrapper<Self, C>;
@@ -55,7 +64,7 @@ pub trait ContextWrapperExt<C: Send + Sync> where Self: Sized
 
 impl<T: Api<C> + Send + Sync, C: Clone + Send + Sync> ContextWrapperExt<C> for T {
     fn with_context(self: T, context: C) -> ContextWrapper<T, C> {
-         ContextWrapper::<T, C>::new(self, context)
+        ContextWrapper::<T, C>::new(self, context)
     }
 }
 
@@ -70,16 +79,12 @@ impl<T: Api<C> + Send + Sync, C: Clone + Send + Sync> ApiNoContext<C> for Contex
     }
 
     async fn log_post(
-        &self,
-        inline_object: models::InlineObject,
-        ) -> Result<LogPostResponse, ApiError>
-    {
+        &self, inline_object: models::InlineObject,
+    ) -> Result<LogPostResponse, ApiError> {
         let context = self.context().clone();
         self.api().log_post(inline_object, &context).await
     }
-
 }
-
 
 #[cfg(feature = "client")]
 pub mod client;

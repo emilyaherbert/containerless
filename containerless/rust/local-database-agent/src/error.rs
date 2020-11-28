@@ -2,7 +2,7 @@ use std::io;
 
 #[derive(Debug)]
 pub enum Error {
-    IO(io::Error)
+    IO(io::Error),
 }
 
 impl std::convert::From<io::Error> for Error {

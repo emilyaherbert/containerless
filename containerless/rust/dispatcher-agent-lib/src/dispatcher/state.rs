@@ -327,8 +327,8 @@ impl State {
     }
 
     async fn maybe_start_tracing(
-        self_: Arc<State>, upgrade_pending: bool, create_mode: &CreateMode,
-        containers_only: bool, containerless: Option<Containerless>,
+        self_: Arc<State>, upgrade_pending: bool, create_mode: &CreateMode, containers_only: bool,
+        containerless: Option<Containerless>,
     ) -> Result<(), Error> {
         if upgrade_pending || containers_only {
             return Ok(());
@@ -391,8 +391,8 @@ impl State {
 
     pub async fn function_manager_task(
         self_: Arc<State>, mut recv_requests: mpsc::Receiver<Message>,
-        function_table: Weak<FunctionTable>, create_mode: CreateMode,
-        containers_only: bool, containerless: Option<Containerless>, upgrade_pending: Arc<AtomicBool>,
+        function_table: Weak<FunctionTable>, create_mode: CreateMode, containers_only: bool,
+        containerless: Option<Containerless>, upgrade_pending: Arc<AtomicBool>,
     ) -> Result<(), Error> {
         try_join!(
             Self::maybe_start_tracing(
@@ -424,7 +424,7 @@ impl State {
         let mut mode = match (containers_only, containerless) {
             (true, _) => Mode::Vanilla,
             (false, None) => Mode::Tracing(0),
-            (false, Some(f)) => Mode::Decontainerized(f)
+            (false, Some(f)) => Mode::Decontainerized(f),
         };
 
         while let Some(message) = recv_requests.next().await {

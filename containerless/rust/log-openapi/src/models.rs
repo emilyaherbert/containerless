@@ -1,9 +1,8 @@
 #![allow(unused_qualifications)]
 
-use crate::models;
 #[cfg(any(feature = "client", feature = "server"))]
 use crate::header;
-
+use crate::models;
 
 // Methods for converting between header::IntoHeaderValue<InlineObject> and hyper::header::HeaderValue
 
@@ -11,13 +10,16 @@ use crate::header;
 impl std::convert::TryFrom<header::IntoHeaderValue<InlineObject>> for hyper::header::HeaderValue {
     type Error = String;
 
-    fn try_from(hdr_value: header::IntoHeaderValue<InlineObject>) -> std::result::Result<Self, Self::Error> {
+    fn try_from(
+        hdr_value: header::IntoHeaderValue<InlineObject>,
+    ) -> std::result::Result<Self, Self::Error> {
         let hdr_value = hdr_value.to_string();
         match hyper::header::HeaderValue::from_str(&hdr_value) {
-             std::result::Result::Ok(value) => std::result::Result::Ok(value),
-             std::result::Result::Err(e) => std::result::Result::Err(
-                 format!("Invalid header value for InlineObject - value: {} is invalid {}",
-                     hdr_value, e))
+            std::result::Result::Ok(value) => std::result::Result::Ok(value),
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                "Invalid header value for InlineObject - value: {} is invalid {}",
+                hdr_value, e
+            )),
         }
     }
 }
@@ -28,37 +30,39 @@ impl std::convert::TryFrom<hyper::header::HeaderValue> for header::IntoHeaderVal
 
     fn try_from(hdr_value: hyper::header::HeaderValue) -> std::result::Result<Self, Self::Error> {
         match hdr_value.to_str() {
-             std::result::Result::Ok(value) => {
-                    match <InlineObject as std::str::FromStr>::from_str(value) {
-                        std::result::Result::Ok(value) => std::result::Result::Ok(header::IntoHeaderValue(value)),
-                        std::result::Result::Err(err) => std::result::Result::Err(
-                            format!("Unable to convert header value '{}' into InlineObject - {}",
-                                value, err))
+            std::result::Result::Ok(value) => {
+                match <InlineObject as std::str::FromStr>::from_str(value) {
+                    std::result::Result::Ok(value) => {
+                        std::result::Result::Ok(header::IntoHeaderValue(value))
                     }
-             },
-             std::result::Result::Err(e) => std::result::Result::Err(
-                 format!("Unable to convert header: {:?} to string: {}",
-                     hdr_value, e))
+                    std::result::Result::Err(err) => std::result::Result::Err(format!(
+                        "Unable to convert header value '{}' into InlineObject - {}",
+                        value, err
+                    )),
+                }
+            }
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                "Unable to convert header: {:?} to string: {}",
+                hdr_value, e
+            )),
         }
     }
 }
-
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct InlineObject {
     #[serde(rename = "text")]
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
 
     #[serde(rename = "target")]
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub target: Option<String>,
 
     #[serde(rename = "level")]
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub level: Option<String>,
-
 }
 
 impl InlineObject {
@@ -83,12 +87,10 @@ impl std::string::ToString for InlineObject {
             params.push(text.to_string());
         }
 
-
         if let Some(ref target) = self.target {
             params.push("target".to_string());
             params.push(target.to_string());
         }
-
 
         if let Some(ref level) = self.level {
             params.push("level".to_string());
@@ -123,15 +125,29 @@ impl std::str::FromStr for InlineObject {
         while key_result.is_some() {
             let val = match string_iter.next() {
                 Some(x) => x,
-                None => return std::result::Result::Err("Missing value while parsing InlineObject".to_string())
+                None => {
+                    return std::result::Result::Err(
+                        "Missing value while parsing InlineObject".to_string(),
+                    )
+                }
             };
 
             if let Some(key) = key_result {
                 match key {
-                    "text" => intermediate_rep.text.push(String::from_str(val).map_err(|x| format!("{}", x))?),
-                    "target" => intermediate_rep.target.push(String::from_str(val).map_err(|x| format!("{}", x))?),
-                    "level" => intermediate_rep.level.push(String::from_str(val).map_err(|x| format!("{}", x))?),
-                    _ => return std::result::Result::Err("Unexpected key while parsing InlineObject".to_string())
+                    "text" => intermediate_rep
+                        .text
+                        .push(String::from_str(val).map_err(|x| format!("{}", x))?),
+                    "target" => intermediate_rep
+                        .target
+                        .push(String::from_str(val).map_err(|x| format!("{}", x))?),
+                    "level" => intermediate_rep
+                        .level
+                        .push(String::from_str(val).map_err(|x| format!("{}", x))?),
+                    _ => {
+                        return std::result::Result::Err(
+                            "Unexpected key while parsing InlineObject".to_string(),
+                        )
+                    }
                 }
             }
 
@@ -147,5 +163,3 @@ impl std::str::FromStr for InlineObject {
         })
     }
 }
-
-
