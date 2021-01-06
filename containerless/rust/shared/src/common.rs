@@ -29,4 +29,5 @@ fn get_root_dir() -> String {
 
 lazy_static! {
     pub static ref ROOT: String = get_root_dir();
+    pub static ref BUILD_VERSION: String = "release".to_string(); // make this an environment variable
 }

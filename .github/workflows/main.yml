@@ -28,6 +28,9 @@ jobs:
     - name: Run integration tests
       run: ./test.sh
       working-directory: ./containerless
+    - name: Print controller logger
+      run: microk8s.kubectl logs controller-logger -n containerless
+      if: failure()
     - name: Undeploy
       if: always()
       run: ./undeploy.sh
