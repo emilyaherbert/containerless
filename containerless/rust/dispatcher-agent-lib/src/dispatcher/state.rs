@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 use futures::prelude::*;
 use hyper::header::HeaderValue;
 use tokio::task;
+use uuid::Uuid;
 
 #[derive(Debug, PartialEq)]
 pub enum CreateMode {
@@ -206,6 +207,9 @@ impl State {
         return Ok(());
     }
 
+    // create random number, send in header
+    // in containerless library, create map of random number to response thing
+    // check at the end
     async fn invoke_err(
         &self, authority: uri::Authority, serverless_request: ServerlessRequest,
         autoscaler: Arc<Autoscaler>, containerless_mode_header: &'static str,
@@ -225,6 +229,7 @@ impl State {
             // This is needed because the containerless library uses Express'
             // JSON bodyParser, which expects this header.
             .header("Content-Type", "application/json")
+            .header("Unique-ID", Uuid::new_v4().to_string())
             .uri(uri)
             .body(serverless_request.payload.body)
             .expect("constructing request");
@@ -322,8 +327,8 @@ impl State {
     }
 
     async fn maybe_start_tracing(
-        self_: Arc<State>, upgrade_pending: bool, create_mode: &CreateMode,
-        containers_only: bool, containerless: Option<Containerless>,
+        self_: Arc<State>, upgrade_pending: bool, create_mode: &CreateMode, containers_only: bool,
+        containerless: Option<Containerless>,
     ) -> Result<(), Error> {
         if upgrade_pending || containers_only {
             return Ok(());
@@ -386,8 +391,8 @@ impl State {
 
     pub async fn function_manager_task(
         self_: Arc<State>, mut recv_requests: mpsc::Receiver<Message>,
-        function_table: Weak<FunctionTable>, create_mode: CreateMode,
-        containers_only: bool, containerless: Option<Containerless>, upgrade_pending: Arc<AtomicBool>,
+        function_table: Weak<FunctionTable>, create_mode: CreateMode, containers_only: bool,
+        containerless: Option<Containerless>, upgrade_pending: Arc<AtomicBool>,
     ) -> Result<(), Error> {
         let init_num_replicas = match create_mode {
             CreateMode::New => 1,
@@ -408,7 +413,7 @@ impl State {
         let mut mode = match (containers_only, containerless) {
             (true, _) => Mode::Vanilla(true),
             (false, None) => Mode::Tracing(0),
-            (false, Some(f)) => Mode::Decontainerized(f)
+            (false, Some(f)) => Mode::Decontainerized(f),
         };
 
         while let Some(message) = recv_requests.next().await {
@@ -515,7 +520,7 @@ impl State {
                         ));
                     }
                 },
-                (Mode::Tracing(5), Message::Request(req)) => {
+                (Mode::Tracing(100), Message::Request(req)) => {
                     info!(target: "dispatcher", "INVOKE {}: FMT in Tracing mode sending trace to compiler", self_.name);
                     task::spawn(Self::send_trace_then_stop_pod_and_service(Arc::clone(
                         &self_,

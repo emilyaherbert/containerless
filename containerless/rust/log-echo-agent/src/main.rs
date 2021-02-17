@@ -1,8 +1,10 @@
 // Boilerplate that is always needed
-use swagger::{ApiError, EmptyContext, Has, XSpanIdString};
 use async_trait::async_trait;
+use swagger::{ApiError, EmptyContext, Has, XSpanIdString};
 // The types that actually matter to us.
-use log_openapi::{models::InlineObject, context::MakeAddContext, server::MakeService, Api, LogPostResponse};
+use log_openapi::{
+    context::MakeAddContext, models::InlineObject, server::MakeService, Api, LogPostResponse,
+};
 use std::marker::PhantomData;
 use std::net::SocketAddr;
 
@@ -19,11 +21,15 @@ impl<C> Api<C> for Server<C>
 where
     C: Has<XSpanIdString> + Send + Sync,
 {
-    async fn log_post(&self, body: InlineObject, _context: &C) -> Result<LogPostResponse, ApiError> {
-        println!("{} - {} - {}", 
+    async fn log_post(
+        &self, body: InlineObject, _context: &C,
+    ) -> Result<LogPostResponse, ApiError> {
+        println!(
+            "{} - {} - {}",
             body.level.as_deref().unwrap_or("NO LEVEL"),
             body.target.as_deref().unwrap_or("NO TARGET"),
-            body.text.as_deref().unwrap_or("NO TEXT"));
+            body.text.as_deref().unwrap_or("NO TEXT")
+        );
         return Ok(LogPostResponse::OK);
     }
 }
@@ -36,8 +42,7 @@ async fn main() {
     });
     let service = MakeAddContext::<_, EmptyContext>::new(service);
 
-    let addr: SocketAddr = "0.0.0.0:80".parse()
-        .expect("failed to listen on port 80");
+    let addr: SocketAddr = "0.0.0.0:80".parse().expect("failed to listen on port 80");
 
     // Conventional hyper server setup
     hyper::server::Server::bind(&addr)

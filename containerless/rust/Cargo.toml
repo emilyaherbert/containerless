@@ -12,6 +12,7 @@ members = [
     "cli",
     "log-echo-agent",
     "log-openapi",
+    "local-database-agent"
 ]
 
 exclude = [ "local" ]

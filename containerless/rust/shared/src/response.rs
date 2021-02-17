@@ -1,5 +1,5 @@
-use hyper::Response;
 use hyper::header::HeaderValue;
+use hyper::Response;
 
 pub fn ok_response(
     body: String,
@@ -36,6 +36,6 @@ pub fn error_response(
 pub fn response_into_result(status_code: u16, body: String) -> Result<String, String> {
     match status_code {
         200 => Ok(body),
-        _ => Err(body),
+        _ => Err(format!("code {}, body {}", status_code, body)),
     }
 }

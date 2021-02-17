@@ -3,7 +3,9 @@ use crate::containerless::error::Error;
 use serde_json::json;
 use std::fs;
 
-pub async fn create_function(name: &str, filename: &str, containers_only: bool) -> Result<String, Error> {
+pub async fn create_function(
+    name: &str, filename: &str, containers_only: bool,
+) -> Result<String, Error> {
     Ok(reqwest::Client::new()
         .post(&format!(
             "http://localhost/controller/create_function/{}",

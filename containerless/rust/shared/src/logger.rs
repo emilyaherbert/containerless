@@ -1,11 +1,11 @@
 //! An implementation of a logger that sends logged messages over the network
 //! to the log-echo-agent.
 
-use std::collections::HashMap;
-use tokio::task;
 use futures::channel::mpsc;
 use futures::prelude::*;
 use log::{Level, Log, Metadata, Record};
+use std::collections::HashMap;
+use tokio::task;
 // The Client type has a generated method to post logs. The rest of the types below are boilerplate
 // that we need to use Client.
 use log_openapi::{models::InlineObject, ApiNoContext, Client, ContextWrapperExt};
@@ -30,7 +30,7 @@ impl Log for Logger {
         let obj = InlineObject {
             text: Some(format!("{}", record.args())),
             level: Some(record.level().to_string()),
-            target: Some(record.target().into())
+            target: Some(record.target().into()),
         };
         task::spawn(async move {
             if let Err(_err) = send_string.send(obj).await {

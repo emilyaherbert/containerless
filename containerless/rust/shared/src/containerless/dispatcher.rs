@@ -3,11 +3,18 @@ use crate::response::*;
 use duct::cmd;
 
 pub fn dispatcher_ip() -> String {
-    return cmd!("microk8s.kubectl", "-n", "containerless", "get",
-      "svc/exposed-dispatcher", "-o", "json")
-      .pipe(cmd!("jq", "-j", ".spec.clusterIP"))
-      .read()
-      .expect("error reading dispatcher IP");
+    return cmd!(
+        "microk8s.kubectl",
+        "-n",
+        "containerless",
+        "get",
+        "svc/exposed-dispatcher",
+        "-o",
+        "json"
+    )
+    .pipe(cmd!("jq", "-j", ".spec.clusterIP"))
+    .read()
+    .expect("error reading dispatcher IP");
 }
 
 pub async fn invoke(name: &str) -> Result<String, Error> {
