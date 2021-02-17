@@ -3,7 +3,7 @@ use super::types::*;
 #[derive(Copy, Clone)]
 pub enum Mode {
     Tracing(usize),
-    Vanilla,
+    Vanilla(bool), // first invocation
     Decontainerized(Containerless),
 }
 
@@ -12,7 +12,7 @@ impl std::fmt::Display for Mode {
         match self {
             Mode::Decontainerized(_) => f.write_str("Decontainerized"),
             Mode::Tracing(_) => f.write_str("Tracing"),
-            Mode::Vanilla => f.write_str("Vanilla"),
+            Mode::Vanilla(_) => f.write_str("Vanilla"),
         }
     }
 }
@@ -33,4 +33,5 @@ pub enum Message {
     ExtractAndCompile(oneshot::Sender<Response>),
     GetMode(oneshot::Sender<Response>),
     Shutdown(oneshot::Sender<Result<(), crate::error::Error>>),
+    ResetTrace(oneshot::Sender<Result<(), crate::error::Error>>)
 }

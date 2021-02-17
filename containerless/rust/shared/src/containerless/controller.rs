@@ -42,9 +42,9 @@ pub async fn shutdown_function_instances(name: &str) -> Result<String, Error> {
     .await?)
 }
 
-pub async fn reset_function(name: &str) -> Result<String, Error> {
+pub async fn reset_trace(name: &str) -> Result<String, Error> {
     Ok(reqwest::get(&format!(
-        "http://localhost/controller/reset_function/{}",
+        "http://localhost/controller/reset_trace/{}",
         name
     ))
     .await?

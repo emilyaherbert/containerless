@@ -109,13 +109,17 @@ pub async fn delete_function(
     info!(target: "controller", "DELETE_FUNCTION {}: shutting down instances via dispatcher", name);
     let res1 = dispatcher::shutdown_function_instances(&name).await;
 
-    // Remove the compiled trace for a function
-    info!(target: "controller", "DELETE_FUNCTION {}: removing trace via compiler", name);
-    let res2 = reset_function_via_compiler(&name, compiler).await;
+    // Remove trace in compiler
+    info!(target: "controller", "DELETE_FUNCTION {}: removing trace in compiler", name);
+    let res2 = reset_trace_in_compiler(&name, compiler).await;
+
+    // Reset trace in dispatcher
+    info!(target: "controller", "DELETE_FUNCTION {}: removing trace in dispatcher", name);
+    let res3 = dispatcher::reset_trace(&name).await;
 
     // Delete the function from storage
     info!(target: "controller", "DELETE_FUNCTION {}: deleting from storage", name);
-    let res3 = storage::delete(&name).await;
+    let res4 = storage::delete(&name).await;
 
     // Done!
     if let Err(err) = res1 {
@@ -123,10 +127,14 @@ pub async fn delete_function(
         return error_response(err.info());
     }
     if let Err(err) = res2 {
-        error!(target: "controller", "DELETE_FUNCTION {}: Error removnig trace via compiler {:?}", name, err);
+        error!(target: "controller", "DELETE_FUNCTION {}: Error removnig trace in compiler {:?}", name, err);
         return error_response(err.info());
     }
     if let Err(err) = res3 {
+        error!(target: "controller", "DELETE_FUNCTION {}: Error removnig trace in dispatcher {:?}", name, err);
+        return error_response(err.info());
+    }
+    if let Err(err) = res4 {
         error!(target: "controller", "DELETE_FUNCTION {}: Error deleting from storage {:?}", name, err);
         return error_response(err.info());
     }
@@ -152,16 +160,26 @@ pub async fn dispatcher_version_handler(
     ok_response(version.to_string())
 }
 
-pub async fn reset_function(
+pub async fn reset_trace(
     name: String, compiler: Arc<Compiler>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    match reset_function_via_compiler(&name, compiler).await {
-        Err(err) => {
-            error!(target:"controller", "RESET_FUNCTION: Error {:?} ", err);
-            error_response(err.info())
-        }
-        Ok(resp) => ok_response(resp),
+
+    // Reset trace in compiler
+    let res1 = reset_trace_in_compiler(&name, compiler).await;
+
+    // Reset trace in dispatcher
+    let res2 = dispatcher::reset_trace(&name).await;
+
+    // Done!
+    if let Err(err) = res1 {
+        error!(target:"controller", "RESET_FUNCTION: Error {:?} ", err);
+        return error_response(err.info());
     }
+    if let Err(err) = res2 {
+        error!(target:"controller", "RESET_FUNCTION: Error {:?} ", err);
+        return error_response(err.info());
+    }
+    return ok_response(format!("Successfully reset trace for function {}!", name));
 }
 
 pub async fn get_function(name: String) -> Result<impl warp::Reply, warp::Rejection> {
@@ -192,8 +210,8 @@ async fn add_to_compiler(
         .map_err(Error::Compiler)
 }
 
-async fn reset_function_via_compiler(name: &str, compiler: Arc<Compiler>) -> Result<String, Error> {
-    let resp_status = compiler.reset_function(&name).await;
+async fn reset_trace_in_compiler(name: &str, compiler: Arc<Compiler>) -> Result<String, Error> {
+    let resp_status = compiler.reset_trace(&name).await;
     match resp_status.as_u16() {
         200 => Ok(format!("Trace reset for function {}!", name)),
         other => Err(Error::Compiler(format!(
