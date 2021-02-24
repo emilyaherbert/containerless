@@ -106,6 +106,10 @@ export function hello() {
     return cb.hello();
 }
 
+export function helloWithID(requestID: any) {
+    return cb.helloWithID(requestID);
+}
+
 // Check if the application called listening. If not, blow up.
 setImmediate(() => {
     // If this library is loaded using require, this code will run after the

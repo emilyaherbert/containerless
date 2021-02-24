@@ -433,7 +433,8 @@ export class Callbacks {
         if(resp !== undefined) {
             resp.set('X-Server-Hostname', hostname); 
             resp.set('X-Request-ID', '' + requestID);
-            resp.send('' + response);
+            resp.send(JSON.stringify({ requestID: requestID, response: response}));
+            //resp.send('' + response);
         } else if(state.getListenPort() !== 'test') {
             throw new Error("No express.Response found.");
         }
