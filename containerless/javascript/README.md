@@ -1,6 +1,8 @@
 Trace-building JS runtime library.
 
-## Setup
+## Using the `containerless` library independently of the rest of the system
+
+### Setup
 
 To use the `containerless` library independently of the rest of the system, you
 need to link `js-transform` with `yarn`, and load the `containerless`
@@ -25,7 +27,7 @@ Then create a symbolic link in the `examples` directory:
 $ ln -s ./node_modules/containerless/node_modules/js-transform/dist/index.js js-transform
 ```
 
-## Deploying a Function
+### Deploying a Function
 
 Deploy a single function that builds a trace using Containerless.
 
