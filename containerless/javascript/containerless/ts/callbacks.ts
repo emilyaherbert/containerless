@@ -303,6 +303,9 @@ export class Callbacks {
     private extractAndRememberRequestID(req: express.Request, resp: express.Response) {
         let id = req.header("Unique-ID");
         if(id === undefined) {
+            // NOTE(emily): This is for demonstration purposes only. This case
+            // should only be triggered when using the containerless library
+            // directly through `node transformed.js 8080`, etc.
             this.response.set("none-provided", resp);
             this.responseID = "none-provided";
             id = "none-provided";
