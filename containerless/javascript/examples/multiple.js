@@ -1,4 +1,4 @@
-let containerless = require('../containerless');
+let containerless = require('containerless');
 
 let foo = 42;
 
