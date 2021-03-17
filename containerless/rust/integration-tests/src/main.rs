@@ -7,13 +7,14 @@ use nix::unistd::Pid;
 use std::convert::TryInto;
 use tokio::process::{Child, Command};
 use tokio::signal::unix::{signal, SignalKind};
+use std::io::{self, Write};
 
 async fn run_tests() -> Child {
     // One test thread is needed for these to be reasonable unit tests. Without it, tests may
     // interfere with each other, since the Dispatcher is very stateful.
     // The --nocapture option lets us see error messages faster.
     return Command::new("cargo")
-        .args(&["test", "--", "--test-threads=1", "--nocapture"])
+        .args(&["test", "hello_with_id", "--", "--test-threads=1", "--nocapture"])
         .spawn()
         .expect("spawning cargo test");
 }
@@ -45,7 +46,9 @@ async fn main() {
     });
 
     // Tests either terminate normally, or with SIGTERM.
-    if !tests_handle.await.unwrap().success() {
+    let result = tests_handle.await;
+    if let Err(stderr) = result {
+        io::stderr().write(&format!("{}", stderr).as_bytes()).unwrap();
         panic!("Tests failed.");
     }
 }

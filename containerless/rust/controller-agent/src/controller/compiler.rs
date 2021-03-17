@@ -432,6 +432,7 @@ impl Compiler {
             io::stderr().write(&cargo_result.stderr).unwrap();
             io::stdout().write(&cargo_result.stdout).unwrap();
             error!(target: "dispatcher", "cargo build failed");
+            //error!(target: "dispatcher", "{}", &cargo_result.stderr.as_str());
             return false;
         }
         return true;
