@@ -27,6 +27,7 @@ enum SubCommand {
     Invoke(Invoke),
     DispatcherVersion(DispatcherVersion),
     Compile(Compile),
+    Restart(Restart)
 }
 
 /// Creates a function.
@@ -51,7 +52,7 @@ struct Delete {
     name: String,
 }
 
-/// Removes the containers for a function. For demo purposes only.
+/// Removes the containers for a function. DEMO ONLY
 #[derive(Clap)]
 struct RemoveContainers {
     /// Name of the function to shut down
@@ -59,7 +60,7 @@ struct RemoveContainers {
     name: String,
 }
 
-/// Removes the compiled trace for a function. For demo purposes only.
+/// Removes the compiled trace for a function. DEMO ONLY
 #[derive(Clap)]
 struct RemoveTrace {
     /// Name of the function to reset
@@ -91,14 +92,17 @@ struct Invoke {
 #[derive(Clap)]
 struct DispatcherVersion {}
 
-/// Compiles the decontainerized version for a funtion. For testing and demo
-/// purposes only.
+/// Compiles the decontainerized version for a funtion. TESTING AND DEMO ONLY
 #[derive(Clap)]
 struct Compile {
     /// Name of the function to compile
     #[clap(short)]
     name: String,
 }
+
+/// Restarts the system.
+#[derive(Clap)]
+struct Restart {}
 
 #[tokio::main]
 async fn main() {
@@ -143,6 +147,10 @@ async fn main() {
         }
         SubCommand::Compile(t) => {
             let output = dispatcher::compile(&t.name).await.unwrap();
+            println!("{}", output);
+        }
+        SubCommand::Restart(_) => {
+            let output = controller::restart_system().await.unwrap();
             println!("{}", output);
         }
     }
