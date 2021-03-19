@@ -1,5 +1,5 @@
 {
-  "name": "decontainerizable",
+  "name": "containerless",
   "version": "1.0.0",
   "main": "dist/index.js",
   "license": "BSD-3-Clause",

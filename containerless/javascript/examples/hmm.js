@@ -1,4 +1,4 @@
-let containerless = require('../dist/index');
+let containerless = require('containerless');
 
 containerless.listen(function(req) {
     let x = req.query.x;

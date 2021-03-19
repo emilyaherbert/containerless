@@ -17,6 +17,7 @@ use std::time::{Duration, Instant};
 use syn::Ident;
 use tokio::process::Command;
 use tokio::task;
+use std::str;
 
 enum Message {
     Compile {
@@ -432,6 +433,9 @@ impl Compiler {
             io::stderr().write(&cargo_result.stderr).unwrap();
             io::stdout().write(&cargo_result.stdout).unwrap();
             error!(target: "dispatcher", "cargo build failed");
+            if let Ok(message) = str::from_utf8(&cargo_result.stderr) {
+                error!(target: "dispatcher", "{}", message.to_string());
+            }
             return false;
         }
         return true;

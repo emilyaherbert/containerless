@@ -1,4 +1,4 @@
-var decontainerizable = require('../dist/index');
+var decontainerizable = require('containerless');
 
 var cb = decontainerizable.cb;
 var exp = decontainerizable.exp;

@@ -1,4 +1,4 @@
-let containerless = require('../dist/index');
+let containerless = require('containerless');
 
 function same(b) {
     return b;

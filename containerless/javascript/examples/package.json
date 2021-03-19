@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "containerless": "file:../containerless"
+  }
+}

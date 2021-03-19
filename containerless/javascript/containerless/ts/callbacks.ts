@@ -303,13 +303,19 @@ export class Callbacks {
     private extractAndRememberRequestID(req: express.Request, resp: express.Response) {
         let id = req.header("Unique-ID");
         if(id === undefined) {
-            throw Error('bad');
+            // NOTE(emily): This is for demonstration purposes only. This case
+            // should only be triggered when using the containerless library
+            // directly through `node transformed.js 8080`, etc.
+            this.response.set("none-provided", resp);
+            this.responseID = "none-provided";
+            id = "none-provided";
         } else {
             this.response.set(id, resp);
             this.responseID = id;
         }
         return id;
     }
+
     public listen(callback: (request: Request) => void) {
         let tracedCallback = this.tracedListenCallback(callback);
         this.app = express();
@@ -409,6 +415,26 @@ export class Callbacks {
         if(resp !== undefined) {
             resp.set('X-Server-Hostname', hostname); 
             resp.send('' + response);
+        } else if(state.getListenPort() !== 'test') {
+            throw new Error("No express.Response found.");
+        }
+    }
+
+    public helloWithID(requestID: number) {
+        let response = "Hello from JavaScript!";
+        let $response = string("Hello from Rust!");
+        let [_, $requestID] = this.trace.popArgs();
+        if(this.responseID === undefined) {
+            throw Error ("oops");
+        }
+        let resp = this.response.get(this.responseID);
+        this.response.delete(this.responseID);
+        this.trace.tracePrimApp('sendWithID', [$requestID, $response]);
+        if(resp !== undefined) {
+            resp.set('X-Server-Hostname', hostname); 
+            resp.set('X-Request-ID', '' + requestID);
+            resp.send(JSON.stringify({ requestID: requestID, response: response}));
+            //resp.send('' + response);
         } else if(state.getListenPort() !== 'test') {
             throw new Error("No express.Response found.");
         }
