@@ -513,19 +513,3 @@ fn maze() {
     );
     assert_eq!(results, vec!["3", "3"]);
 }
-
-#[test]
-fn hello_with_id() {
-    let results = run_test(
-        "hellowithid",
-        r#"
-        let containerless = require("containerless");
-        containerless.listen(function(req) {
-            containerless.helloWithID(req.query.requestID);
-        });"#,
-        vec![("/?requestID=2", json!({}))],
-        vec![("/?requestID=2", json!({}))],
-    );
-
-    assert_eq!(results, vec!["Hello, world!", "Hello, world!"]);
-}
