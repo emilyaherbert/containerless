@@ -15,7 +15,7 @@ pub async fn containerless_create(
     if containers_only {
         args.push("--containers-only");
     }
-    Ok(Command::new(format!("{}/debug/cli", ROOT.as_str()))
+    Ok(Command::new(format!("{}/{}/cli", ROOT.as_str(), BUILD_VERSION.as_str()))
         .args(args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -24,7 +24,7 @@ pub async fn containerless_create(
 }
 
 pub async fn containerless_delete(name: &str) -> Result<std::process::Output, Error> {
-    Ok(Command::new(format!("{}/debug/cli", ROOT.as_str()))
+    Ok(Command::new(format!("{}/{}/cli", ROOT.as_str(), BUILD_VERSION.as_str()))
         .args(vec!["delete", "-n", name])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -33,7 +33,7 @@ pub async fn containerless_delete(name: &str) -> Result<std::process::Output, Er
 }
 
 pub async fn containerless_remove_containers(name: &str) -> Result<std::process::Output, Error> {
-    Ok(Command::new(format!("{}/debug/cli", ROOT.as_str()))
+    Ok(Command::new(format!("{}/{}/cli", ROOT.as_str(), BUILD_VERSION.as_str()))
         .args(vec!["remove-containers", "-n", name])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -42,7 +42,7 @@ pub async fn containerless_remove_containers(name: &str) -> Result<std::process:
 }
 
 pub async fn containerless_remove_trace(name: &str) -> Result<std::process::Output, Error> {
-    Ok(Command::new(format!("{}/debug/cli", ROOT.as_str()))
+    Ok(Command::new(format!("{}/{}/cli", ROOT.as_str(), BUILD_VERSION.as_str()))
         .args(vec!["remove-trace", "-n", name])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -64,7 +64,7 @@ pub async fn containerless_invoke(name: &str, req: (&str, JsonValue)) -> Result<
 }
 
 pub async fn containerless_compile(name: &str) -> Result<std::process::Output, Error> {
-    Ok(Command::new(format!("{}/debug/cli", ROOT.as_str()))
+    Ok(Command::new(format!("{}/{}/cli", ROOT.as_str(), BUILD_VERSION.as_str()))
         .args(vec!["compile", "-n", name])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -73,7 +73,7 @@ pub async fn containerless_compile(name: &str) -> Result<std::process::Output, E
 }
 
 pub async fn containerless_get_dispatcher_version() -> Result<std::process::Output, Error> {
-    Ok(Command::new(format!("{}/debug/cli", ROOT.as_str()))
+    Ok(Command::new(format!("{}/{}/cli", ROOT.as_str(), BUILD_VERSION.as_str()))
         .args(vec!["dispatcher-version"])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

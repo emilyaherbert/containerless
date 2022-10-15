@@ -419,8 +419,12 @@ impl Compiler {
                 .expect("could not send started_compiling message");
         }
         info!(target: "controller", "Running cargo build on dispatcher-agent. Output is suppressed unless an error occurs.");
+        let mut args = vec!("build");
+        if BUILD_VERSION.as_str() == "release" {
+            args.push("--release");
+        }
         let cargo_result = Command::new("cargo")
-            .arg("build")
+            .args(args)
             .current_dir(ROOT.as_str())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
