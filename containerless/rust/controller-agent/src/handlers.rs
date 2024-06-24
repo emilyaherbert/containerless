@@ -248,3 +248,7 @@ fn check_function_compatibility(code: &str) -> Result<String, Error> {
         return err;
     }
 }
+
+pub async fn restart_system() -> Result<impl warp::Reply, warp::Rejection> {
+    ok_response("not yet implemented".to_string())
+}

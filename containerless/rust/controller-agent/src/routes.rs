@@ -142,6 +142,13 @@ fn dispatcher_version_route(
         .and_then(handlers::dispatcher_version_handler)
 }
 
+fn restart_system_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone
+{
+    warp::path!("restart_system")
+        .and(warp::get())
+        .and_then(handlers::restart_system)
+}
+
 fn with_compiler(
     compiler: Arc<Compiler>,
 ) -> impl Filter<Extract = (Arc<Compiler>,), Error = std::convert::Infallible> + Clone {

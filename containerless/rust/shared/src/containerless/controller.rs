@@ -77,3 +77,12 @@ pub async fn dispatcher_version() -> Result<String, Error> {
             .await?,
     )
 }
+
+pub async fn restart_system() -> Result<String, Error> {
+    Ok(
+        reqwest::get("http://localhost/controller/restart_system")
+            .await?
+            .text()
+            .await?,
+    )
+}
