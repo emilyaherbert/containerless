@@ -11,6 +11,7 @@ pub fn routes(
         .or(extract_and_compile_route(state.clone()))
         .or(get_mode_route(state.clone()))
         .or(shutdown_function_instances_route(state.clone()))
+        .or(reset_trace_route(state.clone()))
         .or(dispatcher_route(state.clone()))
         .or(dispatcher_route2(state.clone()))
 }
@@ -46,6 +47,15 @@ fn shutdown_function_instances_route(
         .and(warp::get())
         .and(with_state(state))
         .and_then(handlers::shutdown_function_instances_handler)
+}
+
+fn reset_trace_route(
+    state: Arc<FunctionTable>,
+) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path!("reset_trace" / String)
+        .and(warp::get())
+        .and(with_state(state))
+        .and_then(handlers::reset_trace_handler)
 }
 
 fn dispatcher_route(

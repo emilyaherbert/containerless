@@ -76,6 +76,40 @@ impl FunctionManager {
         }
     }
 
+    pub async fn reset_trace(&mut self) -> Response {
+        let (send, recv) = oneshot::channel();
+        self.send_requests
+            .send(Message::ResetTrace(send))
+            .await
+            .unwrap();
+        match recv.await {
+            Err(err) => {
+                return util::text_response(
+                    500,
+                    format!(
+                        "(function manager shutdown early) dispatcher could not reset trace for {}: {:?}",
+                        self.state.name, err
+                    ),
+                );
+            }
+            Ok(Err(err)) => {
+                return util::text_response(
+                    500,
+                    format!(
+                        "dispatcher could not reset trace for {}: {:?}",
+                        self.state.name, err
+                    ),
+                );
+            }
+            Ok(Ok(())) => {
+                return util::text_response(
+                    200,
+                    format!("Trace reset for {}.", self.state.name),
+                );
+            }
+        }
+    }
+
     pub async fn invoke(
         &mut self, method: http::Method, path_and_query: &str, body: hyper::Body,
     ) -> Result<Response, hyper::Error> {

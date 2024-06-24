@@ -122,7 +122,7 @@ async fn main() {
             println!("{}", output);
         }
         SubCommand::RemoveTrace(t) => {
-            let output = controller::reset_function(&t.name).await.unwrap();
+            let output = controller::reset_trace(&t.name).await.unwrap();
             println!("{}", output);
         }
         SubCommand::Get(t) => {

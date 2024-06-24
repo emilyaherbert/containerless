@@ -394,17 +394,6 @@ impl State {
         function_table: Weak<FunctionTable>, create_mode: CreateMode, containers_only: bool,
         containerless: Option<Containerless>, upgrade_pending: Arc<AtomicBool>,
     ) -> Result<(), Error> {
-        try_join!(
-            Self::maybe_start_tracing(
-                self_.clone(),
-                upgrade_pending.load(SeqCst),
-                &create_mode,
-                containers_only,
-                containerless
-            ),
-            Self::maybe_start_vanilla(self_.clone(), &create_mode, containerless)
-        )?;
-
         let init_num_replicas = match create_mode {
             CreateMode::New => 1,
             CreateMode::Adopt {
@@ -422,13 +411,16 @@ impl State {
         );
 
         let mut mode = match (containers_only, containerless) {
-            (true, _) => Mode::Vanilla,
+            (true, _) => Mode::Vanilla(true),
             (false, None) => Mode::Tracing(0),
             (false, Some(f)) => Mode::Decontainerized(f),
         };
 
         while let Some(message) = recv_requests.next().await {
             match (mode, message) {
+                (_, Message::GetMode(send)) => {
+                    util::send_log_error(send, util::text_response(200, format!("{}", mode)));
+                }
                 (_, Message::Shutdown(send_complete)) => {
                     if send_complete.is_canceled() {
                         error!(target: "dispatcher", "trying to send when the reciever is already dropped");
@@ -442,8 +434,27 @@ impl State {
                         return Ok(());
                     }
                 }
-                (_, Message::GetMode(send)) => {
-                    util::send_log_error(send, util::text_response(200, format!("{}", mode)));
+                (Mode::Decontainerized(_func), Message::ResetTrace(send_complete)) => {
+                    if send_complete.is_canceled() {
+                        error!(target: "dispatcher", "trying to send when the reciever is already dropped");
+                        return Err(Error::FunctionManagerTask(
+                            "reciever is already dropped".to_string(),
+                        ));
+                    } else {
+                        // NOTE(emily): when a new dispatcher is deployed and pods are adopted
+                        // the new dispatcher (the one using rust for the function)
+                        // automatically has containers_only set to true. This is OK for
+                        // testing, but should be fixed for deployment
+                        if containers_only {
+                            mode = Mode::Vanilla(true);
+                        } else {
+                            mode = Mode::Tracing(0);
+                        }
+                        send_complete.send(Ok(())).unwrap();
+                    }
+                },
+                (_, Message::ResetTrace(send_complete)) => {
+                    send_complete.send(Ok(())).unwrap();
                 }
                 (Mode::Decontainerized(func), Message::Request(req)) => {
                     let self_ = Arc::clone(&self_);
@@ -470,7 +481,7 @@ impl State {
                                 "extracting and sending trace",
                             ));
                         }
-                        mode = Mode::Vanilla;
+                        mode = Mode::Vanilla(true);
                         debug!(target: "dispatcher", "switched to Vanilla mode for {}", &self_.name);
                     } else {
                         util::send_log_error(
@@ -479,12 +490,43 @@ impl State {
                         );
                     }
                 }
+                (Mode::Tracing(0), Message::Request(req)) => {
+                    try_join!(
+                        Self::maybe_start_tracing(
+                            self_.clone(),
+                            upgrade_pending.load(SeqCst),
+                            &create_mode,
+                            containers_only,
+                            containerless
+                        ),
+                        Self::maybe_start_vanilla(self_.clone(), &create_mode, containerless)
+                    )?;
+
+                    debug!(target: "dispatcher", "INVOKE {}: FMT in Tracing mode recieved request with path {}", self_.name, req.payload.path_and_query);
+                    mode = Mode::Tracing(2);
+                    if self_.tracing_pod_available.load(SeqCst) {
+                        debug!(target: "dispatcher", "INVOKE {}: FMT in Tracing mode invoking(tracing) with request with path {}", self_.name, req.payload.path_and_query);
+                        task::spawn(Self::invoke_tracing(
+                            Arc::clone(&self_),
+                            req,
+                            Arc::clone(&autoscaler),
+                        ));
+                    } else {
+                        debug!(target: "dispatcher", "INVOKE {}: FMT in Tracing mode invoking(vanilla) with request with path {}", self_.name, req.payload.path_and_query);
+                        task::spawn(Self::invoke_vanilla(
+                            Arc::clone(&self_),
+                            req,
+                            Arc::clone(&autoscaler),
+                        ));
+                    }
+                },
                 (Mode::Tracing(100), Message::Request(req)) => {
                     info!(target: "dispatcher", "INVOKE {}: FMT in Tracing mode sending trace to compiler", self_.name);
                     task::spawn(Self::send_trace_then_stop_pod_and_service(Arc::clone(
                         &self_,
                     )));
-                    mode = Mode::Vanilla;
+                    // NOTE(emily): kludge
+                    mode = Mode::Vanilla(false);
                     task::spawn(Self::invoke_vanilla(
                         Arc::clone(&self_),
                         req,
@@ -510,7 +552,17 @@ impl State {
                         ));
                     }
                 }
-                (Mode::Vanilla, Message::Request(req)) => {
+                (Mode::Vanilla(true), Message::Request(req)) => {
+                    Self::maybe_start_vanilla(self_.clone(), &create_mode, containerless).await?;
+                    mode = Mode::Vanilla(false);
+                    debug!(target: "dispatcher", "INVOKE {}: FMT in Vanilla mode recieved request with path {}", self_.name, req.payload.path_and_query);
+                    task::spawn(Self::invoke_vanilla(
+                        Arc::clone(&self_),
+                        req,
+                        Arc::clone(&autoscaler),
+                    ));
+                }
+                (Mode::Vanilla(false), Message::Request(req)) => {
                     debug!(target: "dispatcher", "INVOKE {}: FMT in Vanilla mode recieved request with path {}", self_.name, req.payload.path_and_query);
                     task::spawn(Self::invoke_vanilla(
                         Arc::clone(&self_),
